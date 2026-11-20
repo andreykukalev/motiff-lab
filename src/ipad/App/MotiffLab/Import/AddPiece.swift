@@ -12,6 +12,9 @@ struct AddPieceSheet: View {
     let demo: () -> Void
     /// «Добавить папку» (version 0.5, experiment «Импорт папки»): a folder picked in Files, to look through.
     var folder: ((Result<URL, Error>) -> Void)?
+
+    /// What «Открыть файл» takes (ADD-01): what the library opens, and a JPEG or PNG, a piece of one page.
+    static let openable: [UTType] = LibraryView.openable + PhotoPiece.images
     @State private var choosing = false
     @State private var photographing = false
     @State private var choosingFolder = false
@@ -43,7 +46,7 @@ struct AddPieceSheet: View {
                 // On the button, not the sheet: the recording's chooser below has its own, and a second file importer on a
                 // view that holds another is not shown.
                 // A JPEG or PNG becomes a piece of one page here, as a photo of a page does, and opens as its project file.
-                .fileImporter(isPresented: $choosing, allowedContentTypes: LibraryView.openable + PhotoPiece.images) { result in
+                .fileImporter(isPresented: $choosing, allowedContentTypes: Self.openable) { result in
                     guard case .success(let url) = result, PhotoPiece.isImage(url) else { return picked(result) }
                     Task { await openImage(url) }
                 }

@@ -1,3 +1,4 @@
+import UniformTypeIdentifiers
 import XCTest
 @testable import MotiffLab
 
@@ -140,5 +141,14 @@ final class AddPieceTests: XCTestCase {
         XCTAssertFalse(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.musicxml")))
         XCTAssertFalse(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.heic")))
         XCTAssertTrue(PhotoPiece.isImage(URL(fileURLWithPath: "/tmp/Prelude.JPEG")))
+    }
+
+    /// «Открыть файл» takes what the library opens and a JPEG or a PNG, by the one list the sheet gives its file importer
+    /// (ADD-01; named in v1.2, a leftover of 1.1).
+    func testOpenFileTakesWhatTheLibraryOpensAndAPicture() {
+        XCTAssertEqual(AddPieceSheet.openable, LibraryView.openable + PhotoPiece.images)
+        for type in [UTType.pdf, .jpeg, .png, .midi] {
+            XCTAssertTrue(AddPieceSheet.openable.contains(type), type.identifier)
+        }
     }
 }

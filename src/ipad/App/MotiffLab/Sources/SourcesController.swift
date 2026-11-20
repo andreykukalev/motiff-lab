@@ -90,10 +90,14 @@ final class SourcesController: ObservableObject {
     /// The recording heard over the view shown («Исполнение», `PerformanceCapsule`); nil while none is. Picking a view
     /// leaves it as it is (v0.10, finding 24).
     @Published var performance: String?
+    /// The draft of another piece a fragment just went into (v1.2, collage), whose toast offers «Открыть»; nil while none
+    /// is told (`DraftElsewhereToast`).
+    @Published var addedElsewhere: DraftAddedElsewhere?
 
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
-    private var file: URL?
+    /// The project file the piece is saved to; nil for none.
+    private(set) var file: URL?
     /// The screen of the piece's other view this one handed the recording to (`handOver`), until it goes.
     private var handedTo: URL?
     /// The sound of the recording heard (`PerformanceCapsule`): the app's one, so it goes on from screen to screen.

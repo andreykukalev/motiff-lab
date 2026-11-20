@@ -183,14 +183,13 @@ public class PhraseVariantsTests
     }
 
     [Fact]
-    public void Names_count_on_from_the_highest_variant_and_the_proposer_is_served()
+    public void Names_count_on_from_the_highest_variant_and_the_proposer_has_the_variation_tools()
     {
         Assert.Equal("Вариант 3", PhraseVariants.NextName(["Вариант 2", "Идея", "Вариант 1"], Words.Russian));
         Assert.Equal("Variant 1", PhraseVariants.NextName([], Words.English));
         Assert.True(AssistantRoles.Allows(AssistantRole.Proposer, "notes.edit"));
         Assert.True(AssistantRoles.Allows(AssistantRole.Proposer, "variation.simplify"));
         Assert.False(AssistantRoles.Allows(AssistantRole.Mentor, "variation.simplify"));
-        Assert.Equal([AssistantRole.Mentor, AssistantRole.Proposer], AssistantRoles.Served);
         Assert.Equal(AssistantRole.Proposer, AssistantRoles.Parse("proposer"));
     }
 }

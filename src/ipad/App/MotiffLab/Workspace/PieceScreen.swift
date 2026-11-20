@@ -16,7 +16,7 @@ struct PieceScreen: View {
         } else if piece.recording != nil {
             RecordingScreen(piece: piece, reopen: reopen)
         } else {
-            ScoreScreen(piece: piece, switchView: switchView, reopen: reopen)
+            ScoreScreen(piece: piece, switchView: switchView, reopen: reopen, openFile: openFile)
         }
     }
 

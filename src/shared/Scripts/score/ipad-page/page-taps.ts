@@ -117,10 +117,11 @@ function tapOnMark(target: Element | null): boolean {
     const version = target?.closest<HTMLElement>(".perf-marker");
     if (version) {
         const box = version.getBoundingClientRect();
-        // A draft's приём number or seam diamond (v1.1) says which it is.
+        // A draft's приём number or seam diamond (v1.1), or an anchor's mark (v1.2), says which it is.
         const technique = version.dataset.technique === undefined ? {} : { technique: version.dataset.technique };
         const seam = version.dataset.seam === undefined ? {} : { seam: version.dataset.seam };
-        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique, ...seam });
+        const anchor = version.dataset.anchor === undefined ? {} : { anchor: version.dataset.anchor };
+        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique, ...seam, ...anchor });
         return true;
     }
     const marker = target?.closest<HTMLElement>(".marker");

@@ -128,6 +128,31 @@ final class AssistantStatesTests: XCTestCase {
         XCTAssertEqual(assistant.current?.history, [], "a question with no answer is not in what the next turn sends")
     }
 
+    /// v1.2, answer 6 of its plan: the consent lists the piece's counted facts, so a player who agreed to the list before is
+    /// asked again, once; their new answer is kept, and «Не сейчас» asks next time as for a first question.
+    func testAConsentToTheEarlierListIsAskedAgainOnce() {
+        let defaults = UserDefaults(suiteName: "assistant-\(UUID().uuidString)")!
+        defaults.set("yes", forKey: AssistantController.consentKey)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("assistant-\(UUID().uuidString)")
+        let before = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
+        XCTAssertFalse(before.consentGiven, "the earlier list's consent does not cover the new one")
+        XCTAssertTrue(before.consentAskedAgain)
+        before.consent(true)
+        XCTAssertTrue(before.consentGiven)
+        XCTAssertFalse(before.consentAskedAgain)
+        let after = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
+        XCTAssertTrue(after.consentGiven, "asked once: the new consent is kept")
+        XCTAssertFalse(after.consentAskedAgain)
+        after.consent(false)
+        let declined = AssistantController(store: AssistantStore(folder: folder), defaults: defaults)
+        XCTAssertFalse(declined.consentGiven)
+        XCTAssertFalse(declined.consentAskedAgain, "withdrawn, it is asked as before a first question")
+        let text = UIText(language: "ru")
+        XCTAssertTrue(text["mentor.consentPiece"].contains("самые плотные такты"))
+        XCTAssertTrue(text["mentor.consentDigest"].contains("темп выделенных тактов"))
+        XCTAssertNotEqual(UIText(language: "en")["mentor.consentAgain"], "mentor.consentAgain")
+    }
+
     func testWithoutConsentNothingIsAskedOfTheAPI() async {
         let (assistant, folder) = controller(consent: false)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -187,7 +212,7 @@ final class AssistantStatesTests: XCTestCase {
             return (.answer(text: "It stays in A minor [[key]]", fallback: false), nil)
         }, run: { _ in .null })
         let outcome = await turns.ask("Does it change?", in: before, context: context, language: "en")
-        guard case let .answered(answered, _, _) = outcome else { return XCTFail("answered") }
+        guard case let .answered(answered, _, _, _) = outcome else { return XCTFail("answered") }
         guard case let .array(history)? = sent?["history"] else { return XCTFail("a history") }
         XCTAssertEqual(history.count, 3, "the first question, its answer and the new question")
         XCTAssertEqual(sent?["context"], context, "the passage's facts digest goes with every turn")
@@ -202,6 +227,8 @@ final class AssistantStub: URLProtocol {
         didSet { asked = [] }
     }
     static var asked: [String] = []
+    /// Turns answered one after another before `answers["turn"]`, each 200: a question's tool calls, then its answer.
+    static var turns: [Data] = []
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -209,7 +236,8 @@ final class AssistantStub: URLProtocol {
     override func startLoading() {
         let path = request.url?.lastPathComponent ?? ""
         Self.asked.append(path)
-        guard let (status, body) = Self.answers[path], let url = request.url,
+        let queued: (Int, Data)? = path == "turn" && !Self.turns.isEmpty ? (200, Self.turns.removeFirst()) : nil
+        guard let (status, body) = queued ?? Self.answers[path], let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))

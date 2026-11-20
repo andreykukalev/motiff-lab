@@ -117,7 +117,7 @@ struct RecordingScreen: View {
                         .foregroundStyle(Color.ds("ink-2"))
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(CGFloat.ds("s-4"))
-                        .frame(width: 320, alignment: .leading)
+                        .frame(width: ScoreScreen.contentsWidth, alignment: .leading)
                         .background(Color.ds("surface"))
                 }
             SourcesButton(open: sourcesOpen, text: text) { sourcesOpen.toggle() }

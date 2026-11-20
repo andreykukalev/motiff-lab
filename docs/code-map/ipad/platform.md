@@ -24,7 +24,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
   features build their own types from them. They name no feature type.
 - `DraftAnswers.swift` (v1.1): `DraftSheetAnswer`, `DraftViewAnswer`, `DraftTechniquesAnswer`, `DraftVariantAnswer`,
-  `DraftSeamsAnswer`.
+  `DraftSeamsAnswer`; v1.2 `PieceDraftsAnswer` (`project.drafts`), `DraftAddedElsewhereAnswer`.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
 - `RollPage.swift`: the one port to the roll page (0031 step 12, B7): `RollCommand` names `window.roll`'s functions,
@@ -36,7 +36,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `OpenPiece.swift`: a piece opened in music-core: engraved, or a PDF piece (`isDocument`), or, since v1.1 (finding 29),
   a piece that is only its recording (`recording`, its original's id), neither engraved; a draft opened to be shown
   carries its places (`draft`, v1.1).
-- `ProjectFiles.swift`: the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
+- `ProjectFiles.swift`: `ProjectFileCache` (what music-core read from each file, kept by its bytes: the library's
+  summaries, other pieces' drafts), `PieceSummary.shownTitle` (a library line's title); the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
   JPEG or PNG, a recording); `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
 - `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
   project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and

@@ -27,7 +27,7 @@ struct LibraryView: View {
     @State private var problem: String?
     @State private var projects: [ProjectFiles.Entry] = []
     @State private var summaries: [URL: PieceSummary] = [:]
-    @State private var summaryCache = SummaryCache()
+    @State private var summaryCache = ProjectFileCache<PieceSummary> { await PieceSummary.read($0) }
     @State private var reloads = 0
     /// The projects saved online that are not on this iPad (#335); none while signed out or offline.
     @State private var online: [OnlineProject] = []
@@ -324,7 +324,7 @@ struct LibraryView: View {
         reloads += 1
         let mine = reloads
         projects = ProjectFiles.list()
-        let read = await summaryCache.summaries(projects.map(\.url))
+        let read = await summaryCache.values(projects.map(\.url))
         guard mine == reloads else { return }
         summaries = read
         shelve()

@@ -93,11 +93,18 @@ struct PieceCore: Sendable {
         await draftOpen(["draft": draft, "variant": variant])
     }
 
-    private func draftOpen<Value: Decodable & Sendable>(_ fields: [String: Any]) async -> Answer<Value> {
+    /// `drafts.proposal` (v1.2, the assistant in a draft): the draft as the assistant's proposal would leave it (`fields`:
+    /// the draft, the place, the tool, its parameters and the role), opened under a number of its own only to be shown and
+    /// answered as `drafts.open` («▶ После»); nothing is kept, and the caller closes the number once heard.
+    func openProposal(_ fields: [String: Any]) async -> Answer<DraftViewAnswer> {
+        await draftOpen(fields, call: "drafts.proposal")
+    }
+
+    private func draftOpen<Value: Decodable & Sendable>(_ fields: [String: Any], call: String = "drafts.open") async -> Answer<Value> {
         let piece = piece
         let request = facadeRequest(fields)
-        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.open", request) }
-        return Answer(text, of: "drafts.open")
+        let text = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
+        return Answer(text, of: call)
     }
 
     /// The corrections calls (OpenPiece.Corrections.cs and OpenPiece.EditsLayer.cs), every one answered with a bar's notes

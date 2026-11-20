@@ -217,7 +217,7 @@
     }
 
     /**
-     * The centre of the first marker over the bars of a kind (`marker`: "version", "place", "technique" or "seam", as
+     * The centre of the first marker over the bars of a kind (`marker`: "version", "place", "technique", "seam" or "anchor", as
      * `scoreMarks.markers` reads them), of the bar `bar` when given, moved by `dx` and `dy` pixels; window pixels.
      */
     function markerPoint(point) {
@@ -418,9 +418,10 @@
             return { handle, x: round((box.left + box.right) / 2), y: round((box.top + box.bottom) / 2) };
         })),
         // The labels over the bars (`performance`): another version's, and a draft's place labels, приём numbers and seam
-        // diamonds (v1.1), in the order the page draws them, each with its bar, its words, its state and its box.
+        // diamonds (v1.1) and anchor marks (v1.2), in the order the page draws them, each with its bar, its words, its state
+        // and its box.
         markers: () => [...document.querySelectorAll("body > .perf-marker")].filter(shown).map((marker) => ({
-            kind: ["place", "technique", "seam"].find((kind) => marker.classList.contains(kind)) ?? "version",
+            kind: ["place", "technique", "seam", "anchor"].find((kind) => marker.classList.contains(kind)) ?? "version",
             bar: Number(marker.dataset.bar),
             text: marker.textContent,
             state: [...marker.classList].find((name) => name.startsWith("state-"))?.slice("state-".length) ?? null,

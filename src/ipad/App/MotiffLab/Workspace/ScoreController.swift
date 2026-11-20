@@ -74,6 +74,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     let draftModel = DraftTechniquesModel()
     /// A draft's seams on its view, their diamonds and the one picked (Sources/DraftSeams.swift, v1.1 step 7).
     let seamsModel = DraftSeamsModel()
+    /// A draft's anchors on its view, their amber marks and the one picked (Sources/DraftAnchors.swift, v1.2).
+    let anchorsModel = DraftAnchorsModel()
     /// A word of guidance for a moment over the pill, by the key of its text, such as why Expand waits for a selection (#521 19).
     @Published private(set) var notice: Notice?
 
@@ -352,7 +354,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch event {
         case let .pages(first, last, count):
             pages = PagesInView(first: first, last: last, count: count)
-        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .phraseMark, .sectionMark, .motifMark:
+        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark, .motifMark:
             markTapped(event)
         case let .phraseHeld(number, left, bottom):
             holdPhrase(number, at: CGPoint(x: left, y: bottom))
@@ -431,7 +433,12 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         if extend, let selection = selectionModel.selection {
             if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
         }
-        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
+        Task { await select(request: Self.barsRequest(from, to), gesture: gesture) }
+    }
+
+    /// Whole bars, as music-core's `select` takes them.
+    static func barsRequest(_ first: Int, _ last: Int) -> String {
+        "{\"bars\": {\"first\": \(first), \"last\": \(last)}}"
     }
 
     /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo);
@@ -1346,6 +1353,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await applyLayers()
             await draftModel.load(piece.draft, on: piece.id)
             await seamsModel.load(piece.draft, on: piece.id)
+            anchorsModel.keep(piece.draft)
             await loadVersions(piece)
             if !ringed.isEmpty { await showRings(scroll: false) }
             await applyBeats()

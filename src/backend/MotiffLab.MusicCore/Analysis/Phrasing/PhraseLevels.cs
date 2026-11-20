@@ -294,14 +294,6 @@ public sealed class PhraseLevels
         _ => null,
     };
 
-    /// <summary>The value of the setting "phrases.granularity" for a level: "short", "phrases", "sentences".</summary>
-    public static string SettingValue(PhraseLevel level) => level switch
-    {
-        PhraseLevel.Short => "short",
-        PhraseLevel.Phrase => "phrases",
-        PhraseLevel.Sentence => "sentences",
-        _ => throw new ArgumentOutOfRangeException(nameof(level), level, "Unknown level."),
-    };
 
     /// <summary>"short unit", "phrase", "sentence" in the player's language, in the nominative singular.</summary>
     public static string Describe(PhraseLevel level, Words words) => level switch

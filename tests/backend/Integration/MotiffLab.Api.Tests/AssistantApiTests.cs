@@ -249,7 +249,7 @@ public sealed class AssistantApiTests : IClassFixture<AssistantApiTests.WithMode
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             base.ConfigureWebHost(builder);
-            builder.UseSetting("Assistant:Allowed", "allowed-1, allowed-2, allowed-3, allowed-4, allowed-5, allowed-6, allowed-free");
+            builder.UseSetting("Assistant:Allowed", "allowed-1, allowed-2, allowed-3, allowed-4, allowed-5, allowed-6, allowed-d1, allowed-d2, allowed-d3, allowed-d4, allowed-free");
             builder.UseSetting("Assistant:DailyRequests", DailyRequests.ToString(System.Globalization.CultureInfo.InvariantCulture));
             builder.ConfigureLogging(logging => logging.AddProvider(new ListLogger(Logs)));
             if (Choice is { } choice)

@@ -72,6 +72,66 @@ final class AssistantTests: XCTestCase {
         XCTAssertEqual(AssistantStatus(configured: true, allowed: true, pro: true, left: 0).note, "mentor.dailyCap")
     }
 
+    /// Assistant option A item 4 (v1.2): a template answer says in words why the model's was not shown, from the API's
+    /// additive "reason"; a reason this iPad does not know says it in general, and an answer with none (one kept from
+    /// before, or an API without the field) says nothing more than before.
+    func testAFallbackSaysWhyInWordsInBothLanguages() async throws {
+        let reply = AssistantReply(JSONValue.parse(#"{"kind": "answer", "text": "x [[key]]", "fallback": true, "reason": "noCitation"}"#)!)
+        XCTAssertEqual(reply, .answer(text: "x [[key]]", fallback: true, reason: "noCitation"))
+        let shown = AssistantReply(JSONValue.parse(#"{"kind": "answer", "text": "x [[key]]", "fallback": false, "reason": "noCitation"}"#)!)
+        XCTAssertEqual(shown, .answer(text: "x [[key]]", fallback: false), "a reason counts only with the template")
+
+        let turns = AssistantTurns(send: { _ in (.answer(text: "A minor [[key]]", fallback: true, reason: "timeout"), nil) }, run: { _ in .null })
+        let outcome = await turns.ask("Why?", in: chat(), context: context, language: "en")
+        guard case let .answered(_, _, fallback, reason) = outcome else { return XCTFail("no answer") }
+        XCTAssertTrue(fallback)
+        XCTAssertEqual(reason, "timeout")
+
+        var exchange = AssistantExchange(id: "e1", question: "Why?", scope: "Bar 3")
+        exchange.fallback = true
+        XCTAssertNil(exchange.reasonKey, "no reason named: nothing more is said")
+        let reasons = ["empty", "tooLong", "noCitation", "unknownFact", "timeout", "modelError", "toolNotAllowed", "badArguments", "tooManyCalls"]
+        var keys: [String] = []
+        for named in reasons + ["somethingNew"] {
+            exchange.reason = named
+            keys.append(try XCTUnwrap(exchange.reasonKey))
+        }
+        XCTAssertEqual(Set(keys).count, reasons.count + 1, "each reason its own words")
+        XCTAssertEqual(keys.last, "mentor.reason.other", "an unknown reason in general words")
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            for key in keys { XCTAssertNotEqual(text[key], key, "\(key) in \(language)") }
+        }
+        XCTAssertEqual(UIText(language: "ru")["mentor.reason.noCitation"], "Почему: ответ модели не ссылался ни на один факт приложения.")
+        exchange.fallback = false
+        XCTAssertNil(exchange.reasonKey, "the model's answer shown needs no reason")
+    }
+
+    /// Assistant option A item 6 (v1.2): a `practice.suggest` result is a button in the engine's words with its bars, hand,
+    /// tempo and loop; a refused call, or another tool's result, is none.
+    func testAPracticeSuggestionIsAButtonFromItsResult() {
+        let suggested = JSONValue.parse(#"""
+        {"tool": "practice.suggest", "kind": "suggestAction", "ok": true,
+         "result": {"action": {"bars": {"from": 3, "to": 4}, "hand": "left", "tempo": 60, "loop": true},
+                    "label": "Зациклить такты 3–4 в темпе 60 % · левая рука"}}
+        """#)!
+        let refused = JSONValue.parse(#"{"tool": "practice.suggest", "kind": "suggestAction", "ok": false, "refusal": "В пьесе такты с 0 по 105."}"#)!
+        let read = JSONValue.parse(#"{"tool": "notes.list", "kind": "read", "ok": true, "result": {"notes": []}}"#)!
+        let calls = [
+            AssistantToolCall(id: "c1", name: "practice.suggest", arguments: .object([:])),
+            AssistantToolCall(id: "c2", name: "practice.suggest", arguments: .object([:])),
+            AssistantToolCall(id: "c3", name: "notes.list", arguments: .object([:])),
+        ]
+        let answered = chat(role: "proposer").asking("How do I practise bars 3–4?").called(calls).resulted([
+            AssistantToolOutcome(id: "c1", name: "practice.suggest", content: suggested),
+            AssistantToolOutcome(id: "c2", name: "practice.suggest", content: refused),
+            AssistantToolOutcome(id: "c3", name: "notes.list", content: read),
+        ]).answered("Slowly [[key]]")
+        let offers = AssistantPracticeOffer.offers(in: answered)
+        XCTAssertEqual(offers, [AssistantPracticeOffer(first: 3, last: 4, hand: "left", tempo: 60, loop: true, label: "Зациклить такты 3–4 в темпе 60 % · левая рука")])
+        XCTAssertTrue(AssistantDraftOffer.offers(in: answered).isEmpty, "a suggestion is no draft")
+    }
+
     func testAQuestionRunsTheModelsCallsOnTheDeviceUntilTheAnswer() async {
         var sent: [JSONValue] = []
         var ran: [String] = []
@@ -93,7 +153,7 @@ final class AssistantTests: XCTestCase {
         XCTAssertEqual(ran, ["notes.read"])
         XCTAssertEqual(sent.count, 2)
         XCTAssertEqual(sent[1]["history"]?.items.map { $0["kind"]?.string }, ["question", "toolCalls", "toolResults"])
-        guard case let .answered(answered, text, fallback) = outcome else { return XCTFail("no answer") }
+        guard case let .answered(answered, text, fallback, _) = outcome else { return XCTFail("no answer") }
         XCTAssertEqual(text, "Four notes in [[key]].")
         XCTAssertFalse(fallback)
         XCTAssertEqual(answered.history.map(\.kind), [.question, .toolCalls, .toolResults, .answer])
@@ -125,7 +185,7 @@ final class AssistantTests: XCTestCase {
         )
         let outcome = await turns.ask("All of it", in: chat(), context: context, language: "ru")
         XCTAssertEqual(ran, AssistantChat.mostToolCalls)
-        guard case let .answered(answered, _, _) = outcome else { return XCTFail("no answer") }
+        guard case let .answered(answered, _, _, _) = outcome else { return XCTFail("no answer") }
         let refusals = answered.resultsInQuestion.filter { $0.content["ok"] == .bool(false) }
         XCTAssertEqual(refusals.count, 2)
         XCTAssertTrue(refusals[0].content["refusal"]?.string?.hasPrefix("На один вопрос") ?? false)

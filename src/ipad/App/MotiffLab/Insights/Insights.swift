@@ -723,7 +723,7 @@ struct TrialRow: View {
             .padding(CGFloat.ds("s-3"))
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("plum"), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+            .composedFrame()
         }
     }
 }

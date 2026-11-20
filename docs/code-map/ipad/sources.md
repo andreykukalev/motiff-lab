@@ -4,15 +4,20 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
+`DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
+`OriginalsViews`, `OtherPieceDrafts`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
 - Drafts (v1.1, ADR 0034): `SourceLayers.drafts`, the view of kind "draft" (its `name` its word); `SourcesDrafts.swift`
   (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
   `takeHand`, the seams' offers, `takeSure`, `makeBase`, `put`, undone by `drafts.undo`, `.draftStep`);
   `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet; «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
-  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams).
+  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams,
+  since v1.2 the register and the bridge place picked), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
+  amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`, `acceptProposal` (the assistant's «Принять», `drafts.accept`). Collage (v1.2):
+  `OtherPieceDrafts.swift` (other files' drafts, `project.drafts` kept by bytes), `DraftChoice.Into.elsewhere`,
+  `addToDraft` writes that file as music-core answers it (`drafts.add` with "file"), nothing here changes;
+  `addedElsewhere` and `DraftElsewhereToast` («Открыть»).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

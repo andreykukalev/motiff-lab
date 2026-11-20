@@ -11,9 +11,13 @@ import Foundation
 /// for the player's Accept or Cancel (17.3).
 @MainActor
 final class AssistantController: ObservableObject {
-    /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
+    /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad: the list agreed to. Version 1.2 sends
+    /// the piece's counted facts too (its plan, answer 6), so a consent to the list before ("yes") is asked again, once.
     static let consentKey = "ml-assistant-consent"
-    static let consented = "yes"
+    static let consented = "v1.2"
+    /// The consent to what a question in a draft sends (v1.2, ADR 0034 section 6, the plan's answer 7): a list of its own,
+    /// asked once before the first question in a draft, kept beside the other the same way.
+    static let draftConsentKey = "ml-assistant-draft-consent"
 
     /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
     @Published private(set) var panelOpen = false
@@ -33,8 +37,14 @@ final class AssistantController: ObservableObject {
     @Published private(set) var standing: String?
     @Published private(set) var checking = false
     @Published private(set) var consentGiven: Bool
+    /// Whether the player agreed to an earlier list, so the consent says it asks again; false once they decide.
+    @Published private(set) var consentAskedAgain: Bool
     /// The assistant at the selection (#582 items 17.2 and 17.4): one question and its answer, never kept; nil while closed.
     @Published private(set) var here: AssistantHere?
+    /// Whether the player agreed to what a question in a draft sends (`draftConsentKey`).
+    @Published private(set) var draftConsentGiven: Bool
+    /// The assistant in a draft's place (v1.2 step 8): one question and its answer, never kept; nil while closed.
+    @Published private(set) var inDraft: AssistantInDraft?
 
     private let store: AssistantStore
     private let defaults: UserDefaults
@@ -45,7 +55,10 @@ final class AssistantController: ObservableObject {
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
         self.store = store
         self.defaults = defaults
-        consentGiven = defaults.string(forKey: Self.consentKey) == Self.consented
+        let kept = defaults.string(forKey: Self.consentKey)
+        consentGiven = kept == Self.consented
+        consentAskedAgain = kept != nil && kept != Self.consented
+        draftConsentGiven = defaults.string(forKey: Self.draftConsentKey) == Self.consented
     }
 
     /// The conversation open in the panel: the one chosen, or the one its first question starts (nil until then). Closing
@@ -59,6 +72,7 @@ final class AssistantController: ObservableObject {
         guard key != piece else { return }
         piece = key
         here = nil
+        inDraft = nil
         chats = store.chats(of: key)
         currentId = chats.first?.id
         listShown = false
@@ -120,9 +134,16 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
-    func consent(_ given: Bool) {
-        if given { defaults.set(Self.consented, forKey: Self.consentKey) } else { defaults.removeObject(forKey: Self.consentKey) }
+    /// The player's answer to the consent: the piece's list, or with `inDraft` the draft's own (v1.2).
+    func consent(_ given: Bool, inDraft: Bool = false) {
+        let key = inDraft ? Self.draftConsentKey : Self.consentKey
+        if given { defaults.set(Self.consented, forKey: key) } else { defaults.removeObject(forKey: key) }
+        if inDraft {
+            draftConsentGiven = given
+            return
+        }
         consentGiven = given
+        consentAskedAgain = false
     }
 
     /// A question asked about the piece open in music-core: its answer, or why there is none, joins the conversation.
@@ -160,12 +181,17 @@ final class AssistantController: ObservableObject {
         let outcome = await answer(question, in: chat, about: ask)
         phase = .idle
         switch outcome {
-        case let .answered(answered, text, fallback, context):
+        case let .answered(answered, text, fallback, reason, context):
             standing = nil
             exchange.answer = AssistantChat.pieces(of: text, context: context, results: answered.resultsInQuestion)
             exchange.fallback = fallback
+            exchange.reason = reason
             let drafts = AssistantDraftOffer.offers(in: answered)
             exchange.drafts = drafts.isEmpty ? nil : drafts
+            let practice = AssistantPracticeOffer.offers(in: answered)
+            exchange.practice = practice.isEmpty ? nil : practice
+            let proposals = AssistantPlaceProposal.offers(in: answered)
+            exchange.proposals = proposals.isEmpty ? nil : proposals
             return (exchange, answered, text)
         case let .unanswered(note):
             exchange.note = note
@@ -191,18 +217,79 @@ final class AssistantController: ObservableObject {
     /// A question at the selection: one at a time, with no conversation before it; its answer replaces the last one.
     func askHere(_ question: String, about ask: AssistantAsk) async {
         guard !busy, let open = here else { return }
-        busy = true
         here?.asking = question
+        defer { here?.asking = nil }
+        let asked = await askOnce(question, role: open.role, about: ask)
+        guard here != nil else { return }
+        here?.exchange = asked.exchange
+        here?.answer = asked.text
+    }
+
+    /// One question with no conversation before it, in `role` (at the selection, or in a draft's place): its exchange and
+    /// the answer's text.
+    private func askOnce(_ question: String, role: String, about ask: AssistantAsk) async -> (exchange: AssistantExchange, text: String) {
+        busy = true
         defer {
             busy = false
             phase = .idle
-            here?.asking = nil
         }
-        let chat = AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: open.role)
+        let chat = AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: role)
         let (exchange, _, text) = await self.exchange(question, in: chat, about: ask)
-        guard here != nil else { return }
-        here?.exchange = exchange
-        here?.answer = text
+        return (exchange, text)
+    }
+
+    // MARK: - In a draft's place (v1.2, ADR 0034 section 6, the plan's answer 7)
+
+    /// «С ассистентом · Pro» on a place of the draft: the assistant opens there, empty; whatever was open in another place goes.
+    func openInDraft(_ place: AssistantDraftPlace) {
+        guard inDraft?.place != place else { return }
+        inDraft = AssistantInDraft(place: place)
+    }
+
+    func closeInDraft() {
+        inDraft = nil
+    }
+
+    /// A question about the place the assistant is open on (`ask.place`): one at a time, in the place assembler's role;
+    /// its answer, with the steps it proposes, replaces the last one.
+    func askInDraft(_ question: String, about ask: AssistantAsk) async {
+        guard !busy, let open = inDraft?.place else { return }
+        inDraft?.asking = question
+        defer { inDraft?.asking = nil }
+        let asked = await askOnce(question, role: AssistantDraftPlace.role, about: ask)
+        // Closed, or opened on another place meanwhile: the answer is not that place's.
+        guard inDraft?.place == open else { return }
+        inDraft?.exchange = asked.exchange
+    }
+
+    /// «Принять» on a step proposed in the place: `take` keeps it (the screen's step on the draft, music-core's
+    /// `drafts.accept`, answering why not, or nil once kept); then the proposal says so and the others of its question go,
+    /// or it says why music-core did not take it. True when it was kept.
+    @discardableResult
+    func accept(_ proposal: AssistantPlaceProposal, by take: () async -> String?) async -> Bool {
+        guard !busy else { return false }
+        busy = true
+        defer { busy = false }
+        if let problem = await take() {
+            mark(proposal.id, .proposed, problem: problem)
+            return false
+        }
+        for other in inDraft?.exchange?.proposals ?? [] where other.id != proposal.id && other.state == .proposed {
+            mark(other.id, .cancelled)
+        }
+        mark(proposal.id, .accepted)
+        return true
+    }
+
+    /// «Отказаться» on a step proposed in the place: nothing changes but the proposal, which says so.
+    func refuse(_ proposal: AssistantPlaceProposal) {
+        mark(proposal.id, .cancelled)
+    }
+
+    private func mark(_ proposal: String, _ state: AssistantDraftOffer.Decision, problem: String? = nil) {
+        guard let index = inDraft?.exchange?.proposals?.firstIndex(where: { $0.id == proposal }) else { return }
+        inDraft?.exchange?.proposals?[index].state = state
+        inDraft?.exchange?.proposals?[index].problem = problem
     }
 
     /// «Продолжить в чате» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
@@ -284,19 +371,21 @@ final class AssistantController: ObservableObject {
     }
 
     enum Answer {
-        case answered(AssistantChat, text: String, fallback: Bool, context: JSONValue)
+        case answered(AssistantChat, text: String, fallback: Bool, reason: String?, context: JSONValue)
         case unanswered(String)
     }
 
     /// The answer, or why there is none: nothing is sent without consent, a model on for the account and a passage a turn
     /// can carry (the web app's MentorAnswerAsync).
     func answer(_ question: String, in chat: AssistantChat, about ask: AssistantAsk) async -> Answer {
-        guard consentGiven else { return .unanswered("mentor.noConsent") }
+        // A question in a draft goes only on the draft's own consent (v1.2).
+        guard ask.place == nil ? consentGiven : draftConsentGiven else { return .unanswered("mentor.noConsent") }
         let (status, problem) = await ask.relay.status()
         guard let status else { return .unanswered((problem ?? .unreachable).note) }
         if let note = status.note { return .unanswered(note) }
-        guard let context = await Self.context(piece: ask.piece, selection: ask.wholePiece ? nil : ask.selection, wholePiece: ask.wholePiece) else {
-            return .unanswered("mentor.tooManyBars")
+        let place = ask.place
+        guard let context = await Self.context(piece: ask.piece, selection: ask.wholePiece ? nil : ask.selection, wholePiece: ask.wholePiece, place: place) else {
+            return .unanswered(await Self.contextRefused(piece: ask.piece, place: place))
         }
         let piece = ask.piece
         let role = chat.role
@@ -307,18 +396,30 @@ final class AssistantController: ObservableObject {
             },
             run: { [weak self] call in
                 self?.step(.lookingUp)
-                // With the turn's role, music-core checks the call as the relay does before it runs it.
-                let request = JSONValue.object(["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]).text
-                let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.call", request) }
+                // With the turn's role, music-core checks the call as the relay does before it runs it; in a draft, on its place.
+                let fields: [String: JSONValue] = ["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]
+                let request = JSONValue.object(fields.merging(place?.fields ?? [:]) { $1 }).text
+                let name = place == nil ? "assistant.call" : "drafts.call"
+                let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
                 return AssistantTurns.content(ofFacade: answer, tool: call.name)
             }
         )
         switch await turns.ask(question, in: chat, context: context, language: ask.language) {
-        case let .answered(answered, text, fallback):
-            return .answered(answered, text: text, fallback: fallback, context: context)
+        case let .answered(answered, text, fallback, reason):
+            return .answered(answered, text: text, fallback: fallback, reason: reason, context: context)
         case let .unanswered(note):
-            return .unanswered(note)
+            // Too large for one turn (its size, or the API's 413): in a draft no fewer bars can be selected.
+            return .unanswered(place != nil && note == "mentor.tooLarge" ? "mentor.placeTooLarge" : note)
         }
+    }
+
+    /// Why a turn has no context (`context` answered nil): the selection is longer than a question takes; in a draft's
+    /// place, the place or its variant is longer than 32 bars when the place is still there (`drafts.techniques` reads it,
+    /// as music-core refuses only a place it cannot find or one too long), else the place could not be read.
+    static func contextRefused(piece: Int32, place: AssistantDraftPlace?) async -> String {
+        guard let place else { return "mentor.tooManyBars" }
+        let there = await PieceCore(piece: piece).draftTechniques(draft: place.draft, place: place.place).value != nil
+        return there ? "mentor.placeTooLong" : "mentor.placeUnread"
     }
 
     /// The question's phase now (a turn sent, a tool call run on the iPad).
@@ -327,14 +428,17 @@ final class AssistantController: ObservableObject {
     }
 
     /// What a turn sends as its context (music-core's `assistant.context`): the bars the selection touches with their notes,
-    /// or the whole piece's digest; nil when the selection spans more bars than a question may hold.
-    static func context(piece: Int32, selection: ScoreSelection?, wholePiece: Bool) async -> JSONValue? {
+    /// or the whole piece's digest; nil when the selection spans more bars than a question may hold. In a draft's `place`
+    /// (`drafts.context`, v1.2): the place's digest and the notes of its base and of the variant built from; nil when either
+    /// is longer than 32 bars.
+    static func context(piece: Int32, selection: ScoreSelection?, wholePiece: Bool, place: AssistantDraftPlace? = nil) async -> JSONValue? {
         var request: [String: JSONValue] = ["wholePiece": .bool(wholePiece)]
         if let selection {
             request["selection"] = .object(["onset": .int(Int(selection.onset.rounded())), "end": .int(Int(selection.end.rounded()))])
         }
-        let body = JSONValue.object(request).text
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "assistant.context", body) }
+        let body = JSONValue.object(place?.fields ?? request).text
+        let name = place == nil ? "assistant.context" : "drafts.context"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, body) }
         return JSONValue.parse(answer)?["context"]
     }
 }
@@ -361,4 +465,6 @@ struct AssistantAsk {
     /// "mentor", or "proposer" with «Помощник правит ноты» on.
     var role: String
     var relay: AssistantRelay
+    /// The draft's place it is asked about (v1.2); nil for the piece.
+    var place: AssistantDraftPlace?
 }

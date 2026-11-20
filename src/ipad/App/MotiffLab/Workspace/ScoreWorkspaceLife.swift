@@ -22,6 +22,8 @@ extension ScoreWorkspace {
         // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
         // spec section 11: each visit with the sources on stayed in memory).
         sources.reopen = nil
+        // The assistant in a draft's place goes with the draft's view: a later visit starts empty (v1.2).
+        assistant.closeInDraft()
         let now = resumeNow()
         let view = notesViewNow()
         // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.
@@ -190,6 +192,16 @@ extension ScoreWorkspace {
         let tick = await score.firstTick(onPage: score.pages.first) ?? 0
         await keepForHandOver()
         await switchView(.page(pages.page(of: tick)))
+    }
+
+    /// Another piece's project file `file` opened in this one's place at `landing` (v1.2, collage: the toast's «Открыть»),
+    /// once this piece is kept as for the PDF; `openFile`, the library's way, opens it, closing this piece.
+    func openElsewhere(_ file: URL, at landing: Landing, _ openFile: (URL, Landing) async -> Void) async {
+        guard !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
+        await keepForHandOver()
+        await openFile(file, landing)
     }
 
     /// A new interface language (InterfaceLanguage): the piece saved as for the PDF, closed, and opened again in the

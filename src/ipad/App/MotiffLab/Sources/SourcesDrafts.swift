@@ -6,10 +6,39 @@ import Foundation
 /// and saved to the piece's project file at once; the notes it came from never change.
 extension SourcesController {
     /// «Добавить» on the sheet: the fragment `span` of the notes shown on `piece` (this piece, or notes opened only to be
-    /// shown over it, whose drafts are this piece's) goes where `choice` says. False, with why in `status`, when music-core
-    /// refused it.
+    /// shown over it, whose drafts are this piece's) goes where `choice` says; into another piece's draft, by
+    /// `addElsewhere`. False, with why in `status`, when music-core refused it.
     func addToDraft(_ choice: DraftChoice, span: Range<Double>, from piece: Int32) async -> Bool {
-        await change("drafts.add", choice.fields(span: span, now: Self.now()), on: piece) != nil
+        if let other = choice.into.elsewhere { return await addElsewhere(choice, into: other, span: span, from: piece) }
+        return await change("drafts.add", choice.fields(span: span, now: Self.now()), on: piece) != nil
+    }
+
+    /// The fragment into the draft of another piece (v1.2, collage, the plan's answer 5): music-core takes it into that
+    /// piece's project file, sent as "file", and answers the file changed, which is written in place of the old one exactly
+    /// as it is, atomically, so a failed write leaves the old one as it was. Nothing changes here: not this piece, its file,
+    /// its sources nor its undo. Done, `addedElsewhere` tells it; else false, with why in `status`.
+    private func addElsewhere(_ choice: DraftChoice, into other: DraftChoice.Elsewhere, span: Range<Double>, from piece: Int32) async -> Bool {
+        guard let data = try? Data(contentsOf: other.file), let file = String(data: data, encoding: .utf8) else {
+            status = text.format("drafts.elsewhereUnread", other.piece)
+            return false
+        }
+        var fields = choice.fields(span: span, now: Self.now())
+        fields["file"] = file
+        let request = facadeRequest(fields)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "drafts.add", request) }
+        guard let added = FacadeAnswer.decode(DraftAddedElsewhereAnswer.self, answer, of: "drafts.add") else {
+            status = FacadeAnswer.message(answer) ?? text["sources.sheet.failed"]
+            return false
+        }
+        do {
+            try Data(added.file.utf8).write(to: other.file, options: .atomic)
+        } catch {
+            status = text.format("drafts.elsewhereUnwritten", other.name, other.piece)
+            return false
+        }
+        status = nil
+        addedElsewhere = DraftAddedElsewhere(draft: other)
+        return true
     }
 
     /// «Переименовать…» on a draft's row.
@@ -75,6 +104,33 @@ extension SourcesController {
         await draftStep("drafts.leaveSeam", ["place": seam.after], of: draft, toast: text["drafts.toastSeamLeft"])
     }
 
+    /// «Связка · 3 кандидата» on a seam's card (v1.2, the plan's answer 2): music-core's candidates put as the variants of a
+    /// new place just before the place after the seam, the first its base; listened to, chosen (`makeBase`) and removed
+    /// («Оставить», `leaveBridge`) on the bridge's card.
+    func putBridge(_ bridge: DraftSeamsAnswer.Bridge, of draft: String) async -> Bool {
+        await draftStep("drafts.bridge", ["place": bridge.place], of: draft, toast: text["drafts.toastBridge"])
+    }
+
+    /// «Оставить» on a bridge's card: the bridge place goes with its candidates, the seam as it was.
+    func leaveBridge(_ place: DraftViewAnswer.Place, of draft: String) async -> Bool {
+        await draftStep("drafts.leaveBridge", ["place": place.id], of: draft, toast: text["drafts.toastBridgeLeft"])
+    }
+
+    /// «Не тот такт? Сопоставить…» on a приём's card (v1.2, the plan's answer 4): the occurrence's start in the place's base
+    /// sounds with the variant's tick `variantTick` (the start of the variant's bar the player tapped); music-core aligns
+    /// the variant again around it, and the приёмы follow.
+    func anchor(_ spot: DraftTechniquesModel.Spot, variantTick: Int) async -> Bool {
+        let anchor = ["base": spot.occurrence.inBase.onset, "variant": variantTick]
+        let fields: [String: Any] = ["place": spot.place, "variant": spot.technique.variant, "anchor": anchor]
+        return await draftStep("drafts.anchor", fields, of: spot.draft, toast: text.format("drafts.toastAnchored", String(spot.occurrence.firstBar)))
+    }
+
+    /// «Открепить» in an anchor's menu: the anchor goes, and music-core aligns the variant without it.
+    func unanchor(_ mark: DraftAnchorsModel.Mark, of draft: String) async -> Bool {
+        let fields: [String: Any] = ["place": mark.place, "variant": mark.variant.id, "base": mark.anchor.base]
+        return await draftStep("drafts.unanchor", fields, of: draft, toast: text.format("drafts.toastUnanchored", String(mark.anchor.bar)))
+    }
+
     /// «Взять всё уверенное» on a place's card of the map: every sure open приём of the place taken, as one group.
     func takeSure(_ place: DraftViewAnswer.Place, of draft: String) async -> Bool {
         await draftStep("drafts.takeSure", ["place": place.id], of: draft, toast: text["drafts.toastTakenSure"])
@@ -91,6 +147,14 @@ extension SourcesController {
         var fields: [String: Any] = ["variant": variant, "drop": shelf ? "shelf" : place == nil ? "place" : "variant"]
         if let place, !shelf { fields["place"] = place }
         return await draftStep("drafts.place", fields, of: draft, toast: text.format(shelf ? "drafts.toastShelved" : "drafts.toastPut", label))
+    }
+
+    /// «Принять» on the assistant's proposal in a draft (v1.2, ADR 0034 section 6, the plan's answer 7): music-core makes its
+    /// call (`fields`: the place, the tool, its parameters and the role) again on the draft as it is now and keeps what it
+    /// proposes, its steps marked as the assistant's (`drafts.accept`), saved at once and undone from the toast as any step
+    /// (`words` say what was taken). Nil once kept; else why not, in music-core's words (the draft changed under it).
+    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> String? {
+        await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? nil : status ?? ""
     }
 
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast

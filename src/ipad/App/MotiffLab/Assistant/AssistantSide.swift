@@ -20,10 +20,11 @@ struct AssistantSide: View {
     /// The roll's drawer's height when it is open (0 when not): the panel stays above it.
     let drawer: CGFloat
     let ask: (String) -> Void
+    let practise: (AssistantPracticeOffer) -> Void
 
     var body: some View {
         let gap = CGFloat.ds("s-3")
-        AssistantPanel(assistant: assistant, text: text, selection: selection, label: label, ask: ask)
+        AssistantPanel(assistant: assistant, text: text, selection: selection, label: label, ask: ask, practise: practise)
             .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             .dsShadow("shadow-sheet")

@@ -457,9 +457,30 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(switched, 0)
         let reopen = await workspace.handOverForLanguage()
         XCTAssertNil(reopen)
+        await workspace.openElsewhere(projectFile(), at: .tick(0)) { _, _ in switched += 1 }
+        XCTAssertEqual(switched, 0, "nor another piece opened in its place (v1.2, collage)")
         XCTAssertTrue(workspace.handingOver, "the hand-over under way goes on")
         let unsaved = await make().handOverForLanguage()
         XCTAssertNil(unsaved, "no project file to open again")
+    }
+
+    /// «Открыть» on the toast of a fragment added to another piece's draft (v1.2, collage): this piece is kept as for the
+    /// PDF, then the other piece's file opens in its place, once, at the place asked; the hand-over then ends.
+    func testAnotherPieceOpensInThisOnesPlaceOnce() async {
+        var piece = OpenPiece(id: 7, title: "Nocturne", pages: [], timemap: "")
+        piece.file = projectFile()
+        let workspace = ScoreWorkspace(piece: piece)
+        let other = projectFile()
+        var asked: [URL] = []
+        var landings: [Landing] = []
+        await workspace.openElsewhere(other, at: .tick(0)) { file, landing in
+            XCTAssertTrue(workspace.handingOver, "kept first, and opened while handed over")
+            asked.append(file)
+            landings.append(landing)
+        }
+        XCTAssertEqual(asked, [other])
+        XCTAssertEqual(landings, [.tick(0)])
+        XCTAssertFalse(workspace.handingOver)
     }
 
     /// A piece handed to its other view was saved and closed already: as its screen goes, that is asked once and the
@@ -525,5 +546,23 @@ final class ScoreWorkspaceTests: XCTestCase {
         piece.other = OtherView(file: projectFile(), pages: PageMap(starts: [0]))
         XCTAssertNotNil(ScoreWorkspace(piece: piece).toPdf { _ in })
         XCTAssertNil(ScoreWorkspace(piece: piece).toPdf(nil), "no way to the other view, and no PDF linked in Files")
+    }
+
+    /// The assistant's practice action (v1.2, `practice.suggest`): its bars selected, its tempo set and Цикл as it says,
+    /// through the score's own loop (`playSelection`, as «↻ Место»).
+    func testTheAssistantsPracticeActionSelectsItsBarsAtItsTempoWithCycle() async throws {
+        let workspace = try await selected()
+        let loop = AssistantPracticeOffer(first: 2, last: 3, hand: "both", tempo: 60, loop: true, label: "Loop bars 2–3 at 60 % tempo · both hands")
+        await workspace.score.practiseSuggestion(loop, on: workspace.player)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.firstBar, 2)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.lastBar, 3)
+        XCTAssertEqual(workspace.player.tempoPercent, 60)
+        XCTAssertTrue(workspace.player.cycle)
+        XCTAssertEqual(workspace.player.selection, workspace.score.focusModel.playRange?.range, "the player holds the bars")
+        let once = AssistantPracticeOffer(first: 1, last: 1, hand: "both", tempo: 80, loop: false, label: "Play bar 1 at 80 % tempo · both hands")
+        await workspace.score.practiseSuggestion(once, on: workspace.player)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.lastBar, 1)
+        XCTAssertEqual(workspace.player.tempoPercent, 80)
+        XCTAssertFalse(workspace.player.cycle, "played once: Цикл off")
     }
 }

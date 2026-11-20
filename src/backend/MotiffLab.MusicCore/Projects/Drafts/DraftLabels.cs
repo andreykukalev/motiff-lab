@@ -160,7 +160,7 @@ public static class DraftLabels
     private static string Bars(DraftVariant variant) => variant.From.Bars is var (from, to) ? from == to ? $" {from}" : $" {from}–{to}" : "";
 
     /// <summary>The number in a circle, ① to ⑳; past 20 in brackets.</summary>
-    private static string Circled(int number) =>
+    internal static string Circled(int number) =>
         number is >= 1 and <= 20 ? ((char)('①' + number - 1)).ToString() : string.Create(CultureInfo.InvariantCulture, $"({number})");
 
     private static string Name(DraftSourceKind kind, Words words) => kind switch

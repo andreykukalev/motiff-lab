@@ -68,6 +68,15 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([left, bottom], [30, 40])
     }
 
+    /// A draft's anchor mark (v1.2) is a marker that says which anchor it is: its menu opens there.
+    func testAnAnchorMarkCarriesItsKey() {
+        let events = PageEvent.events(in: ["performanceBar": 5, "left": 50, "bottom": 60, "anchor": "pl_0001/v_0002/2880"])
+        XCTAssertEqual(events.count, 1)
+        guard case let .anchorMark(key, left, bottom)? = events.first else { return XCTFail("an anchor: \(events)") }
+        XCTAssertEqual(key, "pl_0001/v_0002/2880")
+        XCTAssertEqual([left, bottom], [50, 60])
+    }
+
     /// A phrase's number and a section's letter tapped on the score (the phrases spec, v1.2) name what they mark.
     func testAPhraseMarkNamesItsPhraseAndALetterItsSection() {
         guard case .phraseMark(let number)? = PageEvent.events(in: ["phraseMark": 2]).first else { return XCTFail("a phrase's number") }

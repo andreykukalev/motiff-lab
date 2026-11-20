@@ -120,6 +120,10 @@
   "drafts.asPlace": "As a new place at the end",
   "drafts.asFirst": "As its first place",
   "drafts.toShelf": "On the shelf",
+  "drafts.addedElsewhere": "Added to the draft “{0}”",
+  "drafts.openElsewhere": "Open",
+  "drafts.elsewhereUnread": "The project file of “{0}” could not be read: the draft is unchanged.",
+  "drafts.elsewhereUnwritten": "The draft “{0}” is unchanged: the project file of “{1}” could not be written and is as it was.",
   "drafts.addButton": "Add",
   "drafts.techniqueLabel": "Technique {0}: {1}, bar {2}",
   "drafts.techniqueTitle": "Technique {0} · {1}",
@@ -144,5 +148,12 @@
   "drafts.toastTakenSure": "Every sure technique taken",
   "drafts.toastBase": "The base now: “{0}”",
   "drafts.toastShelved": "On the shelf: “{0}”",
-  "drafts.toastPut": "Put in: “{0}”"
+  "drafts.toastPut": "Put in: “{0}”",
+  "drafts.seamRegister": "register",
+  "drafts.toastBridge": "Bridge put in before the place",
+  "drafts.toastBridgeLeft": "Bridge removed",
+  "drafts.toastAnchored": "Anchored in bar {0}",
+  "drafts.toastUnanchored": "Anchor in bar {0} removed",
+  "drafts.anchorLabel": "Anchor in bar {0} · {1}",
+  "drafts.toastProposal": "Accepted: {0}"
 }

@@ -252,12 +252,15 @@ struct SourcesToastView: View {
     let text: UIText
     /// What follows the Undo here: a draft's view opens again (v1.1, `DraftStepToast`).
     var then: (() async -> Void)?
+    /// How long a toast stays: one with an action a while longer.
+    static let brief: Duration = .seconds(4)
+    static let lasting: Duration = .seconds(10)
 
     var body: some View {
         UndoToast(words: toast.text, text: text, undo: toast.undo != nil ? { Task { await sources.undo(); await then?() } } : nil) { sources.toast = nil }
             .task(id: toast.id) {
                 // A toast without Undo goes by itself; one with Undo stays a while longer.
-                try? await Task.sleep(for: .seconds(toast.undo == nil ? 4 : 10))
+                try? await Task.sleep(for: toast.undo == nil ? Self.brief : Self.lasting)
                 if sources.toast?.id == toast.id { sources.toast = nil }
             }
     }

@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 
 @testable import MotiffLab
@@ -381,8 +382,8 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(model.picked?.seam.left, true, "still picked, now kept as it is")
         XCTAssertEqual(model.markers(english).first?["state"] as? String, "left")
 
-        // A kind a later music-core names (1.2's register) is left out: alone it shows no diamond.
-        let later: [(changes: [String], words: String?)] = [(["tempo", "register"], "tempo"), (["register"], nil)]
+        // The register (v1.2) is told of; a kind a later music-core names is left out: alone it shows no diamond.
+        let later: [(changes: [String], words: String?)] = [(["tempo", "register"], "tempo, register"), (["register"], "register"), (["later"], nil)]
         for (changes, words) in later {
             var answer = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(answers[5].text.utf8)) as? [String: Any])
             var seams = try XCTUnwrap(answer["seams"] as? [[String: Any]])
@@ -402,6 +403,136 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertNil(side.key)
         XCTAssertEqual(DraftSeamContent.facts(side, UIText(language: "en")), "no key stated · 6/8 · ♩. ?")
         XCTAssertEqual(DraftSeamContent.facts(side, UIText(language: "ru")), "тональность не указана · 6/8 · ♩. ?")
+    }
+
+    /// The collage (v1.2, the plan's answer 5, c-6): another piece's drafts with its summary, as the «В черновик» sheet lists
+    /// them, and a fragment added there, with that piece's project file to save in place of the one sent.
+    @MainActor
+    func testTheCollageDecodes() throws {
+        let answers = try Self.answers("drafts.collage")
+        let drafts = try XCTUnwrap(FacadeAnswer.decode(PieceDraftsAnswer.self, answers[0].text, of: "project.drafts"), "\(reported)")
+        XCTAssertEqual(drafts.drafts.map { SourceLayers.Draft($0) }, [SourceLayers.Draft(id: "d_0001", name: "Ode", caption: "from the file's notes", places: 1, shelf: 0)])
+        XCTAssertEqual(PieceSummary(answer: answers[0].text)?.shownTitle(else: "Ode"), "Ode to Joy, theme", "the score names it")
+        let added = try XCTUnwrap(FacadeAnswer.decode(DraftAddedElsewhereAnswer.self, answers[1].text, of: "drafts.add"), "\(reported)")
+        XCTAssertEqual(added.draft, "d_0001")
+        XCTAssertTrue(added.file.contains("\"pl_0002\""), "the project file with the new place")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// The register at a seam (v1.2, the plan's answer 3): the second place two octaves up, so the seam tells of the
+    /// register alone, in music-core's words («② an octave higher»), with the octave down as its offer; its diamond shows.
+    @MainActor
+    func testTheRegisterAtASeamDecodes() throws {
+        let answers = try Self.answers("drafts.register")
+        let read = try XCTUnwrap(FacadeAnswer.decode(DraftSeamsAnswer.self, answers[3].text, of: "drafts.seams"), "\(reported)")
+        let english = UIText(language: "en")
+        let model = DraftSeamsModel()
+        model.keep(read.seams)
+        let seam = try XCTUnwrap(model.shown.first, "the register alone shows a diamond")
+        XCTAssertEqual(seam.changes, ["register"])
+        XCTAssertEqual(seam.register, DraftSeamsAnswer.Register(direction: "higher", label: "② an octave higher"))
+        XCTAssertEqual(seam.offers.map(\.label), ["② an octave lower"])
+        XCTAssertEqual(seam.offers.map(\.semitones), [-12], "one step of an octave")
+        XCTAssertNil(seam.bridge, "the same key: no bridge")
+        XCTAssertEqual(model.markers(english).first?["label"] as? String, "Seam of bars 4 and 5: register")
+        XCTAssertEqual(DraftSeamsModel.changes(seam, UIText(language: "ru")), "регистр")
+        XCTAssertEqual(reported, [])
+    }
+
+    /// A bridge where the keys differ (v1.2, the plan's answer 2): the seam offers «Bridge · 3 candidates»; put in, a new
+    /// place stands between the two, its three candidates its variants with the chords they sound, the first the base; a
+    /// candidate chosen, the place removed and undone, each answered as the sources. A bridge's label opens its card, and a
+    /// seam picked puts it away.
+    @MainActor
+    func testTheBridgeAtASeamDecodes() throws {
+        let answers = try Self.answers("drafts.bridge")
+        let seams = try XCTUnwrap(FacadeAnswer.decode(DraftSeamsAnswer.self, answers[3].text, of: "drafts.seams"), "\(reported)")
+        let seam = try XCTUnwrap(seams.seams.first)
+        XCTAssertEqual(seam.changes, ["key"])
+        XCTAssertEqual(seam.bridge, DraftSeamsAnswer.Bridge(place: "pl_0002", candidates: 3, label: "Bridge · 3 candidates"))
+        XCTAssertNil(seam.register, "the same register: silent")
+
+        let view = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[5].text, of: "drafts.open"), "\(reported)")
+        XCTAssertEqual(view.draft.places.map(\.bridge), [false, true, false], "the bridge between ① and the place after it")
+        let bridge = view.draft.places[1]
+        XCTAssertEqual(bridge.label, "② Bridge · 3 variants")
+        XCTAssertEqual(bridge.variants.map(\.bridge), ["dominant", "commonChord", "bassWalk"])
+        XCTAssertEqual(bridge.variants.map(\.base), [true, false, false], "the first candidate the base")
+        XCTAssertEqual(bridge.variants.first?.explanation, "F♯7 (V7) in B minor")
+        XCTAssertNil(view.draft.places[0].variants.first?.bridge, "a place of notes has no candidates")
+
+        let steps = try [4, 6, 7, 8].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
+        XCTAssertEqual(steps.map { $0.drafts.first?.places }, [3, 3, 2, 3], "put in, chosen, removed, undone")
+
+        let model = DraftSeamsModel()
+        model.keep(seams.seams)
+        model.pickBridge(bridge.id, at: CGPoint(x: 10, y: 20))
+        XCTAssertEqual(model.bridge?.place, "pl_0003")
+        XCTAssertNotNil(model.pick(DraftSeamsModel.key(seam), at: nil))
+        XCTAssertNil(model.bridge, "one card at a time")
+        model.pickBridge(bridge.id, at: .zero)
+        XCTAssertNil(model.picked)
+        model.close()
+        XCTAssertNil(model.bridge)
+        XCTAssertEqual(reported, [])
+    }
+
+    /// The anchors (v1.2, the plan's answer 4): a variant's bar 1 confirmed to sound with bar 5 of the base, listed by
+    /// `drafts.open` on the variant (none on the base), drawn as one amber mark over bar 5 (none while the numbers are
+    /// hidden), its menu picked by its key; removed and undone, each answered as the sources. «Сопоставить…» marks the
+    /// variant's bar music-core matched with the occurrence.
+    @MainActor
+    func testTheAnchorsDecode() throws {
+        let answers = try Self.answers("drafts.anchors")
+        let view = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[4].text, of: "drafts.open"), "\(reported)")
+        XCTAssertNil(view.draft.places[0].variants[0].anchors, "the base has none")
+        XCTAssertEqual(view.draft.places[0].variants[1].anchors, [DraftViewAnswer.Anchor(base: 2880, variant: 0, at: 2880, bar: 5)])
+
+        let english = UIText(language: "en")
+        let marks = DraftAnchorsModel.marks(view.draft)
+        XCTAssertEqual(marks.map(\.key), ["pl_0001/v_0002/2880"])
+        let marker = try XCTUnwrap(DraftAnchorsModel.markers(view.draft, hidden: false, english).first)
+        XCTAssertEqual(marker["bar"] as? Int, 5)
+        XCTAssertEqual(marker["tick"] as? Int, 2880)
+        XCTAssertEqual(marker["anchor"] as? String, "pl_0001/v_0002/2880")
+        XCTAssertEqual(marker["label"] as? String, "Anchor in bar 5 · Notes 1–4")
+        XCTAssertTrue(DraftAnchorsModel.markers(view.draft, hidden: true, english).isEmpty, "hidden with the numbers")
+        XCTAssertTrue(DraftAnchorsModel.markers(nil, hidden: false, english).isEmpty, "no draft, no marks")
+
+        let model = DraftAnchorsModel()
+        XCTAssertNil(model.pick("pl_0001/v_0002/0", in: view.draft, at: .zero), "no anchor there")
+        XCTAssertEqual(model.pick("pl_0001/v_0002/2880", in: view.draft, at: CGPoint(x: 1, y: 2))?.anchor.bar, 5)
+        XCTAssertEqual(model.picked?.at, CGPoint(x: 1, y: 2))
+        model.close()
+        XCTAssertNil(model.picked)
+
+        // The draft answered again: a pick stays while its anchor is there, and goes with it (unpinned, or an Undo).
+        model.pick("pl_0001/v_0002/2880", in: view.draft, at: CGPoint(x: 1, y: 2))
+        model.keep(view.draft)
+        XCTAssertEqual(model.picked?.mark.key, "pl_0001/v_0002/2880", "still there")
+        XCTAssertEqual(model.picked?.at, CGPoint(x: 1, y: 2), "where it was")
+        let places = view.draft.places.map { place in
+            let variants = place.variants.map {
+                DraftViewAnswer.Variant(id: $0.id, label: $0.label, base: $0.base, steps: $0.steps, bridge: $0.bridge, explanation: $0.explanation, anchors: [])
+            }
+            return DraftViewAnswer.Place(
+                id: place.id, label: place.label, onset: place.onset, end: place.end, firstBar: place.firstBar, lastBar: place.lastBar, steps: place.steps,
+                bridge: place.bridge, variants: variants)
+        }
+        model.keep(DraftViewAnswer.Draft(id: view.draft.id, name: view.draft.name, places: places, shelf: view.draft.shelf))
+        XCTAssertNil(model.picked, "its anchor gone: the menu goes")
+
+        let steps = try [2, 5, 6].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "answer \($0): \(reported)") }
+        XCTAssertEqual(steps.map { $0.drafts.first?.places }, [1, 1, 1], "anchors change no place")
+
+        let techniques = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, answers[3].text, of: "drafts.techniques"), "\(reported)")
+        let technique = try XCTUnwrap(techniques.techniques.first)
+        let occurrence = try XCTUnwrap(technique.occurrences.first)
+        let spot = DraftTechniquesModel.Spot(draft: techniques.draft, place: techniques.place, base: techniques.base, technique: technique, occurrence: occurrence)
+        XCTAssertEqual(occurrence.inVariant.onset, 2160)
+        let bars = (0..<4).map { PlaybackAnswer.Bar(number: $0 + 1, onset: Double($0 * 720), beatTicks: 240, beatsPerBar: 3) }
+        XCTAssertEqual(bars.filter { DraftAnchorMatch.matched($0, in: bars, spot) }.map(\.number), [4], "the variant's bar 4 starts at 2160")
+        XCTAssertEqual(reported, [])
     }
 
     /// A draft's map (v1.1 step 7): `drafts.open` lists each place's variants, the base marked, and the shelf; a variant put

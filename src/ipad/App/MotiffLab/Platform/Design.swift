@@ -217,6 +217,13 @@ extension View {
         return self.shadow(color: shadow.color, radius: shadow.radius, x: shadow.x, y: shadow.y)
     }
 
+    /// What the app composed and has not applied, framed as the kit frames a variation (02-design-system «Ossia»: a 1.5 px
+    /// dashed plum frame, the kit having no token for its width or dash): a variation tried in Insights, the assistant's
+    /// proposal in a draft (v1.2).
+    func composedFrame() -> some View {
+        overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-s")).strokeBorder(Color.ds("plum"), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+    }
+
     /// The kit's overline: small capitals, spaced, in the third ink.
     func overline() -> some View {
         dsType(.overline).textCase(.uppercase).tracking(0.66).foregroundStyle(Color.ds("ink-3"))

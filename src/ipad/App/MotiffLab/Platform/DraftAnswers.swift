@@ -61,16 +61,31 @@ struct DraftSheetAnswer: Decodable, Sendable {
 
 /// A draft opened to be shown (`drafts.open`, DraftRequest.View): its "draft" block, where the draft came from and its
 /// places in order, in the draft's own ticks and bar numbers, and since step 7 its map: each place's variants and base,
-/// and the shelf. The rest of the answer is `open`'s for the score made of its places, whose summary tells nothing of
-/// where it came from (an imported MIDI file): only this block does.
+/// and the shelf; since v1.2 (c-5) a bridge place and its candidates, and the anchors the player confirmed. The rest of
+/// the answer is `open`'s for the score made of its places, whose summary tells nothing of where it came from (an
+/// imported MIDI file): only this block does.
 struct DraftViewAnswer: Decodable, Sendable {
+    /// An anchor the player confirmed on a variant («Сопоставить…»): a tick of the place's base ("base", what
+    /// `drafts.unanchor` names) and the variant's tick that sounds with it, where it stands in the draft ("at", its tick,
+    /// and "bar", its bar).
+    struct Anchor: Decodable, Equatable, Sendable {
+        let base: Int
+        let variant: Int
+        let at: Int
+        let bar: Int
+    }
+
     /// A variant of a place: music-core's words for it («Запись 9–12 · правая рука»), whether it is the base, and how many
-    /// steps take from it or leave it (they go with it when it leaves the place).
+    /// steps take from it or leave it (they go with it when it leaves the place); in a bridge place the candidate's kind
+    /// ("dominant", "commonChord", "bassWalk") and the chords it sounds, and on a variant that is not the base its anchors.
     struct Variant: Decodable, Equatable, Sendable {
         let id: String
         let label: String
         let base: Bool
         let steps: Int
+        let bridge: String?
+        let explanation: String?
+        let anchors: [Anchor]?
     }
 
     /// A variant on the shelf, not yet in a place.
@@ -89,6 +104,8 @@ struct DraftViewAnswer: Decodable, Sendable {
         let lastBar: Int
         /// The journal's steps of the place, which a new base removes.
         let steps: Int
+        /// A bridge between two places (v1.2), its variants the candidates.
+        let bridge: Bool
         let variants: [Variant]
     }
 
@@ -186,8 +203,9 @@ struct DraftVariantAnswer: Decodable, Sendable {
 
 /// A draft's seams (`drafts.seams`, DraftSeamRequest.Seams, c-5): each boundary of two places in order, where it is (the
 /// draft's tick and bars either side), the bar either side to hear it with the draft view's own playback ("listen"),
-/// whether the player kept it as it is ("left"), what differs ("key", "meter", "tempo"), each side as its source states
-/// it, and what music-core offers for the place after it (a transposition, the tempo before it), each with its words.
+/// whether the player kept it as it is ("left"), what differs ("key", "meter", "tempo", since v1.2 "register"), each side
+/// as its source states it, what music-core offers for the place after it (a transposition, an octave, the tempo before
+/// it), each with its words, and since v1.2 (c-5) the register's words and the bridge it can put where the keys differ.
 struct DraftSeamsAnswer: Decodable, Equatable, Sendable {
     struct Span: Decodable, Equatable, Sendable {
         let onset: Int
@@ -269,6 +287,21 @@ struct DraftSeamsAnswer: Decodable, Equatable, Sendable {
         let label: String
     }
 
+    /// Where the places' mean pitches are an octave or more apart: which way the place after it lies ("higher", "lower")
+    /// and music-core's words, «② на октаву выше».
+    struct Register: Decodable, Equatable, Sendable {
+        let direction: String
+        let label: String
+    }
+
+    /// The bridge music-core can put before the place after the seam ("place"), where the keys differ: how many candidates
+    /// and its words, «Связка · 3 кандидата».
+    struct Bridge: Decodable, Equatable, Sendable {
+        let place: String
+        let candidates: Int
+        let label: String
+    }
+
     struct Seam: Decodable, Equatable, Sendable {
         let before: String
         let after: String
@@ -278,10 +311,25 @@ struct DraftSeamsAnswer: Decodable, Equatable, Sendable {
         let listen: Span
         let left: Bool
         let changes: [String]
+        let register: Register?
         let sides: [Side]
         let offers: [Offer]
+        let bridge: Bridge?
     }
 
     let draft: String
     let seams: [Seam]
+}
+
+/// Another piece's drafts (`project.drafts` on piece 0 with its project file, DraftRequest.Of, v1.2 collage): its drafts as
+/// its Sources list them; its summary, "project", is read by `PieceSummary(answer:)`. music-core writes nothing.
+struct PieceDraftsAnswer: Decodable, Sendable {
+    let drafts: [SourceLayersAnswer.Draft]
+}
+
+/// A fragment added to another piece's draft (`drafts.add` with "file", DraftRequest.AddTo, v1.2 collage): the draft, and
+/// "file", that piece's project file changed, to save in place of the one sent exactly as music-core wrote it.
+struct DraftAddedElsewhereAnswer: Decodable, Sendable {
+    let draft: String
+    let file: String
 }

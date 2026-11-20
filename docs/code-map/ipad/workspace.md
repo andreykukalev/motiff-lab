@@ -4,8 +4,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`DraftMap`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
-`ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
+`DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
+`ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,
@@ -13,7 +13,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
-  `ScoreScreen`; `reopen` opens the piece's own project file again in its place.
+  `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
 - `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
   or here and unreadable), `RecordingViewCapsule` under it;
@@ -31,11 +31,17 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, …), and
   `playRangeChanged`, `applyModel`.
 - `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
-  `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
+  `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`, and v1.2
+  `openElsewhere`: another piece's file in its place through `ScoreScreen.openFile`, the library's `openFile`, for the
+  collage toast's «Открыть»; the draft's view handed by `SourcesHandover.show`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap`); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
+  v1.2: `DraftBridgeCard.swift` (a bridge place's candidates, at its label and on the map), `DraftAnchorCard.swift`
+  (an anchor's «Открепить», and «Сопоставить…»'s bars in the приём card), `DraftAssistant.swift` (step 8: the map place
+  card's «С ассистентом · Pro», `DraftAssistantSection`; `DraftProposalCard`, dashed plum, «▶ До» `hearDraft`, «▶ После»
+  `hearProposal`, «Принять» by `SourcesController.acceptProposal`);
   `ScoreWorkspaceDrafts.swift`, `draftOwner`, `draftSheet`, `newDraft` (no selection: a hint).
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,
@@ -47,6 +53,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   the score's `UndoToast`) with Undo/Redo through `SelectionModel`; `setBarBeats` (the drag's caption). v1.2 i-3b:
   «Выделить фразу», «Начать фразу здесь» (`startPhrase`, the menu's More), the reset (`resetPhrases`, the ⓘ list),
   «Вся фраза» (`selectWholePhrase`), `PhraseOfferCard` in the menu («Выделить» = `takePhraseOffer`, a selection step).
+- `ScorePractice.swift` (v1.2 i-4): `playSelection`, the selection just made played looped (Цикл on) or once, which
+  `loopPlace` and the assistant's practice action use; `practiseSuggestion` (the chip of `practice.suggest`: bars, tempo, hand).
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web
   view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
   `following`); `ScoreBar`, `Pill` (the transport, then the roll and the assistant), `SelectionMenu` (with the pill,
