@@ -369,6 +369,18 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         model.keep(read[2].seams)
         XCTAssertEqual(model.picked?.seam.left, true, "still picked, now kept as it is")
         XCTAssertEqual(model.markers(english).first?["state"] as? String, "left")
+
+        // A kind a later music-core names (1.2's register) is left out: alone it shows no diamond.
+        let later: [(changes: [String], words: String?)] = [(["tempo", "register"], "tempo"), (["register"], nil)]
+        for (changes, words) in later {
+            var answer = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(answers[5].text.utf8)) as? [String: Any])
+            var seams = try XCTUnwrap(answer["seams"] as? [[String: Any]])
+            seams[0]["changes"] = changes
+            answer["seams"] = seams
+            let text = String(decoding: try JSONSerialization.data(withJSONObject: answer), as: UTF8.self)
+            model.keep(try XCTUnwrap(FacadeAnswer.decode(DraftSeamsAnswer.self, text, of: "drafts.seams")).seams)
+            XCTAssertEqual(model.shown.first.map { DraftSeamsModel.changes($0, english) }, words, "\(changes)")
+        }
         XCTAssertEqual(reported, [])
     }
 

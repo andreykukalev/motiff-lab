@@ -170,6 +170,13 @@ extension ScoreWorkspace {
     func sheetChanged(_ open: Bool) {
         if open { assistant.close() }
     }
+
+    /// A draft's map opened in the sheet's place (v1.1): one thing at a time on the right, so Insights, Check and the
+    /// assistant's panel go; a sheet opened closes the map in turn (`ScoreScreenContent`).
+    func draftMapOpened() {
+        for panel in [PanelState.Panel.insights, .check] where panels[panel] { change(.close(panel)) }
+        assistant.close()
+    }
 }
 
 /// The playback model as the page and the roll draw it, and where the roll is: what the reactions on Expand, the loop,

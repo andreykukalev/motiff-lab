@@ -32,8 +32,11 @@ final class DraftSeamsModel: ObservableObject {
         picked = picked.flatMap { pick in seam(Self.key(pick.seam)).map { Pick(seam: $0, at: pick.at) } }
     }
 
-    /// The seams that show a diamond: those where something differs.
-    var shown: [DraftSeamsAnswer.Seam] { seams.filter { !$0.changes.isEmpty } }
+    /// What a seam's card tells of: the key, the meter and the tempo; any other kind a later music-core names is left out.
+    static let kinds: Set<String> = ["key", "meter", "tempo"]
+
+    /// The seams that show a diamond: those where the key, the meter or the tempo differs.
+    var shown: [DraftSeamsAnswer.Seam] { seams.filter { $0.changes.contains(where: Self.kinds.contains) } }
 
     /// The seam before the place `place` (a place's seam is the boundary with the one before it), when it shows.
     func before(_ place: String) -> DraftSeamsAnswer.Seam? {
@@ -79,13 +82,14 @@ final class DraftSeamsModel: ObservableObject {
         text.format("drafts.seamLabel", String(seam.lastBar), String(seam.firstBar), changes(seam, text))
     }
 
-    /// What differs at the seam, in words: «тональность, темп».
+    /// What differs at the seam, in words: «тональность, темп»; only the `kinds`, any other (1.2's register) left out.
     static func changes(_ seam: DraftSeamsAnswer.Seam, _ text: UIText) -> String {
-        seam.changes.map { change in
+        seam.changes.compactMap { change -> String? in
             switch change {
-            case "key": text["drafts.seamKey"]
-            case "meter": text["drafts.seamMeter"]
-            default: text["drafts.seamTempo"]
+            case "key": return text["drafts.seamKey"]
+            case "meter": return text["drafts.seamMeter"]
+            case "tempo": return text["drafts.seamTempo"]
+            default: return nil
             }
         }
         .joined(separator: ", ")

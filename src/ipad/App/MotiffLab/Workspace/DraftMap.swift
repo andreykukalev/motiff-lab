@@ -24,7 +24,8 @@ extension EnvironmentValues {
 /// between two places, which opens the seam's card there; and the shelf, each variant on it put («Поставить…») into a
 /// place or as a new place. Each step is music-core's (`drafts.base`, `drafts.place`, `drafts.takeSure`), undone from its
 /// toast, and the view opens again in its place with the map open. Places are not reordered: music-core has no call for
-/// it. At the side in landscape, the lower half in portrait, as the sheets.
+/// it. In the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape, below the draft's pill, over the
+/// lower half in portrait, so the pills and toasts make way.
 struct DraftMap: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var seams: DraftSeamsModel
@@ -32,7 +33,6 @@ struct DraftMap: View {
     let draft: DraftViewAnswer.Draft
     let owner: SourcesController
     let text: UIText
-    let screen: CGSize
     let reopen: ((Landing) async -> Void)?
     @Environment(\.draftMap) private var map
     /// The draft view's notes, for the places' rolls.
@@ -51,16 +51,8 @@ struct DraftMap: View {
 
     var body: some View {
         if let map, let open = map.wrappedValue {
-            let landscape = screen.width > screen.height
             panel(open, close: { map.wrappedValue = nil })
                 .background(Color.ds("surface"))
-                .clipShape(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
-                .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
-                .dsShadow("shadow-sheet")
-                .frame(width: landscape ? ScoreScreen.sheetWidth : nil, height: landscape ? nil : screen.height / 2)
-                .padding(.top, landscape ? CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2") : 0)
-                .padding(landscape ? [.trailing, .bottom] : [.horizontal], CGFloat.ds("s-3"))
-                .transition(.move(edge: landscape ? .trailing : .bottom).combined(with: .opacity))
                 .task { notes = await score.draftNotes() ?? [] }
                 .confirmationDialog(asked?.title ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }), titleVisibility: .visible, presenting: asked) { asked in
                     Button(asked.button, role: .destructive) { take(asked.step) }
@@ -158,9 +150,11 @@ struct DraftMap: View {
         }
     }
 
-    /// «Сделать основой»: asked first, as the place's taken приёмы and their anchors go with the old base.
+    /// «Сделать основой»: asked first, as every step of the place (приёмы, transposition, tempo) and the anchors of all its
+    /// variants go with the old base; how many steps, where there are any.
     private func makeBase(_ variant: DraftViewAnswer.Variant, of place: DraftViewAnswer.Place) {
-        asked = Asked(title: text.format("drafts.baseTitle", variant.label), line: text["drafts.baseLine"], button: text["drafts.makeBase"]) {
+        let steps = place.steps > 0 ? text.count("drafts.baseSteps", place.steps) + " " : ""
+        asked = Asked(title: text.format("drafts.baseTitle", variant.label), line: steps + text["drafts.baseLine"], button: text["drafts.makeBase"]) {
             await owner.makeBase(variant, of: place, in: draft.id)
         }
     }
