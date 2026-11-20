@@ -347,15 +347,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch event {
         case let .pages(first, last, count):
             pages = PagesInView(first: first, last: last, count: count)
-        case .bookmark(let id):
-            goToBookmark(id)
-        case .noteMarker(let id):
-            openNote(id)
-        case .checkFlag(let bar):
-            showCheckBar(bar)
-            checkPicked?(bar)
-        case .performanceBar, .techniqueNumber, .seamDiamond:
-            pickMarker(event)
+        case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .phraseMark, .sectionMark:
+            markTapped(event)
         case .playheadAway(let away):
             playheadAway = away < 0 ? nil : away
         case let .place(start, end):
@@ -379,36 +372,33 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         }
     }
 
+    /// A mark on the score tapped: a bookmark goes there, a margin note opens, a Check flag shows its bar, a version's or a
+    /// draft's marker opens its card, a phrase's number or a section's letter selects it (ScorePhraseMarks.swift).
+    private func markTapped(_ event: PageEvent) {
+        switch event {
+        case .bookmark(let id):
+            goToBookmark(id)
+        case .noteMarker(let id):
+            openNote(id)
+        case .checkFlag(let bar):
+            showCheckBar(bar)
+            checkPicked?(bar)
+        case .phraseMark(let number):
+            pickPhrase(number)
+        case .sectionMark(let id):
+            pickSection(id)
+        default:
+            pickMarker(event)
+        }
+    }
+
     // MARK: - Phrases and the selection
 
-    /// Shows another level: the selection moves to the unit that is, encloses or starts it at the new level. The units are
-    /// not drawn on the score (#479 item 14).
-    func showLevel(_ level: String) {
-        selectionModel.hidePhrases(false)
-        guard let piece, level != selectionModel.phrases?.level else { return }
-        marksModel.keepLevel(level == "short" ? "short" : level == "sentence" ? "sentences" : "phrases")
-        Task {
-            await selectionModel.showLevel(level, in: piece.id)
-            await showSelection()
-            focusModel.updatePlayRange()
-        }
-    }
-
-    /// «Вернуть найденные» (the web app's Reset level): the level shown forgets the player's own boundaries, made in
-    /// the Music Studio, and has the units found in the file again.
-    func resetLevel() {
-        guard let piece, let level = selectionModel.phrases?.level, selectionModel.phrases?.edited.contains(level) == true else { return }
-        Task {
-            await selectionModel.resetLevel(level, in: piece.id)
-            await showSelection()
-            focusModel.updatePlayRange()
-        }
-    }
-
     /// Selects a passage through music-core, which keeps it within what a selection may hold; with `gesture`, as part of
-    /// that gesture's step of the history.
-    func select(_ start: Double, _ end: Double, gesture: String? = nil, step: Bool = true) async {
-        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}", gesture: gesture, step: step)
+    /// that gesture's step of the history; `replaces` for a new selection in place of the one there was (a phrase's
+    /// number or a section's letter tapped, ScorePhraseMarks.swift).
+    func select(_ start: Double, _ end: Double, gesture: String? = nil, step: Bool = true, replaces: Bool = false) async {
+        await select(request: "{\"span\": {\"onset\": \(Int(start)), \"end\": \(Int(end))}}", gesture: gesture, step: step, replaces: replaces)
     }
 
     /// Selects a passage by beats (#349): music-core takes its edges out to the beat lines. A drag on the score or on the
@@ -493,7 +483,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         return false
     }
 
-    /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a unit of the level shown, else "Bars 9–12".
     /// The open piece's title, for what the assistant knows.
     var pieceTitle: String { piece?.title ?? "" }
     /// The piece open in music-core, as the assistant at the selection asks about it; nil while none is.
@@ -502,21 +491,17 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// The assistant's scope chip for the selection (testing item 23): "This phrase · bars 9–16" or "This selection · bar 3".
     var askLabel: String? {
         guard let selection = selectionModel.selection else { return nil }
-        let bars = selection.firstBar == selection.lastBar
-            ? text.format("bars.one", String(selection.firstBar))
-            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
-        let phrase = !selectionModel.phrasesHidden && selectionModel.phrases?.units.contains { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end } == true
-        return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", bars)
+        let phrase = selectionModel.phrases?.unit(selected: selection) != nil
+        return text.format(phrase ? "ask.thisPhrase" : "ask.thisSelection", barsText(selection.firstBar, selection.lastBar, text))
     }
 
+    /// The title a new bookmark starts with: "Phrase 3, bars 9–12" for a phrase selected exactly, else "Bars 9–12".
     var bookmarkTitle: String {
         guard let selection = selectionModel.selection else { return "" }
-        if !selectionModel.phrasesHidden, let unit = selectionModel.phrases?.units.first(where: { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }) {
+        if let unit = selectionModel.phrases?.unit(selected: selection) {
             return label(of: unit)
         }
-        let bars = selection.firstBar == selection.lastBar
-            ? text.format("bars.one", String(selection.firstBar))
-            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        let bars = barsText(selection.firstBar, selection.lastBar, text)
         return bars.prefix(1).uppercased() + bars.dropFirst()
     }
 
@@ -611,28 +596,22 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         }
     }
 
-    /// What the page hides: the layers hidden, and Check while neither extra information nor the Check drawer shows it.
+    /// The phrases' marks shown or hidden («Фразы» in the list of extra information), kept on this device; the selection
+    /// stays as it is.
+    func showPhraseMarks(_ on: Bool) {
+        marksModel.showPhraseMarks(on)
+        Task { await applyLayers() }
+    }
+
+    /// What the page hides: the layers hidden, Check while neither extra information nor the Check drawer shows it, and
+    /// the phrases' marks while the player hid them.
     private func applyLayers() async {
         guard shown else { return }
         var hidden = MarksModel.layers.filter(marksModel.hiddenLayers.contains)
         if !marksModel.extraShown("check") && !checkDrawerOpen { hidden.append("check") }
+        if marksModel.phraseMarksHidden { hidden.append("phrases") }
         let slate = DeviceSettings.shared["appearance.theme"] == "slate"
         await scorePage.send(.layers, ["hidden": hidden, "slate": slate])
-    }
-
-    /// The level a piece opens in (the setting "phrases.granularity"), shown without becoming the piece's own; a piece that
-    /// has its own keeps it.
-    private func applyLevel() async {
-        guard let piece, marksModel.pieceOverrides[MarksModel.granularity] == nil, let shownLevel = selectionModel.phrases?.level else { return }
-        let level = switch DeviceSettings.shared[MarksModel.granularity] {
-        case "short": "short"
-        case "sentences": "sentence"
-        default: "phrase"
-        }
-        guard level != shownLevel else { return }
-        await selectionModel.showLevel(level, in: piece.id, remember: false)
-        await showSelection()
-        focusModel.updatePlayRange()
     }
 
     /// The device's settings changed in the sheet: the page follows at once.
@@ -640,7 +619,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         marksModel.deviceSettingsChanged()
         Task {
             await applyLayers()
-            await applyLevel()
             await drawVersions()
         }
     }
@@ -1141,7 +1119,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         }
     }
 
-    /// Previous or next at the level shown: the card moves on to that unit. Outside focus (the pill's arrows, #328) the
+    /// The previous or the next phrase: the card moves on to it. Outside focus (the pill's arrows, #328) the
     /// page brings it into view.
     func step(_ direction: Int) {
         guard let unit = focusModel.unit, let next = selectionModel.phrases?.unit(unit.number + direction.signum()) else { return }
@@ -1175,7 +1153,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     /// Back where the player stopped (#327): the passage selected and brought into view, and in focus when it was. It
-    /// waits for the page to be drawn, so the level the piece opens in does not move the selection afterwards.
+    /// waits for the page to be drawn, so the selection is drawn on it with its phrase.
     func arrive(at place: ResumePlace) async {
         var waited = 0
         while !rendered && waited < 100 {
@@ -1289,12 +1267,14 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         Task { await scorePage.send(.menuClosed) }
     }
 
+    /// The piece's phrases read, their marks drawn (ScorePhraseMarks.swift), and the selection with the phrase it is.
     private func loadPhrases(_ piece: OpenPiece) async {
         await selectionModel.loadPhrases(of: piece.id)
+        await scorePage.send(.phraseMarks, phraseMarks)
         await showSelection()
     }
 
-    /// Draws the band over the selection. The phrases are not drawn as brackets (Andrei, 2026-11-13, #479 item 14).
+    /// Draws the band over the selection, and says which phrase it is exactly, whose number the page turns cobalt.
     func showSelection() async {
         guard shown else { return }
         var band: Any = NSNull()
@@ -1302,6 +1282,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             var drawn: [String: Any] = ["start": selection.onset, "end": selection.end, "startLabel": text["selection.handleStart"], "endLabel": text["selection.handleEnd"]]
             if let hand = selection.hand { drawn["hand"] = hand }
             if let picked = selection.picked { drawn["picked"] = picked }
+            if let phrase = selectionModel.phrases?.unit(selected: selection) { drawn["phrase"] = phrase.number }
             band = drawn
         }
         await scorePage.send(.select, band)
@@ -1351,7 +1332,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await loadCheck(piece)
             await marksModel.loadSettings(of: piece.id)
             await applyLayers()
-            await applyLevel()
             await draftModel.load(piece.draft, on: piece.id)
             await seamsModel.load(piece.draft, on: piece.id)
             await loadVersions(piece)

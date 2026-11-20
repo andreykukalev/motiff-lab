@@ -10,6 +10,7 @@ import type { ScoreGeometry, Rect } from "../score-geometry.js";
 import type { PageCommands, PageSelection } from "../page-contract.js";
 import { pointerRules, post, state } from "./page-state.js";
 import { bookmarksTop } from "./page-bookmarks.js";
+import { phraseMarksTop, showSelectedPhrase } from "./page-phrases.js";
 import { tint } from "./page-marks.js";
 
 /** The selection layer, made by `installSelection`. */
@@ -48,7 +49,7 @@ export function installSelection(): void {
     document.body.append(menu);
     selection = new SelectionLayer(document.body, {
         geometry: () => state.geometry,
-        marksTop: (band) => bookmarksTop(band),
+        marksTop: (band) => highestOf(bookmarksTop(band), phraseMarksTop(band)),
         // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars. Once Swift
         // has sent the rules for each pointer (`input`, #479 item 18), they say who selects instead.
         penOn: () => state.focus || (state.input === null && state.pen),
@@ -105,6 +106,11 @@ export function installSelection(): void {
         view: () => scoreView(),
         grid: (geometry) => selectionGrid(geometry),
     });
+}
+
+/** The higher of two tops of marks over a band, either of which may be none. */
+function highestOf(a: number | null, b: number | null): number | null {
+    return a === null ? b : b === null ? a : Math.min(a, b);
 }
 
 /** Whether the place rule takes the presses (v0.6.2, once in Settings · Experimental; `input.places`): in Select, not in focus. */
@@ -231,10 +237,11 @@ export function clearLeft({ width }: Parameters<PageCommands["clearLeft"]>[0]): 
     selection.placeMenu();
 }
 
-/** The selection's span in ticks, with what a screen reader says for each handle; null for none. */
+/** The selection's span in ticks, with what a screen reader says for each handle and the phrase it is; null for none. */
 export function select(given: Parameters<PageCommands["select"]>[0]): number {
     chosen = given ?? null;
     markPicked();
+    showSelectedPhrase(chosen?.phrase);
     places.settle();
     selection.showPlaced(null);
     selection.setSelection(given ?? null);

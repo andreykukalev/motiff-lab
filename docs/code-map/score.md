@@ -31,6 +31,9 @@ engraving options (`score-page.ts`) fails the run's fixture check until the fixt
   colour from the grid's cells under it on a highlight's band (`rubbedColour`, `mergedSpans`), handed back by `rubEnd` as
   `uncoloured`. Highlights draw cut where they start and end inside a bar (`highlightRuns`, `ScoreBeats.cutEdges`). Pure.
 - `selection-boxes.ts`: `bandBoxes`, `setBox`, `ordered`, `handStaves`/`handRuns` (a hand's staff), `onMusic` (margin).
+- `phrase-marks.ts` (v1.2 i-2, the iPad only): where the phrases' marks stand (`placeMarks`: right above the notes, raised
+  only over what is printed under them, a close number moved right, targets split halfway; `liftOver`), and which phrase
+  plays (`phraseAt`). Pure: `tests/shared/phrase-marks.test.mjs`. Drawn by `ipad-page/page-phrases.ts`.
 - `selection-layer.ts` (near 600 lines: add modules): band, dot handles, v0.6.1 gesture, menu place.
   Also `selection-handles.ts`, `selection-beats.ts`, `selection-menu.ts`, `menu-drag.ts`.
 

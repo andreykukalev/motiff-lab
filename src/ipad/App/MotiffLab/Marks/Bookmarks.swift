@@ -657,10 +657,10 @@ struct PagesStrip: View {
         (contents.shelf?.bookmarks ?? []).filter { page.start <= $0.onset && $0.onset < page.end }
     }
 
-    /// "p. 2 · phrases 3–5", the phrases named while the level is Phrases and they are shown (not «Не показывать»).
+    /// "p. 2 · phrases 3–5": the phrases that start on the page.
     private func caption(_ page: ScoreController.PageOutline) -> String {
         let number = text.format("contents.page", String(page.page))
-        guard !selectionModel.phrasesHidden, let phrases = selectionModel.phrases, phrases.level == "phrase" else { return number }
+        guard let phrases = selectionModel.phrases else { return number }
         let starting = phrases.units.filter { page.start <= $0.onset && $0.onset < page.end }.map(\.number)
         guard let first = starting.first, let last = starting.last else { return number }
         let named = first == last ? text.format("contents.pagePhrase", String(first)) : text.format("contents.pagePhrases", String(first), String(last))

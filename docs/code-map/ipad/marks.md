@@ -35,14 +35,16 @@ too). `NoteCorrections` and `EditsLayerState` hold only what music-core answered
 (`tests/contracts/facade-answers/corrections*.json`, decoded by `FacadeAnswerFixturesTests`). The rest: not recorded yet.
 
 `MarksModel`: `show` takes what a mark call answered, `keepBookmarks` the bookmarks the page draws; `showLayers`,
-`keepLevel`, `clearOverrides` change the piece's own settings at once, and `keepLayers`, `forgetOverrides` and
+`clearOverrides` change the piece's own settings at once (only `layers.*` are read as the piece's), `showPhraseMarks` the
+device's choice of the phrases' marks, and `keepLayers`, `forgetOverrides` and
 `loadSettings` keep or read them through music-core (`settings.override`, `settings`). Changing a note or a highlight
 (drawn on the page), going to a bookmark or a note and what the page hides are `ScoreController`'s, which calls these.
 
 ## The state it owns
 
 `EditsLayerState`. `MarksModel`: the marks (`MarksShelf`, `markCount`), the note being written (`noteDraft`), the
-layers hidden, the piece's own settings, the bookmarks as drawn and the one gone to. The rest: not recorded yet.
+layers hidden, the piece's own settings, whether the phrases' marks are hidden (`phraseMarksHidden`, kept on the device,
+`motiff.phraseMarks.hidden`; the old `motiff.phrases.hidden` is not read), the bookmarks as drawn and the one gone to. The rest: not recorded yet.
 
 ## Baseline entries that protect it
 

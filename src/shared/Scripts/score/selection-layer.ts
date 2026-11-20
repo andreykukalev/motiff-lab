@@ -369,8 +369,8 @@ export class SelectionLayer {
         if (start === "none" || (start === "now" && event.button !== 0)) {
             return;
         }
-        // A bracket, a handle and anything Blazor put over the score are their own targets.
-        if (event.target instanceof Element && event.target.closest(`.bracket, .${HANDLE_CLASS}`) !== null) {
+        // A phrase's mark and a handle are their own targets.
+        if (event.target instanceof Element && event.target.closest(`.phrase-mark, .${HANDLE_CLASS}`) !== null) {
             return;
         }
         const geometry = this.owner.geometry();

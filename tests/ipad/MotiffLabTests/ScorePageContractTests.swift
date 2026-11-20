@@ -68,6 +68,14 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([left, bottom], [30, 40])
     }
 
+    /// A phrase's number and a section's letter tapped on the score (the phrases spec, v1.2) name what they mark.
+    func testAPhraseMarkNamesItsPhraseAndALetterItsSection() {
+        guard case .phraseMark(let number)? = PageEvent.events(in: ["phraseMark": 2]).first else { return XCTFail("a phrase's number") }
+        XCTAssertEqual(number, 2)
+        guard case .sectionMark(let id)? = PageEvent.events(in: ["sectionMark": "section_2"]).first else { return XCTFail("a section's letter") }
+        XCTAssertEqual(id, "section_2")
+    }
+
     func testTheMenuPutAwayIsNoPlace() {
         guard case .menu(let place)? = PageEvent.events(in: ["menu": NSNull()]).first else { return XCTFail("the menu") }
         XCTAssertNil(place)

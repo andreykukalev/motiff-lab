@@ -58,9 +58,13 @@ export interface InputRules {
     places?: boolean;
 }
 
-/** The selection Swift shows: its span, what a screen reader says for each handle, its hand and the notes picked. */
+/**
+ * The selection Swift shows: its span, what a screen reader says for each handle, its hand, the notes picked, and the
+ * phrase it is exactly (its selectable span), whose number is cobalt (the phrases spec, decision 1).
+ */
 export interface PageSelection extends ScoreSelection {
     picked?: string[];
+    phrase?: number;
 }
 
 /** The playback model under the modes: the selection the blue playhead keeps to, and Цикл. */
@@ -111,6 +115,22 @@ export interface PageMarker {
     technique?: string;
     seam?: string;
     state?: string;
+}
+
+/** A phrase's mark at its start (the phrases spec, v1.2): its number, its start note's onset, the player's own (amber) or found, and what a screen reader says. */
+export interface PagePhraseMark {
+    number: number;
+    tick: number;
+    own?: boolean;
+    label: string;
+}
+
+/** A section of the form where it starts: its id (what a tap on its letter posts), its boxed letter and what a screen reader says. */
+export interface PageSectionMark {
+    id: string;
+    tick: number;
+    letter: string;
+    label: string;
 }
 
 /** An ossia on the card in focus, with the ids of the notes it adds. */
@@ -171,6 +191,7 @@ export interface PageCommands {
     reveal(shown: { start: number }): boolean;
     notes(given: { notes?: PageNote[]; highlights?: PageHighlight[] }): number;
     checks(given: { flags?: PageCheck[] }): number;
+    phraseMarks(given: { phrases?: PagePhraseMark[]; sections?: PageSectionMark[] }): number;
     performance(version: { markers?: PageMarker[]; unheard?: string[]; artefacts?: string[]; taken?: number[] }): number;
     layers(given: { hidden?: string[]; slate?: boolean }): string[];
     playing(position: { tick: number; playing: boolean; follow?: boolean; auto?: boolean }): number | null;
@@ -205,6 +226,10 @@ export interface PageEvents {
     checkFlag: number;
     /** A label over a bar tapped: its bar, with where it is (`MarkerTap`). */
     performanceBar: number;
+    /** A phrase's number tapped: the phrase's number. */
+    phraseMark: number;
+    /** A section's letter tapped: the section's id. */
+    sectionMark: string;
     place: TickRange;
     heads: { handle: Handle; x: number; y: number }[];
     drag: DragMessage;

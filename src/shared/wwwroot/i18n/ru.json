@@ -36,7 +36,6 @@
   "roll.js.legendInferred": "Пунктирный контур: выведено, в файле этого нет (нота или её рука)",
 
 
-  "bar.phrases": "Фразы",
   "bar.roll": "Фортепианный ролл",
   "bar.insights": "Инсайты",
   "bar.more": "Ещё",
@@ -44,10 +43,6 @@
   "bar.page": "с. {0} из {1}",
   "bar.pages": "с. {0}–{1} из {2}",
   "drawer.close": "Закрыть",
-  "phrases.levelTitle": "Фразы",
-  "phrases.levelShort": "Короткие",
-  "phrases.levelPhrases": "Фразы",
-  "phrases.levelSentences": "Предложения",
 
   "menu.clearSelection": "Снять выделение",
   "roll.noteNames": "Названия нот",
@@ -124,6 +119,7 @@
   "extra.show": "Показывать",
   "extra.performance": "Отличия от версий",
   "extra.taken": "Такты, взятые из версии",
+  "extra.phrases": "Фразы",
   "extra.check": "Флажки проверки",
   "extra.none": "У этой пьесы пока нет дополнительной информации.",
   "extra.yours": "Ваши пометки",

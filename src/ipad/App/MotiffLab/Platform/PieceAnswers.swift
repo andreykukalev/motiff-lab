@@ -7,8 +7,7 @@ import Foundation
 // optional field is one music-core leaves out by design, or one the app read with a default before it was typed (step A7),
 // kept so. tests/contracts/facade-answers holds the answers on the example piece; FacadeAnswerFixturesTests decodes them.
 
-/// `select`, and `phrases.level` with its selection (`Answer.Selection`): {"selection": {…}}, null in `phrases.level`
-/// with none selected.
+/// `select` (`Answer.Selection`): {"selection": {…}}.
 struct SelectionAnswer: Decodable, Sendable {
     struct Selection: Decodable, Sendable {
         let onset: Double
@@ -36,22 +35,9 @@ struct SelectionAnswer: Decodable, Sendable {
     }
 }
 
-/// The phrases at the level shown (`Answer.Phrases`): `phrases`, `phrases.edit`, and `phrases.level` with its selection
-/// (`PhraseLevelAnswer`). The level and the units are read as before they were typed: every field but "level" and "units"
-/// with the default it had, and a unit without its number, onset or end left out.
+/// The phrases of the piece (`Answer.Phrases`): `phrases` and `phrases.edit`. The units are read as before they were typed:
+/// every field but "units" with the default it had, and a unit without its number, onset or end left out.
 struct PhrasesAnswer: Decodable, Sendable {
-    /// One level with how many units it has.
-    struct Level: Decodable, Sendable {
-        let id: String?
-        let count: Int?
-    }
-
-    /// The player's own boundaries at a level: the ticks added and taken away.
-    struct Edits: Decodable, Sendable {
-        let added: [Int]?
-        let removed: [Int]?
-    }
-
     struct Unit: Decodable, Sendable {
         let number: Int?
         let name: String?
@@ -63,29 +49,33 @@ struct PhrasesAnswer: Decodable, Sendable {
         let start: Start?
     }
 
-    /// How a unit's start was found: "imported", "inferred", "userEdited", …
+    /// A phrase's start, its mark (the phrases spec, decision 1): how it was found ("imported", "inferred"; "userEdited",
+    /// "userConfirmed" for the player's own), the bar and beat of its start note, and «Почему здесь» in the player's
+    /// language (the Russian completes «начинается …»).
     struct Start: Decodable, Sendable {
         let provenance: String?
+        let bar: Int?
+        let beat: Int?
+        let why: String?
     }
 
-    /// "short", "phrase" or "sentence".
-    let level: String
-    let levels: [Level]?
-    /// By level id.
-    let edits: [String: Edits]?
+    /// A section of the form (A, B, A′…): its letter, where it is, and the span a tap selects (at most 32 bars).
+    struct Section: Decodable, Sendable {
+        let id: String
+        let label: String
+        let passage: Passage
+        let selectable: SpanAnswer?
+    }
+
+    struct Passage: Decodable, Sendable {
+        let onset: Double
+        let end: Double
+        let firstBar: Int
+        let lastBar: Int
+    }
+
     let units: [Unit]
-}
-
-/// `phrases.level` (`ChangeLevel` in OpenPiece.cs): the phrases at the new level, and the selection as it now is (null with
-/// none), both read from the one object.
-struct PhraseLevelAnswer: Decodable, Sendable {
-    let phrases: PhrasesAnswer
-    let selection: SelectionAnswer
-
-    init(from decoder: Decoder) throws {
-        phrases = try PhrasesAnswer(from: decoder)
-        selection = try SelectionAnswer(from: decoder)
-    }
+    let sections: [Section]?
 }
 
 /// The playback score (`Answer.Playback`: `playback`, the reference's sounds): notes with

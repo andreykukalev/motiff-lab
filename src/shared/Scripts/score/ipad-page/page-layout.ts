@@ -8,6 +8,7 @@ import type { LaidOut, PageCommands, PagesInView } from "../page-contract.js";
 import { READING_LINE_PX, post, state } from "./page-state.js";
 import { redraw } from "./page-ink.js";
 import { placeBookmarks } from "./page-bookmarks.js";
+import { placePhrases } from "./page-phrases.js";
 import { placeNotes } from "./page-marks.js";
 import { tintUnheard } from "./page-versions.js";
 import { forgetRings, placeRings } from "./page-rings.js";
@@ -62,6 +63,7 @@ export function layout(): LaidOut {
     state.frames = geometry.barFrames();
     state.byTick = framesByTick(state.frames);
     redraw();
+    placePhrases();
     placeBookmarks();
     placeNotes();
     placeRings();

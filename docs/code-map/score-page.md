@@ -14,8 +14,8 @@ from `Web/*.js` through these modules into the bundled folders.
 
 ## The contract
 
-`page-contract.ts`: `PageCommands` (the 41 functions of `window.motiff`, Swift's `PageCommand`, with what each takes and
-answers), `PageEvents` (the 23 message kinds, Swift's `PageEvent.Kind`, with what each carries; `performanceBar` with
+`page-contract.ts`: `PageCommands` (the 42 functions of `window.motiff`, Swift's `PageCommand`, with what each takes and
+answers), `PageEvents` (the 25 message kinds, Swift's `PageEvent.Kind`, with what each carries; `performanceBar` with
 `MarkerTap`), `PageMessage`, and the `Window` globals. The names are `tests/contracts/score-page.json`:
 `tests/shared/score-page-contract.test.mjs` checks the interfaces, `page.ts`'s `window.motiff` and every `post(…)` of
 the modules against it, and that `Web/score.js` holds no page code; `ScorePageContractTests` checks Swift.
@@ -30,6 +30,11 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
 - `page-layout.ts`: `show`, `layout` (places every mark again), `inView`, `inset`, `frames`; the scroll and resize listeners.
 - `page-ink.ts`: the pencil (`anchor`, `erase`, `eraseAlong`, `rub`, `rubEnd`, `draw`), owns the marks and the rubbing.
 - `page-bookmarks.ts`: `bookmarks`, `bookmarksTop` (the menu clears them).
+- `page-phrases.ts` (v1.2 i-2, the phrases spec): the phrases' marks (`phraseMarks`): a comma before each start note and
+  the phrase's number, a section's boxed letter, placed by `phrase-marks.ts` over what is printed on each system and drawn
+  again by `layout` (and once the fonts have loaded); their 44 pt targets (`button.phrase-mark`, `page-taps.ts` posts
+  `phraseMark`/`sectionMark`); the selected phrase's number (`select`'s `phrase`), the phrase playing (`playing`),
+  `phraseMarksTop` (the menu clears them); hidden by the layer `phrases`.
 - `page-marks.ts`: margin notes and highlights (`notes`), Check flags (`checks`), `layers`, `tint`, highlight bands.
 - `page-versions.ts`: another version's or a draft's labels, numbers and seams (`performance`), tints, taken bars.
 - `page-selection.ts`: the menu's stand-in, `SelectionLayer` and `PlaceLayer` (`selection`, `places`), `select`,

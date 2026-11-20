@@ -14,8 +14,11 @@ import { type MarkFlag, placePerformance, placeTaken } from "./page-versions.js"
 export const NOTE_OFFSET_X = 4;
 const NOTE_OFFSET_Y = 22;
 
-/** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings) and Check. */
-const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
+/**
+ * The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings), Check and the
+ * phrases' marks (v1.2).
+ */
+const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check", "phrases"];
 
 let notesShown: PageNote[] = [];
 let highlightsShown: PageHighlight[] = [];

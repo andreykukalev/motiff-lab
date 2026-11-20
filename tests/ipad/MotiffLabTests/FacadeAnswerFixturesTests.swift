@@ -198,32 +198,27 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(layers.original("src_pdf")?.pageMarks, 1, "its bookmark")
     }
 
-    func testThePhraseLevelsDecode() throws {
-        let answers = try Self.answers("phrases.level")
-        XCTAssertEqual(answers.count, 7)
-        let levels = try [0, 2, 3].map { try XCTUnwrap(FacadeAnswer.decode(PhraseLevelAnswer.self, answers[$0].text, of: "phrases.level"), "\(reported)") }
-        let phrases = try [4, 5, 6].map { try XCTUnwrap(PhraseLevelsShown(answer: answers[$0].text), "\(reported)") }
-        XCTAssertNotNil(ScoreSelection(answer: answers[1].text))
+    /// The phrases' marks (the phrases spec, v1.2): each start's bar, beat and «Почему здесь», whether it is the player's,
+    /// and the sections' letters with the span a tap selects, read from `phrases` and from each `phrases.edit`.
+    func testThePhraseMarksDecode() throws {
+        let answers = try Self.answers("phrases.marks")
+        XCTAssertEqual(answers.count, 9)
+        let read = try answers.map { try XCTUnwrap(PiecePhrases(answer: $0.text), "\(reported)") }
         XCTAssertEqual(reported, [])
 
-        let sentences = PhraseLevelsShown(levels[0].phrases)
-        XCTAssertEqual(sentences.level, "sentence")
-        XCTAssertEqual(sentences.counts, ["short": 39, "phrase": 21, "sentence": 4])
-        XCTAssertEqual(sentences.units.count, 4)
-        let first = try XCTUnwrap(sentences.unit(1))
-        XCTAssertEqual(first.provenance, "inferred")
-        XCTAssertLessThan(first.selectableOnset, first.selectableEnd)
-        XCTAssertNil(levels[0].selection.selection, "nothing selected: null")
+        let first = try XCTUnwrap(read[0].unit(1))
+        XCTAssertEqual([first.startBar, first.startBeat], [0, 3], "the upbeat")
+        XCTAssertEqual(first.why, "the start of the piece")
+        XCTAssertEqual(read[0].unit(2)?.why, "after a half close and where an earlier passage comes back note for note")
+        XCTAssertTrue(read[0].units.allSatisfy { !$0.own }, "all found")
+        XCTAssertEqual(read[0].sections.map(\.letter), ["A", "B", "C", "A′"])
+        let long = try XCTUnwrap(read[0].sections.first { $0.id == "section_3" })
+        XCTAssertEqual([long.onset, long.selectableOnset, long.selectableEnd], [16560, 16560, 39600], "a tap selects 32 bars of it")
+        XCTAssertEqual([long.firstBar, long.lastBar], [24, 77])
 
-        let moved = try XCTUnwrap(levels[1].selection.selection.map(ScoreSelection.init), "the selection moved to the short units there")
-        XCTAssertEqual(PhraseLevelsShown(levels[1].phrases).units.count, 39)
-        XCTAssertEqual([moved.firstBar, moved.lastBar], [4, 5])
-        XCTAssertEqual(levels[2].selection.selection.map { [$0.firstBar, $0.lastBar] }, [4, 8])
-
-        XCTAssertEqual(phrases[0].edited, [])
-        XCTAssertEqual(phrases[1].edited, ["phrase"], "a phrase joined with the next is the player's own")
-        XCTAssertEqual(phrases[1].counts["phrase"], 20)
-        XCTAssertEqual(phrases[2].edited, [], "reset")
+        XCTAssertEqual(read[1].units.filter(\.own).map(\.number), [2], "a start moved by the player")
+        XCTAssertEqual(read[3].units.filter(\.own).map(\.number), [4], "a phrase the player started")
+        XCTAssertEqual(read[3].unit(4)?.why, "set by you")
     }
 
     /// The drafts' calls (v1.1, ADR 0034): the «В черновик» sheet and what it offers first, the Sources group and the draft's

@@ -1,7 +1,8 @@
 // Taps on the iPad's score page, and who may make them. Who selects, taps or writes with a finger or the Pencil is
 // Swift's (`input`, InputRules.swift, #479 item 18), under the bar's mode (`mode`) and its Pen (`pen`). A tap on a mark over
-// the bars names it to Swift (a Check flag, a version's label, a margin note, a bookmark); a tap on the music names its
-// bar, or under the modes puts the playhead on the beat under it; a tap never plays (#338).
+// the bars names it to Swift (a Check flag, a version's label, a margin note, a bookmark, a phrase's number or a section's
+// letter); a tap on the music names its bar, or under the modes puts the playhead on the beat under it; a tap never plays
+// (#338).
 import { beatUnder, modeOf } from "../score-modes.js";
 import { ScoreBeats } from "../selection-beats.js";
 import type { ScoreBar } from "../score-geometry.js";
@@ -93,8 +94,16 @@ function barUnder(event: MouseEvent): ScoreBar | undefined {
         && y >= Math.min(bar.top, bar.ink.top) - BAR_REACH && y <= Math.max(bar.bottom, bar.ink.bottom) + BAR_REACH);
 }
 
-/** A tap on a mark over the bars names it to Swift: a Check flag, a version's label, a margin note or a bookmark. */
+/**
+ * A tap on a mark over the bars names it to Swift: a Check flag, a version's label, a margin note, a bookmark, or a phrase's
+ * number or a section's letter (v1.2), which Swift selects.
+ */
 function tapOnMark(target: Element | null): boolean {
+    const phrase = target?.closest<HTMLElement>(".phrase-mark");
+    if (phrase) {
+        post(phrase.dataset.section === undefined ? { phraseMark: Number(phrase.dataset.phrase) } : { sectionMark: phrase.dataset.section });
+        return true;
+    }
     const flag = target?.closest<HTMLElement>(".check-flag");
     if (flag) {
         post({ checkFlag: Number(flag.dataset.bar) });
