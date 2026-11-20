@@ -137,6 +137,25 @@ public class FacadeAnswersContractTests
             ("drafts.open", """{"draft":"d_0001"}"""),
             ("drafts.rename", """{"device":"ipad","here":[],"draft":"d_0001","name":"Coda"}"""),
         ],
+        // A place's приёмы (0034 section 4; the iPad's step 6): bars 1–4 as a new draft's place and bars 5–8 as its
+        // variant, the приёмы with their numbers, positions and labels, one taken only here (then taken by the notes), each
+        // step undone in turn, one left, «Взять всё уверенное», the right hand of bars 3–4 taken from the variant, and the
+        // приёмы as that step left them.
+        ["drafts.techniques"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.take", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","technique":1,"bar":4,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+            ("drafts.leave", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","technique":1,"now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+            ("drafts.takeSure", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","now":"2026-11-20T10:20:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+            ("drafts.takeFrom", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","part":"right","span":{"onset":1440,"end":2880},"now":"2026-11-20T10:25:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+        ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for

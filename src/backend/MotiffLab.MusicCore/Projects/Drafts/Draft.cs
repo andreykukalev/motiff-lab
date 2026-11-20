@@ -83,7 +83,7 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>
     /// The place <paramref name="placeId"/> with another of its variants as its base: its bars, meter, key and tempo from
     /// it. The steps of that place are removed, since they were taken against the base before (docs/project-file.md, "Drafts"),
-    /// and so are the new base's anchors, which lined it up with that base.
+    /// and so are the anchors of all its variants, which lined them up with that base: the place is compared anew.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place, or no such variant in it.</exception>
     public Draft WithBase(string placeId, string variantId)
@@ -94,9 +94,31 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
             throw new KeyNotFoundException($"The place {placeId} has no variant {variantId}.");
         }
 
-        // The new base's anchors lined it up with the base until now: a base has none.
-        DraftVariant[] variants = [.. place.Variants.Select(each => each.Id == variantId ? each with { Anchors = [] } : each)];
+        // Every anchor lined a variant up with the base until now, the new base's among them: a base has none.
+        DraftVariant[] variants = [.. place.Variants.Select(static each => each with { Anchors = [] })];
         return place.Base == variantId ? this : Changed([.. Places.Select(each => each.Id == placeId ? place.With(variants, variantId) : each)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
+    }
+
+    /// <summary>The draft with <paramref name="step"/> at the end of its journal: it takes the number <see cref="Next"/>, and the next one counts on.</summary>
+    /// <exception cref="ArgumentException">The step has another number, or names a place or a variant the draft has not.</exception>
+    public Draft With(Func<int, DraftStep> step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        DraftStep made = step(Next);
+        return made.Number == Next
+            ? new Draft(Id, Name, CreatedAt, Places, Shelf, [.. Steps, made], Next + 1)
+            : throw new ArgumentException($"The next step is number {Next}.", nameof(step));
+    }
+
+    /// <summary>
+    /// Undo: the last step of the journal goes, and with it every step accepted together with it (its group). The numbers
+    /// count on, so a step undone never lends its number to another.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The journal is empty.</exception>
+    public Draft Undone()
+    {
+        DraftStep last = Steps.MaxBy(static step => step.Number) ?? throw new InvalidOperationException("The draft has no step to undo.");
+        return Changed(Places, Shelf, [.. Steps.Where(step => step.Number != last.Number && (last.Group is null || step.Group != last.Group))]);
     }
 
     /// <summary>The steps of the journal that name the place, in number order.</summary>
@@ -104,6 +126,9 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
 
     /// <summary>The result of the place <paramref name="placeId"/>: its base with its steps (<see cref="PlaceResult.Build"/>).</summary>
     public PlaceResult ResultOf(string placeId) => PlaceResult.Build(Place(placeId), StepsOf(placeId));
+
+    /// <summary>The приёмы of the place <paramref name="placeId"/>'s variants against its base, decided as its steps left them (<see cref="PlaceTechniques.Of"/>).</summary>
+    public IReadOnlyList<PlaceTechnique> TechniquesOf(string placeId) => PlaceTechniques.Of(Place(placeId), StepsOf(placeId));
 
     /// <summary>The ids of every place and variant, for a new one never to take one.</summary>
     public IEnumerable<string> Ids => [.. Places.Select(static place => place.Id), .. Places.SelectMany(static place => place.Variants).Concat(Shelf).Select(static variant => variant.Id)];

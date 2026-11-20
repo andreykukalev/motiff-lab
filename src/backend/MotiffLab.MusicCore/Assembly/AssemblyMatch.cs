@@ -49,25 +49,31 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
     /// <summary>How far off its place a note may be found, in ticks: a 16th.</summary>
     public const long Tolerance = CanonicalTime.TicksPerQuarter / 4;
 
-    private PerformanceAlignment Alignment { get; init; } = null!;
+    /// <summary>The alignment the comparison was made through (<see cref="Aligned"/>).</summary>
+    internal PerformanceAlignment Alignment { get; private init; } = null!;
 
     /// <summary>
     /// <paramref name="source"/> lined up with <paramref name="notes"/> as a version is with the score (0022, section 2):
     /// its ticks taken as microseconds, so <see cref="PerformanceAlignment.TickAt"/> of a source tick × 1000 is the tick of
-    /// <paramref name="notes"/> it falls on.
+    /// <paramref name="notes"/> it falls on; through <paramref name="confirmed"/>, ticks of <paramref name="notes"/> and of
+    /// the source the player confirmed sound together, when there are any.
     /// </summary>
-    internal static PerformanceAlignment Aligned(SourceMusic source, IReadOnlyList<Note> notes)
-    {
-        PlayedNote[] played = [.. source.Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 1000, note.Velocity, note.Span.Duration * 1000))];
-        return PerformanceAlignment.Align(notes, played);
-    }
+    internal static PerformanceAlignment Aligned(SourceMusic source, IReadOnlyList<Note> notes, IReadOnlyList<(Tick Notes, Tick Source)>? confirmed = null) =>
+        PerformanceAlignment.Align(notes, Played(source), [.. (confirmed ?? []).Select(static anchor => new Anchor(anchor.Notes, anchor.Source.Value * 1000))]);
 
-    /// <summary>Compares <paramref name="source"/> with <paramref name="notes"/>; <paramref name="stamp"/> names the journal the notes were built from.</summary>
-    public static AssemblyMatch Of(string sourceId, SourceMusic source, SourceMusic notes, string stamp)
+    /// <summary>The source's notes as a performance's, its ticks taken as microseconds.</summary>
+    internal static IReadOnlyList<PlayedNote> Played(SourceMusic source) =>
+        [.. source.Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 1000, note.Velocity, note.Span.Duration * 1000))];
+
+    /// <summary>
+    /// Compares <paramref name="source"/> with <paramref name="notes"/>; <paramref name="stamp"/> names the journal the notes
+    /// were built from, <paramref name="confirmed"/> the ticks the player confirmed sound together (<see cref="Aligned"/>).
+    /// </summary>
+    public static AssemblyMatch Of(string sourceId, SourceMusic source, SourceMusic notes, string stamp, IReadOnlyList<(Tick Notes, Tick Source)>? confirmed = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(notes);
-        PerformanceAlignment alignment = Aligned(source, notes.Notes);
+        PerformanceAlignment alignment = Aligned(source, notes.Notes, confirmed);
         Anchor[] anchors = [.. alignment.Anchors];
         HashSet<string> used = new(StringComparer.Ordinal);
         List<MatchBar> bars = [];
@@ -102,7 +108,7 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
             int total = Math.Max(mine.Count, theirs.Count);
             MatchKind kind = !found && total > 0 ? MatchKind.NotFound
                 : total == 0 ? MatchKind.Same
-                : matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare) ? MatchKind.Same
+                : IsSame(matched, total) ? MatchKind.Same
                 : matched >= total * PartlyShare ? MatchKind.Partly
                 : MatchKind.Differs;
             bool clean = target is { } landed && CleanBar(notes, landed, bar.Duration) is not null;
@@ -111,6 +117,13 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
 
         return new AssemblyMatch(sourceId, stamp, bars, RunsOf(source, bars)) { Alignment = alignment };
     }
+
+    /// <summary>
+    /// «Совпадает»: <paramref name="matched"/> of <paramref name="total"/> notes found in place is at least
+    /// <see cref="SameShare"/> of them, or all but one of at least <see cref="PartlyShare"/> (a correction).
+    /// </summary>
+    public static bool IsSame(int matched, int total) =>
+        matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare);
 
     /// <summary>Where a stretch of the source lands in the player's notes and how alike it is there: «Похоже на такты 15–16 · частично».</summary>
     public (TickSpan Span, MatchKind Kind)? Similar(TickSpan inSource)

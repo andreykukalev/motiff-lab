@@ -64,6 +64,12 @@ public sealed record BarComparison(
     IReadOnlyList<PlacedNote> PlayedNotPrinted,
     IReadOnlyList<PlacedNote> LikelyArtefacts)
 {
+    /// <summary>The printed notes not heard that <see cref="Difference"/> explains: all for an octave or a rhythm, the bass replaced, the notes left out.</summary>
+    public IReadOnlyList<string> ExplainedNotHeard { get; init; } = [];
+
+    /// <summary>The played notes not printed that <see cref="Difference"/> explains: all for an octave or a rhythm, the bass played instead, the notes added.</summary>
+    public IReadOnlyList<PlacedNote> ExplainedPlayed { get; init; } = [];
+
     /// <summary>The kind in a word or two, for the marker above the bar: «добавлены ноты», "different bass".</summary>
     public static string NameOf(BarDifference difference, Words words) => difference switch
     {

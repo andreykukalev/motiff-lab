@@ -63,22 +63,44 @@ internal static class DifferenceClassifier
         missing.Count > 0 && missing.Count == extra.Count && Pairs(missing, extra, (note, played) => note.Pitch == played.Pitch);
 
     /// <summary>
+    /// The notes of a bar its kind explains (decision record 0034, section 4: a приём's own notes): for an octave or a rhythm
+    /// every missing and extra note, as all of them pair; for a different bass the replaced bass notes and the played basses
+    /// near them; for added notes or an ornament the extra notes; for a simplification the missing notes; else none.
+    /// </summary>
+    public static (List<Note> Missing, List<PlacedNote> Extra) Explained(BarDifference kind, List<Note> missing, List<PlacedNote> extra, List<Note> printedInBar, List<PlacedNote> placed, TimeSignature signature) => kind switch
+    {
+        BarDifference.Octave or BarDifference.Rhythm => (missing, extra),
+        BarDifference.DifferentBass => Basses(missing, extra, printedInBar, placed, signature.BeatTicks),
+        BarDifference.AddedNotes or BarDifference.Ornament => ([], extra),
+        BarDifference.Simplified => (missing, []),
+        _ => ([], []),
+    };
+
+    /// <summary>
     /// Different bass: a printed bass note (lowest of its chord, below middle C) is missing, and a played note
     /// lowest at its moment and below middle C sounds near it instead.
     /// </summary>
-    private static bool HasDifferentBass(List<Note> missing, List<PlacedNote> extra, List<Note> printedInBar, List<PlacedNote> placed, long beat)
+    private static bool HasDifferentBass(List<Note> missing, List<PlacedNote> extra, List<Note> printedInBar, List<PlacedNote> placed, long beat) =>
+        Basses(missing, extra, printedInBar, placed, beat).Missing.Count > 0;
+
+    /// <summary>The missing printed bass notes with a played bass near them, and those played basses (<see cref="HasDifferentBass"/>).</summary>
+    private static (List<Note> Missing, List<PlacedNote> Extra) Basses(List<Note> missing, List<PlacedNote> extra, List<Note> printedInBar, List<PlacedNote> placed, long beat)
     {
+        List<Note> replaced = [];
+        List<PlacedNote> instead = [];
         foreach (Note bass in missing.Where(note => note.Pitch.MidiNumber < 60 && IsLowestPrinted(note, printedInBar)))
         {
-            if (extra.Any(played => played.Pitch.MidiNumber < 60
+            List<PlacedNote> near = [.. extra.Where(played => played.Pitch.MidiNumber < 60
                 && Math.Abs(played.At.Value - bass.Span.Onset.Value) <= beat / 2
-                && IsLowestPlayed(played, placed)))
+                && IsLowestPlayed(played, placed))];
+            if (near.Count > 0)
             {
-                return true;
+                replaced.Add(bass);
+                instead.AddRange(near.Where(played => !instead.Contains(played)));
             }
         }
 
-        return false;
+        return (replaced, instead);
     }
 
     /// <summary>Whether each missing note can be paired with its own extra note by a rule, greedily in order.</summary>

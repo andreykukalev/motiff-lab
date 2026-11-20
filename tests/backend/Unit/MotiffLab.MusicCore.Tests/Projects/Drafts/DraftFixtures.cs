@@ -58,4 +58,30 @@ internal static class DraftFixtures
 
     public static DraftVariant Variant(string id, SourceMusic music, int first, int last, DraftPart part = DraftPart.All, string notes = "n_1") =>
         DraftFragment.Variant(id, At, music, Bars(first, last), part, notes, Read);
+
+    /// <summary>The recording plays bars 2 and 6 an octave higher.</summary>
+    public static SourceMusic Octaves() => Score(melody: bar => bar is 1 or 5 ? [84, 86, 88, 89] : [72, 74, 76, 77], prefix: "h");
+
+    /// <summary>Eight bars of the notes as the base and <paramref name="heard"/> as a variant of the place.</summary>
+    public static Draft Drafted(SourceMusic heard) =>
+        Draft.Start("d_1", "Предложение", At, "pl_1", Variant("v_1", Score(), 1, 8)).With(Variant("v_2", heard, 1, heard.Bars.Count, notes: "perf_1"), DraftDrop.Variant, "pl_1");
+
+    /// <summary>The octaves of bars 2 and 6 and another bass in bar 4.</summary>
+    public static SourceMusic OctavesAndBass()
+    {
+        SourceMusic octaves = Octaves();
+        return octaves with { Notes = [.. octaves.Notes.Select(note => note.Id == "h3l" ? note with { Pitch = new Pitch(43) } : note)] };
+    }
+
+    /// <summary>The notes of nine bars: bars 1–<paramref name="after"/> of the score, a bar of other music, then the rest.</summary>
+    public static SourceMusic WithABarAdded(int after)
+    {
+        SourceMusic score = Score(prefix: "h");
+        long cut = after * BarLength;
+        List<Note> notes = [.. score.Notes.Select(note => note.Span.Onset.Value >= cut ? note with { Span = new TickSpan(note.Span.Onset.Offset(BarLength), note.Span.Duration) } : note)];
+        int[] other = [61, 66, 69, 63];
+        notes.AddRange(other.Select((pitch, beat) => Note($"x{beat}", pitch, cut + (beat * Quarter), Quarter)));
+        MeterMap meter = new([new MeterChange(Tick.Zero, TimeSignature.CommonTime)]);
+        return SourceMusic.Of(notes, meter, new Tick(9 * BarLength), score.Tempos, score.Keys);
+    }
 }

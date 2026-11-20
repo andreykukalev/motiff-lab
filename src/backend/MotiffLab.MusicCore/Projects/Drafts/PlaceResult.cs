@@ -19,7 +19,13 @@ public sealed record DraftStepOutcome(int Number, bool Applied, string? Lost);
 /// <param name="Origins">For each note a step put in, the variant it came from; the base's notes are not here.</param>
 public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, string> Origins, IReadOnlyList<DraftStepOutcome> Steps)
 {
+    /// <summary>The bars put in, in order: where, in the place's ticks as they were then, and how long.</summary>
+    private IReadOnlyList<(Tick At, long Duration)> Inserted { get; init; } = [];
+
     public DraftStepOutcome? OutcomeOf(int number) => Steps.FirstOrDefault(step => step.Number == number);
+
+    /// <summary>A tick of the place's base where it is in the result: moved on by the bars put in before it, each at the place's ticks of its time.</summary>
+    public Tick InResult(Tick tick) => AfterInserts(Inserted, tick);
 
     /// <summary>The place's base with <paramref name="steps"/> (its own, in number order) applied.</summary>
     public static PlaceResult Build(DraftPlace place, IEnumerable<DraftStep> steps)
@@ -37,7 +43,6 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
 
     private sealed class Builder(DraftPlace place)
     {
-        private readonly DraftVariant _base = place.BaseVariant;
         private readonly Dictionary<string, PerformanceAlignment> _alignments = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _origins = new(StringComparer.Ordinal);
         private readonly List<DraftStepOutcome> _outcomes = [];
@@ -65,7 +70,8 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
         public PlaceResult Result() => new(
             new SourceMusic([.. _notes.OrderBy(static note => note.Span.Onset).ThenBy(static note => note.Pitch.MidiNumber).ThenBy(static note => note.Id, StringComparer.Ordinal)], _bars, _tempos, _keys),
             _origins,
-            _outcomes);
+            _outcomes)
+        { Inserted = [.. _inserted] };
 
         /// <summary>The base notes taken out and the variant's notes put in at the place the alignment with the base gives them; the id it lost, else null.</summary>
         private string? Take(DraftTake take)
@@ -86,7 +92,7 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             foreach (string id in take.Added)
             {
                 Note note = theirs[id];
-                Tick at = AfterInserts(alignment.Anchors.Count == 0 ? note.Span.Onset : new Tick(Math.Max(0, alignment.TickAt(note.Span.Onset.Value * 1000).Value)));
+                Tick at = AfterInserts(_inserted, DraftAlignment.InBase(alignment, note.Span.Onset));
                 _notes.Add(note with { Id = id, Span = new TickSpan(at, note.Span.Duration) });
                 _origins[id] = variant.Id;
             }
@@ -122,9 +128,6 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             return null;
         }
 
-        /// <summary>A tick of the base as it was, moved on by the bars put in before it so far, each at the place's ticks of its time.</summary>
-        private Tick AfterInserts(Tick tick) => _inserted.Aggregate(tick, static (at, insert) => at >= insert.At ? at.Offset(insert.Duration) : at);
-
         private string? Transpose(int semitones)
         {
             _notes = [.. _notes.Select(note => note with { Pitch = new Pitch(Math.Clamp(note.Pitch.MidiNumber + semitones, 0, Pitch.MaxMidiNumber)) })];
@@ -137,16 +140,20 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
             return null;
         }
 
-        /// <summary>The variant lined up with the base as it was, as a version is with the score (decision record 0022, section 2).</summary>
+        /// <summary>The variant lined up with the base as it was (<see cref="DraftAlignment.Of"/>).</summary>
         private PerformanceAlignment AlignmentOf(DraftVariant variant)
         {
             if (!_alignments.TryGetValue(variant.Id, out PerformanceAlignment? alignment))
             {
-                alignment = AssemblyMatch.Aligned(variant.Music, _base.Music.Notes);
+                alignment = DraftAlignment.Of(place, variant);
                 _alignments[variant.Id] = alignment;
             }
 
             return alignment;
         }
     }
+
+    /// <summary>A tick of the base moved on by the bars put in before it, each at the place's ticks of its time.</summary>
+    private static Tick AfterInserts(IEnumerable<(Tick At, long Duration)> inserted, Tick tick) =>
+        inserted.Aggregate(tick, static (at, insert) => at >= insert.At ? at.Offset(insert.Duration) : at);
 }
