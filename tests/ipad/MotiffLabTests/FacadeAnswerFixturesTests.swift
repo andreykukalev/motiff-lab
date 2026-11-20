@@ -256,6 +256,35 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(reported, [])
     }
 
+    /// A place's приёмы (v1.1, ADR 0034 step 6): `drafts.techniques` before and after a take, decoded into the draft
+    /// view's numbers, and each step's answer read as the sources it carries.
+    @MainActor
+    func testTheTechniquesDecode() throws {
+        let answers = try Self.answers("drafts.techniques")
+        XCTAssertEqual(answers.count, 12, "each call's answer")
+        let calls = [2, 4, 11].map { answers[$0] }
+        let read = try calls.map { try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, $0.text, of: "drafts.techniques"), "\(reported)") }
+        XCTAssertEqual(read.map(\.taken), [0, 1, 1])
+        let technique = try XCTUnwrap(read[0].techniques.first)
+        XCTAssertTrue(technique.inferred, "the kind is the engine's reading")
+        XCTAssertEqual(technique.label, "simplification")
+        XCTAssertEqual(technique.occurrences.map(\.firstBar), [4])
+        XCTAssertEqual(read[1].techniques.first?.occurrences.first?.state, "taken")
+
+        let model = DraftTechniquesModel()
+        model.keep([read[0]])
+        let marker = try XCTUnwrap(model.markers(UIText(language: "en")).first)
+        XCTAssertEqual(marker["text"] as? String, "1")
+        XCTAssertEqual(marker["technique"] as? String, "pl_0001/1/4")
+        XCTAssertEqual(marker["bar"] as? Int, 4)
+        XCTAssertEqual(marker["state"] as? String, "open")
+
+        for index in [3, 5, 6, 7, 8, 9, 10] {
+            XCTAssertNotNil(SourceLayers(answer: answers[index].text), "answer \(index): \(reported)")
+        }
+        XCTAssertEqual(reported, [])
+    }
+
     /// A version with bars taken into the notes, as a file saved before v1.1 holds it (the bar-by-bar merge left the
     /// iPad, ADR 0034 section 8): the answers of a bar taken and restored, read as any version is.
     func testAVersionWithTakenBarsDecodes() throws {

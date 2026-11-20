@@ -273,10 +273,15 @@ struct ScoreScreenContent: View {
         selectionModel.selection != nil && !focusModel.focused && !panels[.roll] && score.selectionControlsShown
     }
 
+    /// How high the pill floats: over whatever covers the bottom of the score, else at the screen's edge.
+    private static func pillBottom(covered: CGFloat) -> CGFloat {
+        covered > 0 ? covered + CGFloat.ds("s-3") : CGFloat.ds("s-4")
+    }
+
     /// The score and everything that floats over it.
     private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
-        let pillBottom = covered > 0 ? covered + gap : CGFloat.ds("s-4")
+        let pillBottom = Self.pillBottom(covered: covered)
         // The full assistant's panel sits beside the score, which keeps the rest of the width (#582 item 17.1).
         let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: screen.width > screen.height) + gap : 0
         let pillTrailing: CGFloat = sheet == .side ? ScoreScreen.sheetWidth + gap : side
@@ -289,7 +294,7 @@ struct ScoreScreenContent: View {
                 // open it gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection
                 // controls (#582 item 10), whatever the playback controls do.
                 if selectionMenuOpen, let place = selectionModel.menuPlace {
-                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() })
+                    SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() }, viewOnly: viewing != nil)
                         .modifier(MenuDrag(score: score))
                         .offset(x: place.x, y: place.y)
                 }
@@ -306,6 +311,9 @@ struct ScoreScreenContent: View {
                                 .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
                         }
                     }
+                } else if piece.draft != nil, let owner = pieceUnder, !focusModel.focused {
+                    // A draft's приём number tapped (v1.1): its card under it (ScoreDraftViews.swift).
+                    DraftTechniqueCard(score: score, model: score.draftModel, owner: owner, text: text, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -340,6 +348,9 @@ struct ScoreScreenContent: View {
                     }
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
                         PerformanceCapsule(sources: heard, text: text)
+                    }
+                    if !focusModel.focused, piece.draft != nil {
+                        DraftAssemblyPill(score: score, model: score.draftModel, text: text)
                     }
                     if !focusModel.focused {
                         // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
@@ -530,6 +541,15 @@ extension ScoreScreenContent {
         /// Shown as a PDF (another original) rather than as notes.
         let pdf: Bool
         var id: Int32 { piece.id }
+
+        /// The number a view was shown under, closed in music-core once its screen has gone.
+        static func close(_ id: Int32) {
+            Task {
+                // After the screen's own leaving, which still reads the piece.
+                try? await Task.sleep(for: .seconds(2))
+                _ = await MusicCore.run { MusicCore.close(piece: id) }
+            }
+        }
     }
 
     /// Whether the switch of all views and Sources are there: never on a view shown over the piece (0030).
@@ -590,6 +610,9 @@ extension ScoreScreenContent {
         Group {
             if view.pdf {
                 PdfScreen(piece: view.piece, linked: true, readOnlyNote: text["sources.sheet.viewOnly"])
+            } else if view.piece.draft != nil {
+                // Opened again in its place after each step (v1.1), closing each number it was open under itself.
+                ShownDraftScreen(piece: view.piece, owner: sources, viewing: text["sources.sheet.viewOnly"])
             } else {
                 ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"])
             }
@@ -598,12 +621,7 @@ extension ScoreScreenContent {
         .environmentObject(account)
         .environmentObject(settings)
         .onDisappear {
-            let id = view.piece.id
-            Task {
-                // After the screen's own leaving, which still reads the piece.
-                try? await Task.sleep(for: .seconds(2))
-                _ = await MusicCore.run { MusicCore.close(piece: id) }
-            }
+            if view.piece.draft == nil { ShownView.close(view.piece.id) }
         }
     }
 }
@@ -620,6 +638,13 @@ extension ScoreScreenContent {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
                     AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                // A step just taken on a draft's view, with its Undo (v1.1), where the Sources toast stands.
+                if piece.draft != nil, let owner = pieceUnder {
+                    DraftStepToast(owner: owner, score: score, text: text, reopen: reopen)
+                        .padding(.bottom, Self.pillBottom(covered: covered) + 56)
                 }
             }
         let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
@@ -1053,6 +1078,9 @@ struct SelectionMenu: View {
     @Binding var insightsOpen: Bool
     /// «Черновик» (v1.1, ADR 0034): the «В черновик» sheet for the passage; nil where the notes shown are a draft's.
     let toDraft: (() -> Void)?
+    /// On a view only to be shown (Notes or a draft over the piece, v1.1): only what works there, the selection, «Черновик»
+    /// and playback; Note, Bookmark, Insights and More, which music-core refuses there, are not offered.
+    let viewOnly: Bool
     @State private var more = false
     @EnvironmentObject private var account: Account
     @EnvironmentObject private var settings: DeviceSettings
@@ -1147,23 +1175,27 @@ struct SelectionMenu: View {
             }
             // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the
             // assistant (Andrei, 2026-11-18).
-            iconItem("memo", text["menu.note"], on: false) {
-                contents.cancel()
-                marksModel.startNote()
-            }
-            iconItem("bookmark", text["menu.bookmark"], on: false) {
-                marksModel.noteDraft = nil
-                contents.start(title: score.bookmarkTitle)
+            if !viewOnly {
+                iconItem("memo", text["menu.note"], on: false) {
+                    contents.cancel()
+                    marksModel.startNote()
+                }
+                iconItem("bookmark", text["menu.bookmark"], on: false) {
+                    marksModel.noteDraft = nil
+                    contents.start(title: score.bookmarkTitle)
+                }
             }
             // The passage into a draft (v1.1): a fragment of these notes, which stay as they are.
             if let toDraft {
                 iconItem("assemble", text["menu.draft"], on: false, action: toDraft)
             }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
-            if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
-                iconItem("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
+            if !viewOnly {
+                if !(selectionModel.selection?.noteIds.isEmpty ?? true) {
+                    iconItem("insight", text["bar.insights"], on: insightsOpen) { insightsOpen.toggle() }
+                }
+                iconItem("more", text["menu.more"], on: more) { more.toggle() }
             }
-            iconItem("more", text["menu.more"], on: more) { more.toggle() }
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
             iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }

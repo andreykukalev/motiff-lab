@@ -214,6 +214,85 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(reopened, 1, "the piece opens again from it")
     }
 
+    /// A draft whose place has a variant (Für Elise bars 1–4, and 5–8 added to it): its view numbers the приём above its
+    /// bar, a tap picks it, «Взять везде» takes it (saved, its toast undoes it with `drafts.undo`), the view opened again
+    /// at it shows it taken, the hand and «Оставить» are steps too, and Sources counts what is taken.
+    func testAPriyomIsNumberedTakenAndUndone() async throws {
+        let (workspace, _) = try await sourced()
+        let sources = workspace.sources
+        let first = await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
+        XCTAssertNotNil(first, sources.status ?? "")
+        let draft = try XCTUnwrap(sources.layers.drafts.first)
+        var view = try await draftView(draft, sources)
+        let place = try XCTUnwrap(view.draft?.places.first)
+        let variant = await sources.change("drafts.add", ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "variant", "place": place.id, "now": "2026-11-20T10:05:00Z"])
+        XCTAssertNotNil(variant, sources.status ?? "")
+        view = try await draftView(draft, sources)
+
+        let screen = ScoreWorkspace(piece: view, viewing: "view only")
+        let model = screen.score.draftModel
+        await model.load(view.draft, on: view.id)
+        let spot = try XCTUnwrap(model.spots.first, "Für Elise's bar 8 against bar 4: one приём")
+        XCTAssertEqual(model.total, 1)
+        XCTAssertEqual(model.taken, 0)
+        XCTAssertTrue(spot.technique.inferred)
+        let numbers = screen.score.placeMarkers.filter { $0["technique"] != nil }
+        XCTAssertEqual(numbers.count, 1, "one number above its bar, beside the place's label")
+        XCTAssertEqual(numbers[0]["text"] as? String, String(spot.technique.number))
+        XCTAssertEqual(numbers[0]["state"] as? String, "open")
+        XCTAssertEqual(model.pick(spot.key, at: CGPoint(x: 10, y: 20)), spot)
+        XCTAssertEqual(model.picked?.at, CGPoint(x: 10, y: 20), "its card at the number")
+        XCTAssertEqual(model.step(1), spot, "the last stays the current one")
+        XCTAssertNil(model.picked?.at, "stepping shows no card")
+        XCTAssertTrue(screen.score.canHear(spot, variant: false), "open: the draft sounds as the base there")
+        XCTAssertFalse(screen.score.canHear(spot, variant: true))
+        let tally = await sources.tally(of: draft)
+        XCTAssertEqual(tally?.taken, 0)
+        XCTAssertEqual(tally?.total, 1)
+
+        let taken = await sources.take(spot, here: false)
+        XCTAssertTrue(taken, sources.status ?? "")
+        guard case .draftStep(let undone)? = sources.toast?.undo else { return XCTFail("its toast undoes the step") }
+        XCTAssertEqual(undone, draft.id)
+        let reopened = await sources.openDraft(draft, at: spot.span.lowerBound)
+        let again = try XCTUnwrap(reopened, sources.status ?? "")
+        opened.append(again.id)
+        XCTAssertEqual(again.landing, .tick(spot.span.lowerBound), "opened again where the приём is")
+        await model.load(again.draft, on: again.id)
+        let takenSpot = try XCTUnwrap(model.spots.first)
+        XCTAssertTrue(takenSpot.isTaken)
+        XCTAssertTrue(screen.score.canHear(takenSpot, variant: true), "taken: the draft sounds as the variant there")
+        let takenTally = await sources.tally(of: draft)
+        XCTAssertEqual(takenTally?.taken, 1)
+
+        await sources.undo()
+        await model.load(again.draft, on: again.id)
+        XCTAssertEqual(model.spots.first?.isTaken, false, "undone by drafts.undo")
+        let undoneTally = await sources.tally(of: draft)
+        XCTAssertEqual(undoneTally?.taken, 0)
+
+        let hand = await sources.takeHand("right", at: spot)
+        XCTAssertTrue(hand, sources.status ?? "")
+        await sources.undo()
+        let left = await sources.leave(spot)
+        XCTAssertTrue(left, sources.status ?? "")
+        await model.load(again.draft, on: again.id)
+        XCTAssertEqual(model.spots.first?.occurrence.state, "left")
+
+        model.hideNumbers(true)
+        XCTAssertTrue(model.markers(UIText.current).isEmpty, "«Скрыть номера»: practice on the draft")
+        XCTAssertNil(model.pick(spot.key, at: nil))
+        XCTAssertNil(model.step(1))
+    }
+
+    /// The draft opened to be shown, closed when the test ends.
+    private func draftView(_ draft: SourceLayers.Draft, _ sources: SourcesController) async throws -> OpenPiece {
+        let opening = await sources.openDraft(draft)
+        let shown = try XCTUnwrap(opening, sources.status ?? "")
+        opened.append(shown.id)
+        return shown
+    }
+
     /// The kit's piece open in music-core, with its sources read.
     private func sourced() async throws -> (ScoreWorkspace, OpenPiece) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")

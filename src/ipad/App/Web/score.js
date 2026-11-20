@@ -96,6 +96,8 @@ const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
 /** A draft's place label (v1.1) says where the place came from, so it may run on longer than a version's. */
 const PLACE_MAX_WIDTH = 360;
+/** A draft's приём numbers (v1.1) in one bar stand side by side, this far apart. */
+const NUMBER_STEP = PERFORMANCE_TARGET + 4;
 
 /** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
@@ -292,7 +294,8 @@ function checks({ flags }) {
 
 /**
  * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars (in a draft's
- * view, each place's label above its start, with `place`, in the ink: v1.1, ADR 0034), and the ids of
+ * view, each place's label above its start, with `place`, in the ink, and the приёмы's plum numbers, with `technique`, the
+ * key a tap posts, and `state`: v1.1, ADR 0034), and the ids of
  * the printed notes it does not have, tinted in place (0022, section 4), and the ticks of the bars `taken` from versions,
  * a thin plum line under each; empty lists draw none. Given to Swift as `performance`; named otherwise here, where
  * `performance` is the clock.
@@ -438,9 +441,14 @@ function placeNotes() {
  */
 function placePerformance(geometry, flags) {
     const placed = state.performance.map((marker) => ({ marker, bar: geometry.barAt(marker.tick) })).filter((entry) => entry.bar !== undefined);
+    const isNumber = (marker) => marker.technique !== undefined;
+    const numbers = placed.filter((entry) => isNumber(entry.marker));
+    const inBar = new Map();
     placed.forEach(({ marker, bar }, index) => {
-        const next = placed[index + 1];
-        const widest = marker.place ? PLACE_MAX_WIDTH : PERFORMANCE_MAX_WIDTH;
+        // A label runs on up to the next of its own kind: a draft's numbers (v1.1) neither cut a label nor are cut by one.
+        const number = isNumber(marker);
+        const next = placed.slice(index + 1).find((entry) => isNumber(entry.marker) === number);
+        const widest = number ? PERFORMANCE_MIN_WIDTH : marker.place ? PLACE_MAX_WIDTH : PERFORMANCE_MAX_WIDTH;
         let room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : widest;
         const ahead = flags.filter((flag) => flag.system === bar.system && flag.left > bar.left && flag.left - bar.left - NOTE_OFFSET_X * 2 < room);
         const flagRoom = Math.min(...ahead.map((flag) => flag.left - bar.left - NOTE_OFFSET_X * 2));
@@ -448,16 +456,21 @@ function placePerformance(geometry, flags) {
         if (ahead.length > 0 && !lifted) {
             room = flagRoom;
         }
-        const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2;
+        // A place's label goes up a row over the numbers in its room; the numbers of one bar stand side by side.
+        const over = marker.place && numbers.some((entry) => entry.bar.system === bar.system && entry.bar.left >= bar.left && entry.bar.left - bar.left < room);
+        const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2 - (over ? PERFORMANCE_TARGET + 2 : 0);
+        const beside = number ? inBar.get(`${bar.system}:${bar.left}`) ?? 0 : 0;
+        if (number) inBar.set(`${bar.system}:${bar.left}`, beside + 1);
         const label = document.createElement("button");
         label.type = "button";
-        label.className = marker.place ? "perf-marker place" : "perf-marker";
+        label.className = number ? `perf-marker technique state-${marker.state}` : marker.place ? "perf-marker place" : "perf-marker";
         label.dataset.bar = String(marker.bar);
+        if (number) label.dataset.technique = marker.technique;
         const text = document.createElement("span");
         text.textContent = marker.text;
         label.append(text);
         label.setAttribute("aria-label", marker.label);
-        label.style.left = `${bar.left + NOTE_OFFSET_X}px`;
+        label.style.left = `${bar.left + NOTE_OFFSET_X + beside * NUMBER_STEP}px`;
         label.style.top = `${lifted ? Math.min(top, Math.min(...ahead.map((flag) => flag.top)) - PERFORMANCE_TARGET - 2) : top}px`;
         label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(widest, room))}px`;
         document.body.append(label);
@@ -949,7 +962,9 @@ document.body.addEventListener("click", (event) => {
     const version = target?.closest(".perf-marker");
     if (version) {
         const box = version.getBoundingClientRect();
-        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom });
+        // A draft's приём number (v1.1) says which it is.
+        const technique = version.dataset.technique === undefined ? {} : { technique: version.dataset.technique };
+        post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique });
         return;
     }
     const marker = target?.closest(".marker");

@@ -49,6 +49,15 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([left, bottom], [40.5, 300])
     }
 
+    /// A draft's приём number (v1.1) is a marker that says which it is: the card opens for that occurrence, at the number.
+    func testAPriyomNumberCarriesItsKey() {
+        let events = PageEvent.events(in: ["performanceBar": 4, "left": 10, "bottom": 20, "technique": "pl_0001/1/4"])
+        XCTAssertEqual(events.count, 1)
+        guard case let .techniqueNumber(key, left, bottom)? = events.first else { return XCTFail("a number: \(events)") }
+        XCTAssertEqual(key, "pl_0001/1/4")
+        XCTAssertEqual([left, bottom], [10, 20])
+    }
+
     func testTheMenuPutAwayIsNoPlace() {
         guard case .menu(let place)? = PageEvent.events(in: ["menu": NSNull()]).first else { return XCTFail("the menu") }
         XCTAssertNil(place)
