@@ -7,17 +7,23 @@ import Foundation
 /// of the one there was, with «Вернуть»; the marks themselves never change the selection. Their editing is not here. They
 /// stand only on the piece's working notes, where they are edited: none on a draft's view or other Notes shown over the
 /// piece (`OpenPiece.shownOnly`; the lead's decision, v1.2 i-2 review 1). Their hold and drag: ScorePhraseEdits.swift.
+/// In focus each phrase's motifs are small commas on the card (decision 2); a tap on one selects the motif, which Expand
+/// then loops as it loops any selection.
 extension ScoreController {
     /// The marks for the page: each phrase's number, start, whether it is the player's own and, moved from a found start,
-    /// where that was found; each section's letter at its start, with their labels («Фраза 2, с такта 4, доля 3, начинается
-    /// после половинной каденции»); the beats with their bar and beat and the words a dragged mark's caption is written in;
-    /// none on a view only shown.
+    /// where that was found, and its motifs' starts; each section's letter at its start, with their labels («Фраза 2, с такта 4,
+    /// доля 3, начинается после половинной каденции», «Мотив 2 фразы 3, такты 5–6»); the beats with their bar and beat and
+    /// the words a dragged mark's caption is written in; none on a view only shown.
     var phraseMarks: [String: Any] {
         let phrases = piece?.shownOnly == false ? selectionModel.phrases : nil
         let numbers = (phrases?.units ?? []).map { unit -> [String: Any] in
             let label = text.format("phrases.markLabel", String(unit.number), String(unit.startBar), String(unit.startBeat), unit.why)
             var mark: [String: Any] = ["number": unit.number, "tick": unit.onset, "own": unit.own, "label": label]
             if let found = unit.found { mark["found"] = found.at }
+            mark["motifs"] = unit.motifs.enumerated().map { index, motif -> [String: Any] in
+                let label = text.format("phrases.motifLabel", String(index + 1), String(unit.number), barsText(motif.firstBar, motif.lastBar, text))
+                return ["tick": motif.onset, "label": label]
+            }
             return mark
         }
         let letters = (phrases?.sections ?? []).map { section -> [String: Any] in
@@ -32,6 +38,14 @@ extension ScoreController {
     func pickPhrase(_ number: Int) {
         guard let unit = selectionModel.phrases?.unit(number) else { return }
         Task { await select(unit.selectableOnset, unit.selectableEnd, replaces: true) }
+    }
+
+    /// A motif's comma tapped on the card in focus (decision 2): the motif (its place in its phrase, from 1) selected in
+    /// place of the selection there was, as a number's tap selects its phrase; Expand loops what is selected.
+    func pickMotif(_ number: Int, of phrase: Int) {
+        guard let motifs = selectionModel.phrases?.unit(phrase)?.motifs, motifs.indices.contains(number - 1) else { return }
+        let motif = motifs[number - 1]
+        Task { await select(motif.onset, motif.end, replaces: true) }
     }
 
     /// A section's letter tapped: the section, as far as a selection holds it, selected in place of the one there was.

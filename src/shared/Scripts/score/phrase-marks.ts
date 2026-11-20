@@ -2,8 +2,10 @@
 // start a breath mark (a comma) right before the start note and the phrase's number over it, and at a form section's start
 // its boxed letter before the number. They sit right above the notes, raised only over what is printed there; a number
 // closer to the one before it than its width moves right, its comma staying at its note; each letter and number is a
-// touch target of the kit's size, split halfway with a close neighbour's. Kept free of the DOM, so Node tests the rules;
-// the iPad's page draws by them (ipad-page/page-phrases.ts).
+// touch target of the kit's size, split halfway with a close neighbour's. In focus a motif's small comma (decision 2) is
+// placed as a comma alone and takes the tap instead. Kept free of the DOM, so Node tests the rules; the iPad's page draws by
+// them (ipad-page/page-phrases.ts).
+import type { PagePhraseMark, PageSectionMark } from "./page-contract.js";
 import type { Rect } from "./score-geometry.js";
 
 /** One mark to place, in the document's pixels: where its start is and how wide its parts are drawn (0 for a part it has not). */
@@ -20,6 +22,11 @@ export interface MarkSpot {
     letter: number;
     /** The number's width: 0 for a section that starts where no phrase does. */
     number: number;
+    /**
+     * What of it takes a tap: its letter and number (the default, on the pages), its comma (a motif's, in focus) or nothing
+     * (the card's phrase marks, only to read).
+     */
+    tap?: "parts" | "comma" | "none";
 }
 
 /** The marks' measures: the gap between their parts and above what they stand over, their height, a touch target's side. */
@@ -29,7 +36,7 @@ export interface MarkSizes {
     target: number;
 }
 
-/** A mark placed: the top and bottom of its parts, the left of each part it has, and the targets of its letter and number. */
+/** A mark placed: the top and bottom of its parts, the left of each part it has, and the targets of the parts that take a tap. */
 export interface PlacedMark {
     top: number;
     bottom: number;
@@ -38,6 +45,7 @@ export interface PlacedMark {
     number: number | null;
     letterTarget: Rect | null;
     numberTarget: Rect | null;
+    commaTarget: Rect | null;
 }
 
 /** A target with the system it is on and its centre across, for splitting it with its neighbours. */
@@ -78,14 +86,16 @@ function placeOne(spot: MarkSpot, groupLeft: number, printed: readonly Rect[], s
     const right = number !== null ? number + spot.number : groupLeft + spot.letter;
     const comma = spot.comma > 0 ? spot.noteLeft - spot.comma - sizes.gap / 2 : null;
     const bottom = liftOver(spot.staffTop, printed, comma ?? groupLeft, right) - sizes.gap;
+    const parts = (spot.tap ?? "parts") === "parts";
     const mark = {
         top: bottom - sizes.height,
         bottom,
         comma,
         letter,
         number,
-        letterTarget: letter === null ? null : targetOver(letter, spot.letter, bottom + sizes.gap, sizes.target),
-        numberTarget: number === null ? null : targetOver(number, spot.number, bottom + sizes.gap, sizes.target),
+        letterTarget: !parts || letter === null ? null : targetOver(letter, spot.letter, bottom + sizes.gap, sizes.target),
+        numberTarget: !parts || number === null ? null : targetOver(number, spot.number, bottom + sizes.gap, sizes.target),
+        commaTarget: spot.tap !== "comma" || comma === null ? null : targetOver(comma, spot.comma, bottom + sizes.gap, sizes.target),
     };
     return { mark, right };
 }
@@ -114,7 +124,7 @@ function targetOver(left: number, width: number, base: number, side: number): Re
 function splitTargets(marks: readonly { mark: PlacedMark; system: number }[]): void {
     const targets: Target[] = [];
     for (const { mark, system } of marks) {
-        for (const rect of [mark.letterTarget, mark.numberTarget]) {
+        for (const rect of [mark.letterTarget, mark.numberTarget, mark.commaTarget]) {
             if (rect !== null) {
                 targets.push({ rect, system, centre: (rect.left + rect.right) / 2 });
             }
@@ -149,4 +159,55 @@ export function phraseAt(starts: readonly number[], tick: number): number {
         }
     }
     return low - 1;
+}
+
+/**
+ * A start on the score: a phrase's, a section's, or both; or where a start the player moved was found (`ghost`); in focus
+ * also a motif's (`motif`: its phrase's number, its place in it from 1, and its label).
+ */
+export interface MarkStart {
+    tick: number;
+    phrase?: PagePhraseMark;
+    section?: PageSectionMark;
+    ghost?: true;
+    motif?: { of: number; number: number; label: string };
+}
+
+/**
+ * The starts of the phrases (in time order) and the sections, one for each tick, in time order: where moved starts were
+ * found among them, and with `motifs` (in focus) each motif's at its own tick, at its phrase's start or on a ghost.
+ */
+export function markStarts(phrases: readonly PagePhraseMark[], sections: readonly PageSectionMark[], motifs: boolean): MarkStart[] {
+    const byTick = new Map<number, MarkStart>();
+    for (const phrase of phrases) {
+        byTick.set(phrase.tick, { tick: phrase.tick, phrase });
+    }
+    for (const section of sections) {
+        byTick.set(section.tick, { ...(byTick.get(section.tick) ?? { tick: section.tick }), section });
+    }
+    for (const found of phrases.flatMap((phrase) => (phrase.found === undefined ? [] : [phrase.found]))) {
+        if (!byTick.has(found)) {
+            byTick.set(found, { tick: found, ghost: true });
+        }
+    }
+    for (const phrase of motifs ? phrases : []) {
+        (phrase.motifs ?? []).forEach(({ tick, label }, index) => {
+            byTick.set(tick, { ...(byTick.get(tick) ?? { tick }), motif: { of: phrase.number, number: index + 1, label } });
+        });
+    }
+    return [...byTick.values()].sort((a, b) => a.tick - b.tick);
+}
+
+/**
+ * The kind of a start's comma: a phrase's, else a moved start's faint ghost (a motif starting there takes its tap), else a
+ * motif's small one (in focus); null for a section alone.
+ */
+export function commaOf(start: MarkStart): string | null {
+    if (start.phrase !== undefined) {
+        return "comma";
+    }
+    if (start.ghost === true) {
+        return "comma ghost";
+    }
+    return start.motif === undefined ? null : "comma motif";
 }

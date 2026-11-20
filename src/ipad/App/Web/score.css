@@ -115,6 +115,8 @@ button.phrase-mark { position: absolute; z-index: 1; min-height: 0; padding: 0; 
    its ghost faint where it was, an amber line at the note it would go to, its caption over the finger, and the two phrases
    it would make lit lightly in amber. */
 .phrase-ink.ghost { color: var(--ink-3); }
+/* In focus a motif's start (decision 2): a small comma without a number, a tone lighter than a phrase's found mark. */
+.phrase-ink.comma.motif { width: var(--s-1); height: var(--s-2); color: var(--ink-3); }
 .phrase-ink.lifted { z-index: 2; color: var(--warning); }
 div.phrase-drag { position: absolute; pointer-events: none; }
 div.phrase-neighbour { z-index: 0; border-radius: var(--r-xs); background: color-mix(in srgb, var(--amber-tint) 50%, transparent); }
@@ -178,9 +180,9 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
    for the black playhead's track, its gap under the ink and its dot (playheads.ts trackOf), and as much over the first, so
    the playhead stays in the card at the last bars and the notes stand in its middle (finding 3 of the 0.8 test). */
 #focus .card-score { position: relative; flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 var(--s-3); padding-block: calc(var(--playhead-gap) + var(--s-3)); box-sizing: border-box; min-height: 120px; }
-#focus .card-score svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
-#focus .card-score svg use { fill: currentColor; }
-#focus .card-score svg [color]:not(.playing) { color: inherit !important; }
+#focus .card-score .card-page svg { display: block; width: 100%; height: auto; color: var(--notation); fill: currentColor; }
+#focus .card-score .card-page svg use { fill: currentColor; }
+#focus .card-score .card-page svg [color]:not(.playing) { color: inherit !important; }
 /* The notes sounding while the piece plays (the web app's g.note.playing): cobalt, on the page and on the card. */
 .page :is(g.note, g.chord).playing, #focus .card-score :is(g.note, g.chord).playing { fill: var(--accent); stroke: var(--accent); color: var(--accent); }
 /* Heavier by a stroke round the glyphs, not by a drop shadow, which repainted the page on every frame (testing item 31). */
@@ -190,7 +192,7 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 /* The bar that plays is washed in graphite, not cobalt, so it never reads as a selection; stopped, the line rests in graphite (testing item 28). */
 .play-bar { position: absolute; left: 0; top: 0; will-change: transform; z-index: 0; border-radius: var(--r-xs); background: var(--hairline); pointer-events: none; }
 .playhead.resting { background: var(--ink-2); }
-#focus .card-score svg g.label { display: none; }
+#focus .card-score .card-page svg g.label { display: none; }
 /* The ossia (ds.css Ossia panel, the web app's .ossia-frame): a dashed plum frame round its staves, named by an overline. */
 #focus .ossia-frame { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--plum); border-radius: var(--r-xs); pointer-events: none; }
 #focus .ossia-frame .overline { position: absolute; left: var(--s-3); top: -8px; max-width: calc(100% - 2 * var(--s-3)); padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--paper); color: var(--plum); font: var(--t-overline); letter-spacing: 0.06em; text-transform: uppercase; }

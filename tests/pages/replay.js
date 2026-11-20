@@ -187,6 +187,9 @@
         if ("marker" in point) {
             return markerPoint(point);
         }
+        if ("motif" in point) {
+            return motifPoint(point);
+        }
         if ("phrase" in point || "section" in point) {
             return phrasePoint(point);
         }
@@ -234,6 +237,16 @@
         const drawn = scoreMarks.phraseTargets().filter((each) => ("phrase" in point ? each.phrase === point.phrase : each.section === point.section));
         if (drawn.length === 0) {
             throw new Error(`The page draws no ${"phrase" in point ? `number of phrase ${point.phrase}` : `letter of section ${point.section}`}.`);
+        }
+        const box = drawn[0];
+        return { x: (box.left + box.right) / 2 + (point.dx ?? 0) - window.scrollX, y: (box.top + box.bottom) / 2 + (point.dy ?? 0) - window.scrollY };
+    }
+
+    /** The centre of a motif's comma on the card in focus (v1.2 i-3c): motif `motif` of phrase `of`; window pixels. */
+    function motifPoint(point) {
+        const drawn = scoreMarks.motifTargets().filter((each) => each.motif === point.motif && each.of === point.of);
+        if (drawn.length === 0) {
+            throw new Error(`The card draws no comma of motif ${point.motif} of phrase ${point.of}.`);
         }
         const box = drawn[0];
         return { x: (box.left + box.right) / 2 + (point.dx ?? 0) - window.scrollX, y: (box.top + box.bottom) / 2 + (point.dy ?? 0) - window.scrollY };
@@ -306,6 +319,43 @@
         return { left: round(box.left + window.scrollX), top: round(box.top + window.scrollY), right: round(box.right + window.scrollX), bottom: round(box.bottom + window.scrollY) };
     }
     const shown = (element) => !element.hidden && element.isConnected && getComputedStyle(element).visibility !== "hidden" && element.getClientRects().length > 0;
+    // A phrase's mark as each part is drawn: its kind (comma, letter or number), its phrase (null for a section's letter
+    // where no phrase starts), its text, whether it is the player's own, the selected phrase's number or the phrase playing,
+    // and its box.
+    // With `painted` (the card's, v1.2 i-3b) also the token it is painted in, a comma's fill, and whether a comma's drawing
+    // keeps inside its box: what a rule of the card's engraving would take from it.
+    const phraseInks = (selector, painted = false) => [...document.querySelectorAll(selector)].filter(shown).map((ink) => {
+        const drawing = ink.querySelector("svg");
+        const mark = {
+            kind: ["comma", "letter", "number"].find((kind) => ink.classList.contains(kind)),
+            phrase: ink.dataset.phrase === undefined ? null : Number(ink.dataset.phrase),
+            text: ink.textContent,
+            own: ink.classList.contains("own"),
+            selected: ink.classList.contains("selected"),
+            current: ink.classList.contains("current"),
+            // A motif's small comma on the card (v1.2 i-3c); the key only where there is one, so the marks before read as they did.
+            ...(ink.classList.contains("motif") ? { motif: true } : {}),
+            ...boxOf(ink),
+        };
+        if (!painted) {
+            return mark;
+        }
+        const box = boxOf(ink);
+        const inside = drawing === null || (({ left, top, right, bottom }) => left >= box.left && top >= box.top && right <= box.right && bottom <= box.bottom)(boxOf(drawing));
+        return { ...mark, paint: tokenOf(drawing === null ? getComputedStyle(ink).color : getComputedStyle(drawing).fill), inside };
+    });
+    // The colour token a computed colour is, of those the marks are painted in; null for another colour.
+    const PAINTS = ["ink", "ink-2", "ink-3", "warning", "accent", "notation"];
+    function tokenOf(colour) {
+        const probe = document.createElement("span");
+        document.body.append(probe);
+        const found = PAINTS.find((name) => {
+            probe.style.color = `var(--${name})`;
+            return getComputedStyle(probe).color === colour;
+        });
+        probe.remove();
+        return found ?? null;
+    }
 
     /** The pages, each with the room above its first ink and below its last (the paper's margins), and the room above and below them. */
     function paper() {
@@ -376,22 +426,21 @@
             state: [...marker.classList].find((name) => name.startsWith("state-"))?.slice("state-".length) ?? null,
             ...boxOf(marker),
         })),
-        // The phrases' marks (v1.2), each part drawn in the order the page draws them: its kind (comma, letter or number), its
-        // phrase (null for a section's letter where no phrase starts), its text, whether it is the player's own, the
-        // selected phrase's number or the phrase playing, and its box.
-        phrases: () => [...document.querySelectorAll("body > .phrase-ink")].filter(shown).map((ink) => ({
-            kind: ["comma", "letter", "number"].find((kind) => ink.classList.contains(kind)),
-            phrase: ink.dataset.phrase === undefined ? null : Number(ink.dataset.phrase),
-            text: ink.textContent,
-            own: ink.classList.contains("own"),
-            selected: ink.classList.contains("selected"),
-            current: ink.classList.contains("current"),
-            ...boxOf(ink),
-        })),
+        // The phrases' marks (v1.2), each part drawn in the order the page draws them (`phraseInks`).
+        phrases: () => phraseInks("body > .phrase-ink"),
+        // The same marks over the card's bars in focus (v1.2 i-3b), only to read.
+        cardPhrases: () => phraseInks("#focus .card-score > .phrase-ink", true),
         // The touch targets of the phrases' numbers and the sections' letters: which each is, what it says, and its box.
         phraseTargets: () => [...document.querySelectorAll("body > .phrase-mark")].filter(shown).map((target) => ({
             phrase: target.dataset.phrase === undefined ? null : Number(target.dataset.phrase),
             section: target.dataset.section ?? null,
+            label: target.getAttribute("aria-label"),
+            ...boxOf(target),
+        })),
+        // The touch targets of the motifs' commas on the card in focus (v1.2 i-3c): which motif of which phrase, its label, its box.
+        motifTargets: () => [...document.querySelectorAll("#focus .card-score > .phrase-mark")].filter(shown).map((target) => ({
+            motif: Number(target.dataset.motif),
+            of: Number(target.dataset.motifOf),
             label: target.getAttribute("aria-label"),
             ...boxOf(target),
         })),
