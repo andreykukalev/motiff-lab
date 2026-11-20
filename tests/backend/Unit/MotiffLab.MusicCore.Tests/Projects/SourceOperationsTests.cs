@@ -229,6 +229,6 @@ public class SourceOperationsTests
 
         Assert.Equal(("n_2", "n_1"), (project.NotesId, Assert.Single(project.Sources.Notes).Id));
         Assert.Equal(ScannedPdf().Edits, project.Sources.Notes[0].Edits);
-        GoldenFiles.AssertIs("v16-sources.motiff.json", ProjectFile.Write(project));
+        GoldenFiles.AssertIs("v17-sources.motiff.json", ProjectFile.Write(project), ["v16-sources.motiff.json"]);
     }
 }

@@ -22,6 +22,9 @@ internal static class OriginalsCodec
 
     private const string OriginalsPath = "originals/";
 
+    /// <summary>The first version in which a piece with no notes may be only its recording (finding 29).</summary>
+    private const int RecordingPieceVersion = 17;
+
     private static readonly HashSet<string> s_originalFields = new(StringComparer.Ordinal)
     {
         "id", "kind", "name", "fileName", "folder", "sha256", "bytes", "pages", "durationMs", "addedAt", "kept", "held", "removed",
@@ -235,9 +238,13 @@ internal static class OriginalsCodec
     }
 
     /// <summary>
-    /// The project read, when it is a piece: with notes, with its PDF, or (version 0.5) describing its PDF that is in the
-    /// player's folder or on another device (<see cref="Project.DescribesDocument"/>); a file with none of them is damaged.
+    /// The project read, when it is a piece: with notes, with its PDF, (version 0.5) describing its PDF that is in the
+    /// player's folder or on another device (<see cref="Project.DescribesDocument"/>), or (version 17, finding 29) keeping a
+    /// recording of its own (<see cref="Project.KeepsRecording"/>); a file with none of them is damaged, and so is a file of
+    /// an earlier version that has only a recording, since the builds that wrote one knew no such piece.
     /// </summary>
-    internal static Project Described(this Project project) =>
-        project.HasNotes || project.Document is not null || project.DescribesDocument ? project : throw Damaged("source");
+    internal static Project Described(this Project project, int version) =>
+        project.HasNotes || project.Document is not null || project.DescribesDocument || (version >= RecordingPieceVersion && project.KeepsRecording)
+            ? project
+            : throw Damaged("source");
 }

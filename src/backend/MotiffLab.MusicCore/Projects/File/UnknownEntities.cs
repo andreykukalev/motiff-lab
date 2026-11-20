@@ -7,7 +7,7 @@ using static MotiffLab.MusicCore.Projects.File.JsonRead;
 namespace MotiffLab.MusicCore.Projects.File;
 
 /// <summary>
-/// The tolerant reader (decision record 0026, S6): in a file of this build's version, the entities of a list that hold a
+/// The tolerant reader (decision record 0026, S6): in a file of this build's layout (version 16 or 17), the entities of a list that hold a
 /// value a later build added to an enum, kept whole as <see cref="UnknownEntity"/> and written back where they stood, and
 /// the fields this build does not know, kept as <see cref="UnknownField"/> and written back after the fields it writes
 /// (docs/project-file.md, "Unknown values").
@@ -128,8 +128,8 @@ internal static class UnknownEntities
         entity.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     /// <summary>
-    /// What a read keeps as unknown (S6). Only a file of this build's own version is read so: the builds that wrote an
-    /// older file knew no value this one does not, so an unknown value there is damage.
+    /// What a read keeps as unknown (S6). Only a file in this build's layout (version 16 or 17) is read so: the builds
+    /// that wrote an older file knew no value this one does not, so an unknown value there is damage.
     /// </summary>
     internal sealed class Unknowns(bool tolerant)
     {

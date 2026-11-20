@@ -171,8 +171,8 @@ public static class SourceOperations
     /// </summary>
     /// <exception cref="KeyNotFoundException">No original has the id.</exception>
     /// <exception cref="InvalidOperationException">
-    /// The original is the only thing a piece with no notes has (remove the piece instead), or it is to go with its notes
-    /// and the working notes were made from it.
+    /// The original is the only PDF or recording a piece with no notes has (remove the piece instead), or it is to go with
+    /// its notes and the working notes were made from it.
     /// </exception>
     public static Project RemoveOriginal(this Project project, string id, DateTimeOffset at, bool withNotes = false)
     {
@@ -181,6 +181,12 @@ public static class SourceOperations
         if (!project.HasNotes && project.Sources.Notes.Count == 0 && id == PieceOriginal.DocumentId)
         {
             throw new InvalidOperationException("A piece that is only its PDF is removed as a piece.");
+        }
+
+        // Version 17 (finding 29): nor is the last recording of a piece that is only its recording.
+        if (project.Sources.Notes.Count == 0 && project.IsOnlyRecording && original.Kind == OriginalKind.Audio && project.Originals.Count(static each => each.Kind == OriginalKind.Audio) == 1)
+        {
+            throw new InvalidOperationException("A piece that is only its recording is removed as a piece.");
         }
 
         if (withNotes && project.HasNotes && MadeFrom(project.WorkingProvenance, id))
