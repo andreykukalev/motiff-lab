@@ -88,8 +88,9 @@ struct DraftViewAnswer: Decodable, Sendable {
 /// and each приём with its number, the variant it is in, its kind as the engine read it ("inferred", always true), its
 /// label in words («октава»), how sure it is, its state ("open", "taken", "left") and where it occurs: the place's bar
 /// ("bar", as `drafts.take` names it), the draft's own bars and ticks (an inserted bar not yet put in has onset = end);
-/// since c-4b how many of its notes are in place, and how its variant's side is heard: the variant's own ticks, and the
-/// stretch of the recording it was heard from (null when it was not, or its piece is not open).
+/// since c-4b how many of its notes are in place, and how each side is heard: the place's base variant ("base") and the
+/// occurrence in its ticks ("inBase", onset = end for bars not yet put in), the variant's own ticks, and the stretch of
+/// the recording it was heard from (null when it was not, or its piece is not open).
 struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
     struct Span: Decodable, Equatable, Sendable {
         let onset: Int
@@ -113,10 +114,11 @@ struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
         let matched: Int
         let total: Int
         let state: String
+        let inBase: Span
         let inVariant: Span
         let recording: Recording?
 
-        private enum CodingKeys: String, CodingKey { case bar, firstBar, lastBar, onset, end, matched, total, state, inVariant, recording }
+        private enum CodingKeys: String, CodingKey { case bar, firstBar, lastBar, onset, end, matched, total, state, inBase, inVariant, recording }
 
         init(from decoder: Decoder) throws {
             let fields = try decoder.container(keyedBy: CodingKeys.self)
@@ -128,6 +130,7 @@ struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
             matched = try fields.decode(Int.self, forKey: .matched)
             total = try fields.decode(Int.self, forKey: .total)
             state = try fields.decode(String.self, forKey: .state)
+            inBase = try fields.decode(Span.self, forKey: .inBase)
             inVariant = try fields.decode(Span.self, forKey: .inVariant)
             recording = try fields.decodeNullable(Recording.self, forKey: .recording)
         }
@@ -147,6 +150,8 @@ struct DraftTechniquesAnswer: Decodable, Equatable, Sendable {
 
     let draft: String
     let place: String
+    /// The place's base variant.
+    let base: String
     let total: Int
     let taken: Int
     let sure: Int

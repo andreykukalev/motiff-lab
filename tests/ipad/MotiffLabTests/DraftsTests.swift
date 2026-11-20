@@ -244,10 +244,10 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(model.picked?.at, CGPoint(x: 10, y: 20), "its card at the number")
         XCTAssertEqual(model.step(1), spot, "the last stays the current one")
         XCTAssertNil(model.picked?.at, "stepping shows no card")
-        XCTAssertTrue(screen.score.canHear(spot, variant: false), "open: the draft sounds as the base there")
+        XCTAssertTrue(screen.score.canHear(spot, variant: false), "the base's own notes there")
         XCTAssertNil(spot.occurrence.recording, "not heard from a recording")
         XCTAssertTrue(screen.score.canHear(spot, variant: true), "the variant's own notes, opened alone")
-        let variantNotes = await DraftTechniquesModel.variantPlayback(spot, on: view.id)
+        let variantNotes = await DraftTechniquesModel.playback(spot, variant: true, on: view.id)
         XCTAssertFalse(variantNotes?.notes.isEmpty ?? true, "the variant's music, opened alone and closed again")
         XCTAssertEqual(spot.offer, DraftTechniquesModel.Offer(steps: true, hands: true, everywhere: 1), "open: every step")
         XCTAssertTrue(model.stepping, "the pill's ‹ ›, in place of the phrase's")
@@ -264,15 +264,17 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(again.landing, .tick(spot.span.lowerBound), "opened again where the приём is")
         await model.load(again.draft, on: again.id)
         let takenSpot = try XCTUnwrap(model.spots.first)
-        XCTAssertTrue(takenSpot.isTaken)
-        XCTAssertFalse(screen.score.canHear(takenSpot, variant: false), "taken: the draft's notes there are the variant's")
+        XCTAssertEqual(takenSpot.occurrence.state, "taken")
+        XCTAssertTrue(screen.score.canHear(takenSpot, variant: false), "taken: «Как в нотах» still hears the base, opened alone")
         XCTAssertTrue(screen.score.canHear(takenSpot, variant: true))
+        let baseNotes = await DraftTechniquesModel.playback(takenSpot, variant: false, on: again.id)
+        XCTAssertFalse(baseNotes?.notes.isEmpty ?? true, "the base's music over its own ticks")
         XCTAssertEqual(sources.layers.drafts.first?.taken, 1, "the Sources tally, from music-core")
         XCTAssertEqual(takenSpot.offer, DraftTechniquesModel.Offer(steps: false, hands: false, everywhere: 0), "taken: music-core refuses another step")
 
         await sources.undo()
         await model.load(again.draft, on: again.id)
-        XCTAssertEqual(model.spots.first?.isTaken, false, "undone by drafts.undo")
+        XCTAssertEqual(model.spots.first?.occurrence.state, "open", "undone by drafts.undo")
 
         let hand = await sources.takeHand("right", at: spot)
         XCTAssertTrue(hand, sources.status ?? "")
@@ -294,16 +296,16 @@ final class DraftsTests: XCTestCase {
     /// and the place «↻ Место» loops.
     func testTheCardOffersOnlyTheStepsMusicCoreTakes() throws {
         let json = #"""
-        {"draft": "dr_0001", "place": "pl_0001", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
+        {"draft": "dr_0001", "place": "pl_0001", "base": "va_0000", "total": 1, "taken": 0, "sure": 1, "techniques": [{"number": 1, "variant": "va_0001",
         "kind": "octave", "label": "октава", "inferred": true, "confidence": 90, "sure": true, "state": "open", "occurrences": [
         {"bar": 4, "firstBar": 4, "lastBar": 4, "onset": 5760, "end": 7200, "confidence": 90, "matched": 3, "total": 4, "state": "open",
-         "inVariant": {"onset": 0, "end": 1440}, "recording": null},
+         "inBase": {"onset": 5760, "end": 7200}, "inVariant": {"onset": 0, "end": 1440}, "recording": null},
         {"bar": 6, "firstBar": 6, "lastBar": 6, "onset": 8640, "end": 8640, "confidence": 80, "matched": 0, "total": 2, "state": "open",
-         "inVariant": {"onset": 2880, "end": 4320}, "recording": {"project": "p_1", "original": "src_rec", "from": 3000, "to": 4500}},
+         "inBase": {"onset": 8640, "end": 8640}, "inVariant": {"onset": 2880, "end": 4320}, "recording": {"project": "p_1", "original": "src_rec", "from": 3000, "to": 4500}},
         {"bar": 8, "firstBar": 8, "lastBar": 8, "onset": 11520, "end": 12960, "confidence": 90, "matched": 4, "total": 4, "state": "taken",
-         "inVariant": {"onset": 5760, "end": 7200}, "recording": null},
+         "inBase": {"onset": 11520, "end": 12960}, "inVariant": {"onset": 5760, "end": 7200}, "recording": null},
         {"bar": 9, "firstBar": 9, "lastBar": 9, "onset": 12960, "end": 14400, "confidence": 90, "matched": 1, "total": 1, "state": "left",
-         "inVariant": {"onset": 7200, "end": 8640}, "recording": null}]}]}
+         "inBase": {"onset": 12960, "end": 14400}, "inVariant": {"onset": 7200, "end": 8640}, "recording": null}]}]}
         """#
         let read = try XCTUnwrap(FacadeAnswer.decode(DraftTechniquesAnswer.self, json, of: "drafts.techniques"))
         let model = DraftTechniquesModel()
@@ -318,6 +320,10 @@ final class DraftsTests: XCTestCase {
             "уверенно · 1 из 1 ноты на месте · оставлен как в основе",
         ])
         XCTAssertEqual(model.spots[1].occurrence.recording?.from, 3000, "heard from a recording's stretch")
+        XCTAssertTrue(model.spots[1].heard(variant: false).span.isEmpty, "an inserted bar: no base to hear")
+        XCTAssertEqual(model.spots[2].heard(variant: false).variant, "va_0000", "taken: the base, opened alone")
+        XCTAssertEqual(model.spots[2].heard(variant: false).span, 11520..<12960)
+        XCTAssertEqual(model.spots[2].heard(variant: true).variant, "va_0001")
 
         // «↻ Место»: the picked occurrence's place, else the one at the playhead, else the first.
         let places = [

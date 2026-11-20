@@ -74,12 +74,11 @@ extension ScoreController {
         showSpan(spot.span)
     }
 
-    /// What can be heard of the occurrence: as in the notes, the draft's own notes there while the приём is not taken (they
-    /// are the base's then), never over bars of a recording not yet put in; as in the variant, the stretch of the recording
-    /// it was heard from when that sound is on this iPad, else the variant's own notes over its ticks.
+    /// What can be heard of the occurrence: as in the notes, the base variant's own notes there, taken or not, never where
+    /// the base has no bars (an inserted bar); as in the variant, the stretch of the recording it was heard from when that
+    /// sound is on this iPad, else the variant's own notes.
     func canHear(_ spot: DraftTechniquesModel.Spot, variant: Bool) -> Bool {
-        guard variant else { return !spot.span.isEmpty && !spot.isTaken }
-        return recordingHeard(spot) != nil || !spot.variantSpan.isEmpty
+        (variant && recordingHeard(spot) != nil) || !spot.heard(variant: variant).span.isEmpty
     }
 
     /// The recording the occurrence's variant was heard from, when its sound is kept on this iPad (c-4b).
@@ -87,9 +86,9 @@ extension ScoreController {
         spot.occurrence.recording.flatMap { OriginalSounds.file(project: $0.project, original: $0.original) }
     }
 
-    /// «▶ Как в нотах», «▶ Как на записи» or «▶ Как в варианте» on the card or the pill (`canHear`): the base as the draft's
-    /// notes have it there, the recording's stretch (`RecordingListening`, the score's `player` paused first: one thing
-    /// sounds at a time), or the variant's own notes, heard once as a version's bar is heard from its marker.
+    /// «▶ Как в нотах», «▶ Как на записи» or «▶ Как в варианте» on the card or the pill (`canHear`): the recording's stretch
+    /// (`RecordingListening`, the score's `player` paused first: one thing sounds at a time), else the base's or the
+    /// variant's own notes, heard once as a version's bar is heard from its marker.
     func hearTechnique(_ spot: DraftTechniquesModel.Spot, variant: Bool, pausing player: Player) {
         guard let piece, canHear(spot, variant: variant) else { return }
         if variant, let url = recordingHeard(spot), let stretch = spot.occurrence.recording {
@@ -98,14 +97,8 @@ extension ScoreController {
             return
         }
         Task {
-            let answer: PlaybackAnswer?
-            if variant {
-                answer = await DraftTechniquesModel.variantPlayback(spot, on: piece.id)
-            } else {
-                answer = await PieceCore(piece: piece.id).playback().value
-            }
-            guard let notes = answer.map(PlaybackScore.init)?.notes else { return }
-            hearNotes?(notes, variant ? spot.variantSpan : spot.span)
+            guard let notes = await DraftTechniquesModel.playback(spot, variant: variant, on: piece.id).map(PlaybackScore.init)?.notes else { return }
+            hearNotes?(notes, spot.heard(variant: variant).span)
         }
     }
 }

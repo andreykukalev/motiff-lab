@@ -13,6 +13,8 @@ final class DraftTechniquesModel: ObservableObject {
     struct Spot: Equatable, Sendable {
         let draft: String
         let place: String
+        /// The place's base variant, heard «Как в нотах».
+        let base: String
         let technique: DraftTechniquesAnswer.Technique
         let occurrence: DraftTechniquesAnswer.Occurrence
 
@@ -20,9 +22,12 @@ final class DraftTechniquesModel: ObservableObject {
         var key: String { "\(place)/\(technique.number)/\(occurrence.bar)" }
         /// Where it is in the draft's ticks; empty for bars of a recording not yet put in (they would go there).
         var span: Range<Double> { Double(occurrence.onset)..<Double(max(occurrence.onset, occurrence.end)) }
-        var isTaken: Bool { occurrence.state == "taken" }
-        /// Where it is in its variant's own ticks, as the variant's own music is heard (c-4b).
-        var variantSpan: Range<Double> { Double(occurrence.inVariant.onset)..<Double(max(occurrence.inVariant.onset, occurrence.inVariant.end)) }
+        /// The variant heard on one side, the variant's (`variant`) or the base's, and the occurrence in its own ticks
+        /// (c-4b); empty where it has no bars there (an inserted bar in the base).
+        func heard(variant: Bool) -> (variant: String, span: Range<Double>) {
+            let side = variant ? occurrence.inVariant : occurrence.inBase
+            return (variant ? technique.variant : base, Double(side.onset)..<Double(max(side.onset, side.end)))
+        }
 
         /// What the card offers here, as music-core takes it: the steps only while the occurrence is open (one taken or
         /// left is refused), a hand from the variant only over bars that hold notes (an inserted bar not yet put in has
@@ -78,7 +83,7 @@ final class DraftTechniquesModel: ObservableObject {
     var spots: [Spot] {
         places.flatMap { answer in
             answer.techniques.flatMap { technique in
-                technique.occurrences.map { Spot(draft: answer.draft, place: answer.place, technique: technique, occurrence: $0) }
+                technique.occurrences.map { Spot(draft: answer.draft, place: answer.place, base: answer.base, technique: technique, occurrence: $0) }
             }
         }
         .sorted { ($0.occurrence.onset, $0.technique.number) < ($1.occurrence.onset, $1.technique.number) }
@@ -148,11 +153,12 @@ final class DraftTechniquesModel: ObservableObject {
         places.first { $0.id == picked?.place } ?? places.first { Double($0.onset) <= tick && tick < Double($0.end) } ?? places.first
     }
 
-    /// The variant's own music at `spot` (`drafts.open` with "variant", c-4b, asked on `piece`, the draft's view or the
-    /// piece it belongs to): opened read-only, its playback score read, closed again; heard over `Spot.variantSpan`. Nil
-    /// when music-core does not open it.
-    static func variantPlayback(_ spot: Spot, on piece: Int32) async -> PlaybackAnswer? {
-        guard let view = await PieceCore(piece: piece).openVariant(spot.technique.variant, of: spot.draft).value else { return nil }
+    /// One side of `spot` as its own music, the variant's (`variant`) or the base's (`drafts.open` with "variant", c-4b,
+    /// asked on `piece`, the draft's view or the piece it belongs to): opened read-only, its playback score read, closed
+    /// again; heard over `Spot.heard(variant:)`'s span. Nil when music-core does not open it.
+    static func playback(_ spot: Spot, variant: Bool, on piece: Int32) async -> PlaybackAnswer? {
+        let side = spot.heard(variant: variant).variant
+        guard let view = await PieceCore(piece: piece).openVariant(side, of: spot.draft).value else { return nil }
         let playback = await PieceCore(piece: view.piece).playback().value
         _ = await MusicCore.run { MusicCore.close(piece: view.piece) }
         return playback
