@@ -311,14 +311,17 @@ public sealed partial class MusicCoreFacade
         }
     }
 
-    /// <summary>The calls that only show a piece, answered on Notes opened to be shown.</summary>
+    /// <summary>
+    /// The calls that only show a piece, answered on Notes or a draft opened to be shown; "select" too (v1.1), which keeps
+    /// the passage on that number alone and saves nothing, so a fragment is taken there into a draft and a place is played.
+    /// </summary>
     private static bool IsShowingCall(string name) =>
-        name is "piece" or "phrases" or "notation" or "playback" or "roll" or "dna" or "marks" or "check" or "language";
+        name is "piece" or "phrases" or "select" or "notation" or "playback" or "roll" or "dna" or "marks" or "check" or "language";
 
     /// <summary>
     /// «Открыть» on Notes that are not the working ones (version 0.6): "id", other Notes or a version, opened under a new
-    /// number only to be shown (<see cref="NotesOperations.ViewOf"/>), so piece, notation, playback, roll, phrases, dna,
-    /// marks and check answer for them and every other call answers "readOnly". The piece itself does not change; close
+    /// number only to be shown (<see cref="NotesOperations.ViewOf"/>), so the showing calls (select among them) answer for
+    /// them and every other call answers "readOnly". The piece itself does not change; close
     /// the new number when done. Answers as <c>open</c> does, with "readOnly": true.
     /// </summary>
     private string OpenNotes(int number, OpenPiece open, Request fields)

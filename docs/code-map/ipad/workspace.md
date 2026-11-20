@@ -4,16 +4,14 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreScreen`,
+`PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`, `ScoreController`, `ScoreDraftPlaces`, `ScoreScreen`,
 `ScoreScreenViews`, `ScoreWorkspace`,
-`ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`, `TopBar` (`.swift`).
+`ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
+`TopBar` (`.swift`).
 
-- `PanelState.swift`: `PanelState`, a pure value: which of the roll's drawer, Insights, Contents, Check, Sources,
-  Settings, Reference and More is open, the places More opened, the drawer and the Contents kept for after Expand, what
-  Sources keeps under it. `asked(_:)` is what an action writes (an `Intent`), `following(_:)` one rule of the screen (a
-  `Rule`: what the change of one value does to the other panels). Tested by
-  `tests/ipad/MotiffLabTests/PanelStateTests.swift` against `Golden/panel-states.txt`, the table of start states and
-  every action offered in each, render by render.
+- `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,
+  Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
+  `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place.
@@ -21,14 +19,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
   or here and unreadable), `RecordingViewCapsule` under it;
   nothing docked. «Распознать · Pro» in Sources makes its working notes and the piece opens again as notes.
-- `RecordingWave.swift`: the levels of every 100 ms (`RecordingSound.levels(of:)`, read a block at a time) as columns (`columns`), the play cursor
-  where `RecordingListening.shared` is, a tap seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s.
-  Tests: `RecordingWaveTests`.
+- `RecordingWave.swift`: the levels of every 100 ms (`RecordingSound.levels(of:)`) as columns, the play cursor, a tap
+  seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s. Tests: `RecordingWaveTests`.
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class (blueprint 5.3 step 2): owns the screen's controllers
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
-  `backToMore` write `panels`; `assistantPressed` is the pill's assistant (the panel on its last conversation, or
-  closed: `AssistantController.show` and `close`; an Ask opens it empty, `open`). Tests: `ScoreWorkspaceTests`; sessions:
+  `backToMore` write `panels`; `assistantPressed` is the pill's assistant (its last conversation, or closed; an Ask
+  opens it empty). Tests: `ScoreWorkspaceTests`, `DraftsTests`; sessions:
   `WorkspaceScenarioTests` (`../ipad.md`).
 - `ScoreWorkspaceReactions.swift`: the methods of the view's `.onChange` reactions on the panels and Expand, in the
   view's order (`contentsChanged`, `focusChanged`, …), with `syncPlayheads`, `showRollPosition`, `rollPlace`.
@@ -36,12 +33,15 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `playRangeChanged`, `applyModel`.
 - `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
   `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
-- `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView`, `toPdf`.
+- `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
+- `ScoreDraftPlaces.swift` (v1.1): a draft view's place labels (`placeMarkers`); a tap selects one (`pickPlace`).
+- `ScoreWorkspaceDrafts.swift` (v1.1): `draftOwner` (nil on a draft's view), `draftSheet`, `newDraft` (no selection:
+  a hint, never an empty draft).
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: `body`, `layers` (the web
   view and all over it), the modifiers that call the workspace (`wired`, `watching`, `checking`, `sourcing`,
   `following`); `ScoreBar`, `Pill` (the transport, then the roll and the assistant), `SelectionMenu` (with the pill,
   `iconItem`), `FocusBar`.
-- `ScoreScreenViews.swift`: where the page is scrolled to (`viewPlace`, `showPlace`).
+- `ScoreScreenViews.swift`: `viewPlace`, `showPlace`.
 - `ScoreColouring.swift` (v0.10 d-5, finding 31): `ScoreController`'s part of the pen's colour bars (`PenScore`'s
   `colouringChanged`, `colourBars`, `uncolourBars`): the change `Marks/HighlightPaint` works out, sent to music-core and
   drawn at its last call.

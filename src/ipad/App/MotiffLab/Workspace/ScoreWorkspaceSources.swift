@@ -32,12 +32,15 @@ extension ScoreWorkspace {
     }
 
     /// A view picked in the switch or its menu. The recording heard over the views stays as it is (v0.10, finding 24). A
-    /// version opens Sources and is the one compared on the score (its page, the bar-by-bar merge, left in v1.1).
+    /// version opens Sources and is the one compared on the score (its page, the bar-by-bar merge, left in v1.1). A draft
+    /// opens its own view over the score (`drafts.open`, v1.1), never as Notes.
     func pickView(_ view: SourceLayers.ViewEntry, switchView: ((Landing) async -> Void)?, text: UIText, show: @escaping (ScoreScreenContent.ShownView) -> Void) {
         switch view.kind {
         case "performance":
             if player.state == .playing { player.toggle() }
             sources.performance = view.id
+        case "draft":
+            Task { await showDraft(view.id, show: show) }
         case "original":
             if view.id == PdfScreen.documentView, let toPdf = self.toPdf(switchView) {
                 toPdf()
@@ -90,6 +93,18 @@ extension ScoreWorkspace {
         if player.state == .playing { player.toggle() }
         let at = await score.tickInView()
         guard let opened = await sources.openNotes(notes, title: sources.layers.title(of: notes, text), at: at) else {
+            change(.open(.versions))
+            return
+        }
+        show(ScoreScreenContent.ShownView(piece: opened, pdf: false))
+    }
+
+    /// A draft's view: its places as one score, its labels above them, on a screen of its own over this one; why not, in
+    /// the sheet.
+    private func showDraft(_ id: String, show: (ScoreScreenContent.ShownView) -> Void) async {
+        guard let draft = sources.layers.draft(id) else { return }
+        if player.state == .playing { player.toggle() }
+        guard let opened = await sources.openDraft(draft) else {
             change(.open(.versions))
             return
         }

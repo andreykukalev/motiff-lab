@@ -97,7 +97,7 @@ final class SourcesController: ObservableObject {
     var listening = RecordingListening.shared
     /// Keeps the screen's view and opens the piece's project file again in its place.
     var reopen: (() async -> Void)?
-    private let text = UIText.current
+    let text = UIText.current
 
     /// `layers` are the ones the screen before handed over (SourcesHandover), shown until the piece's own are read.
     init(layers handed: SourceLayers? = nil) {
@@ -473,17 +473,26 @@ final class SourcesController: ObservableObject {
     /// "readOnly"), so the piece itself stays as it is; the screen closes the number when it goes. Nil when they cannot
     /// be shown, with why in `status`.
     func openNotes(_ notes: SourceLayers.Notes, title: String, at tick: Double?) async -> OpenPiece? {
+        await openShown("sources.notes.open", ["id": notes.id], title: title, at: tick)
+    }
+
+    /// What `name` opens under a number of its own only to be shown ("readOnly": other Notes, or a draft with
+    /// `draft`, whose places it then carries), engraved; nil, with why in `status`, when it cannot be shown.
+    func openShown(_ name: String, _ fields: [String: Any], title: String, at tick: Double?, draft: Bool = false) async -> OpenPiece? {
         let piece = self.piece
-        let request = facadeRequest(["id": notes.id])
+        let request = facadeRequest(fields)
         let evenBars = DeviceSettings.shared.isOn("score.evenBars")
         let opened: Result<OpenPiece, EngraveError> = await MusicCore.run {
-            let answer = facadeObject(MusicCore.call(piece: piece, "sources.notes.open", request))
+            let text = MusicCore.call(piece: piece, name, request)
+            let answer = facadeObject(text)
             guard let number = (answer?["piece"] as? NSNumber)?.int32Value, number > 0 else {
                 return .failure(EngraveError(message: answer?["message"] as? String ?? ""))
             }
             switch Engraver.engrave(piece: number, title: title, evenBars: evenBars) {
             case .success(let engraving):
-                return .success(OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap))
+                var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap)
+                if draft { shown.draft = FacadeAnswer.decode(DraftViewAnswer.self, text, of: name)?.draft }
+                return .success(shown)
             case .failure(let error):
                 _ = MusicCore.close(piece: number)
                 return .failure(error)
@@ -514,10 +523,11 @@ final class SourcesController: ObservableObject {
     }
 
     /// One of the sheet's operations, answered as the sources; saved to the project file at once. Nil, with why in
-    /// `status`, when music-core refused it.
+    /// `status`, when music-core refused it. `on`: the piece the call goes to, this one's unless notes opened only to be
+    /// shown over it are (a fragment for a draft taken there, `SourcesDrafts.swift`).
     @discardableResult
-    private func change(_ name: String, _ fields: [String: Any]) async -> [String: Any]? {
-        let answer = await call(name, fields)
+    func change(_ name: String, _ fields: [String: Any], on shown: Int32? = nil) async -> [String: Any]? {
+        let answer = await call(name, fields, on: shown)
         guard let object = facadeObject(answer), object["error"] == nil, let read = SourceLayers(answer: answer) else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
             return nil
@@ -528,9 +538,9 @@ final class SourcesController: ObservableObject {
         return object
     }
 
-    private func call(_ name: String, _ fields: [String: Any] = [:]) async -> String {
+    private func call(_ name: String, _ fields: [String: Any] = [:], on shown: Int32? = nil) async -> String {
         let body = request(fields)
-        let piece = self.piece
+        let piece = shown ?? self.piece
         return await MusicCore.run { MusicCore.call(piece: piece, name, body) }
     }
 
@@ -547,7 +557,7 @@ final class SourcesController: ObservableObject {
     }
 
     /// The project file as it is now, for an Undo or a copy to look at.
-    private func snapshot() async -> String? {
+    func snapshot() async -> String? {
         let piece = self.piece
         let request = facadeRequest(["now": Self.now()])
         let saved = await MusicCore.run { MusicCore.call(piece: piece, "project.save", request) }

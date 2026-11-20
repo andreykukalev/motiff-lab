@@ -9,7 +9,8 @@ import UniformTypeIdentifiers
 /// a recording, MIDI or MusicXML), recognised («Распознать», again from ⋯) into new Notes beside the ones there are, and
 /// deleted with or without its notes, which the toast undoes; a deleted original stays as a row that takes the same file
 /// back. Other Notes become the working ones from ⋯, and a version is renamed there. A version picked in the switch opens
-/// the sheet (v1.1: its page, the bar-by-bar merge, left the iPad, ADR 0034 section 8). The rows are in
+/// the sheet (v1.1: its page, the bar-by-bar merge, left the iPad, ADR 0034 section 8). Last, «Черновики» (v1.1, ADR
+/// 0034): each draft with its eye and ⋯ (rename, delete), and «Новый черновик» on the score. The rows are in
 /// `SourcesRows.swift`, «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this
 /// file is the sheet, its header and add menu, and picking files.
 struct SourcesSheet: View {
@@ -25,6 +26,8 @@ struct SourcesSheet: View {
     var back: (label: String, action: () -> Void)?
     /// What the versions last said, from the score; nil on the PDF.
     var versionStatus: String? = nil
+    /// «Новый черновик» (v1.1): from the score, which holds the selection; nil on the PDF.
+    var newDraft: (() -> Void)?
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
 
@@ -48,6 +51,8 @@ struct SourcesSheet: View {
     @State private var deleting: SourceLayers.Original?
     @State private var deletingNotes: SourceLayers.Notes?
     @State private var renaming: SourceLayers.Notes?
+    @State private var renamingDraft: SourceLayers.Draft?
+    @State private var deletingDraft: SourceLayers.Draft?
 
     private var layers: SourceLayers { sources.layers }
 
@@ -87,6 +92,7 @@ struct SourcesSheet: View {
             sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes, renaming: $renaming,
             rename: { notes, name in Task { await score?.renameVersion(notes.id, to: name); await sources.refresh() } }
         ))
+        .modifier(DraftDialogs(sources: sources, text: text, renaming: $renamingDraft, deleting: $deletingDraft))
         .onAppear {
             Task {
                 await sources.refresh()
@@ -181,8 +187,32 @@ struct SourcesSheet: View {
                 Divider().overlay(Color.ds("hairline"))
             }
         }
+        drafts
         if let status = versionStatus {
             SourcesCaption(words: status, colour: "ink-2").padding(.top, CGFloat.ds("s-3"))
+        }
+    }
+
+    /// «Черновики · N» (v1.1, ADR 0034): the piece's drafts, then «Новый черновик» where the score is.
+    @ViewBuilder private var drafts: some View {
+        if !layers.drafts.isEmpty || newDraft != nil {
+            sectionHead(text.format("drafts.group", String(layers.drafts.count)))
+                .padding(.top, CGFloat.ds("s-5"))
+            ForEach(layers.drafts) { draft in
+                SourcesDraftRow(sources: sources, draft: draft, row: row)
+                Divider().overlay(Color.ds("hairline"))
+            }
+            if let newDraft {
+                Button(action: newDraft) {
+                    HStack(spacing: CGFloat.ds("s-1")) {
+                        Icon(name: "plus", size: CGFloat.ds("icon-s"))
+                        Text(text["drafts.new"]).lineLimit(1)
+                    }
+                }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                .fixedSize()
+                .padding(.top, CGFloat.ds("s-2"))
+            }
         }
     }
 
@@ -191,7 +221,8 @@ struct SourcesSheet: View {
         SourcesRow(
             text: text, current: current, address: scanAddress, hosted: hosted, pick: pick,
             delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
-            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes }
+            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
+            renameDraft: { renamingDraft = $0 }, deleteDraft: { deletingDraft = $0 }
         )
     }
 

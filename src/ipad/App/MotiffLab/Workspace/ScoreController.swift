@@ -351,6 +351,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             showCheckBar(bar)
             checkPicked?(bar)
         case let .performanceBar(bar, left, bottom):
+            // In a draft's view the labels are its places' (ScoreDraftPlaces.swift).
+            guard !pickPlace(startingAt: bar) else { break }
             sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: bar, left: left, bottom: bottom))
             showVersionBar(bar)
         case .playheadAway(let away):
@@ -944,6 +946,11 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// Show on a bar of the version: the bar is selected and comes into view.
     func showVersionBar(_ bar: Int) {
         guard let span = sourcesModel.versions.bars.first(where: { $0.bar == bar })?.span else { return }
+        showSpan(span)
+    }
+
+    /// A passage selected, and brought into view.
+    func showSpan(_ span: Range<Double>) {
         Task {
             await select(span.lowerBound, span.upperBound)
             await scorePage.send(.reveal, ["start": span.lowerBound])
@@ -999,7 +1006,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         switch engraved {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
-            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other)
+            self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft)
             sourcesModel.keepEngraved(SourcesModel.Engraved(even: even))
             await render()
             if focusModel.focused { await engraveCard() }
@@ -1015,7 +1022,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     /// With extra information on, the bars the version has otherwise as plum labels above them and the printed notes it
-    /// does not have tinted, and a thin plum line under the bars taken from it.
+    /// does not have tinted, and a thin plum line under the bars taken from it; in a draft's view, always, the labels of
+    /// its places (`placeMarkers`).
     private func drawVersions() async {
         await readSources()
         guard shown else { return }
@@ -1024,7 +1032,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         let markers: [[String: Any]] = differing.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
-        }
+        } + placeMarkers
         let data: [String: Any] = [
             "markers": markers, "unheard": differing.flatMap(\.notHeard), "artefacts": [String](),
             "taken": marksModel.extraShown("taken") ? sourcesModel.versions.taken.compactMap { $0.span?.lowerBound } : [],

@@ -14,13 +14,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
 - `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b; a struct, the ADR's note): the hot features'
-  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls) and `phraseLevel`
-  (the merge draft's calls left with it in v1.1, ADR 0034 section 8), each answered as
+  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls), `phraseLevel`
+  and `draftSheet` (`drafts.sheet`, v1.1), each answered as
   `PieceCore.Answer` (the typed value, the text, music-core's `message`). Features make these calls only here; the other
   calls move with their features in phase C.
 - `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` and `PhraseLevelAnswer`, `PlaybackAnswer`,
   `RollAnswer` (passed to the roll page whole, `RollPage.load`), `SourceLayersAnswer`, `CorrectionsAnswer` with `EditsLayerAnswer` (also the open answer's "edits", `OpenedEdits`),
-  `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, mirroring their C# writers; the
+  `PerformanceAnswer` and `PerformancesAnswer` with `VersionHead`, `DraftSheetAnswer`, `DraftViewAnswer` (v1.1), mirroring their C# writers; the
   features build their own types from them. They name no feature type.
 - `ScorePage.swift`: the one port to the score page (0031 step 2): `PageCommand` names `window.motiff`'s functions,
   `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
@@ -31,7 +31,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   what the page sends and the app leaves out stays quiet, as before. `RollEvent.broken` is a hook of its own beside
   `FacadeAnswer.broken`: a test that silences one does not silence the other.
 - `OpenPiece.swift`: a piece opened in music-core: engraved, or a PDF piece (`isDocument`), or, since v1.1 (finding 29),
-  a piece that is only its recording (`recording`, its original's id), neither engraved.
+  a piece that is only its recording (`recording`, its original's id), neither engraved; a draft opened to be shown
+  carries its places (`draft`, v1.1).
 - `ProjectFiles.swift`: the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
   JPEG or PNG, a recording); `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
 - `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
