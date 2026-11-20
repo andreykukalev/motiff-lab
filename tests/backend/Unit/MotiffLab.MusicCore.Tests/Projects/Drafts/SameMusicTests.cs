@@ -47,6 +47,13 @@ public class SameMusicTests
     }
 
     [Fact]
+    public void Half_of_an_odd_count_is_more_than_its_floor()
+    {
+        Assert.Equal((47, false), (new PlaceMatch("pl_1", 10, 21).Percent, new PlaceMatch("pl_1", 10, 21).IsSameMusic));
+        Assert.Equal((52, true), (new PlaceMatch("pl_1", 11, 21).Percent, new PlaceMatch("pl_1", 11, 21).IsSameMusic));
+    }
+
+    [Fact]
     public void Other_music_is_not_offered_as_a_variant()
     {
         IReadOnlyList<PlaceMatch> matches = SameMusic.Of(TwoPlaces(), Variant("v_9", Score(melody: _ => [95, 93, 91, 89], prefix: "f"), 1, 4).Music);

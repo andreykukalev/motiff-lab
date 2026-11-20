@@ -51,13 +51,23 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
 
     private PerformanceAlignment Alignment { get; init; } = null!;
 
+    /// <summary>
+    /// <paramref name="source"/> lined up with <paramref name="notes"/> as a version is with the score (0022, section 2):
+    /// its ticks taken as microseconds, so <see cref="PerformanceAlignment.TickAt"/> of a source tick × 1000 is the tick of
+    /// <paramref name="notes"/> it falls on.
+    /// </summary>
+    internal static PerformanceAlignment Aligned(SourceMusic source, IReadOnlyList<Note> notes)
+    {
+        PlayedNote[] played = [.. source.Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 1000, note.Velocity, note.Span.Duration * 1000))];
+        return PerformanceAlignment.Align(notes, played);
+    }
+
     /// <summary>Compares <paramref name="source"/> with <paramref name="notes"/>; <paramref name="stamp"/> names the journal the notes were built from.</summary>
     public static AssemblyMatch Of(string sourceId, SourceMusic source, SourceMusic notes, string stamp)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(notes);
-        PlayedNote[] played = [.. source.Notes.Select(note => new PlayedNote(note.Id, note.Pitch, note.Span.Onset.Value * 1000, note.Velocity, note.Span.Duration * 1000))];
-        PerformanceAlignment alignment = PerformanceAlignment.Align(notes.Notes, played);
+        PerformanceAlignment alignment = Aligned(source, notes.Notes);
         Anchor[] anchors = [.. alignment.Anchors];
         HashSet<string> used = new(StringComparer.Ordinal);
         List<MatchBar> bars = [];

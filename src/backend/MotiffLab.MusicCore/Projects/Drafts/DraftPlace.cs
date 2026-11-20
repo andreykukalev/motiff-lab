@@ -14,7 +14,9 @@ public sealed record DraftPlace(string Id, string Base, IReadOnlyList<DraftVaria
 
     public IReadOnlyList<DraftVariant> Variants { get; } = Variants is { Count: > 0 } && Variants.Any(variant => variant.Id == Base)
         && Variants.Select(static variant => variant.Id).Distinct(StringComparer.Ordinal).Count() == Variants.Count
-        ? [.. Variants]
+        ? Variants.Any(variant => variant.Id == Base && variant.Anchors.Count > 0)
+            ? throw new ArgumentException("Anchors are only on a variant that is not the base (docs/project-file.md, \"Drafts\").", nameof(Variants))
+            : [.. Variants]
         : throw new ArgumentException("A place has distinct variants, its base among them.", nameof(Variants));
 
     /// <summary>The pencil marks on the place, in its ticks; empty when none.</summary>

@@ -82,7 +82,8 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
 
     /// <summary>
     /// The place <paramref name="placeId"/> with another of its variants as its base: its bars, meter, key and tempo from
-    /// it. The steps of that place are removed, since they were taken against the base before (docs/project-file.md, "Drafts").
+    /// it. The steps of that place are removed, since they were taken against the base before (docs/project-file.md, "Drafts"),
+    /// and so are the new base's anchors, which lined it up with that base.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place, or no such variant in it.</exception>
     public Draft WithBase(string placeId, string variantId)
@@ -93,7 +94,9 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
             throw new KeyNotFoundException($"The place {placeId} has no variant {variantId}.");
         }
 
-        return place.Base == variantId ? this : Changed([.. Places.Select(each => each.Id == placeId ? place.With(place.Variants, variantId) : each)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
+        // The new base's anchors lined it up with the base until now: a base has none.
+        DraftVariant[] variants = [.. place.Variants.Select(each => each.Id == variantId ? each with { Anchors = [] } : each)];
+        return place.Base == variantId ? this : Changed([.. Places.Select(each => each.Id == placeId ? place.With(variants, variantId) : each)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
     }
 
     /// <summary>The steps of the journal that name the place, in number order.</summary>
@@ -122,6 +125,11 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
         if (places.Select(static place => place.Id).Distinct(StringComparer.Ordinal).Count() != places.Count || variants.Distinct(StringComparer.Ordinal).Count() != variants.Length)
         {
             throw new ArgumentException("The places and variants of a draft have distinct ids.", nameof(places));
+        }
+
+        if (shelf.Any(static variant => variant.Anchors.Count > 0))
+        {
+            throw new ArgumentException("A variant on the shelf has no anchors: they line up a variant of a place with its base.", nameof(shelf));
         }
 
         if (steps.Select(static step => step.Number).Distinct().Count() != steps.Count || steps.Any(step => step.Number >= next))

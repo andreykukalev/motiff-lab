@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Assembly;
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Projects.Drafts;
@@ -134,8 +135,40 @@ public class DraftModelTests
         Assert.Equal([("pl_1", 1, 4), ("pl_2", 5, 6), ("pl_3", 7, 8)], score.Places.Select(place => (place.Place, place.FirstBar, place.LastBar)));
         Assert.Equal(new Tick(6 * BarLength), score.Places[2].Span.Onset);
         Assert.Equal([0, -3, 0], score.Places.Select(place => KeySignature.InForce(score.Music.Keys, place.Span.Onset)!.Fifths));
+        Assert.Equal([(0, (KeyMode?)KeyMode.Major), (-3, KeyMode.Major)], score.Places.Take(2).Select(place => (place.Key!.Fifths, place.Key.Mode)));
+        Assert.Null(score.Places[2].Key);
+        Assert.Null(KeySignature.InForce(score.Music.Keys, score.Places[2].Span.Onset)!.Mode);
         Assert.Equal([90, 60, 120], score.Places.Select(place => score.Music.TempoAt(place.Span.Onset)));
         Assert.Equal(new TimeSignature(3, 4), score.Music.Meter.BarAt(score.Places[2].Span.Onset).Signature);
         Assert.Contains(score.Music.Notes, note => note.Id == "v_3.w1");
+    }
+
+    [Fact]
+    public void A_first_place_whose_source_states_no_key_has_none_in_the_score()
+    {
+        SourceMusic keyless = Score() with { Keys = [] };
+        Draft draft = Draft.Start("d_1", "Предложение 1", At, "pl_1", Variant("v_1", keyless, 1, 2))
+            .With(Variant("v_2", Score(fifths: 2, prefix: "o"), 1, 2), DraftDrop.Place, "pl_2");
+
+        DraftMusic score = DraftMusic.Of(draft);
+
+        Assert.Null(score.Places[0].Key);
+        Assert.Null(KeySignature.InForce(score.Music.Keys, Tick.Zero));
+        Assert.Equal(2, Assert.Single(score.Music.Keys).Fifths);
+    }
+
+    [Fact]
+    public void Anchors_are_only_on_a_variant_of_a_place_that_is_not_its_base_and_a_new_base_drops_its_own()
+    {
+        DraftVariant anchored = Variant("v_2", Score(prefix: "h"), 1, 4) with { Anchors = [new DraftAnchor(new Tick(BarLength), new Tick(BarLength))] };
+        Draft draft = Started().With(anchored, DraftDrop.Variant, "pl_1");
+
+        Draft rebased = draft.WithBase("pl_1", "v_2");
+
+        Assert.Single(draft.FindPlace("pl_1")!.Find("v_2")!.Anchors);
+        Assert.Empty(rebased.FindPlace("pl_1")!.BaseVariant.Anchors);
+        Assert.Throws<ArgumentException>(() => new DraftPlace("pl_9", "v_2", [anchored]));
+        Assert.Throws<ArgumentException>(() => Started().With(anchored, DraftDrop.Shelf));
+        Assert.Throws<ArgumentException>(() => Started().With(anchored, DraftDrop.Place, "pl_2"));
     }
 }

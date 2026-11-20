@@ -76,6 +76,19 @@ public class PlaceResultTests
     }
 
     [Fact]
+    public void A_take_after_inserted_bars_lands_where_the_base_notes_it_replaces_moved_to()
+    {
+        DraftTake insert = new(1, At, "pl_1", "v_2") { Technique = new DraftTechnique(TechniqueKind.InsertBars, [2]), Insert = new DraftInsert(new Tick(BarLength), new TickSpan(Tick.Zero, BarLength)) };
+
+        PlaceResult result = PlaceResult.Build(Place(), [insert, Octave(2)]);
+
+        Assert.True(result.OutcomeOf(2)!.Applied);
+        Assert.Equal(new Tick(2 * BarLength), result.Music.Notes.Single(note => note.Id == "v_2.h1r0").Span.Onset);
+        Assert.Equal(new Tick(BarLength), result.Music.Notes.Single(note => note.Id == "v_2.h0r0").Span.Onset);
+        Assert.Equal(new Tick(2 * BarLength), result.Music.Notes.Single(note => note.Id == "v_1.n1l").Span.Onset);
+    }
+
+    [Fact]
     public void A_transposition_and_a_tempo_change_the_whole_place_and_a_leave_changes_nothing()
     {
         PlaceResult result = PlaceResult.Build(Place(), [new DraftTranspose(2, At, "pl_1", -2), new DraftTempo(3, At, "pl_1", 60), new DraftLeave(1, At, "pl_1") { Seam = true }]);
