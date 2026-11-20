@@ -1,0 +1,891 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "drafts.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "bars": {
+     "first": 1,
+     "last": 4
+    },
+    "now": "2026-11-20T10:00:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "variant": "v_0001",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.add",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "bars": {
+     "first": 5,
+     "last": 8
+    },
+    "draft": "d_0001",
+    "drop": "place",
+    "now": "2026-11-20T10:05:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0002",
+    "variant": "v_0002",
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 2,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.transpose",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0002",
+    "semitones": 2,
+    "now": "2026-11-20T10:10:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0002",
+    "step": 1,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 2,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.seams",
+   "request": {
+    "draft": "d_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "seams": [
+     {
+      "before": "pl_0001",
+      "after": "pl_0002",
+      "at": 2880,
+      "lastBar": 4,
+      "firstBar": 5,
+      "listen": {
+       "onset": 2160,
+       "end": 3600
+      },
+      "left": false,
+      "changes": [
+       "key"
+      ],
+      "register": null,
+      "sides": [
+       {
+        "place": "pl_0001",
+        "number": 1,
+        "variant": "v_0001",
+        "source": "fileNotes",
+        "key": {
+         "fifths": 0,
+         "mode": "minor",
+         "name": "A minor"
+        },
+        "meter": {
+         "beats": 3,
+         "beatType": 8,
+         "label": "3/8"
+        },
+        "tempo": {
+         "perMinute": 72,
+         "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
+         "mark": "= 72"
+        }
+       },
+       {
+        "place": "pl_0002",
+        "number": 2,
+        "variant": "v_0002",
+        "source": "fileNotes",
+        "key": {
+         "fifths": 2,
+         "mode": "minor",
+         "name": "B minor"
+        },
+        "meter": {
+         "beats": 3,
+         "beatType": 8,
+         "label": "3/8"
+        },
+        "tempo": {
+         "perMinute": 72,
+         "source": "notated",
+         "beat": "quarter",
+         "beatsPerMinute": 72,
+         "mark": "= 72"
+        }
+       }
+      ],
+      "offers": [
+       {
+        "kind": "transpose",
+        "place": "pl_0002",
+        "semitones": -2,
+        "label": "② to A minor"
+       }
+      ],
+      "bridge": {
+       "place": "pl_0002",
+       "candidates": 3,
+       "label": "Bridge · 3 candidates"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.bridge",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0002",
+    "now": "2026-11-20T10:15:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0003",
+    "variant": "v_0003",
+    "dropped": [],
+    "candidates": [
+     {
+      "variant": "v_0003",
+      "kind": "dominant",
+      "label": "Dominant",
+      "explanation": "F♯7 (V7) in B minor"
+     },
+     {
+      "variant": "v_0004",
+      "kind": "commonChord",
+      "label": "Through a common chord",
+      "explanation": "Em (iv), a chord of both keys, then F♯7 (V7) in B minor"
+     },
+     {
+      "variant": "v_0005",
+      "kind": "bassWalk",
+      "label": "Bass walk",
+      "explanation": "The bass by step to the dominant: 3 notes, then F♯7 (V7) in B minor"
+     }
+    ],
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes and a bridge",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 3,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.open",
+   "request": {
+    "draft": "d_0001"
+   },
+   "answer": {
+    "piece": 2,
+    "readOnly": true,
+    "draft": {
+     "id": "d_0001",
+     "name": "Draft 1",
+     "places": [
+      {
+       "id": "pl_0001",
+       "label": "① Notes 1–4",
+       "onset": 0,
+       "end": 2880,
+       "firstBar": 1,
+       "lastBar": 4,
+       "steps": 0,
+       "bridge": false,
+       "variants": [
+        {
+         "id": "v_0001",
+         "label": "Notes 1–4",
+         "base": true,
+         "steps": 0
+        }
+       ]
+      },
+      {
+       "id": "pl_0003",
+       "label": "② Bridge · 3 variants",
+       "onset": 2880,
+       "end": 3600,
+       "firstBar": 5,
+       "lastBar": 5,
+       "steps": 0,
+       "bridge": true,
+       "variants": [
+        {
+         "id": "v_0003",
+         "label": "Dominant",
+         "base": true,
+         "steps": 0,
+         "bridge": "dominant",
+         "explanation": "F♯7 (V7) in B minor"
+        },
+        {
+         "id": "v_0004",
+         "label": "Through a common chord",
+         "base": false,
+         "steps": 0,
+         "bridge": "commonChord",
+         "explanation": "Em (iv), a chord of both keys, then F♯7 (V7) in B minor",
+         "anchors": []
+        },
+        {
+         "id": "v_0005",
+         "label": "Bass walk",
+         "base": false,
+         "steps": 0,
+         "bridge": "bassWalk",
+         "explanation": "The bass by step to the dominant: 3 notes, then F♯7 (V7) in B minor",
+         "anchors": []
+        }
+       ]
+      },
+      {
+       "id": "pl_0002",
+       "label": "③ Notes 5–8",
+       "onset": 3600,
+       "end": 6240,
+       "firstBar": 6,
+       "lastBar": 9,
+       "steps": 1,
+       "bridge": false,
+       "variants": [
+        {
+         "id": "v_0002",
+         "label": "Notes 5–8",
+         "base": true,
+         "steps": 0
+        }
+       ]
+      }
+     ],
+     "shelf": []
+    },
+    "project": {
+     "id": "p_answers",
+     "fileName": "Draft 1.mid",
+     "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+     "lastOpened": "2026-11-20T10:00:00.0000000+00:00",
+     "origin": "imported",
+     "motifs": 0,
+     "variations": 0,
+     "corrections": 0,
+     "resumePoints": 0,
+     "ideas": 0,
+     "marks": 0,
+     "bookmarks": 0,
+     "openChecks": 0,
+     "title": "Draft 1",
+     "titleFrom": "fileName",
+     "composer": null,
+     "composerFrom": null,
+     "tags": [],
+     "playlists": [],
+     "checkBars": 0,
+     "hasNotes": true,
+     "document": false,
+     "originals": [
+      {
+       "id": "src_file",
+       "kind": "midi",
+       "shown": "Draft 1.mid",
+       "fileName": "Draft 1.mid",
+       "folder": null,
+       "sha256": null,
+       "bytes": 574,
+       "pages": null,
+       "durationMs": null,
+       "inFile": true,
+       "kept": "file",
+       "held": []
+      }
+     ],
+     "partOf": null,
+     "pieceKeys": [
+      "44eee485cc34fdd95c4b868134456617c92ec25bb82a75c91b5c3926cfb3f3f4"
+     ],
+     "latest": null
+    },
+    "summary": {
+     "fileName": "Draft 1.mid",
+     "format": "midi",
+     "noteCount": 55,
+     "barCount": 9,
+     "end": 6240,
+     "heard": false,
+     "tracks": [
+      {
+       "index": 1,
+       "label": "Track 2: Right hand",
+       "name": "Right hand",
+       "noteCount": 36,
+       "hands": "none"
+      },
+      {
+       "index": 2,
+       "label": "Track 3: Left hand",
+       "name": "Left hand",
+       "noteCount": 19,
+       "hands": "none"
+      }
+     ],
+     "keys": [
+      {
+       "at": 0,
+       "fifths": 0,
+       "mode": "minor"
+      },
+      {
+       "at": 2880,
+       "fifths": 2,
+       "mode": "minor"
+      },
+      {
+       "at": 3600,
+       "fifths": 2,
+       "mode": "minor"
+      }
+     ],
+     "report": {
+      "format": "MIDI type 1",
+      "tracks": 3,
+      "notes": 55,
+      "measures": 9,
+      "issues": []
+     }
+    },
+    "language": "en",
+    "selection": null,
+    "hasVariation": false
+   }
+  },
+  {
+   "call": "drafts.base",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0003",
+    "variant": "v_0005",
+    "now": "2026-11-20T10:20:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0003",
+    "variant": "v_0005",
+    "dropped": [],
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes and a bridge",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 3,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.leaveBridge",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0003",
+    "now": "2026-11-20T10:25:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0003",
+    "variant": "v_0005",
+    "dropped": [],
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 2,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.undo",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "undone": [],
+    "structure": true,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes and a bridge",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 3,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

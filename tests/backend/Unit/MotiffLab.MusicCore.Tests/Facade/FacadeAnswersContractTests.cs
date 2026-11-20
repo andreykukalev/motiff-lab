@@ -209,6 +209,50 @@ public class FacadeAnswersContractTests
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // The register at a seam (version 1.2, the plan's answer 3): bars 5–8 two octaves up after bars 1–4, the seam saying
+        // «② на октаву выше» and offering «② на октаву ниже», a transposition by −12.
+        ["drafts.register"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.transpose", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","semitones":24,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.seams", """{"draft":"d_0001"}"""),
+        ],
+        // A bridge at a seam (version 1.2, the plan's answer 2): the second place a tone up, the seam offering «Связка · 3
+        // кандидата», the candidates put as a place between, the draft view with it, the bass walk made its base, the place
+        // left (removed) and that undone.
+        ["drafts.bridge"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.transpose", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","semitones":2,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.seams", """{"draft":"d_0001"}"""),
+            ("drafts.bridge", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.base", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0003","variant":"v_0005","now":"2026-11-20T10:20:00Z"}"""),
+            ("drafts.leaveBridge", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0003","now":"2026-11-20T10:25:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // Anchors (version 1.2, the plan's answer 4): bars 1–8 as a place and bars 1–4 as its variant, its bar 1 confirmed to
+        // be the base's bar 3, the приёмы worked out around it, the draft's map with the anchor over its bar, the anchor taken
+        // away and that undone.
+        ["drafts.anchors"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":8},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.anchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","anchor":{"base":2880,"variant":0},"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.unanchor", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","variant":"v_0002","base":2880,"now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // The collage (version 1.2, the plan's answer 5): the drafts of another piece's project file listed, and bars 1–4 of
+        // this piece added to the end of its draft, answered with that piece's file to save.
+        ["drafts.collage"] =
+        [
+            ("project.drafts", """{"file":"<pieceA>","language":"en"}"""),
+            ("drafts.add", """{"bars":{"first":1,"last":4},"file":"<pieceA>","draft":"d_0001","drop":"place","now":"2026-11-20T10:00:00Z"}"""),
+        ],
         // The sources of a piece that is only its PDF, with a bookmark on its pages: no working notes, and page marks.
         ["sources.layers.pdf"] = [("sources.layers", """{"device":"ipad","here":[]}""")],
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for
@@ -218,6 +262,9 @@ public class FacadeAnswersContractTests
 
     /// <summary>Calls whose answer the file does not keep, only their request: those that only build a file's state (another answer's).</summary>
     private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
+
+    /// <summary>Calls made on piece 0, with no piece, beside those on the piece open.</summary>
+    private static readonly HashSet<string> s_withoutPiece = ["project.drafts"];
 
     /// <summary>
     /// The files whose calls start from a project file and not from the example opened anew: the file the project is made
@@ -270,7 +317,7 @@ public class FacadeAnswersContractTests
         var answers = new JsonArray();
         foreach ((string call, string? request) in s_files[name])
         {
-            JsonNode answer = JsonNode.Parse(facade.Call(piece, call, WithBytes(request)))!;
+            JsonNode answer = JsonNode.Parse(facade.Call(s_withoutPiece.Contains(call) ? 0 : piece, call, WithBytes(request)))!;
             Assert.False(answer.AsObject().ContainsKey("error"), $"{call} {request}: {answer.ToJsonString()}");
             answers.Add(new JsonObject
             {
@@ -365,7 +412,17 @@ public class FacadeAnswersContractTests
         .Replace("<pdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes(Pdf)), StringComparison.Ordinal)
         .Replace("<otherPdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes("%PDF-1.4\nanother edition\n%%EOF\n")), StringComparison.Ordinal)
         .Replace("<scan>", Convert.ToBase64String(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"))), StringComparison.Ordinal)
-        .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal);
+        .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal)
+        .Replace("<pieceA>", request.Contains("<pieceA>", StringComparison.Ordinal) ? PieceA() : "", StringComparison.Ordinal);
+
+    /// <summary>Another piece's project file, as a JSON string's text: Ode to Joy with a draft "Ode" of its bars 1–2.</summary>
+    private static string PieceA()
+    {
+        var facade = new MusicCoreFacade();
+        int piece = Opened(facade, "Ode.musicxml", FacadeCalls.Fixture("ode-to-joy.musicxml"), """{"language":"en","id":"p_a","now":"2026-11-20T08:00:00Z"}""");
+        Assert.DoesNotContain("error", facade.Call(piece, "drafts.add", """{"bars":{"first":1,"last":2},"name":"Ode","now":"2026-11-20T08:30:00Z"}"""), StringComparison.Ordinal);
+        return JsonEncodedText.Encode(facade.Call(piece, "project.save", """{"now":"2026-11-20T08:45:00Z"}"""), JavaScriptEncoder.UnsafeRelaxedJsonEscaping).ToString();
+    }
 
     /// <summary>The example played with bar 5's three highest notes doubled a little off their pitch, as MusicCoreFacadeTests plays a performance.</summary>
     private static string Played()

@@ -67,9 +67,10 @@ internal static partial class Answer
     /// <summary>
     /// "drafts": [{"id", "name", "caption" («из нот с PDF и записи»), "createdAt", "places", "shelf", and since version 1.1
     /// step 6 "techniques" {"taken", "total"}, the приёмы of all its places (<see cref="Draft.Tally"/>: «взято 3 приёма из
-    /// 4»)}] in the order they were made, for the Sources group «Черновики» (0034, spec «Экран (iPad)»).
+    /// 4»)}] in the order they were made, for the Sources group «Черновики» (0034, spec «Экран (iPad)»), and since version
+    /// 1.2 for another piece's group on the «В черновик» sheet (project.drafts).
     /// </summary>
-    private static void Drafts(Utf8JsonWriter json, Project project, Words words)
+    public static void Drafts(Utf8JsonWriter json, Project project, Words words)
     {
         json.WriteStartArray("drafts");
         foreach (Draft draft in project.Drafts)

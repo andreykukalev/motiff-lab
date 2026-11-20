@@ -267,6 +267,7 @@ public sealed partial class MusicCoreFacade
                     "settings.state" => OpenPiece.SettingsState(fields),
                     "project.summary" => ProjectSummary(fields),
                     "project.metadata" => ProjectMetadata(fields),
+                    "project.drafts" => DraftRequest.Of(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), Words.For(fields.Text("language"))),
                     "project.online" => SyncRequest.Online(fields),
                     "project.sync" => SyncRequest.Next(fields),
                     "project.pulled" => SyncRequest.Pulled(fields),

@@ -124,6 +124,37 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
         return place.Base == variantId ? this : Changed([.. Places.Select(each => each.Id == placeId ? place.With(variants, variantId) : each)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
     }
 
+    /// <summary>The draft with <paramref name="place"/> put just before the place <paramref name="beforeId"/>: a bridge at the seam before it (<see cref="DraftBridges"/>).</summary>
+    /// <exception cref="KeyNotFoundException">No such place.</exception>
+    /// <exception cref="ArgumentException">An id the draft has already.</exception>
+    public Draft WithPlaceBefore(DraftPlace place, string beforeId)
+    {
+        ArgumentNullException.ThrowIfNull(place);
+        int index = Places.ToList().IndexOf(Place(beforeId));
+        return Changed([.. Places.Take(index), place, .. Places.Skip(index)], Shelf, Steps);
+    }
+
+    /// <summary>The draft without the place <paramref name="placeId"/>: its variants go with it, and the steps that name it.</summary>
+    /// <exception cref="KeyNotFoundException">No such place.</exception>
+    public Draft WithoutPlace(string placeId)
+    {
+        _ = Place(placeId);
+        return Changed([.. Places.Where(place => place.Id != placeId)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
+    }
+
+    /// <summary>
+    /// The variant <paramref name="variantId"/> of the place <paramref name="placeId"/>, not its base, with other anchors
+    /// (<see cref="DraftAnchors"/>); its steps stay, read through the alignment the anchors give.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No such place, or no such variant in it.</exception>
+    /// <exception cref="ArgumentException">The place's base, which has no anchors, or anchors that do not strictly increase.</exception>
+    public Draft WithAnchors(string placeId, string variantId, IReadOnlyList<DraftAnchor> anchors)
+    {
+        DraftPlace place = Place(placeId);
+        DraftVariant variant = place.Find(variantId) ?? throw new KeyNotFoundException($"The place {placeId} has no variant {variantId}.");
+        return WithPlace(place.With([.. place.Variants.Select(each => each.Id == variantId ? variant with { Anchors = anchors } : each)], place.Base));
+    }
+
     /// <summary>The draft with <paramref name="step"/> at the end of its journal: it takes the number <see cref="Next"/>, and the next one counts on.</summary>
     /// <exception cref="ArgumentException">The step has another number, or names a place or a variant the draft has not.</exception>
     public Draft With(Func<int, DraftStep> step)
@@ -152,8 +183,12 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>The result of the place <paramref name="placeId"/>: its base with its steps (<see cref="PlaceResult.Build"/>).</summary>
     public PlaceResult ResultOf(string placeId) => PlaceResult.Build(Place(placeId), StepsOf(placeId));
 
-    /// <summary>The приёмы of the place <paramref name="placeId"/>'s variants against its base, decided as its steps left them (<see cref="PlaceTechniques.Of"/>).</summary>
-    public IReadOnlyList<PlaceTechnique> TechniquesOf(string placeId) => PlaceTechniques.Of(Place(placeId), StepsOf(placeId));
+    /// <summary>
+    /// The приёмы of the place <paramref name="placeId"/>'s variants against its base, decided as its steps left them
+    /// (<see cref="PlaceTechniques.Of"/>); none in a bridge place, whose variants are candidates to choose from, not sources
+    /// to take from.
+    /// </summary>
+    public IReadOnlyList<PlaceTechnique> TechniquesOf(string placeId) => Place(placeId) is { Bridge: false } place ? PlaceTechniques.Of(place, StepsOf(placeId)) : [];
 
     /// <summary>
     /// The приёмы of all its places, how many are taken of how many (<see cref="PlaceTechniques.Tally"/>), for the Sources

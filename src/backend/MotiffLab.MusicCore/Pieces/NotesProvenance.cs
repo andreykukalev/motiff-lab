@@ -67,6 +67,12 @@ public sealed record NotesProvenance(string Op)
     /// <summary>Notes cut from other Notes, such as a piece of a collection.</summary>
     public const string Split = "split";
 
+    /// <summary>
+    /// Notes music-core made by its own rules, with no AI: a variant of a phrase from a «Что если» chip, or a bridge candidate
+    /// of a draft's seam (<c>DraftBridges</c>); what made them in the params.
+    /// </summary>
+    public const string Variation = "variation";
+
     /// <summary>Notes or a variation the assistant proposed and the player accepted (0028; research 4.6), with its request and model in the params.</summary>
     public const string Assistant = "assistant";
 

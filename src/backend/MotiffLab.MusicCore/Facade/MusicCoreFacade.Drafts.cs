@@ -1,3 +1,5 @@
+using System.Text;
+
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Projects.Drafts;
 
@@ -6,12 +8,18 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// The drafts' calls across open pieces (decision record 0034, version 1.1): a fragment is selected in any view of notes,
 /// the working notes, Notes or a version opened to be shown, or another piece, and goes into a draft of the piece the
-/// view was opened from, or of the open piece "into" names; a draft opens under a new number only to be shown.
+/// view was opened from, or of the open piece "into" names, or (version 1.2, collage) of another piece whose project file
+/// the app sends as "file", which is not opened; a draft opens under a new number only to be shown.
 /// </summary>
 public sealed partial class MusicCoreFacade
 {
     private string CallOnDrafts(int number, OpenPiece open, string name, Request fields)
     {
+        if (name == "drafts.add" && fields.Has("file"))
+        {
+            return fields.Has("into") ? throw FacadeException.BadRequest("Send \"into\" or \"file\", not both.") : DraftRequest.AddTo(Elsewhere(fields), Origin(open), fields);
+        }
+
         (int ownerNumber, OpenPiece owner) = Owner(number, open, fields);
         return name switch
         {
@@ -32,6 +40,10 @@ public sealed partial class MusicCoreFacade
             "drafts.transpose" => DraftSeamRequest.Transpose(owner, fields),
             "drafts.tempo" => DraftSeamRequest.Tempo(owner, fields),
             "drafts.leaveSeam" => DraftSeamRequest.Leave(owner, fields),
+            "drafts.bridge" => DraftBridgeRequest.Put(owner, fields),
+            "drafts.leaveBridge" => DraftBridgeRequest.Leave(owner, fields),
+            "drafts.anchor" => DraftAnchorRequest.Confirm(owner, fields, Working),
+            "drafts.unanchor" => DraftAnchorRequest.Remove(owner, fields),
             _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
         };
     }
@@ -42,6 +54,16 @@ public sealed partial class MusicCoreFacade
         int owner = fields.Int("into") ?? open.ShownFrom?.Piece ?? number;
         OpenPiece piece = _pieces.TryGetValue(owner, out OpenPiece? found) ? found : throw new FacadeException("noPiece", $"Piece {owner} is not open.");
         return piece.ReadOnly ? throw new FacadeException("readOnly", "Drafts belong to a piece open to work on, not to notes open only to be shown.") : (owner, piece);
+    }
+
+    /// <summary>
+    /// The project of "file", another piece's project file the app keeps (version 1.2, collage); never a piece open here to
+    /// work on, whose drafts "into" names, so the app never holds two copies of one piece that differ.
+    /// </summary>
+    private Project Elsewhere(Request fields)
+    {
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        return Working(project.Id) is null ? project : throw FacadeException.BadRequest("That piece is open here: send \"into\", its number, in place of its file.");
     }
 
     /// <summary>Where a fragment selected in <paramref name="open"/> comes from: the Notes it shows and their provenance in the piece they belong to.</summary>

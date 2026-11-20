@@ -51,15 +51,25 @@ public sealed class PerformanceAlignment
     public IReadOnlyList<Anchor> Anchors => _anchors;
 
     /// <summary>Aligns a performance with the score's notes.</summary>
-    public static PerformanceAlignment Align(IReadOnlyList<Note> score, IReadOnlyList<PlayedNote> played)
+    public static PerformanceAlignment Align(IReadOnlyList<Note> score, IReadOnlyList<PlayedNote> played) => Aligned(score, played, fromStart: false);
+
+    /// <summary>
+    /// The alignment of the notes; <paramref name="fromStart"/> for a stretch that starts at a confirmed anchor and runs open
+    /// to the end: aligned from its start (the groups reversed for <see cref="AlignGroups"/> and mapped back), so what is
+    /// left uncovered falls at its open end and the music right after the anchor lines up with what follows it.
+    /// </summary>
+    private static PerformanceAlignment Aligned(IReadOnlyList<Note> score, IReadOnlyList<PlayedNote> played, bool fromStart)
     {
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(played);
 
         List<(long At, int[] Pitches)> printed = ScoreGroups(score);
         List<(long At, int[] Pitches)> heard = PlayedGroups(played);
+        IEnumerable<(int I, int J)> pairs = fromStart
+            ? AlignGroups([.. Enumerable.Reverse(printed)], [.. Enumerable.Reverse(heard)]).Select(pair => (I: printed.Count - 1 - pair.I, J: heard.Count - 1 - pair.J)).Reverse()
+            : AlignGroups(printed, heard);
         List<Anchor> anchors = [];
-        foreach ((int i, int j) in AlignGroups(printed, heard))
+        foreach ((int i, int j) in pairs)
         {
             if (Similarity(printed[i].Pitches, heard[j].Pitches) < AnchorSimilarity)
             {
@@ -80,7 +90,9 @@ public sealed class PerformanceAlignment
     /// Aligns a performance with the score's notes around anchors the player confirmed (decision record 0034, section 2):
     /// each confirmed anchor is kept as it is, and the notes of each stretch between two of them, before the first and after
     /// the last, are aligned on their own (<see cref="Align(IReadOnlyList{Note}, IReadOnlyList{PlayedNote})"/>), so no
-    /// anchor found moves past a confirmed one. With none confirmed it is the alignment of all the notes.
+    /// anchor found moves past a confirmed one; the stretch after the last is aligned from its start, so the music just
+    /// after a confirmed anchor follows it and what is left uncovered falls at the open end (version 1.2). With none confirmed
+    /// it is the alignment of all the notes.
     /// </summary>
     /// <exception cref="ArgumentException">The confirmed anchors do not strictly increase in both ticks and time.</exception>
     public static PerformanceAlignment Align(IReadOnlyList<Note> score, IReadOnlyList<PlayedNote> played, IReadOnlyList<Anchor> confirmed)
@@ -107,7 +119,7 @@ public sealed class PerformanceAlignment
             // Only the notes strictly inside the stretch: those at a confirmed anchor are what it holds.
             Note[] printed = [.. score.Where(note => (from is null || note.Span.Onset > from.Value.Score) && (to is null || note.Span.Onset < to.Value.Score))];
             PlayedNote[] heard = [.. played.Where(note => (from is null || note.Onset > from.Value.Microseconds) && (to is null || note.Onset < to.Value.Microseconds))];
-            anchors.AddRange(Align(printed, heard).Anchors);
+            anchors.AddRange(Aligned(printed, heard, fromStart: from is not null && to is null).Anchors);
         }
 
         return new PerformanceAlignment([.. anchors]);

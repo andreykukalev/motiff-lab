@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Assembly;
@@ -88,10 +89,68 @@ internal static class DraftRequest
     /// </summary>
     public static string Add(OpenPiece owner, FragmentOrigin from, Request request)
     {
+        (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
+        if (draft is null)
+        {
+            string newId = owner.Project.NextDraftId();
+            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
+            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, variant.AddedAt, place!, variant)), json => Added(json, newId, place, variant.Id));
+        }
+
+        return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variant.Id)));
+    }
+
+    /// <summary>
+    /// «Добавить» into a draft of another piece (version 1.2, collage, the plan's answer 5): the fragment, as <see cref="Add"/>
+    /// takes it, into the draft "draft" of <paramref name="into"/>, the project of the file the app sent, which is not open
+    /// here. The piece the fragment comes from does not change, nor its undo; the variant is a copy that names that piece
+    /// (its "project", and every source of its provenance), so it stays whole when that piece is removed. A new draft is
+    /// not made there. Answers "draft", "place" (null on the shelf), "variant", "project", the summary of the project
+    /// changed, and "file", its project file to save in place of the one sent, written at version 17 (<see cref="ProjectFile.Version"/>).
+    /// </summary>
+    public static string AddTo(Project into, FragmentOrigin from, Request request)
+    {
+        _ = request.Required("draft");
+        (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(into, from, request);
+        Project changed;
+        try
+        {
+            changed = into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place));
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+
+        return Answer.Write(json =>
+        {
+            Added(json, draft.Id, place, variant.Id);
+            Answer.Project(json, "project", changed);
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(changed)));
+        });
+    }
+
+    /// <summary>
+    /// The drafts of another piece's project file (version 1.2, collage): "project", its summary, as project.summary answers
+    /// it, and "drafts" as the piece's sources list them (<see cref="Answer.Drafts"/>), for the «В черновик» sheet's group of
+    /// that piece. Nothing is written: a file of version 16 stays as it is until a fragment is added.
+    /// </summary>
+    public static string Of(Project project, Words words) => Answer.Write(json =>
+    {
+        Answer.Project(json, "project", project);
+        Answer.Drafts(json, project, words);
+    });
+
+    /// <summary>
+    /// The fragment selected in <paramref name="from"/> as «Добавить» takes it into the drafts of <paramref name="into"/>:
+    /// the draft "draft" (null for a new one), where "drop" puts it, the place it goes to (null on the shelf) and the variant.
+    /// </summary>
+    private static (Draft? Draft, DraftDrop Drop, string? Place, DraftVariant Variant) Fragment(Project into, FragmentOrigin from, Request request)
+    {
         (SourceMusic music, TickSpan span) = Selected(from.Open, request);
         DraftPart part = PartOf(request, DraftFragment.Parts(music.NotesIn(span.Onset, span.End)));
         DateTimeOffset now = SourceRequest.Now(request);
-        Draft? draft = request.Text("draft") is { } id ? owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
+        Draft? draft = request.Text("draft") is { } id ? into.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
         DraftDrop drop = request.Enum<DraftDrop>("drop") ?? (draft is null ? DraftDrop.Place : throw FacadeException.BadRequest("Send \"drop\": variant, place or shelf."));
         if (draft is null && drop != DraftDrop.Place)
         {
@@ -105,16 +164,9 @@ internal static class DraftRequest
             DraftDrop.Place => draft.NextPlaceId(),
             _ => null,
         };
-        string? project = from.Project == owner.Project.Id ? null : from.Project;
+        string? project = from.Project == into.Id ? null : from.Project;
         DraftVariant variant = Taken(() => DraftFragment.Variant(variantId, now, music, span, part, from.Notes, from.Provenance, project, DraftFragment.Heard(from.Open.Project, HeardClock.Of(from.Open.Project, from.Open.Piece), span)));
-        if (draft is null)
-        {
-            string newId = owner.Project.NextDraftId();
-            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
-            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, now, place!, variant)), json => Added(json, newId, place, variantId));
-        }
-
-        return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variantId)));
+        return (draft, drop, place, variant);
     }
 
     /// <summary>«Переименовать»: the draft "draft" named "name". Answers the sources with "draft".</summary>
@@ -182,11 +234,16 @@ internal static class DraftRequest
     /// варианта»), "onset", "end" (in the draft's ticks), "firstBar", "lastBar" (the draft's own numbers), and since the
     /// iPad's step 7 "steps" (the journal's steps of the place, which a new base removes) and "variants" (until then their
     /// count) [{"id", "label" («Запись 9–12 · правая рука»), "base", "steps" (those that take from it or leave it, which go with it
-    /// out of the place)}]}] in order, and "shelf" [{"id", "label"}], the draft's map.
+    /// out of the place)}]}] in order, and "shelf" [{"id", "label"}], the draft's map. Since version 1.2: each place "bridge"
+    /// (made for a seam, its variants the candidates), a candidate "bridge" (dominant, commonChord, bassWalk) and
+    /// "explanation" (the chords it sounds, in words), and a variant that is not its place's base "anchors" [{"base", "variant"
+    /// (the ticks the player confirmed sound together, the base's and the variant's), "at" and "bar" (where the base's tick
+    /// is in the draft and its bar there)}], for the amber marks over the bars and «Открепить».
     /// </summary>
     public static void View(Utf8JsonWriter json, Draft draft, Words words)
     {
-        IReadOnlyList<DraftPlaceSpan> spans = DraftMusic.Of(draft).Places;
+        DraftMusic score = DraftMusic.Of(draft);
+        IReadOnlyList<DraftPlaceSpan> spans = score.Places;
         json.WriteStartObject("draft");
         json.WriteString("id", draft.Id);
         json.WriteString("name", draft.Name);
@@ -203,10 +260,18 @@ internal static class DraftRequest
             json.WriteNumber("firstBar", span.FirstBar);
             json.WriteNumber("lastBar", span.LastBar);
             json.WriteNumber("steps", draft.StepsOf(place.Id).Count);
+            json.WriteBoolean("bridge", place.Bridge);
             json.WriteStartArray("variants");
+            PlaceResult? result = null;
             foreach (DraftVariant variant in place.Variants)
             {
                 MapVariant(json, variant, words, place.Base == variant.Id, draft.StepsNaming(variant.Id).Count);
+                if (place.Base != variant.Id)
+                {
+                    Anchors(json, variant, result ??= draft.ResultOf(place.Id), span.Span.Onset, score.Music);
+                }
+
+                json.WriteEndObject();
             }
 
             json.WriteEndArray();
@@ -218,12 +283,14 @@ internal static class DraftRequest
         foreach (DraftVariant variant in draft.Shelf)
         {
             MapVariant(json, variant, words, null, null);
+            json.WriteEndObject();
         }
 
         json.WriteEndArray();
         json.WriteEndObject();
     }
 
+    /// <summary>A variant on the map, its object left open for the place's own fields.</summary>
     private static void MapVariant(Utf8JsonWriter json, DraftVariant variant, Words words, bool? isBase, int? steps)
     {
         json.WriteStartObject();
@@ -235,7 +302,29 @@ internal static class DraftRequest
             json.WriteNumber("steps", steps ?? 0);
         }
 
-        json.WriteEndObject();
+        if (DraftBridges.KindOf(variant) is { } bridge)
+        {
+            json.WriteString("bridge", Answer.Camel(bridge));
+            json.WriteString("explanation", DraftBridges.Explanation(variant, words));
+        }
+    }
+
+    /// <summary>The variant's confirmed anchors, each where its base tick is in the draft (<paramref name="start"/>, its place's start, and the place's result).</summary>
+    private static void Anchors(Utf8JsonWriter json, DraftVariant variant, PlaceResult result, Tick start, SourceMusic score)
+    {
+        json.WriteStartArray("anchors");
+        foreach (DraftAnchor anchor in variant.Anchors)
+        {
+            Tick at = result.InResult(anchor.Place).Offset(start.Value);
+            json.WriteStartObject();
+            json.WriteNumber("base", anchor.Place.Value);
+            json.WriteNumber("variant", anchor.Variant.Value);
+            json.WriteNumber("at", at.Value);
+            json.WriteNumber("bar", score.BarAt(at).Number);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     /// <summary>The draft "draft" of the piece and its variant "variant".</summary>
@@ -249,9 +338,9 @@ internal static class DraftRequest
     /// <summary>
     /// The draft's structure changed by <paramref name="change"/>, the draft as it was kept for drafts.undo; one the draft
     /// cannot make (no such variant or place, a base moved, a variant put where it is) is a bad request. Answers the sources
-    /// with the ids and "dropped", the numbers of <paramref name="dropped"/>.
+    /// with the ids, "dropped", the numbers of <paramref name="dropped"/>, and what <paramref name="more"/> writes.
     /// </summary>
-    private static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change)
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change, Action<Utf8JsonWriter>? more = null)
     {
         string answer = owner.Changed(
             request,
@@ -270,6 +359,7 @@ internal static class DraftRequest
             {
                 Added(json, draft.Id, place, variant);
                 Answer.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
+                more?.Invoke(json);
             });
         owner.KeepDraftBefore(draft);
         return answer;

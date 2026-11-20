@@ -179,7 +179,7 @@ public static class VariantRecord
     {
         VariantOrigin? origin = provenance.Op switch
         {
-            "variation" => VariantOrigin.Variation,
+            NotesProvenance.Variation => VariantOrigin.Variation,
             NotesProvenance.Assistant => VariantOrigin.Assistant,
             _ => null,
         };

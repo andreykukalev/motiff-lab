@@ -24,7 +24,7 @@ public class DraftsFacadeTests
     private static byte[] Scanned() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
 
     /// <summary>A PDF read by the scan server, open as piece 1, in <paramref name="language"/>.</summary>
-    private static MusicCoreFacade Opened(string language = "en")
+    internal static MusicCoreFacade Opened(string language = "en")
     {
         byte[] musicXml = Scanned();
         Project read = Project.CreateDocument("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "Nocturne.pdf", s_pdf, s_now)

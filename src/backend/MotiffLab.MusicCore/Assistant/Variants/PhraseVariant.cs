@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Variations;
 
@@ -35,7 +36,7 @@ public sealed record VariantProvenance(VariantOrigin Origin, DateTimeOffset At)
     public int Seed { get; init; }
 
     /// <summary>"variation" or "assistant", as v16 writes a derivation's op.</summary>
-    public string Op => Origin == VariantOrigin.Assistant ? "assistant" : "variation";
+    public string Op => Origin == VariantOrigin.Assistant ? NotesProvenance.Assistant : NotesProvenance.Variation;
 
     /// <summary>The parameters as v16 writes them: chip, request and model, those that are set, in that order.</summary>
     public IReadOnlyList<KeyValuePair<string, string>> Params =>

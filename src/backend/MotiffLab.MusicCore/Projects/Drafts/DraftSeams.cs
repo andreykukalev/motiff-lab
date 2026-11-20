@@ -16,12 +16,20 @@ public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySig
 {
     /// <summary>The tempo in quarter notes a minute, rounded.</summary>
     public int PerMinute => TempoSources.PerMinute(Tempo.MicrosecondsPerQuarter);
+
+    /// <summary>Every note of the place's result, both hands, in the draft's ticks: its register and the bridge read them.</summary>
+    public IReadOnlyList<Note> Notes { get; init; } = [];
+
+    /// <summary>Whether the place was made for a seam, its variants the bridge candidates (<see cref="DraftPlace.Bridge"/>).</summary>
+    public bool Bridge { get; init; }
 }
 
 /// <summary>
-/// The boundary of two places of a draft (decision record 0034, section 5): what differs in key, meter and tempo, and what
-/// music-core offers there: the place after it transposed to the key before it, or played at the tempo before it. Nothing
-/// is changed by itself; «Оставить» keeps the seam as it is and is remembered (<see cref="Left"/>).
+/// The boundary of two places of a draft (decision record 0034, section 5): what differs in key, meter, tempo and register,
+/// and what music-core offers there: the place after it transposed to the key before it, moved by an octave towards it, or
+/// played at the tempo before it, and a bridge (<see cref="DraftBridges"/>). Nothing is changed by itself; «Оставить» keeps
+/// the seam as it is and is remembered (<see cref="Left"/>). A bridge place is offered nothing at the seam before it: it was
+/// made to lead from the place before it into the key after it.
 /// </summary>
 /// <param name="At">The tick of the draft where the place after it starts.</param>
 /// <param name="Listen">«▶ Послушать стык»: the draft's last bar before the seam and its first bar after it.</param>
@@ -48,7 +56,7 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
     {
         get
         {
-            if (Before.Key is not { } before || After.Key is not { } after
+            if (After.Bridge || Before.Key is not { } before || After.Key is not { } after
                 || Transposition.Semitones(new MusicalKey(after.Fifths, KeyMode.Major), new MusicalKey(before.Fifths, KeyMode.Major)) is not (not 0 and var semitones))
             {
                 return null;
@@ -64,7 +72,26 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
     public KeySignature? Transposed => Semitones is { } semitones ? After.Key! with { Fifths = Transposition.Moved(After.Key!.Fifths, semitones) } : null;
 
     /// <summary>«Темп как в ①»: the tempo before the seam for the place after it, when they differ and it is one a place can be set to; else null.</summary>
-    public int? Tempo => TempoChanges && PlayerTempo.IsValid(Before.PerMinute) ? Before.PerMinute : null;
+    public int? Tempo => !After.Bridge && TempoChanges && PlayerTempo.IsValid(Before.PerMinute) ? Before.PerMinute : null;
+
+    /// <summary>
+    /// The register (the plan's answer 3): 1 when the mean pitch of the place after the seam, the mean MIDI number of all its
+    /// notes, both hands, is an octave (12 semitones) or more above that of the place before it, −1 when it is as far below,
+    /// else 0 and nothing is said of it; 0 too into a bridge place, which follows its neighbours' register (<see cref="DraftBridges"/>).
+    /// Worked out in whole numbers: the sums of the pitches against 12 × both counts.
+    /// </summary>
+    public int Register
+    {
+        get
+        {
+            long before = Before.Notes.Sum(static note => (long)note.Pitch.MidiNumber), after = After.Notes.Sum(static note => (long)note.Pitch.MidiNumber);
+            long difference = (after * Before.Notes.Count) - (before * After.Notes.Count), octave = 12L * Before.Notes.Count * After.Notes.Count;
+            return octave == 0 || After.Bridge ? 0 : difference >= octave ? 1 : difference <= -octave ? -1 : 0;
+        }
+    }
+
+    /// <summary>«② на октаву ниже»: the place after the seam moved an octave towards the one before it, its spelling kept (−12 or 12); null when the register does not differ.</summary>
+    public int? Octave => Register == 0 ? null : -12 * Register;
 }
 
 /// <summary>
@@ -147,6 +174,10 @@ public static class DraftSeams
             : KeySignature.InForce(score.Music.Keys, tick) is { } inForce && (inForce.At > span.Span.Onset || (inForce.At == span.Span.Onset && span.Key is not null)) ? inForce
             : null;
         PlaybackTempo tempo = score.Music.Tempos.Last(each => each.At <= tick);
-        return new SeamSide(place.Id, index, place.BaseVariant, key, score.Music.BarAt(tick).Bar.Signature, tempo);
+        return new SeamSide(place.Id, index, place.BaseVariant, key, score.Music.BarAt(tick).Bar.Signature, tempo)
+        {
+            Notes = score.Music.NotesIn(span.Span.Onset, span.Span.End),
+            Bridge = place.Bridge,
+        };
     }
 }

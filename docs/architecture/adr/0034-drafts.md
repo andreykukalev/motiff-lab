@@ -47,6 +47,8 @@ A fragment is added from the selection menu («Черновик»), in any view 
 - **as a new place** at the end;
 - **on the shelf.**
 
+From the piece open, a fragment also goes into a draft of another piece of the library (version 1.2, the plan's answer 5, Andrei's choice of 2026-11-20): the «В черновик» sheet lists the other pieces' drafts grouped by piece, each offering «Новым местом в конце» or «На полку». music-core reads that piece's project file the app sends and answers it changed for the app to save (`project.drafts`, `drafts.add` with `file`, [0020](0020-music-core-facade.md)); the piece open, its file and its undo do not change, and the variant is a copy that names the piece it came from.
+
 There is no hidden automatic merge. Within a place the player decides consciously, by приём (section 4), with one tap «Взять всё уверенное», or through the assistant (section 6).
 
 ### 4. Приёмы: differences grouped by kind, not by bar
@@ -65,7 +67,7 @@ A seam is the boundary of two places. music-core describes it (the difference of
 - **the neighbour's tempo**,
 - **a bridge**: two or three candidates built by music-core from rules of harmony, put as variants of a small new place between the two.
 
-Each is a step or a place the player chooses; nothing is changed by itself. «Оставить» keeps the seam as it is and is remembered. Changing a place's meter is not offered yet (section 8). Version 1.1 builds the description of key, meter and tempo, the transposition, the tempo and «Оставить»; the register and the bridge candidates come in version 1.2 (the lead's decision, 2026-11-20, as the plan's answer 1 allows).
+Each is a step or a place the player chooses; nothing is changed by itself. «Оставить» keeps the seam as it is and is remembered. Changing a place's meter is not offered yet (section 8). Version 1.1 builds the description of key, meter and tempo, the transposition, the tempo and «Оставить»; the register and the bridge candidates come in version 1.2 (the lead's decision, 2026-11-20, as the plan's answer 1 allows). Version 1.2 builds them as Andrei approved (the plan's answers 2 and 3, 2026-11-20): the register differs when the mean MIDI pitch of all the notes of one place is an octave or more from the other's, and the place after the seam is offered an octave towards the one before (a transposition by 12 that keeps its spelling); a bridge is offered only where the keys differ, two or three candidates of one bar in the meter, tempo and key of the place after the seam (V7 of its key; a chord both keys have, then V7; the bass by step from the last bass before the seam to the dominant), voiced in the neighbours' register, their notes marked inferred; «Оставить» in the bridge place removes it.
 
 ### 6. The assistant in a draft
 
