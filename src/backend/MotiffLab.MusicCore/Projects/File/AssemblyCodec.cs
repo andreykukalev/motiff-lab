@@ -66,8 +66,8 @@ internal static class AssemblyCodec
 
             return new PieceAssembly(steps, Integer(assembly, "next"))
             {
-                Applied = assembly.TryGetProperty("applied", out JsonElement applied) ? ReadMusic(applied) : null,
-                Before = assembly.TryGetProperty("before", out JsonElement before) ? ReadMusic(before) : null,
+                Applied = assembly.TryGetProperty("applied", out JsonElement applied) ? ReadMusic(applied, "assembly") : null,
+                Before = assembly.TryGetProperty("before", out JsonElement before) ? ReadMusic(before, "assembly") : null,
                 AppliedAt = assembly.TryGetProperty("appliedAt", out _) ? JsonRead.Time(assembly, "appliedAt") : null,
             };
         }
@@ -182,7 +182,8 @@ internal static class AssemblyCodec
         return new TimeAnchor(note, Long(anchor, "offset"));
     }
 
-    private static void WriteMusic(Utf8JsonWriter json, SourceMusic music)
+    /// <summary>A music's notes, bars, tempos and keys, as the assembly's "applied" and a draft's variant hold them.</summary>
+    internal static void WriteMusic(Utf8JsonWriter json, SourceMusic music)
     {
         json.WriteStartArray("notes");
         foreach (Note note in music.Notes)
@@ -249,19 +250,20 @@ internal static class AssemblyCodec
         json.WriteEndArray();
     }
 
-    private static SourceMusic ReadMusic(JsonElement music)
+    /// <summary>The music <see cref="WriteMusic"/> wrote; <paramref name="what"/> names the part of the file a fault is in.</summary>
+    internal static SourceMusic ReadMusic(JsonElement music, string what)
     {
-        Expect(music, JsonValueKind.Object, "assembly");
+        Expect(music, JsonValueKind.Object, what);
         List<Note> notes = [.. Property(music, "notes", JsonValueKind.Array).EnumerateArray().Select(note =>
         {
-            Expect(note, JsonValueKind.Object, "assembly");
+            Expect(note, JsonValueKind.Object, what);
             long onset = Long(note, "onset");
             long duration = Long(note, "duration");
             return new Note
             {
                 Id = Text(note, "id"),
                 Pitch = new Pitch(Integer(note, "pitch")),
-                Span = onset >= 0 && duration > 0 ? new TickSpan(new Tick(onset), duration) : throw Damaged("assembly"),
+                Span = onset >= 0 && duration > 0 ? new TickSpan(new Tick(onset), duration) : throw Damaged(what),
                 Velocity = Integer(note, "velocity"),
                 Track = Integer(note, "track"),
                 Voice = note.TryGetProperty("voice", out _) ? Integer(note, "voice") : null,
@@ -271,18 +273,18 @@ internal static class AssemblyCodec
         })];
         List<AssemblyBar> bars = [.. Property(music, "bars", JsonValueKind.Array).EnumerateArray().Select(bar =>
         {
-            Expect(bar, JsonValueKind.Object, "assembly");
+            Expect(bar, JsonValueKind.Object, what);
             long onset = Long(bar, "onset");
             long duration = Long(bar, "duration");
             return onset >= 0 && duration > 0
                 ? new AssemblyBar(new TickSpan(new Tick(onset), duration), new TimeSignature(Integer(bar, "beats"), Integer(bar, "beatType")))
-                : throw Damaged("assembly");
+                : throw Damaged(what);
         })];
         for (int i = 1; i < bars.Count; i++)
         {
             if (bars[i].Span.Onset != bars[i - 1].Span.End)
             {
-                throw Damaged("assembly");
+                throw Damaged(what);
             }
         }
 
