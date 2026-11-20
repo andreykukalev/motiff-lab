@@ -114,21 +114,32 @@ internal static class DraftRequest
             return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, now, place!, variant)), json => Added(json, newId, place, variantId));
         }
 
-        return owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variantId));
+        return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variantId)));
     }
 
     /// <summary>«Переименовать»: the draft "draft" named "name". Answers the sources with "draft".</summary>
     public static string Rename(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
-        return owner.Changed(request, piece => piece.ChangeDraft(id, draft => draft.Renamed(request.Required("name"))), json => json.WriteString("draft", id));
+        return Forgetting(owner, id, owner.Changed(request, piece => piece.ChangeDraft(id, draft => draft.Renamed(request.Required("name"))), json => json.WriteString("draft", id)));
     }
 
     /// <summary>«Удалить»: the draft "draft" goes, and only it (0034, section 1). Answers the sources with "removed", its id.</summary>
     public static string Remove(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
-        return owner.Changed(request, piece => piece.WithoutDraft(id), json => json.WriteString("removed", id));
+        return Forgetting(owner, id, owner.Changed(request, piece => piece.WithoutDraft(id), json => json.WriteString("removed", id)));
+    }
+
+    /// <summary>
+    /// <paramref name="answer"/>, once a change of the draft <paramref name="id"/> that is neither a step nor a change of its
+    /// structure is made: the drafts kept for drafts.undo from before its structure changed are forgotten, so an undo never
+    /// takes this change back with them.
+    /// </summary>
+    private static string Forgetting(OpenPiece owner, string id, string answer)
+    {
+        owner.ForgetDraftsBefore(id);
+        return answer;
     }
 
     /// <summary>

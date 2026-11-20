@@ -491,4 +491,22 @@ public class DraftsFacadeTests
         Assert.True(Call(facade, "drafts.undo", $$"""{{{Named}}}""").GetProperty("structure").GetBoolean());
         Assert.Equal(("v_0003", 2), (Assert.Single(SavedDraft(facade).Shelf).Id, SavedDraft(facade).Next));
     }
+
+    [Fact]
+    public void A_draft_added_to_or_renamed_after_a_change_of_structure_is_not_taken_back_by_undo()
+    {
+        MusicCoreFacade facade = Shelved();
+        Call(facade, "drafts.place", PlaceRequest("v_0003", "variant", "pl_0001"));
+        Call(facade, "drafts.add", """{"bars": {"first": 5, "last": 8}, "part": "left", "draft": "d_0001", "drop": "shelf", "now": "2026-11-20T10:25:00Z"}""");
+        Assert.Equal("unavailable", Error(facade, "drafts.undo", $$"""{{{Named}}}"""));
+        Assert.Equal("v_0004", Assert.Single(SavedDraft(facade).Shelf).Id);
+        Assert.Equal(["v_0001", "v_0003"], SavedDraft(facade).Places[0].Variants.Select(each => each.Id));
+
+        Call(facade, "drafts.transpose", $$"""{{{Named}}, "place": "pl_0002", "semitones": 2, "now": "2026-11-20T10:30:00Z"}""");
+        Call(facade, "drafts.place", PlaceRequest("v_0004", "place"));
+        Call(facade, "drafts.rename", $$"""{{{Named}}, "name": "Coda"}""");
+        JsonElement undone = Call(facade, "drafts.undo", $$"""{{{Named}}}""");
+        Assert.False(undone.GetProperty("structure").GetBoolean(), "the journal's last step, not the new place");
+        Assert.Equal(("Coda", 3, 0), (SavedDraft(facade).Name, SavedDraft(facade).Places.Count, SavedDraft(facade).Steps.Count));
+    }
 }

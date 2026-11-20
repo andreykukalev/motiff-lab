@@ -33,6 +33,9 @@ internal sealed partial class OpenPiece
     /// <summary>Keeps <paramref name="before"/>, the draft as it was before a change of its structure, for drafts.undo.</summary>
     internal void KeepDraftBefore(Draft before) => _draftsBefore.Add(before);
 
+    /// <summary>Forgets what was kept of the draft <paramref name="id"/> for drafts.undo: it changed otherwise (added to, renamed, removed).</summary>
+    internal void ForgetDraftsBefore(string id) => _draftsBefore.RemoveAll(each => each.Id == id);
+
     /// <summary>
     /// What drafts.undo takes back of <paramref name="now"/>: the draft before its latest change of structure, when no step
     /// of the journal was added after that change (its number at or above the one that change left next), its step numbers
