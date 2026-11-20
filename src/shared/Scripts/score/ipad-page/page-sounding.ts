@@ -6,6 +6,7 @@ import type { PageCommands } from "../page-contract.js";
 import { READING_LINE_PX, state } from "./page-state.js";
 import { drawHeads, placePlayhead, reportPlace } from "./page-playheads.js";
 import { card, cardScore, drawCardHeads } from "./page-card.js";
+import { showPhrasePlaying } from "./page-phrases.js";
 
 /** After the player scrolls by hand, playback leaves the page where they put it for this long before following again (score-view.ts). */
 const FOLLOW_PAUSE_MS = 4000;
@@ -58,6 +59,7 @@ export function playing({ tick, playing, follow, auto = true }: Parameters<PageC
     played ||= playing;
     heard.tick = tick;
     heard.playing = playing;
+    showPhrasePlaying(tick, playing);
     if (state.heads !== null) {
         reportPlace(drawHeads(), !playing);
         drawCardHeads();

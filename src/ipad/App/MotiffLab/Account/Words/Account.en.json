@@ -86,8 +86,6 @@
   "settings.presetHint.practising": "For daily work: phrases and the Insights strip, no hints; tools appear when you select something.",
   "settings.presetHint.clean": "Just the music: the score, your ink and bookmarks; everything else waits until you ask.",
   "settings.presetHint.custom": "Your own mix of switches. Choose a preset to start again from it.",
-  "settings.granularity": "A piece opens in",
-  "settings.granularityHint": "Short phrases, phrases or sentences, until you choose another level for the piece.",
   "settings.follow": "Follow playback",
   "settings.followHint": "The score scrolls so the bars being played stay in view. Off: it stays where you put it, and a button takes you back to the playing bar.",
   "settings.evenBars": "Even bars",

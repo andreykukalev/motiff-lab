@@ -504,6 +504,7 @@ final class SourcesController: ObservableObject {
             case .success(let engraving):
                 var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap)
                 shown.draft = draft
+                shown.shownOnly = true
                 return .success(shown)
             case .failure(let error):
                 _ = MusicCore.close(piece: number)

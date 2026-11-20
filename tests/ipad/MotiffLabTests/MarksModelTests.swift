@@ -2,8 +2,8 @@ import XCTest
 
 @testable import MotiffLab
 
-/// MarksModel (S6, ADR 0031 section 3): the layers hidden are the piece's own choice, else the device's; extra information
-/// shows a kind only while it is on; the kinds a piece has; the highlight over the selection; a bookmark gone to stays the
+/// MarksModel (S6, ADR 0031 section 3): the layers hidden are the piece's own choice, else the device's; the phrases'
+/// marks hidden are the device's; extra information shows a kind only while it is on; the kinds a piece has; the highlight over the selection; a bookmark gone to stays the
 /// one shown only while the selection is what it gave; a note starts over the selection. What ScoreController did before
 /// the move, rule for rule.
 @MainActor
@@ -53,10 +53,20 @@ final class MarksModelTests: XCTestCase {
         XCTAssertEqual(model.layerName("ink"), UIText.current["layers.ink"])
     }
 
-    func testALevelShownIsKeptAsThePiecesOwn() {
-        let (model, _) = made()
-        model.keepLevel("sentences")
-        XCTAssertEqual(model.pieceOverrides[MarksModel.granularity], "sentences")
+    /// «Фразы» in the list of extra information (the phrases spec, v1.2): the marks show by default, and hidden they stay
+    /// hidden on this device for every piece; the old key of «Не показывать» is not read.
+    func testHiddenPhraseMarksAreKeptOnTheDevice() {
+        let before = UserDefaults.standard.object(forKey: MarksModel.phraseMarksHiddenKey)
+        defer { UserDefaults.standard.set(before, forKey: MarksModel.phraseMarksHiddenKey) }
+        UserDefaults.standard.removeObject(forKey: MarksModel.phraseMarksHiddenKey)
+        UserDefaults.standard.set(true, forKey: "motiff.phrases.hidden")
+        defer { UserDefaults.standard.removeObject(forKey: "motiff.phrases.hidden") }
+        XCTAssertFalse(made().0.phraseMarksHidden, "shown by default, whatever the Phrases menu kept")
+        made().0.showPhraseMarks(false)
+        XCTAssertTrue(made().0.phraseMarksHidden, "the next screen finds them hidden")
+        made().0.showPhraseMarks(true)
+        XCTAssertFalse(made().0.phraseMarksHidden)
+        XCTAssertEqual(made().0.hiddenLayers, [], "no layer of the piece changes")
     }
 
     func testTheMarksShownAreWhatMusicCoreAnswered() {

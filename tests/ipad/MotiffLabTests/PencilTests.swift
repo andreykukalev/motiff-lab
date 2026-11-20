@@ -236,7 +236,7 @@ final class PencilTests: XCTestCase {
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
 
-        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let shown = try XCTUnwrap(PiecePhrases(answer: MusicCore.call(piece: piece.id, "phrases")))
         let drawsPhrases = try await view.evaluateJavaScript("typeof window.motiff.phrases") as? String
         XCTAssertEqual(drawsPhrases, "undefined", "the page has no phrase brackets to draw")
 
@@ -268,7 +268,7 @@ final class PencilTests: XCTestCase {
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
-        let shown = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases")))
+        let shown = try XCTUnwrap(PiecePhrases(answer: MusicCore.call(piece: piece.id, "phrases")))
         let second = try XCTUnwrap(shown.unit(2))
 
         // The page gives the web app's card layout at the card's width, and the phrase's bars engrave with it.
@@ -360,7 +360,7 @@ final class PencilTests: XCTestCase {
         defer { _ = MusicCore.close(piece: piece.id) }
         let timemap = try JSONSerialization.jsonObject(with: Data(piece.timemap.utf8))
         _ = try await call(view, "show", ["pages": piece.pages, "timemap": timemap, "dark": false])
-        let second = try XCTUnwrap(PhraseLevelsShown(answer: MusicCore.call(piece: piece.id, "phrases"))?.unit(2))
+        let second = try XCTUnwrap(PiecePhrases(answer: MusicCore.call(piece: piece.id, "phrases"))?.unit(2))
         _ = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece.id, "select", "{\"span\": {\"onset\": \(Int(second.selectableOnset)), \"end\": \(Int(second.selectableEnd))}}")))
         let understanding = try XCTUnwrap(Understanding(answer: MusicCore.call(piece: piece.id, "understand")))
 
