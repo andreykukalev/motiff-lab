@@ -1,10 +1,11 @@
 import CoreGraphics
 import WebKit
 
-// The score's web page (`Web/score.js` over `Scripts/score`) as the app sees it, through one port (decision record 0031,
-// step 2): the functions the page offers (`window.motiff`) and the messages it posts. The two lists are the contract,
-// kept in `tests/contracts/score-page.json` and checked against `score.js` by a node test and against this file by
-// `ScorePageContractTests`, so a function or a message renamed on one side fails both suites, not the page on the iPad.
+// The score's web page (`Web/score.html`, `Scripts/score/ipad-page`) as the app sees it, through one port (decision
+// record 0031, step 2): the functions the page offers (`window.motiff`) and the messages it posts. The two lists are the
+// contract, kept in `tests/contracts/score-page.json` and checked against the page and its types
+// (`Scripts/score/page-contract.ts`) by a node test and against this file by `ScorePageContractTests`, so a function or a
+// message renamed on one side fails both suites, not the page on the iPad.
 
 /// The functions of `window.motiff`; the only place that names them.
 enum PageCommand: String, CaseIterable {

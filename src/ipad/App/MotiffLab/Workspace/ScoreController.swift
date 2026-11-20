@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 import WebKit
 
 /// The score and the pencil marks on it (decision record 0019, sections 1.4 and 2.2). The pages are Verovio's SVG in one
-/// web view, which runs the web app's own score modules (Web/score.js over Scripts/score) to know where each bar is
+/// web view, which runs the web app's own score modules (Web/score.html over Scripts/score) to know where each bar is
 /// and to draw the marks. The pen writes through InkInput, which draws the stroke as it is written with the outline and
 /// grain the page keeps it with (#479 item 7): when a stroke ends, its points go to the page to be kept against the bar
 /// they start in, music-core saves the stroke in the project file (`ink.add`, `marks.ink` in project file version 12),

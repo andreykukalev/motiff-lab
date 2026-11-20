@@ -5,7 +5,7 @@ struct OpenPiece: Identifiable, Sendable {
     let id: Int32
     let title: String
     let pages: [String]
-    /// Verovio's timemap for the pages, as JSON: where each bar starts, for the marks (Web/score.js).
+    /// Verovio's timemap for the pages, as JSON: where each bar starts, for the marks (the score page).
     let timemap: String
     /// The project file in Documents that the piece is saved to (ProjectFiles).
     var file: URL?

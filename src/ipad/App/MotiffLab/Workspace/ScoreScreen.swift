@@ -3,7 +3,7 @@ import WebKit
 
 /// A piece's score (0018 section 2, design/kit/screens/s2_score_page.png): the score is the whole screen, A4 pages in one
 /// column in portrait and two to a row in landscape, with the pencil marks on them (0019 section 2.2). Verovio's SVG is in
-/// one web view that runs the web app's score modules (ScoreController, Web/score.js). Nothing is docked: the bar floats
+/// one web view that runs the web app's score modules (ScoreController, Web/score.html). Nothing is docked: the bar floats
 /// over the top with the way back, the title, the pages in view and the actions, and the pill floats at the bottom with
 /// play, the tempo and the metronome. Colours come from the design kit's tokens, Daylight or Night with
 /// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
