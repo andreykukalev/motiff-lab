@@ -690,7 +690,7 @@ extension ScoreScreenContent {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
                     AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant) { offer in
-                        Task { await score.practise(offer, on: player) }
+                        Task { await score.practiseSuggestion(offer, on: player) }
                     }
                 }
             }
@@ -1160,7 +1160,7 @@ struct SelectionMenu: View {
             } else if assistant.here != nil, selectionModel.selection != nil {
                 // The assistant at the selection where the menu was (#582 items 17.2 and 17.4).
                 AssistantHereCard(assistant: assistant, score: score, selectionModel: selectionModel, text: text, ask: askHere) { offer in
-                    Task { await score.practise(offer, on: player) }
+                    Task { await score.practiseSuggestion(offer, on: player) }
                 }
             } else {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {

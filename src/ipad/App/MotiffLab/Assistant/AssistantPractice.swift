@@ -3,7 +3,7 @@ import SwiftUI
 /// A practice action the assistant suggested for a question (v1.2, assistant option A item 6: music-core's `practice.suggest`,
 /// a tool of kind "suggestAction"): the bars, the hand, the tempo and whether to loop, with its button's words in the
 /// engine's language («Зациклить такты 3–4 в темпе 60 % · левая рука»). Nothing changes until the player taps it; then the
-/// app's own loop does it (Workspace's `ScoreController.practise`).
+/// app's own loop does it (Workspace's `ScoreController.practiseSuggestion`).
 struct AssistantPracticeOffer: Codable, Equatable, Sendable {
     var first: Int
     var last: Int

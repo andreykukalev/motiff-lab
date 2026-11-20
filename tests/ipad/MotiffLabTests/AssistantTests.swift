@@ -75,7 +75,7 @@ final class AssistantTests: XCTestCase {
     /// Assistant option A item 4 (v1.2): a template answer says in words why the model's was not shown, from the API's
     /// additive "reason"; a reason this iPad does not know says it in general, and an answer with none (one kept from
     /// before, or an API without the field) says nothing more than before.
-    func testAFallbackSaysWhyInWordsInBothLanguages() async {
+    func testAFallbackSaysWhyInWordsInBothLanguages() async throws {
         let reply = AssistantReply(JSONValue.parse(#"{"kind": "answer", "text": "x [[key]]", "fallback": true, "reason": "noCitation"}"#)!)
         XCTAssertEqual(reply, .answer(text: "x [[key]]", fallback: true, reason: "noCitation"))
         let shown = AssistantReply(JSONValue.parse(#"{"kind": "answer", "text": "x [[key]]", "fallback": false, "reason": "noCitation"}"#)!)

@@ -30,7 +30,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   end), and `FollowingScroll`. The chat at the selection's card drags by its head only (`menuDragHandle`, Selection's
   `MenuDrag`), so its answer scrolls by finger and Pencil.
 - `AssistantPractice.swift` (v1.2): `AssistantPracticeOffer`, a `practice.suggest` result; `AssistantPracticeChip`, the
-  answer's action chip, whose tap the screen routes to Workspace's `ScoreController.practise` (`ScorePractice.swift`).
+  answer's action chip, whose tap the screen routes to Workspace's `ScoreController.practiseSuggestion` (`ScorePractice.swift`).
 - `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts a question's tools made, Accept by
   `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
 
