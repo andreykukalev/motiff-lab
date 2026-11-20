@@ -349,7 +349,8 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNotNil(sources.layers.working)
         let hint = await sources.gridHint()
         let playback = await PieceCore(piece: piece.id).playback().value
-        XCTAssertEqual(hint as NSDictionary?, SourcesController.hint(playback) as NSDictionary?)
+        let direct = SourcesController.hint(playback)
+        XCTAssertEqual(hint.map { NSDictionary(dictionary: $0) }, direct.map { NSDictionary(dictionary: $0) })
     }
 
     /// The panel before Send says what the heard notes become (v1.1, finding 29): beside the working notes, or, on a piece

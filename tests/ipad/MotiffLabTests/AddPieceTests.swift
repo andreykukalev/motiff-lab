@@ -43,7 +43,8 @@ final class AddPieceTests: XCTestCase {
     /// kept on this iPad, with no notes, titled by the recording's name; it opens again as that recording.
     func testARecordingAddedMakesAPieceOfThatOneRecordingWithNoNotes() async throws {
         let project = try await recordingPiece()
-        let summary = try await XCTUnwrap(PieceSummary.read(project))
+        let read = await PieceSummary.read(project)
+        let summary = try XCTUnwrap(read)
         let projectId = try XCTUnwrap(summary.id)
         defer { try? FileManager.default.removeItem(at: OriginalSounds.folder(project: projectId)) }
 
@@ -123,7 +124,8 @@ final class AddPieceTests: XCTestCase {
 
             let project = try await PhotoPiece.make(image: picked, text: text).get()
             defer { try? FileManager.default.removeItem(at: project) }
-            let summary = try await XCTUnwrap(PieceSummary.read(project), name)
+            let read = await PieceSummary.read(project)
+            let summary = try XCTUnwrap(read, name)
 
             XCTAssertTrue(summary.document, name)
             XCTAssertFalse(summary.hasNotes, name)
