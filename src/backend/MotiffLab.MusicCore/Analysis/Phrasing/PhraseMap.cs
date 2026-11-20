@@ -3,62 +3,7 @@ using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
-namespace MotiffLab.MusicCore.Analysis;
-
-/// <summary>
-/// The player's changes to the suggested phrase boundaries (S1-I5, S1-A2), saved with the project:
-/// boundaries they set and suggested ones they took away. Moving a boundary is one of each.
-/// </summary>
-/// <param name="Added">Boundaries the player set, in time order, each once.</param>
-/// <param name="Removed">Suggested boundaries the player took away, in time order, each once.</param>
-public sealed record PhraseEdits(IReadOnlyList<Tick> Added, IReadOnlyList<Tick> Removed)
-{
-    public static PhraseEdits None { get; } = new([], []);
-
-    public bool IsEmpty => Added.Count == 0 && Removed.Count == 0;
-
-    public bool Equals(PhraseEdits? other) =>
-        other is not null && Added.SequenceEqual(other.Added) && Removed.SequenceEqual(other.Removed);
-
-    public override int GetHashCode() => HashCode.Combine(Added.Count, Removed.Count);
-}
-
-/// <summary>How much the source says about where its phrases are, before the player changes anything.</summary>
-public enum PhraseEvidenceLevel
-{
-    /// <summary>No suggested phrase is long (<see cref="PhraseMap.LongPhraseBars"/>).</summary>
-    Enough,
-
-    /// <summary>Some boundaries were found, but part of the piece runs longer than <see cref="PhraseMap.LongPhraseBars"/> bars without one.</summary>
-    Partial,
-
-    /// <summary>Nothing in the source marks a boundary, so no phrase is suggested.</summary>
-    None,
-}
-
-/// <summary>One phrase of the piece, from where it starts to where the next one starts.</summary>
-/// <param name="Number">1 for the first phrase of the piece, then in order.</param>
-/// <param name="Span">From the phrase's start to the next phrase's start, or the end of the piece.</param>
-/// <param name="FirstBar">The bar the phrase starts in.</param>
-/// <param name="LastBar">The bar the phrase ends in.</param>
-/// <param name="Start">The boundary it starts at, with its evidence; null for the first phrase, which starts with the piece.</param>
-public sealed record Phrase(int Number, TickSpan Span, int FirstBar, int LastBar, PhraseBoundary? Start)
-{
-    /// <summary>The number of bars the phrase touches, counting partly covered bars.</summary>
-    public int BarCount => LastBar - FirstBar + 1;
-
-    /// <summary>
-    /// Whether the phrase runs longer than a phrase usually does (<see cref="PhraseMap.LongPhraseBars"/>), so the
-    /// source probably lacks a boundary inside it. It is still selected whole (decision records 0013 and 0018).
-    /// </summary>
-    public bool IsLong => BarCount > PhraseMap.LongPhraseBars;
-}
-
-/// <summary>A selection run on into a neighbouring phrase (#126).</summary>
-/// <param name="Span">The selection with the neighbouring phrase.</param>
-/// <param name="Into">The phrase it runs into.</param>
-/// <param name="Shortened">Whether it stops before the far edge of <paramref name="Into"/>, because a selection holds at most <see cref="MotifSelection.MaxBars"/> bars.</param>
-public sealed record PhraseExtension(TickSpan Span, Phrase Into, bool Shortened);
+namespace MotiffLab.MusicCore.Analysis.Phrasing;
 
 /// <summary>
 /// The piece as phrases (S1-I5): the boundaries <see cref="PhraseBoundaryFinder"/> finds in the
@@ -165,27 +110,15 @@ public sealed class PhraseMap
     /// </summary>
     public PhraseEdits MakePhrase(TickSpan span)
     {
-        Tick start = Snap(span.Onset);
-        Tick stop = Snap(span.End > End ? End : span.End);
-        var at = Boundaries.Select(static boundary => boundary.At).Where(tick => tick <= start || tick >= stop).ToHashSet();
-        var confirm = new HashSet<Tick>();
-        foreach (Tick edge in stop > start ? [start, stop] : new[] { start })
-        {
-            if (edge > Tick.Zero && edge < End)
-            {
-                at.Add(edge);
-                confirm.Add(edge);
-            }
-        }
-
-        return EditsFor(at, confirm);
+        LevelEditor editor = Editor();
+        return editor.Make(editor.Snap(span.Onset, _meter), editor.Snap(span.End > End ? End : span.End, _meter));
     }
 
     /// <summary>The edits that join a phrase with the one after it, by taking away the boundary between them. Unchanged for the last phrase.</summary>
     public PhraseEdits JoinWithNext(Phrase phrase)
     {
         ArgumentNullException.ThrowIfNull(phrase);
-        return EditsFor(Boundaries.Select(static boundary => boundary.At).Where(tick => tick != phrase.Span.End), []);
+        return Editor().Join(phrase.Span.End);
     }
 
     /// <summary>
@@ -193,8 +126,7 @@ public sealed class PhraseMap
     /// they are: what joining at a finer level (decision record 0018, section 3) needs when a short unit
     /// is joined across a phrase boundary.
     /// </summary>
-    public PhraseEdits JoinAcross(TickSpan span) =>
-        EditsFor(Boundaries.Select(static boundary => boundary.At).Where(tick => tick <= span.Onset || tick >= span.End), []);
+    public PhraseEdits JoinAcross(TickSpan span) => Editor().JoinBetween(span.Onset, span.End);
 
     /// <summary>
     /// The edits that add a boundary at <paramref name="at"/>, snapped like an edge of <see cref="MakePhrase"/>,
@@ -202,10 +134,8 @@ public sealed class PhraseMap
     /// </summary>
     public PhraseEdits SplitAt(Tick at)
     {
-        Tick edge = Snap(at);
-        return edge > Tick.Zero && edge < End
-            ? EditsFor(Boundaries.Select(static boundary => boundary.At).Append(edge), [edge])
-            : Edits;
+        LevelEditor editor = Editor();
+        return editor.Split(editor.Snap(at, _meter));
     }
 
     /// <summary>The same notes and marks with other edits, for example after the player changed a boundary.</summary>
@@ -338,37 +268,16 @@ public sealed class PhraseMap
         };
     }
 
-    /// <summary>A boundary in effect less than a beat from <paramref name="edge"/>, or the edge itself.</summary>
-    private Tick Snap(Tick edge)
-    {
-        long beat = _meter.SignatureAt(edge).BeatTicks;
-        PhraseBoundary? near = Boundaries
-            .Where(boundary => Math.Abs(boundary.At.Value - edge.Value) < beat)
-            .OrderBy(boundary => Math.Abs(boundary.At.Value - edge.Value))
-            .FirstOrDefault();
-        return near?.At ?? edge;
-    }
+    /// <summary>The phrase edits at this map's boundaries: the player may set one anywhere inside the piece.</summary>
+    private LevelEditor Editor() =>
+        new(Edits, [.. Boundaries.Select(static boundary => boundary.At)], tick => Inside(tick, End), Found.Select(static boundary => boundary.At).ToHashSet());
 
-    /// <summary>
-    /// The smallest edits from the boundaries found to exactly <paramref name="boundaries"/>. A found
-    /// boundary the player confirmed before, or confirms now, is kept in the added list so it stays confirmed.
-    /// </summary>
-    private PhraseEdits EditsFor(IEnumerable<Tick> boundaries, IEnumerable<Tick> confirm)
-    {
-        var wanted = boundaries.Where(tick => tick > Tick.Zero && tick < End).ToHashSet();
-        var found = Found.Select(static boundary => boundary.At).ToHashSet();
-        IEnumerable<Tick> confirmed = Edits.Added.Concat(confirm).Where(tick => found.Contains(tick) && wanted.Contains(tick));
-        return new PhraseEdits(
-            [.. wanted.Where(tick => !found.Contains(tick)).Concat(confirmed).Distinct().Order()],
-            [.. found.Where(tick => !wanted.Contains(tick)).Order()]);
-    }
+    /// <summary>Whether <paramref name="tick"/> lies inside a piece ending at <paramref name="end"/>, where a boundary of any level can be.</summary>
+    internal static bool Inside(Tick tick, Tick end) => tick > Tick.Zero && tick < end;
 
     private static PhraseMap Build(IReadOnlyList<PhraseBoundary> found, PhraseEdits edits, MeterMap meter, Tick end, PhraseEvidenceLevel evidence)
     {
-        var removed = edits.Removed.ToHashSet();
-        IEnumerable<PhraseBoundary> kept = found.Where(boundary => !removed.Contains(boundary.At));
-        IReadOnlyList<PhraseBoundary> boundaries = [.. PhraseBoundaryFinder
-            .WithPlayerBoundaries(kept, edits.Added.Where(tick => tick > Tick.Zero && tick < end))];
+        IReadOnlyList<PhraseBoundary> boundaries = PhraseBoundaryFinder.WithPlayerBoundaries(found, edits, tick => Inside(tick, end));
         return new PhraseMap(found, edits, boundaries, Cut(boundaries, meter, end), evidence, meter, end);
     }
 

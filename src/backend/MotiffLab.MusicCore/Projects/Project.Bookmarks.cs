@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 

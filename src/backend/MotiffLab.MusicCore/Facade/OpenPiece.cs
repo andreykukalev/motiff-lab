@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Import;

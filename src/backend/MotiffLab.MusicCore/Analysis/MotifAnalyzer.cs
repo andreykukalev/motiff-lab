@@ -109,7 +109,7 @@ public static partial class MotifAnalyzer
     /// <param name="accents">The accents the file writes, or null when the format cannot mark accents (MIDI), which leaves out the accent fact.</param>
     /// <param name="phrases">
     /// The phrase boundaries of the notes the motif was picked from, found in the source and set by
-    /// the player (<see cref="PhraseBoundaryFinder"/>), or null to leave out the phrase fact.
+    /// the player (<see cref="Phrasing.PhraseBoundaryFinder"/>), or null to leave out the phrase fact.
     /// </param>
     /// <param name="words">The language of the facts' text, bases and place labels; English by default.</param>
     public static MotifAnalysis Analyze(
@@ -118,7 +118,7 @@ public static partial class MotifAnalyzer
         MotifSelection selection,
         Pieces.KeySignature? signature,
         IEnumerable<Pieces.AccentMark>? accents = null,
-        IEnumerable<PhraseBoundary>? phrases = null,
+        IEnumerable<Phrasing.PhraseBoundary>? phrases = null,
         Words words = default)
     {
         ArgumentNullException.ThrowIfNull(notes);
