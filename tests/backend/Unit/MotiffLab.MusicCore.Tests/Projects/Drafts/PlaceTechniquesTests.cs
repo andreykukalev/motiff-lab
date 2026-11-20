@@ -77,9 +77,31 @@ public class PlaceTechniquesTests
         PlaceTechnique octave = Assert.Single(Drafted(Bar2([84, 86, 88, 89], 60)).TechniquesOf("pl_1"));
         // Its melody played otherwise over the same bass, so the bar is still found in its place: «иначе» counts its notes as missed.
         PlaceTechnique other = Assert.Single(Drafted(Bar2([61, 63, 66, 68], 48)).TechniquesOf("pl_1"));
+        // Over another bass the whole bar is found nowhere in the base: bars put in, never sure.
+        PlaceTechnique elsewhere = Assert.Single(Drafted(Bar2([61, 63, 66, 68], 45)).TechniquesOf("pl_1"));
+        // Half the melody played otherwise over another bass: another bass explains only the bass, the rest counts as missed.
+        PlaceTechnique bass = Assert.Single(Drafted(Bar2([72, 63, 66, 77], 45)).TechniquesOf("pl_1"));
 
         Assert.Equal((TechniqueKind.Octave, 0, 0, true), (octave.Kind, octave.Occurrences[0].Matched, octave.Occurrences[0].Total, octave.IsSure));
         Assert.Equal((TechniqueKind.Other, 1, 5, false), (other.Kind, other.Occurrences[0].Matched, other.Occurrences[0].Total, other.IsSure));
+        Assert.Equal((TechniqueKind.InsertBars, false), (elsewhere.Kind, elsewhere.IsSure));
+        Assert.Equal((TechniqueKind.Bass, 2, 4, false), (bass.Kind, bass.Occurrences[0].Matched, bass.Occurrences[0].Total, bass.IsSure));
+        Assert.Equal(["v_1.n1l"], bass.Occurrences[0].Removed);
+        Assert.Equal(["v_2.h1l"], bass.Occurrences[0].Added);
+    }
+
+    [Fact]
+    public void A_fill_s_own_notes_are_the_ones_it_adds_and_a_note_it_leaves_out_is_a_miss()
+    {
+        // Bar 2 adds two notes off the beat and leaves out its last quarter.
+        SourceMusic score = Score(melody: bar => bar == 1 ? [72, 74, 76] : [72, 74, 76, 77], prefix: "h");
+        SourceMusic heard = score with { Notes = [.. score.Notes, Note("hf0", 79, BarLength + (Quarter / 2), Quarter / 2), Note("hf1", 84, BarLength + (5 * Quarter / 2), Quarter / 2)] };
+
+        TechniqueOccurrence fill = Assert.Single(Assert.Single(Drafted(heard).TechniquesOf("pl_1"), static technique => technique.Kind == TechniqueKind.Fill).Occurrences);
+
+        Assert.Equal((4, 5), (fill.Matched, fill.Total));
+        Assert.Empty(fill.Removed);
+        Assert.Equal(["v_2.hf0", "v_2.hf1"], fill.Added);
     }
 
     [Theory]

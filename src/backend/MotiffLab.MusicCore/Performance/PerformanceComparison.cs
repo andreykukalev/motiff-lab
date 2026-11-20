@@ -91,8 +91,14 @@ public sealed record PerformanceComparison(PerformanceAlignment Alignment, IRead
 
             int confidence = hearable == 0 ? 0 : (int)(100L * heard / hearable);
             List<Note> missingNotes = [.. missing.Where(note => note.Pitch.MidiNumber >= ReliableLowestPitch)];
-            BarDifference difference = DifferenceClassifier.Classify(missingNotes, extra, printedIn[b], placed, meter.SignatureAt(bar.Span.Onset));
-            result.Add(new BarComparison(bar.Number, true, difference, confidence, matched, notHeard, probablyNotHeard, extra, artefacts));
+            TimeSignature signature = meter.SignatureAt(bar.Span.Onset);
+            BarDifference difference = DifferenceClassifier.Classify(missingNotes, extra, printedIn[b], placed, signature);
+            (List<Note> explainedMissing, List<PlacedNote> explainedExtra) = DifferenceClassifier.Explained(difference, missingNotes, extra, printedIn[b], placed, signature);
+            result.Add(new BarComparison(bar.Number, true, difference, confidence, matched, notHeard, probablyNotHeard, extra, artefacts)
+            {
+                ExplainedNotHeard = [.. explainedMissing.Select(static note => note.Id)],
+                ExplainedPlayed = explainedExtra,
+            });
         }
 
         return new PerformanceComparison(alignment, result);

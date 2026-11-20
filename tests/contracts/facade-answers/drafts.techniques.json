@@ -186,7 +186,7 @@
       "kind": "simplify",
       "label": "simplification",
       "inferred": true,
-      "confidence": 100,
+      "confidence": 75,
       "sure": true,
       "state": "open",
       "occurrences": [
@@ -196,7 +196,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 100,
+        "confidence": 75,
         "state": "open"
        }
       ]
@@ -304,7 +304,7 @@
       "kind": "simplify",
       "label": "simplification",
       "inferred": true,
-      "confidence": 100,
+      "confidence": 75,
       "sure": true,
       "state": "taken",
       "occurrences": [
@@ -314,7 +314,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 100,
+        "confidence": 75,
         "state": "taken"
        }
       ]
@@ -821,7 +821,7 @@
       "kind": "simplify",
       "label": "simplification",
       "inferred": true,
-      "confidence": 100,
+      "confidence": 75,
       "sure": true,
       "state": "taken",
       "occurrences": [
@@ -831,7 +831,7 @@
         "lastBar": 4,
         "onset": 2160,
         "end": 2880,
-        "confidence": 100,
+        "confidence": 75,
         "state": "taken"
        }
       ]

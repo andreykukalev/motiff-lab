@@ -22,9 +22,9 @@ public enum TechniqueState
 /// <param name="Span">Where it lies in the base's ticks; for inserted bars, where they go and how long they are.</param>
 /// <param name="Matched">The bar's notes found in place, as 0024 (section 6) finds them; none for inserted bars, found nowhere in the base.</param>
 /// <param name="Total">
-/// The bar's notes counted against them: those on the side with more, the base's or the variant's, leaving out the notes the
-/// приём itself takes out or puts in, except for <see cref="TechniqueKind.Other"/>, which names no difference; for inserted
-/// bars, their notes.
+/// The bar's notes counted against them: those on the side with more, the base's or the variant's, leaving out the приём's
+/// own, the notes its kind explains (<see cref="BarComparison.ExplainedNotHeard"/>, <see cref="BarComparison.ExplainedPlayed"/>:
+/// none for <see cref="TechniqueKind.Other"/>); for inserted bars, their notes.
 /// </param>
 public sealed record TechniqueOccurrence(int Bar, TickSpan Span, int Matched, int Total, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State)
 {
@@ -124,15 +124,18 @@ public static class PlaceTechniques
             }
 
             TechniqueKind kind = KindOf(bar.Difference);
-            string shape = ShapeOf(bar, notes, span);
-            string[] added = [.. bar.PlayedNotPrinted.Select(static note => note.Id).Order(StringComparer.Ordinal)];
-            // The bar's notes on each side, the приём's own left aside: the base's matched or probably not heard, the variant's
-            // matched or likely artefacts. «Иначе» names no difference, so its notes count as missed.
-            bool counted = kind == TechniqueKind.Other;
-            int missed = bar.ProbablyNotHeard.Count + (counted ? bar.PrintedNotHeard.Count : 0);
-            int extra = bar.LikelyArtefacts.Count + (counted ? bar.PlayedNotPrinted.Count : 0);
+            // The bar's notes on each side, the notes its kind explains (the приём's own) left aside, count against the ones found
+            // in place: the base's matched, not heard or probably not heard, the variant's matched, not printed or likely artefacts.
+            int missed = bar.ProbablyNotHeard.Count + bar.PrintedNotHeard.Count - bar.ExplainedNotHeard.Count;
+            int extra = bar.LikelyArtefacts.Count + bar.PlayedNotPrinted.Count - bar.ExplainedPlayed.Count;
             int total = bar.Matched.Count + Math.Max(missed, extra);
-            var occurrence = new TechniqueOccurrence(index + 1, span, bar.Matched.Count, total, bar.PrintedNotHeard, added, null, decided.Of(kind, index + 1, bar.PrintedNotHeard, added));
+            // A take writes the приём's own notes; «иначе» explains none, so taking it takes all the bar's differences.
+            (IReadOnlyList<string> removed, IReadOnlyList<PlacedNote> put) = kind == TechniqueKind.Other
+                ? (bar.PrintedNotHeard, bar.PlayedNotPrinted)
+                : (bar.ExplainedNotHeard, bar.ExplainedPlayed);
+            string shape = ShapeOf(removed, put, notes, span);
+            string[] added = [.. put.Select(static note => note.Id).Order(StringComparer.Ordinal)];
+            var occurrence = new TechniqueOccurrence(index + 1, span, bar.Matched.Count, total, removed, added, null, decided.Of(kind, index + 1, removed, added));
             if (techniques.FindIndex(each => each.Kind == kind && each.Shape == shape) is var at and >= 0)
             {
                 techniques[at].Occurrences.Add(occurrence);
@@ -191,12 +194,12 @@ public static class PlaceTechniques
     private static Tick NearestBarLine(SourceMusic music, Tick tick) =>
         music.Bars.Select(static bar => bar.Span.Onset).Append(music.End).OrderBy(line => Math.Abs(line.Value - tick.Value)).ThenBy(static line => line.Value).First();
 
-    /// <summary>The shape of a bar's differences: where in the bar, on a 16th, the notes taken out and put in are.</summary>
-    private static string ShapeOf(BarComparison bar, Dictionary<string, Note> notes, TickSpan span)
+    /// <summary>The shape of a приём in a bar: where in the bar, on a 16th, the notes it takes out and puts in are.</summary>
+    private static string ShapeOf(IReadOnlyList<string> removed, IReadOnlyList<PlacedNote> put, Dictionary<string, Note> notes, TickSpan span)
     {
-        IEnumerable<long> removed = bar.PrintedNotHeard.Select(id => (notes[id].Span.Onset.Value - span.Onset.Value) / ShapeGrid).Order();
-        IEnumerable<long> added = bar.PlayedNotPrinted.Select(note => (note.At.Value - span.Onset.Value + (ShapeGrid / 2)) / ShapeGrid).Order();
-        return $"{string.Join(",", removed)}|{string.Join(",", added)}";
+        IEnumerable<long> taken = removed.Select(id => (notes[id].Span.Onset.Value - span.Onset.Value) / ShapeGrid).Order();
+        IEnumerable<long> added = put.Select(note => (note.At.Value - span.Onset.Value + (ShapeGrid / 2)) / ShapeGrid).Order();
+        return $"{string.Join(",", taken)}|{string.Join(",", added)}";
     }
 
     /// <summary>The kind of a приём for the kind of a bar's differences in 0022's comparison.</summary>

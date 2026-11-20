@@ -134,6 +134,25 @@ public class DraftTakesTests
     }
 
     [Fact]
+    public void Taking_another_bass_takes_only_the_bass_and_leaves_another_difference_of_its_bar_in_the_base()
+    {
+        // Bar 4 has another bass and its second quarter a semitone higher.
+        SourceMusic bass = OctavesAndBass();
+        SourceMusic heard = bass with { Notes = [.. bass.Notes.Select(static note => note.Id == "h3r1" ? note with { Pitch = new Pitch(75) } : note)] };
+        Draft drafted = Drafted(heard);
+        PlaceTechnique another = Assert.Single(drafted.TechniquesOf("pl_1"), static technique => technique.Kind == TechniqueKind.Bass);
+
+        Draft taken = DraftTakes.Take(drafted, "pl_1", another.Number, null, Later);
+
+        DraftTake step = Assert.IsType<DraftTake>(Assert.Single(taken.Steps));
+        Assert.Equal(["v_1.n3l"], step.Removed);
+        Assert.Equal(["v_2.h3l"], step.Added);
+        SourceMusic result = taken.ResultOf("pl_1").Music;
+        Assert.Contains(result.Notes, static note => note.Id == "v_1.n3r1");
+        Assert.DoesNotContain(result.Notes, static note => note.Id == "v_2.h3r1");
+    }
+
+    [Fact]
     public void Undo_takes_the_last_step_back_and_an_empty_journal_has_none()
     {
         Draft drafted = Drafted(OctavesAndBass());
