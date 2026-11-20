@@ -11,9 +11,9 @@ struct AssistantTurns {
     var run: (AssistantToolCall) async -> JSONValue
 
     enum Outcome: Equatable {
-        /// The conversation with the question and its answer, the answer's text (citing facts as [[id]]) and whether it is
-        /// the engine's template.
-        case answered(AssistantChat, text: String, fallback: Bool)
+        /// The conversation with the question and its answer, the answer's text (citing facts as [[id]]), whether it is
+        /// the engine's template and why, when the API says.
+        case answered(AssistantChat, text: String, fallback: Bool, reason: String?)
         /// Why there is no answer, as a UI text key; nothing changed.
         case unanswered(String)
     }
@@ -42,8 +42,8 @@ struct AssistantTurns {
                     results.append(AssistantToolOutcome(id: call.id, name: call.name, content: content))
                 }
                 session = session.called(calls).resulted(results)
-            case let .answer(text, fallback)?:
-                return .answered(session.answered(text), text: text, fallback: fallback)
+            case let .answer(text, fallback, reason)?:
+                return .answered(session.answered(text), text: text, fallback: fallback, reason: reason)
             }
         }
         return .unanswered("mentor.unreachable")

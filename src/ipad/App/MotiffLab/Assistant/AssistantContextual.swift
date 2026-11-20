@@ -17,6 +17,8 @@ struct AssistantHereCard: View {
     @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let ask: (String) -> Void
+    /// An answer's practice action tapped: the score and the transport take it.
+    let practise: (AssistantPracticeOffer) -> Void
     @State private var flow = AskFlow(surface: .contextual)
     @EnvironmentObject private var account: Account
 
@@ -26,7 +28,7 @@ struct AssistantHereCard: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             head
             if !assistant.consentGiven {
-                ScrollView { AssistantConsent(text: text) { assistant.consent($0) } }
+                ScrollView { AssistantConsent(text: text, again: assistant.consentAskedAgain) { assistant.consent($0) } }
                     .frame(maxHeight: Self.answerHeight)
             } else {
                 if let asking = assistant.here?.asking {
@@ -87,7 +89,7 @@ struct AssistantHereCard: View {
 
     private func answer(_ exchange: AssistantExchange) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn) { ask(exchange.question) }
+            AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn, retry: { ask(exchange.question) }, practise: practise)
             ForEach(exchange.drafts ?? []) { draft in
                 AssistantDraftCard(draft: draft, text: text, busy: assistant.busy) {
                     // Accepted, it stays with Undo until the player moves on; refused, it says why.

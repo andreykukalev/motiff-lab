@@ -91,9 +91,7 @@ extension ScoreController {
     func loopPlace(on player: Player) async {
         guard let place = DraftTechniquesModel.place(among: piece?.draft?.places ?? [], picked: draftModel.picked?.spot, at: player.tick) else { return }
         await select(Double(place.onset), Double(place.end))
-        player.hold(selection: focusModel.playRange?.range)
-        if !player.cycle { player.apply(.cycle) }
-        if player.state == .stopped { player.apply(.press) }
+        playSelection(looped: true, on: player)
     }
 
     /// «▶ Всё»: the whole draft from its start, Цикл off so playback goes on past the selection; the selection stays.

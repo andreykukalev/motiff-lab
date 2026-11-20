@@ -526,4 +526,22 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertNotNil(ScoreWorkspace(piece: piece).toPdf { _ in })
         XCTAssertNil(ScoreWorkspace(piece: piece).toPdf(nil), "no way to the other view, and no PDF linked in Files")
     }
+
+    /// The assistant's practice action (v1.2, `practice.suggest`): its bars selected, its tempo set and Цикл as it says,
+    /// through the score's own loop (`playSelection`, as «↻ Место»).
+    func testTheAssistantsPracticeActionSelectsItsBarsAtItsTempoWithCycle() async throws {
+        let workspace = try await selected()
+        let loop = AssistantPracticeOffer(first: 2, last: 3, hand: "both", tempo: 60, loop: true, label: "Loop bars 2–3 at 60 % tempo · both hands")
+        await workspace.score.practise(loop, on: workspace.player)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.firstBar, 2)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.lastBar, 3)
+        XCTAssertEqual(workspace.player.tempoPercent, 60)
+        XCTAssertTrue(workspace.player.cycle)
+        XCTAssertEqual(workspace.player.selection, workspace.score.focusModel.playRange?.range, "the player holds the bars")
+        let once = AssistantPracticeOffer(first: 1, last: 1, hand: "both", tempo: 80, loop: false, label: "Play bar 1 at 80 % tempo · both hands")
+        await workspace.score.practise(once, on: workspace.player)
+        XCTAssertEqual(workspace.score.selectionModel.selection?.lastBar, 1)
+        XCTAssertEqual(workspace.player.tempoPercent, 80)
+        XCTAssertFalse(workspace.player.cycle, "played once: Цикл off")
+    }
 }

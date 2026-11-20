@@ -13,6 +13,8 @@ struct AssistantPanel: View {
     let selection: ScoreSelection?
     let label: String?
     let ask: (String) -> Void
+    /// An answer's practice action tapped: the score and the transport behind the panel take it; the conversation stays.
+    let practise: (AssistantPracticeOffer) -> Void
     @State private var flow = AskFlow(surface: .panel)
     @EnvironmentObject private var account: Account
 
@@ -26,7 +28,7 @@ struct AssistantPanel: View {
             if assistant.listShown {
                 AssistantChatList(assistant: assistant, text: text)
             } else if !assistant.consentGiven {
-                ScrollView { AssistantConsent(text: text) { assistant.consent($0) }.padding(CGFloat.ds("s-4")) }
+                ScrollView { AssistantConsent(text: text, again: assistant.consentAskedAgain) { assistant.consent($0) }.padding(CGFloat.ds("s-4")) }
             } else {
                 conversation
                 foot
@@ -80,9 +82,9 @@ struct AssistantPanel: View {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                 if exchanges.isEmpty, assistant.pending == nil { empty }
                 ForEach(exchanges) { exchange in
-                    AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn) {
+                    AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn, retry: {
                         if let question = assistant.forget(exchange) { ask(question) }
-                    }
+                    }, practise: practise)
                     .id(exchange.id)
                     // The drafts its tool calls made, with «Помощник правит ноты» (#582 item 17.3).
                     ForEach(exchange.drafts ?? []) { draft in
@@ -237,6 +239,8 @@ struct AssistantExchangeView: View {
     var enabled = true
     var signIn: () -> Void = {}
     var retry: () -> Void = {}
+    /// One of its practice actions tapped (`practice.suggest`).
+    var practise: (AssistantPracticeOffer) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
@@ -246,7 +250,14 @@ struct AssistantExchangeView: View {
                 AssistantProblemLine(note: note, text: text, enabled: enabled, signIn: signIn, retry: retry)
             } else {
                 Text(text[exchange.fallback ? "mentor.engineFacts" : "mentor.interpretation"]).overline()
+                // Why the model's answer was not shown, in words (v1.2, assistant option A item 4).
+                if let reason = exchange.reasonKey {
+                    Text(text[reason]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                }
                 answer.dsType(.body).foregroundStyle(Color.ds("ink"))
+                ForEach(Array((exchange.practice ?? []).enumerated()), id: \.offset) { _, offer in
+                    AssistantPracticeChip(offer: offer) { practise(offer) }
+                }
             }
         }
         .padding(CGFloat.ds("s-3"))
@@ -262,16 +273,22 @@ struct AssistantExchangeView: View {
 }
 
 /// The consent before the first question (the web app's MentorPanel): exactly what each question sends, where it goes,
-/// and what never goes; nothing is sent until the player agrees.
+/// and what never goes; nothing is sent until the player agrees. Since v1.2 it lists the piece's counted facts too, and a
+/// player who agreed to the list before is asked again (`AssistantController.consented`).
 struct AssistantConsent: View {
     let text: UIText
+    /// The player agreed to the list before it changed: the consent says why it asks again.
+    var again = false
     let decide: (Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
             Text(text["mentor.consentTitle"]).dsType(.heading)
+            if again {
+                Text(text["mentor.consentAgain"]).dsType(.body).fixedSize(horizontal: false, vertical: true)
+            }
             Text(text["mentor.consentLead"]).dsType(.body)
-            ForEach(["mentor.consentNotes", "mentor.consentDigest", "mentor.consentQuestion"], id: \.self) { key in
+            ForEach(["mentor.consentNotes", "mentor.consentDigest", "mentor.consentPiece", "mentor.consentQuestion"], id: \.self) { key in
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
                     Text("•")
                     Text(text[key]).fixedSize(horizontal: false, vertical: true)

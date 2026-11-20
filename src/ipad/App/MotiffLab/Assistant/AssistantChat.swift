@@ -141,10 +141,11 @@ struct AssistantEntry: Codable, Equatable, Sendable {
     static func answered(_ text: String) -> AssistantEntry { AssistantEntry(kind: .answer, text: text) }
 }
 
-/// The server's reply to a turn (music-core's TurnReply): tool calls to run here, the checked answer, or no model.
+/// The server's reply to a turn (music-core's TurnReply): tool calls to run here, the checked answer, or no model. A
+/// fallback answer says why the model's answer was not shown (`reason`, v1.2: AnswerCheck's reasons), when the API names it.
 enum AssistantReply: Equatable, Sendable {
     case toolCalls([AssistantToolCall])
-    case answer(text: String, fallback: Bool)
+    case answer(text: String, fallback: Bool, reason: String? = nil)
     case notConfigured
 
     init?(_ json: JSONValue) {
@@ -153,7 +154,8 @@ enum AssistantReply: Equatable, Sendable {
             self = .notConfigured
         case "answer":
             guard let text = json["text"]?.string else { return nil }
-            self = .answer(text: text, fallback: json["fallback"]?.isTrue ?? false)
+            let fallback = json["fallback"]?.isTrue ?? false
+            self = .answer(text: text, fallback: fallback, reason: fallback ? json["reason"]?.string : nil)
         case "toolCalls":
             guard let entry = json["entry"], entry["kind"]?.string == "toolCalls" else { return nil }
             let calls = entry["calls"]?.items.compactMap { call -> AssistantToolCall? in
@@ -185,12 +187,36 @@ struct AssistantExchange: Codable, Equatable, Sendable, Identifiable {
     var answer: [AnswerPiece] = []
     /// The answer is the engine's template, the model's having failed the check.
     var fallback = false
+    /// Why it is the template, as the API names it (`AssistantReply.answer`); nil when it named none or the model's answer
+    /// was shown.
+    var reason: String?
     /// Why there is no answer, as a UI text key ("mentor.signIn"); nil once answered.
     var note: String?
     /// Moved here from the assistant at the selection («Продолжить в чате»), not asked here.
     var added = false
     /// The drafts the question's tool calls made (#582 item 17.3), to accept or cancel; nil when none.
     var drafts: [AssistantDraftOffer]?
+    /// The practice actions its tool calls suggested (`practice.suggest`, v1.2), one button each; nil when none.
+    var practice: [AssistantPracticeOffer]?
+
+    /// The text key that says in words why the answer is the engine's template (v1.2, assistant option A item 4): one for
+    /// each reason the API names, a general one for a reason this iPad does not know; nil when there is no fallback or the
+    /// API named no reason (an answer kept from before).
+    var reasonKey: String? {
+        guard fallback, let reason else { return nil }
+        switch reason {
+        case "empty": return "mentor.reason.empty"
+        case "tooLong": return "mentor.reason.tooLong"
+        case "noCitation": return "mentor.reason.noCitation"
+        case "unknownFact": return "mentor.reason.unknownFact"
+        case "timeout": return "mentor.reason.timeout"
+        case "modelError": return "mentor.reason.modelError"
+        case "toolNotAllowed": return "mentor.reason.toolNotAllowed"
+        case "badArguments": return "mentor.reason.badArguments"
+        case "tooManyCalls": return "mentor.reason.tooManyCalls"
+        default: return "mentor.reason.other"
+        }
+    }
 
     /// The exchange with the player's decision on one of its drafts, and why it could not be accepted when it could not.
     mutating func mark(_ draft: String, _ state: AssistantDraftOffer.Decision, problem: String? = nil) {

@@ -11,9 +11,10 @@ import Foundation
 /// for the player's Accept or Cancel (17.3).
 @MainActor
 final class AssistantController: ObservableObject {
-    /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad.
+    /// The consent, as the web app keeps it (MentorPanel.ConsentKey), on this iPad: the list agreed to. Version 1.2 sends
+    /// the piece's counted facts too (its plan, answer 6), so a consent to the list before ("yes") is asked again, once.
     static let consentKey = "ml-assistant-consent"
-    static let consented = "yes"
+    static let consented = "v1.2"
 
     /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
     @Published private(set) var panelOpen = false
@@ -33,6 +34,8 @@ final class AssistantController: ObservableObject {
     @Published private(set) var standing: String?
     @Published private(set) var checking = false
     @Published private(set) var consentGiven: Bool
+    /// Whether the player agreed to an earlier list, so the consent says it asks again; false once they decide.
+    @Published private(set) var consentAskedAgain: Bool
     /// The assistant at the selection (#582 items 17.2 and 17.4): one question and its answer, never kept; nil while closed.
     @Published private(set) var here: AssistantHere?
 
@@ -45,7 +48,9 @@ final class AssistantController: ObservableObject {
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
         self.store = store
         self.defaults = defaults
-        consentGiven = defaults.string(forKey: Self.consentKey) == Self.consented
+        let kept = defaults.string(forKey: Self.consentKey)
+        consentGiven = kept == Self.consented
+        consentAskedAgain = kept != nil && kept != Self.consented
     }
 
     /// The conversation open in the panel: the one chosen, or the one its first question starts (nil until then). Closing
@@ -123,6 +128,7 @@ final class AssistantController: ObservableObject {
     func consent(_ given: Bool) {
         if given { defaults.set(Self.consented, forKey: Self.consentKey) } else { defaults.removeObject(forKey: Self.consentKey) }
         consentGiven = given
+        consentAskedAgain = false
     }
 
     /// A question asked about the piece open in music-core: its answer, or why there is none, joins the conversation.
@@ -160,12 +166,15 @@ final class AssistantController: ObservableObject {
         let outcome = await answer(question, in: chat, about: ask)
         phase = .idle
         switch outcome {
-        case let .answered(answered, text, fallback, context):
+        case let .answered(answered, text, fallback, reason, context):
             standing = nil
             exchange.answer = AssistantChat.pieces(of: text, context: context, results: answered.resultsInQuestion)
             exchange.fallback = fallback
+            exchange.reason = reason
             let drafts = AssistantDraftOffer.offers(in: answered)
             exchange.drafts = drafts.isEmpty ? nil : drafts
+            let practice = AssistantPracticeOffer.offers(in: answered)
+            exchange.practice = practice.isEmpty ? nil : practice
             return (exchange, answered, text)
         case let .unanswered(note):
             exchange.note = note
@@ -284,7 +293,7 @@ final class AssistantController: ObservableObject {
     }
 
     enum Answer {
-        case answered(AssistantChat, text: String, fallback: Bool, context: JSONValue)
+        case answered(AssistantChat, text: String, fallback: Bool, reason: String?, context: JSONValue)
         case unanswered(String)
     }
 
@@ -314,8 +323,8 @@ final class AssistantController: ObservableObject {
             }
         )
         switch await turns.ask(question, in: chat, context: context, language: ask.language) {
-        case let .answered(answered, text, fallback):
-            return .answered(answered, text: text, fallback: fallback, context: context)
+        case let .answered(answered, text, fallback, reason):
+            return .answered(answered, text: text, fallback: fallback, reason: reason, context: context)
         case let .unanswered(note):
             return .unanswered(note)
         }

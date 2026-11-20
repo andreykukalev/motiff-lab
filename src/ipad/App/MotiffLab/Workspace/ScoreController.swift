@@ -428,7 +428,12 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         if extend, let selection = selectionModel.selection {
             if first < selection.firstBar { to = selection.lastBar } else { from = selection.firstBar }
         }
-        Task { await select(request: "{\"bars\": {\"first\": \(from), \"last\": \(to)}}", gesture: gesture) }
+        Task { await select(request: Self.barsRequest(from, to), gesture: gesture) }
+    }
+
+    /// Whole bars, as music-core's `select` takes them.
+    static func barsRequest(_ first: Int, _ last: Int) -> String {
+        "{\"bars\": {\"first\": \(first), \"last\": \(last)}}"
     }
 
     /// Selects through music-core; `step` false for a selection the player did not make now (the resume point, Undo);

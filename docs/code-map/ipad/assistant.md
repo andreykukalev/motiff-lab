@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 ## Files
 
 `AskField`, `AssistantChat`, `AssistantContextual`, `AssistantController`, `AssistantDrafts`, `AssistantPanel`,
-`AssistantRelay`, `AssistantSide`, `AssistantStates`, `AssistantStore`, `AssistantTurns`, `ChatFollow`, `Dictation` (`.swift`).
+`AssistantPractice`, `AssistantRelay`, `AssistantSide`, `AssistantStates`, `AssistantStore`, `AssistantTurns`, `ChatFollow`, `Dictation` (`.swift`).
 
 - `AskField.swift`: the chat's interaction model `AskFlow` (open → focus → keyboard → type → hide → go on), `AskField`
   (UITextView: wraps, grows from one line to `AskField.lines` then scrolls, top-leading text and placeholder; Scribble
@@ -19,7 +19,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   `show` and `close` (the pill's «Ассистент»: the panel on the conversation it had, or closed),
   `ask` (status → `assistant.context` → turns), `forget` (Try again), `start` (a conversation begun by «Продолжить в чате»).
 - `AssistantTurns.swift`: one question's turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`,
-  the turn format v1, cited facts. `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`.
+  the turn format v1, cited facts, a fallback's `reason` and its words (`AssistantExchange.reasonKey`, v1.2). `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`.
 - `AssistantStore.swift`: conversations by piece in Application Support (never the project file).
 - `AssistantPanel.swift`, `AssistantSide.swift`: the side panel, the consent, the list, `AssistantPendingView`,
   `AssistantProblemLine`. `AssistantContextual.swift`: the small chat at the selection (`SelectionMenu` turns into it;
@@ -29,6 +29,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   same height the player; scrolled up, nothing pulls back; a new answer from its start, the question on its way at the
   end), and `FollowingScroll`. The chat at the selection's card drags by its head only (`menuDragHandle`, Selection's
   `MenuDrag`), so its answer scrolls by finger and Pencil.
+- `AssistantPractice.swift` (v1.2): `AssistantPracticeOffer`, a `practice.suggest` result; `AssistantPracticeChip`, the
+  answer's action chip, whose tap the screen routes to Workspace's `ScoreController.practise` (`ScorePractice.swift`).
 - `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts a question's tools made, Accept by
   `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
 
@@ -40,7 +42,8 @@ chat's one way into the panel («Добавить в контекст» removed 
 
 ## The state it owns
 
-`AssistantController`: panel state, `scope`, `phase`, `standing`, the piece's conversations; `AssistantStore`: the
+`AssistantController`: panel state, `scope`, `phase`, `standing`, the consent (`consented` names the list agreed to:
+v1.2's; an earlier one is asked again once, `consentAskedAgain`), the piece's conversations; `AssistantStore`: the
 conversations kept by piece.
 
 ## Baseline entries that protect it
