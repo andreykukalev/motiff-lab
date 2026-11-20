@@ -407,6 +407,102 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(SelectionMenu.offered(viewOnly: false, notes: false), [.note, .bookmark, .more])
     }
 
+    /// Another piece's draft (v1.2, collage, the plan's answer 5): only a new place at the end or the shelf, whatever this
+    /// piece's same music; the draft named, its file sent by the controller; chosen, it stays as the part changes.
+    func testAnotherPiecesDraftTakesANewPlaceOrTheShelf() throws {
+        let read = try sheet(#"""
+        {"parts": ["all", "right"], "part": "all", "notes": 4, "newName": "Draft 2",
+         "drafts": [{"id": "d_1", "name": "Draft 1", "suggested": "pl_1", "places": [{"id": "pl_1", "label": "① Notes 1–4", "percent": 100, "sameMusic": true}]}],
+         "suggested": {"draft": "d_1", "place": "pl_1", "percent": 100}}
+        """#)
+        let other = DraftChoice.Into.elsewhere(DraftChoice.Elsewhere(file: URL(fileURLWithPath: "/tmp/Ode.motiff.json"), draft: "d_0001", name: "Ode", piece: "Ode to Joy"))
+        XCTAssertEqual(DraftChoice.ways(other, in: read), [DraftChoice.Way(drop: .place), DraftChoice.Way(drop: .shelf)])
+        XCTAssertEqual(DraftChoice.ways(.draft("d_1"), in: read).first?.percent, 100, "this piece's drafts as before")
+        let choice = DraftChoice.first(read, part: "right", into: other)
+        XCTAssertEqual(choice.into, other)
+        XCTAssertEqual(choice.way, DraftChoice.Way(drop: .place), "a new place at the end first")
+        let fields = choice.fields(span: 0..<1920, now: "now")
+        XCTAssertEqual(fields["draft"] as? String, "d_0001")
+        XCTAssertEqual(fields["drop"] as? String, "place")
+        XCTAssertEqual(fields["part"] as? String, "right")
+        XCTAssertNil(fields["place"])
+        XCTAssertNil(fields["into"])
+        XCTAssertNil(fields["file"], "the file's text is read as it is sent")
+    }
+
+    /// The collage over a live music-core (v1.2, the plan's answer 5): piece A's project file in the folder, with a draft,
+    /// is listed for piece B by its library title; a fragment of B goes into A's draft as a new place at the end, A's file
+    /// written as music-core answered it, while B, its sources and its file stay as they were, and the toast tells it. A
+    /// file that cannot be written stays as it was and says so; A's file while A is open here is refused.
+    func testAFragmentGoesIntoAnotherPiecesDraftAndOnlyItsFileChanges() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        let (a, pieceA) = try await sourced()
+        let made = await a.sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
+        XCTAssertNotNil(made, a.sources.status ?? "")
+        let draft = try XCTUnwrap(a.sources.layers.drafts.first)
+        let fileA = folder.appendingPathComponent("Elise A.motiff.json")
+        try await ProjectFiles.save(piece: pieceA.id, to: fileA)
+        MusicCore.close(piece: pieceA.id)
+        opened.removeAll { $0 == pieceA.id }
+
+        let (b, pieceB) = try await sourced()
+        let fileB = folder.appendingPathComponent("Elise B.motiff.json")
+        try await ProjectFiles.save(piece: pieceB.id, to: fileB)
+        await b.sources.load(piece: pieceB.id, file: fileB)
+        let listed = await OtherPieceDrafts.list(in: folder, except: fileB, project: b.sources.projectId, language: "en")
+        XCTAssertEqual(listed.map(\.file.lastPathComponent), ["Elise A.motiff.json"], "B's own file, with no draft, is not listed")
+        let other = try XCTUnwrap(listed.first)
+        let readA = await PieceSummary.read(fileA)
+        let summaryA = try XCTUnwrap(readA)
+        XCTAssertEqual(other.title, summaryA.shownTitle(else: "Elise A"), "the title the library line shows")
+        XCTAssertEqual(other.drafts.map(\.id), [draft.id])
+        XCTAssertEqual(other.drafts.first?.places, 1)
+        let none = await OtherPieceDrafts.list(in: folder, except: nil, project: summaryA.id, language: "en")
+        XCTAssertTrue(none.isEmpty, "a file of the open piece's project is never listed")
+
+        let savedB = try Data(contentsOf: fileB)
+        let stateB = await MusicCore.run { MusicCore.call(piece: pieceB.id, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
+        let into = DraftChoice.Elsewhere(file: other.file, draft: draft.id, name: draft.name, piece: other.title)
+        let added = await b.sources.addToDraft(DraftChoice(part: "all", into: .elsewhere(into), way: DraftChoice.Way(drop: .place)), span: 0..<1440, from: pieceB.id)
+        XCTAssertTrue(added, b.sources.status ?? "")
+        XCTAssertEqual(b.sources.addedElsewhere, into, "its toast tells it, with «Открыть»")
+        XCTAssertNil(b.sources.toast, "nothing of B's to undo")
+        XCTAssertTrue(b.sources.layers.drafts.isEmpty, "B has no draft")
+        XCTAssertEqual(try Data(contentsOf: fileB), savedB, "B's file is not saved again")
+        let stateAfter = await MusicCore.run { MusicCore.call(piece: pieceB.id, "project.save", #"{"now": "2026-11-20T12:00:00Z"}"#) }
+        XCTAssertEqual(stateAfter, stateB, "B as it was")
+        let again = await OtherPieceDrafts.list(in: folder, except: fileB, project: b.sources.projectId, language: "en")
+        XCTAssertEqual(again.first?.drafts.first?.places, 2, "A's draft has a new place at the end, in its file")
+
+        // A file in a folder that cannot be written stays as it was, and the sheet says so.
+        let locked = folder.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let lockedFile = locked.appendingPathComponent("Elise A.motiff.json")
+        try FileManager.default.copyItem(at: fileA, to: lockedFile)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        addTeardownBlock { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let unlocked = try Data(contentsOf: lockedFile)
+        b.sources.addedElsewhere = nil
+        let lockedInto = DraftChoice.Elsewhere(file: lockedFile, draft: draft.id, name: draft.name, piece: other.title)
+        let unwritten = await b.sources.addToDraft(DraftChoice(part: "all", into: .elsewhere(lockedInto), way: DraftChoice.Way(drop: .shelf)), span: 0..<1440, from: pieceB.id)
+        XCTAssertFalse(unwritten)
+        XCTAssertEqual(b.sources.status, UIText.current.format("drafts.elsewhereUnwritten", draft.name, other.title))
+        XCTAssertNil(b.sources.addedElsewhere)
+        XCTAssertEqual(try Data(contentsOf: lockedFile), unlocked, "the file as it was")
+
+        // A open here to work on: music-core refuses its file, which stays as it was.
+        let openA = try await OpenPiece.open(fileName: fileA.lastPathComponent, data: Data(contentsOf: fileA), language: "en").get()
+        opened.append(openA.id)
+        let keptA = try Data(contentsOf: fileA)
+        let refused = await b.sources.addToDraft(DraftChoice(part: "all", into: .elsewhere(into), way: DraftChoice.Way(drop: .shelf)), span: 0..<1440, from: pieceB.id)
+        XCTAssertFalse(refused, "A is open here")
+        XCTAssertNotNil(b.sources.status)
+        XCTAssertNil(b.sources.addedElsewhere)
+        XCTAssertEqual(try Data(contentsOf: fileA), keptA)
+    }
+
     /// The draft opened to be shown, closed when the test ends.
     private func draftView(_ draft: SourceLayers.Draft, _ sources: SourcesController) async throws -> OpenPiece {
         let opening = await sources.openDraft(draft)

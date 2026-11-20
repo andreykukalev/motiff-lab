@@ -395,6 +395,20 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(DraftSeamContent.facts(side, UIText(language: "ru")), "тональность не указана · 6/8 · ♩. ?")
     }
 
+    /// The collage (v1.2, the plan's answer 5, c-6): another piece's drafts with its summary, as the «В черновик» sheet lists
+    /// them, and a fragment added there, with that piece's project file to save in place of the one sent.
+    @MainActor
+    func testTheCollageDecodes() throws {
+        let answers = try Self.answers("drafts.collage")
+        let drafts = try XCTUnwrap(FacadeAnswer.decode(PieceDraftsAnswer.self, answers[0].text, of: "project.drafts"), "\(reported)")
+        XCTAssertEqual(drafts.drafts.map { SourceLayers.Draft($0) }, [SourceLayers.Draft(id: "d_0001", name: "Ode", caption: "from the file's notes", places: 1, shelf: 0)])
+        XCTAssertEqual(PieceSummary(answer: answers[0].text)?.shownTitle(else: "Ode"), "Ode to Joy, theme", "the score names it")
+        let added = try XCTUnwrap(FacadeAnswer.decode(DraftAddedElsewhereAnswer.self, answers[1].text, of: "drafts.add"), "\(reported)")
+        XCTAssertEqual(added.draft, "d_0001")
+        XCTAssertTrue(added.file.contains("\"pl_0002\""), "the project file with the new place")
+        XCTAssertEqual(reported, [])
+    }
+
     /// The register at a seam (v1.2, the plan's answer 3): the second place two octaves up, so the seam tells of the
     /// register alone, in music-core's words («② an octave higher»), with the octave down as its offer; its diamond shows.
     @MainActor

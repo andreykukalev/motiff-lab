@@ -3,11 +3,27 @@ import SwiftUI
 /// What the «В черновик» sheet chooses for a fragment (v1.1, ADR 0034 section 3; spec «Экран (iPad)»): what is taken (all,
 /// a hand, or the melody where music-core offers it), the draft it goes into (one of the piece's, or a new one) and how:
 /// as a variant of a place (where it is the same music offered first, with how much), as a new place at the end, or on
-/// the shelf. A new draft takes it as its first place. Nothing is merged by itself: «Добавить» sends exactly this.
+/// the shelf. A new draft takes it as its first place. Since v1.2 (collage, the plan's answer 5) it can go into a draft of
+/// another piece, at the end or on the shelf. Nothing is merged by itself: «Добавить» sends exactly this.
 struct DraftChoice: Equatable, Sendable {
     enum Into: Equatable, Sendable {
         case new
         case draft(String)
+        case elsewhere(Elsewhere)
+
+        /// The other piece's draft, for one there.
+        var elsewhere: Elsewhere? {
+            if case .elsewhere(let other) = self { return other }
+            return nil
+        }
+    }
+
+    /// A draft of another piece (`OtherPieceDrafts`): its project file, its id and name, and the piece's title.
+    struct Elsewhere: Equatable, Sendable {
+        let file: URL
+        let draft: String
+        let name: String
+        let piece: String
     }
 
     enum Drop: String, Sendable {
@@ -40,22 +56,28 @@ struct DraftChoice: Equatable, Sendable {
         return variants + [Way(drop: .place), Way(drop: .shelf)]
     }
 
+    /// The ways a fragment goes `into` that draft: as `ways(_:)` for one of this piece's, and into another piece's draft
+    /// only a new place at the end or the shelf (the plan's answer 5).
+    static func ways(_ into: Into, in sheet: DraftSheetAnswer) -> [Way] {
+        into.elsewhere == nil ? ways(draft(into, in: sheet)) : [Way(drop: .place), Way(drop: .shelf)]
+    }
+
     /// The way offered first among `ways`: a variant of the place where the fragment is the same music, else a new place
     /// at the end.
     static func firstWay(_ ways: [Way]) -> Way {
         ways.first { $0.percent != nil } ?? Way(drop: .place)
     }
 
-    /// What the sheet offers first for `part`: `into` when given (the player's draft, or a new one) and still there, else the
-    /// draft where the fragment is the same music, else the piece's latest draft, else a new one; and that draft's
-    /// `firstWay`.
+    /// What the sheet offers first for `part`: `into` when given (the player's draft, another piece's, or a new one) and still
+    /// there, else the draft where the fragment is the same music, else the piece's latest draft, else a new one; and that
+    /// draft's `firstWay`.
     static func first(_ sheet: DraftSheetAnswer, part: String, into given: Into? = nil) -> DraftChoice {
         let chosen = given.flatMap { into -> Into? in
             guard case .draft(let id) = into else { return into }
             return sheet.drafts.contains { $0.id == id } ? into : nil
         }
         let into = chosen ?? (sheet.suggested?.draft ?? sheet.drafts.last?.id).map(Into.draft) ?? .new
-        return DraftChoice(part: part, into: into, way: firstWay(ways(draft(into, in: sheet))))
+        return DraftChoice(part: part, into: into, way: firstWay(ways(into, in: sheet)))
     }
 
     /// The sheet's draft for `into`; nil for a new one.
@@ -64,10 +86,12 @@ struct DraftChoice: Equatable, Sendable {
         return sheet.drafts.first { $0.id == id }
     }
 
-    /// The fields of `drafts.add` for the fragment `span` (in the ticks of the notes it is selected in) at `now`.
+    /// The fields of `drafts.add` for the fragment `span` (in the ticks of the notes it is selected in) at `now`; for another
+    /// piece's draft, its project file goes with them as "file" (`SourcesController.addToDraft`).
     func fields(span: Range<Double>, now: String) -> [String: Any] {
         var fields: [String: Any] = ["span": ["onset": Int(span.lowerBound), "end": Int(span.upperBound)], "part": part, "drop": way.drop.rawValue, "now": now]
         if case .draft(let id) = into { fields["draft"] = id }
+        if let other = into.elsewhere { fields["draft"] = other.draft }
         if let place = way.place { fields["place"] = place }
         return fields
     }
@@ -95,15 +119,17 @@ struct DraftSheetRequest: Identifiable {
 /// The «В черновик» sheet: «Что взять», «Куда», «Как» and «Добавить» (spec «Экран (iPad)»), each choice a row that
 /// shows itself chosen with the accent's tint and a check, as the switch's menu does. What it offers is music-core's
 /// (`drafts.sheet`, asked again when another part is chosen, as the same music depends on it); `sources` is the piece
-/// whose drafts they are, which keeps the answer and the project file.
+/// whose drafts they are, which keeps the answer and the project file. Under «Куда», after this piece's, the drafts of the
+/// other pieces in the folder, grouped by each piece's title (v1.2, collage, `OtherPieceDrafts`), read once the sheet shows.
 struct DraftSheet: View {
     let request: DraftSheetRequest
     @ObservedObject var sources: SourcesController
     let text: UIText
-    /// Once added: the sheet goes, and the screen says so.
-    let added: () -> Void
+    /// Once added, where it went: the sheet goes, and the screen says so.
+    let added: (DraftChoice) -> Void
     let cancel: () -> Void
     @State private var sheet: DraftSheetAnswer?
+    @State private var others: [OtherPieceDrafts] = []
     @State private var choice: DraftChoice?
     @State private var problem: String?
     @State private var adding = false
@@ -125,7 +151,10 @@ struct DraftSheet: View {
         }
         .background(Color.ds("surface"))
         .presentationDetents([.medium, .large])
-        .task { await load(part: nil) }
+        .task {
+            await load(part: nil)
+            others = await OtherPieceDrafts.list(except: sources.file, project: sources.projectId, language: text.language)
+        }
     }
 
     @ViewBuilder private func choices(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
@@ -140,8 +169,15 @@ struct DraftSheet: View {
             row(draft.name, nil, on: choice.into == .draft(draft.id)) { self.choice = DraftChoice.first(sheet, part: choice.part, into: .draft(draft.id)) }
         }
         row(text["drafts.new"], sheet.newName, on: choice.into == .new) { self.choice = DraftChoice.first(sheet, part: choice.part, into: .new) }
+        ForEach(others) { piece in
+            Text(piece.title).dsType(.caption).foregroundStyle(Color.ds("ink-2")).padding(.top, CGFloat.ds("s-2")).accessibilityAddTraits(.isHeader)
+            ForEach(piece.drafts) { draft in
+                let into = DraftChoice.Into.elsewhere(DraftChoice.Elsewhere(file: piece.file, draft: draft.id, name: draft.name, piece: piece.title))
+                row(draft.name, SourcesDraftRow.caption(draft, text), on: choice.into == into) { self.choice = DraftChoice.first(sheet, part: choice.part, into: into) }
+            }
+        }
         section("drafts.how")
-        ForEach(Array(DraftChoice.ways(DraftChoice.draft(choice.into, in: sheet)).enumerated()), id: \.offset) { _, way in
+        ForEach(Array(DraftChoice.ways(choice.into, in: sheet).enumerated()), id: \.offset) { _, way in
             row(title(way, newDraft: choice.into == .new), caption(way), on: way == choice.way) { self.choice?.way = way }
         }
     }
@@ -220,9 +256,30 @@ struct DraftSheet: View {
         adding = true
         defer { adding = false }
         if await sources.addToDraft(choice, span: request.span, from: request.piece) {
-            added()
+            added(choice)
         } else {
             problem = sources.status
+        }
+    }
+}
+
+/// The toast of a fragment just added to another piece's draft (v1.2, collage, the plan's answer 5): «Добавлено в черновик
+/// «…» · Открыть», where «Открыть» (`open`, the screen's way; none where it has none) opens that piece at that draft. It
+/// goes by itself, as a Sources toast with an action does.
+struct DraftElsewhereToast: View {
+    @ObservedObject var owner: SourcesController
+    let text: UIText
+    let open: ((DraftChoice.Elsewhere) async -> Void)?
+
+    var body: some View {
+        if let added = owner.addedElsewhere {
+            let opening: (() -> Void)? = open.map { open in { owner.addedElsewhere = nil; Task { await open(added) } } }
+            UndoToast(words: text.format("drafts.addedElsewhere", added.name), text: text, undo: opening, close: { owner.addedElsewhere = nil }, actionKey: "drafts.openElsewhere")
+                .task(id: added) {
+                    try? await Task.sleep(for: SourcesToastView.lasting)
+                    if owner.addedElsewhere == added { owner.addedElsewhere = nil }
+                }
+                .transition(.opacity)
         }
     }
 }

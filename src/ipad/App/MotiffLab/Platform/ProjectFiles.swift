@@ -135,6 +135,11 @@ struct PieceSummary: Equatable, Sendable {
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
 
+    /// The title a piece's line shows: the one the player set or the score names, else `fileTitle`, the file's name.
+    func shownTitle(else fileTitle: String) -> String {
+        titleFrom == "player" || titleFrom == "file" ? title ?? fileTitle : fileTitle
+    }
+
     /// A piece that is only its recording, with no notes yet (v1.1, finding 29): no PDF here or described, and a recording.
     var isRecordingOnly: Bool {
         !hasNotes && !document && !originals.contains(where: \.isDocument) && originals.contains { $0.kind == "audio" }
@@ -188,36 +193,42 @@ struct PieceSummary: Equatable, Sendable {
     }
 }
 
-/// What music-core read from each project file, kept by the file's bytes, so the library asks music-core again only for
-/// the files that changed since it last looked (core and iPad review v0.6.5, finding 6): a Back used to read every project
-/// in Documents through music-core, one after another. The bytes are read off the main thread; a file whose details were
-/// written in place keeps its date but not its bytes, so it is read again.
+/// What music-core read from each project file, kept by the file's bytes, so it is asked again only for the files that
+/// changed since it last looked (core and iPad review v0.6.5, finding 6): a Back used to read every project in Documents
+/// through music-core, one after another. The bytes are read off the main thread; a file whose details were written in
+/// place keeps its date but not its bytes, so it is read again. `reading` is what is read: the library's summaries
+/// (`PieceSummary.read`), the «В черновик» sheet's other pieces' drafts (v1.2, `OtherPieceDrafts`).
 @MainActor
-final class SummaryCache {
-    private var kept: [URL: (hash: String, summary: PieceSummary)] = [:]
+final class ProjectFileCache<Value: Sendable> {
+    private let reading: @Sendable (Data) async -> Value?
+    private var kept: [URL: (hash: String, value: Value)] = [:]
 
-    /// The file's summary, from what was kept while its bytes are the same.
-    func summary(_ url: URL) async -> PieceSummary? {
+    init(reading: @escaping @Sendable (Data) async -> Value?) {
+        self.reading = reading
+    }
+
+    /// What music-core read from the file, from what was kept while its bytes are the same.
+    func value(_ url: URL) async -> Value? {
         let data = await Task.detached(priority: .userInitiated) { try? Data(contentsOf: url) }.value
         guard let data else {
             kept[url] = nil
             return nil
         }
         let hash = CloudSync.hash(data)
-        if let known = kept[url], known.hash == hash { return known.summary }
-        guard let summary = await PieceSummary.read(data) else {
+        if let known = kept[url], known.hash == hash { return known.value }
+        guard let value = await reading(data) else {
             kept[url] = nil
             return nil
         }
-        kept[url] = (hash, summary)
-        return summary
+        kept[url] = (hash, value)
+        return value
     }
 
-    /// The summaries of these files, the ones music-core can read; the files no longer listed are forgotten.
-    func summaries(_ urls: [URL]) async -> [URL: PieceSummary] {
-        var read: [URL: PieceSummary] = [:]
+    /// What music-core read from these files, the ones it can read; the files no longer listed are forgotten.
+    func values(_ urls: [URL]) async -> [URL: Value] {
+        var read: [URL: Value] = [:]
         for url in urls {
-            if let summary = await summary(url) { read[url] = summary }
+            if let value = await value(url) { read[url] = value }
         }
         let listed = Set(urls)
         kept = kept.filter { listed.contains($0.key) }

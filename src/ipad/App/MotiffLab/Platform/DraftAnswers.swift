@@ -320,3 +320,16 @@ struct DraftSeamsAnswer: Decodable, Equatable, Sendable {
     let draft: String
     let seams: [Seam]
 }
+
+/// Another piece's drafts (`project.drafts` on piece 0 with its project file, DraftRequest.Of, v1.2 collage): its drafts as
+/// its Sources list them; its summary, "project", is read by `PieceSummary(answer:)`. music-core writes nothing.
+struct PieceDraftsAnswer: Decodable, Sendable {
+    let drafts: [SourceLayersAnswer.Draft]
+}
+
+/// A fragment added to another piece's draft (`drafts.add` with "file", DraftRequest.AddTo, v1.2 collage): the draft, and
+/// "file", that piece's project file changed, to save in place of the one sent exactly as music-core wrote it.
+struct DraftAddedElsewhereAnswer: Decodable, Sendable {
+    let draft: String
+    let file: String
+}

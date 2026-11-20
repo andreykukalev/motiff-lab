@@ -6,10 +6,39 @@ import Foundation
 /// and saved to the piece's project file at once; the notes it came from never change.
 extension SourcesController {
     /// «Добавить» on the sheet: the fragment `span` of the notes shown on `piece` (this piece, or notes opened only to be
-    /// shown over it, whose drafts are this piece's) goes where `choice` says. False, with why in `status`, when music-core
-    /// refused it.
+    /// shown over it, whose drafts are this piece's) goes where `choice` says; into another piece's draft, by
+    /// `addElsewhere`. False, with why in `status`, when music-core refused it.
     func addToDraft(_ choice: DraftChoice, span: Range<Double>, from piece: Int32) async -> Bool {
-        await change("drafts.add", choice.fields(span: span, now: Self.now()), on: piece) != nil
+        if let other = choice.into.elsewhere { return await addElsewhere(choice, into: other, span: span, from: piece) }
+        return await change("drafts.add", choice.fields(span: span, now: Self.now()), on: piece) != nil
+    }
+
+    /// The fragment into the draft of another piece (v1.2, collage, the plan's answer 5): music-core takes it into that
+    /// piece's project file, sent as "file", and answers the file changed, which is written in place of the old one exactly
+    /// as it is, atomically, so a failed write leaves the old one as it was. Nothing changes here: not this piece, its file,
+    /// its sources nor its undo. Done, `addedElsewhere` tells it; else false, with why in `status`.
+    private func addElsewhere(_ choice: DraftChoice, into other: DraftChoice.Elsewhere, span: Range<Double>, from piece: Int32) async -> Bool {
+        guard let data = try? Data(contentsOf: other.file), let file = String(data: data, encoding: .utf8) else {
+            status = text.format("drafts.elsewhereUnread", other.piece)
+            return false
+        }
+        var fields = choice.fields(span: span, now: Self.now())
+        fields["file"] = file
+        let request = facadeRequest(fields)
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, "drafts.add", request) }
+        guard let added = FacadeAnswer.decode(DraftAddedElsewhereAnswer.self, answer, of: "drafts.add") else {
+            status = FacadeAnswer.message(answer) ?? text["sources.sheet.failed"]
+            return false
+        }
+        do {
+            try Data(added.file.utf8).write(to: other.file, options: .atomic)
+        } catch {
+            status = text.format("drafts.elsewhereUnwritten", other.name, other.piece)
+            return false
+        }
+        status = nil
+        addedElsewhere = other
+        return true
     }
 
     /// «Переименовать…» on a draft's row.

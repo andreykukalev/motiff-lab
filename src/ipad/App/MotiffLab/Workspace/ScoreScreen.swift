@@ -21,6 +21,9 @@ struct ScoreScreen: View {
     /// Opens the piece's project file again in this screen's place, at a place in the music (version 0.6: «Сделать
     /// рабочими» and the Sources toast's Undo); nil where the library has none.
     var reopen: ((Landing) async -> Void)? = nil
+    /// Opens another project file in this screen's place (v1.2, collage: «Открыть» on the toast of a fragment added to
+    /// another piece's draft); on a view shown over the piece, the piece under it does. Nil where there is no way.
+    var openFile: ((URL, Landing) async -> Void)? = nil
     /// The screen's controllers and its panels (ScoreWorkspace): made once, as the screen first appears, and gone with it.
     @StateObject private var workspace: ScoreWorkspace
 
@@ -32,16 +35,17 @@ struct ScoreScreen: View {
     static let popoverWidth: CGFloat = 340
 
     /// The piece's screen, its originals known from the piece's opening (#495 BUG-02).
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil) {
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil, openFile: ((URL, Landing) async -> Void)? = nil) {
         self.piece = piece
         self.switchView = switchView
         self.viewing = viewing
         self.reopen = reopen
+        self.openFile = openFile
         _workspace = StateObject(wrappedValue: ScoreWorkspace(piece: piece, viewing: viewing))
     }
 
     var body: some View {
-        ScoreScreenContent(piece: piece, switchView: switchView, viewing: viewing, reopen: reopen, workspace: workspace)
+        ScoreScreenContent(piece: piece, switchView: switchView, viewing: viewing, reopen: reopen, openFile: openFile, workspace: workspace)
     }
 }
 
@@ -52,6 +56,7 @@ struct ScoreScreenContent: View {
     let switchView: ((Landing) async -> Void)?
     let viewing: String?
     let reopen: ((Landing) async -> Void)?
+    let openFile: ((URL, Landing) async -> Void)?
     private let text = UIText.current
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
@@ -96,11 +101,12 @@ struct ScoreScreenContent: View {
     /// Where the pill of a draft's view ends, in the layers' space: in landscape the map starts below it.
     @State private var draftPillBottom: CGFloat = 0
 
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, workspace: ScoreWorkspace) {
+    init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, openFile: ((URL, Landing) async -> Void)?, workspace: ScoreWorkspace) {
         self.piece = piece
         self.switchView = switchView
         self.viewing = viewing
         self.reopen = reopen
+        self.openFile = openFile
         _workspace = ObservedObject(wrappedValue: workspace)
         _player = ObservedObject(wrappedValue: workspace.player)
         _score = ObservedObject(wrappedValue: workspace.score)
@@ -367,7 +373,7 @@ struct ScoreScreenContent: View {
                     // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
                     // Over it, the toast of an edit of the phrases with its Undo or Redo (v1.2, ScorePhraseEdits.swift).
                     VStack(spacing: CGFloat.ds("s-2")) {
-                        PhraseEditToast(selectionModel: selectionModel, score: score, text: text)
+                        toastsOverSelection
                         SelectionToastView(score: score, selectionModel: selectionModel, focused: focusModel.focused, text: text)
                     }
                     .padding(ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing))
@@ -619,12 +625,35 @@ extension ScoreScreenContent {
     /// The «В черновик» sheet (ScoreWorkspaceDrafts.swift), over the screen; once a fragment is added the screen says so.
     @ViewBuilder func draftSheetScreen(_ request: DraftSheetRequest) -> some View {
         if let owner = workspace.draftOwner(under: pieceUnder) {
-            DraftSheet(request: request, sources: owner, text: text) {
+            DraftSheet(request: request, sources: owner, text: text) { choice in
                 draftSheet = nil
-                score.showNotice("drafts.added")
+                // Into another piece's draft, its own toast says so, with «Открыть» (`toastsOverSelection`).
+                if choice.into.elsewhere == nil { score.showNotice("drafts.added") }
             } cancel: {
                 draftSheet = nil
             }
+        }
+    }
+
+    /// Over the selection's toast: that of a fragment just added to another piece's draft, with «Открыть» (v1.2, collage),
+    /// and that of an edit of the phrases, with its Undo or Redo (ScorePhraseEdits.swift).
+    @ViewBuilder var toastsOverSelection: some View {
+        if let owner = workspace.draftOwner(under: pieceUnder) {
+            DraftElsewhereToast(owner: owner, text: text, open: openElsewhere)
+        }
+        PhraseEditToast(selectionModel: selectionModel, score: score, text: text)
+    }
+
+    /// «Открыть» on that toast: the other piece opens in this one's place, its screen showing that draft's view, handed over
+    /// as a view picked on the PDF's switch is (`SourcesHandover`); this piece is kept first (`ScoreWorkspace.openElsewhere`).
+    /// On a view shown over the piece, `openFile` is the piece's under it, which does that and closes the view. Nil where
+    /// there is no way.
+    private var openElsewhere: ((DraftChoice.Elsewhere) async -> Void)? {
+        guard let openFile else { return nil }
+        let shown = viewing != nil
+        return { [workspace] other in
+            SourcesHandover.show(other.draft, on: other.file)
+            if shown { await openFile(other.file, .tick(0)) } else { await workspace.openElsewhere(other.file, at: .tick(0), openFile) }
         }
     }
 
@@ -665,7 +694,11 @@ extension ScoreScreenContent {
                 // Opened again in its place after each step (v1.1), closing each number it was open under itself.
                 ShownDraftScreen(piece: view.piece, owner: sources, viewing: text["sources.sheet.viewOnly"])
             } else {
-                ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"])
+                ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"], openFile: openFile.map { open in { (file: URL, landing: Landing) async in
+                    // The piece under the view, kept, opens it, the view closing first.
+                    shownView = nil
+                    await workspace.openElsewhere(file, at: landing, open)
+                } })
             }
         }
         .heardOver(sources)

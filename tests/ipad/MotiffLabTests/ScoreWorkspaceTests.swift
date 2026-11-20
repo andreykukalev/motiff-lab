@@ -457,9 +457,30 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertEqual(switched, 0)
         let reopen = await workspace.handOverForLanguage()
         XCTAssertNil(reopen)
+        await workspace.openElsewhere(projectFile(), at: .tick(0)) { _, _ in switched += 1 }
+        XCTAssertEqual(switched, 0, "nor another piece opened in its place (v1.2, collage)")
         XCTAssertTrue(workspace.handingOver, "the hand-over under way goes on")
         let unsaved = await make().handOverForLanguage()
         XCTAssertNil(unsaved, "no project file to open again")
+    }
+
+    /// «Открыть» on the toast of a fragment added to another piece's draft (v1.2, collage): this piece is kept as for the
+    /// PDF, then the other piece's file opens in its place, once, at the place asked; the hand-over then ends.
+    func testAnotherPieceOpensInThisOnesPlaceOnce() async {
+        var piece = OpenPiece(id: 7, title: "Nocturne", pages: [], timemap: "")
+        piece.file = projectFile()
+        let workspace = ScoreWorkspace(piece: piece)
+        let other = projectFile()
+        var asked: [URL] = []
+        var landings: [Landing] = []
+        await workspace.openElsewhere(other, at: .tick(0)) { file, landing in
+            XCTAssertTrue(workspace.handingOver, "kept first, and opened while handed over")
+            asked.append(file)
+            landings.append(landing)
+        }
+        XCTAssertEqual(asked, [other])
+        XCTAssertEqual(landings, [.tick(0)])
+        XCTAssertFalse(workspace.handingOver)
     }
 
     /// A piece handed to its other view was saved and closed already: as its screen goes, that is asked once and the

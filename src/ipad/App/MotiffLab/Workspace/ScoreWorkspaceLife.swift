@@ -192,6 +192,16 @@ extension ScoreWorkspace {
         await switchView(.page(pages.page(of: tick)))
     }
 
+    /// Another piece's project file `file` opened in this one's place at `landing` (v1.2, collage: the toast's «Открыть»),
+    /// once this piece is kept as for the PDF; `openFile`, the library's way, opens it, closing this piece.
+    func openElsewhere(_ file: URL, at landing: Landing, _ openFile: (URL, Landing) async -> Void) async {
+        guard !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
+        await keepForHandOver()
+        await openFile(file, landing)
+    }
+
     /// A new interface language (InterfaceLanguage): the piece saved as for the PDF, closed, and opened again in the
     /// "Notes" view kept now, or where the view is in the music; nil without a project file or while handed over already.
     func handOverForLanguage() async -> InterfaceLanguage.Reopen? {

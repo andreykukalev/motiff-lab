@@ -13,7 +13,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
-  `ScoreScreen`; `reopen` opens the piece's own project file again in its place.
+  `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
 - `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
   or here and unreadable), `RecordingViewCapsule` under it;
@@ -31,7 +31,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, …), and
   `playRangeChanged`, `applyModel`.
 - `ScoreWorkspaceLife.swift`: the screen's life: `appeared` (`wire`, the loads, the resume point, the view kept),
-  `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`).
+  `disappeared`, `scenePhaseChanged`, `save`, `keepNotesView`, the hand-over (`showPdf`, `handOverForLanguage`, and v1.2
+  `openElsewhere`: another piece's file in its place through `ScoreScreen.openFile`, the library's `openFile`, for the
+  collage toast's «Открыть»; the draft's view handed by `SourcesHandover.show`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
