@@ -106,7 +106,7 @@ internal static class DraftRequest
             _ => null,
         };
         string? project = from.Project == owner.Project.Id ? null : from.Project;
-        DraftVariant variant = Taken(() => DraftFragment.Variant(variantId, now, music, span, part, from.Notes, from.Provenance, project, DraftFragment.Heard(from.Open.Project, from.Open.Piece, span)));
+        DraftVariant variant = Taken(() => DraftFragment.Variant(variantId, now, music, span, part, from.Notes, from.Provenance, project, DraftFragment.Heard(from.Open.Project, HeardClock.Of(from.Open.Project, from.Open.Piece), span)));
         if (draft is null)
         {
             string newId = owner.Project.NextDraftId();

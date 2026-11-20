@@ -96,7 +96,37 @@ public class PlaceResultTests
         Assert.All(result.Steps, step => Assert.True(step.Applied));
         Assert.Equal([1, 2, 3], result.Steps.Select(step => step.Number));
         Assert.Equal(70, result.Music.Notes.Single(note => note.Id == "v_1.n0r0").Pitch.MidiNumber);
+        Assert.Equal(-2, Assert.Single(result.Music.Keys).Fifths);
         Assert.Equal(60, result.Music.TempoAt(Tick.Zero));
+    }
+
+    [Fact]
+    public void A_take_after_a_transposition_comes_in_the_places_new_key()
+    {
+        PlaceResult result = PlaceResult.Build(Place(), [new DraftTranspose(1, At, "pl_1", 3), Octave(2)]);
+
+        Assert.Equal(84 + 3, result.Music.Notes.Single(note => note.Id == "v_2.h1r0").Pitch.MidiNumber);
+        Assert.Equal(72 + 3, result.Music.Notes.Single(note => note.Id == "v_1.n0r0").Pitch.MidiNumber);
+    }
+
+    [Fact]
+    public void Bars_inserted_after_a_transposition_come_in_the_places_new_key()
+    {
+        DraftTake insert = new(2, At, "pl_1", "v_2") { Technique = new DraftTechnique(TechniqueKind.InsertBars, [2]), Insert = new DraftInsert(new Tick(BarLength), new TickSpan(Tick.Zero, BarLength)) };
+
+        PlaceResult result = PlaceResult.Build(Place(), [new DraftTranspose(1, At, "pl_1", -2), insert]);
+
+        Assert.Equal(72 - 2, result.Music.Notes.Single(note => note.Id == "v_2.h0r0").Pitch.MidiNumber);
+        Assert.Equal(48 - 2, result.Music.Notes.Single(note => note.Id == "v_2.h0l").Pitch.MidiNumber);
+    }
+
+    [Fact]
+    public void A_note_moved_out_of_range_moves_by_whole_octaves_less_as_a_transposed_piece_does()
+    {
+        PlaceResult result = PlaceResult.Build(Place(), [new DraftTranspose(1, At, "pl_1", 24), new DraftTranspose(2, At, "pl_1", 24), new DraftTranspose(3, At, "pl_1", 24)]);
+
+        Assert.Equal(77 + 72 - 24, result.Music.Notes.Single(note => note.Id == "v_1.n0r3").Pitch.MidiNumber);
+        Assert.Equal(48 + 72, result.Music.Notes.Single(note => note.Id == "v_1.n0l").Pitch.MidiNumber);
     }
 
     [Fact]

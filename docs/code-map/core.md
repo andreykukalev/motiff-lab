@@ -35,13 +35,13 @@ through the facade; the API references it.
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
-  `PlaceTechniques`, `VariantRecording`.
+  `PlaceTechniques`, `VariantRecording`, `DraftSeams`.
 - `Assistant` (its tools, the facts digest), `Analytics` (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`),
   `Accounts`, `Invitations`, `Assembly`, `Export`; `Words.cs`: the sentences in both languages.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); drafts: `DraftRequest`,
-  `DraftTakeRequest`, `MusicCoreFacade.Drafts`, `ShownView`.
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); drafts:
+  `Draft*Request`, `MusicCoreFacade.Drafts`, `ShownView`.
 
 ## The native build (`src/ipad/Core`)
 

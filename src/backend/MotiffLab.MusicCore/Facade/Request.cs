@@ -67,6 +67,8 @@ internal sealed class Request : IDisposable
 
     public string Required(string name) => Text(name) ?? throw FacadeException.BadRequest($"The request needs \"{name}\".");
 
+    public int RequiredInt(string name) => Int(name) ?? throw FacadeException.BadRequest($"The request needs \"{name}\".");
+
     public int? Int(string name) => Element(name) switch
     {
         null => null,

@@ -1,0 +1,97 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "drafts.techniques",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "base": "v_0001",
+    "total": 2,
+    "taken": 0,
+    "sure": 1,
+    "techniques": [
+     {
+      "number": 1,
+      "variant": "v_0002",
+      "kind": "insertBars",
+      "label": "inserted bars",
+      "inferred": true,
+      "confidence": 0,
+      "sure": false,
+      "state": "open",
+      "occurrences": [
+       {
+        "bar": 1,
+        "firstBar": 1,
+        "lastBar": 1,
+        "onset": 0,
+        "end": 0,
+        "confidence": 0,
+        "matched": 0,
+        "total": 14,
+        "state": "open",
+        "inBase": {
+         "onset": 0,
+         "end": 0
+        },
+        "inVariant": {
+         "onset": 0,
+         "end": 1440
+        },
+        "recording": {
+         "project": "p_answers",
+         "original": "src_rec",
+         "from": 31500,
+         "to": 33000
+        }
+       }
+      ]
+     },
+     {
+      "number": 2,
+      "variant": "v_0002",
+      "kind": "simplify",
+      "label": "simplification",
+      "inferred": true,
+      "confidence": 75,
+      "sure": true,
+      "state": "open",
+      "occurrences": [
+       {
+        "bar": 4,
+        "firstBar": 4,
+        "lastBar": 4,
+        "onset": 2160,
+        "end": 2880,
+        "confidence": 75,
+        "matched": 3,
+        "total": 4,
+        "state": "open",
+        "inBase": {
+         "onset": 2160,
+         "end": 2880
+        },
+        "inVariant": {
+         "onset": 4320,
+         "end": 5040
+        },
+        "recording": {
+         "project": "p_answers",
+         "original": "src_rec",
+         "from": 36000,
+         "to": 36750
+        }
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

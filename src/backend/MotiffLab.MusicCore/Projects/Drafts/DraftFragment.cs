@@ -98,14 +98,14 @@ public static class DraftFragment
 
     /// <summary>
     /// The stretch of the recording <paramref name="span"/> of the notes was played in, in milliseconds of the recording, when
-    /// they were heard in one (<paramref name="project"/>, opened as <paramref name="piece"/>, has a transcription): from when
-    /// its first bar line was played to when its last was (<see cref="HeardCut.StretchOfBars"/>), moved by where the stretch
-    /// sent to the engine started. Null for notes not heard.
+    /// they were heard in one (<paramref name="project"/> has a transcription, <paramref name="clock"/> its clock,
+    /// <see cref="HeardClock.Of(Project, ImportedPiece)"/>): from when its first bar line was played to when its last was
+    /// (<see cref="HeardCut.StretchOfBars"/>), moved by where the stretch sent to the engine started. Null for notes not heard.
     /// </summary>
-    public static (long From, long To)? Heard(Project project, ImportedPiece piece, TickSpan span)
+    public static (long From, long To)? Heard(Project project, HeardClock? clock, TickSpan span)
     {
         ArgumentNullException.ThrowIfNull(project);
-        if (HeardClock.Of(project, piece) is not { } clock)
+        if (clock is null)
         {
             return null;
         }
