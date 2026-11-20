@@ -42,10 +42,10 @@ internal static class DraftsCodec
         }
     }
 
-    /// <summary>The drafts of a workspace; none when it has no "drafts".</summary>
-    internal static List<Draft> ReadDrafts(JsonElement work, Unknowns unknowns)
+    /// <summary>The drafts of a workspace; none when it has no "drafts", or in a file before version 16, which has no workspace.</summary>
+    internal static List<Draft> ReadDrafts(JsonElement work, int version, Unknowns unknowns)
     {
-        if (!work.TryGetProperty(Project.DraftsList, out JsonElement drafts))
+        if (version < 16 || !work.TryGetProperty(Project.DraftsList, out JsonElement drafts))
         {
             return [];
         }

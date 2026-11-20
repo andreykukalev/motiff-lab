@@ -239,7 +239,7 @@ internal static class WorkspaceCodec
             Bookmarks = bookmarks,
             SettingOverrides = version >= 12 ? ReadSettings(Property(work, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal),
             Assembly = version >= 15 ? ReadAssembly(work) : PieceAssembly.Empty,
-            Drafts = version >= 16 ? ReadDrafts(work, unknowns) : [],
+            Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
             HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? ReadHiddenViews(hidden) : [],
         }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work);
