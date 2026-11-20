@@ -23,18 +23,19 @@ public enum TechniqueState
 /// <param name="Matched">The bar's notes found in place, as 0024 (section 6) finds them; none for inserted bars, found nowhere in the base.</param>
 /// <param name="Total">
 /// The bar's notes counted against them: those on the side with more, the base's or the variant's, leaving out the notes the
-/// приём itself takes out or puts in.
+/// приём itself takes out or puts in, except for <see cref="TechniqueKind.Other"/>, which names no difference; for inserted
+/// bars, their notes.
 /// </param>
 public sealed record TechniqueOccurrence(int Bar, TickSpan Span, int Matched, int Total, IReadOnlyList<string> Removed, IReadOnlyList<string> Added, DraftInsert? Insert, TechniqueState State)
 {
-    /// <summary>The share of the bar's notes found in place, in whole per cent, rounded down; 0 with none to count.</summary>
-    public int Confidence => Total == 0 ? 0 : Matched * 100 / Total;
+    /// <summary>The share of the bar's notes found in place, in whole per cent, rounded down; 100 with none to count, as an empty bar «совпадает».</summary>
+    public int Confidence => Total == 0 ? 100 : Matched * 100 / Total;
 
     /// <summary>
     /// Sure here: the bar «совпадает» as in 0024 (<see cref="AssemblyMatch.IsSame"/>) once the приём's own notes are left
-    /// aside; a bar with no other note to find in place is not.
+    /// aside; a bar with no other note, all of it the приём's (an octave of the whole bar), as an empty bar does.
     /// </summary>
-    public bool IsSure => Total > 0 && AssemblyMatch.IsSame(Matched, Total);
+    public bool IsSure => AssemblyMatch.IsSame(Matched, Total);
 }
 
 /// <summary>
@@ -125,8 +126,12 @@ public static class PlaceTechniques
             TechniqueKind kind = KindOf(bar.Difference);
             string shape = ShapeOf(bar, notes, span);
             string[] added = [.. bar.PlayedNotPrinted.Select(static note => note.Id).Order(StringComparer.Ordinal)];
-            // The bar's notes on each side, the приём's own left aside: the base's matched or probably not heard, the variant's matched or likely artefacts.
-            int total = bar.Matched.Count + Math.Max(bar.ProbablyNotHeard.Count, bar.LikelyArtefacts.Count);
+            // The bar's notes on each side, the приём's own left aside: the base's matched or probably not heard, the variant's
+            // matched or likely artefacts. «Иначе» names no difference, so its notes count as missed.
+            bool counted = kind == TechniqueKind.Other;
+            int missed = bar.ProbablyNotHeard.Count + (counted ? bar.PrintedNotHeard.Count : 0);
+            int extra = bar.LikelyArtefacts.Count + (counted ? bar.PlayedNotPrinted.Count : 0);
+            int total = bar.Matched.Count + Math.Max(missed, extra);
             var occurrence = new TechniqueOccurrence(index + 1, span, bar.Matched.Count, total, bar.PrintedNotHeard, added, null, decided.Of(kind, index + 1, bar.PrintedNotHeard, added));
             if (techniques.FindIndex(each => each.Kind == kind && each.Shape == shape) is var at and >= 0)
             {
@@ -142,7 +147,7 @@ public static class PlaceTechniques
         foreach ((TickSpan span, Tick at) in inserted)
         {
             int bar = basis.Bars.Count(each => each.Span.Onset < at) + 1;
-            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), 0, 0, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
+            result.Add((TechniqueKind.InsertBars, [new TechniqueOccurrence(bar, new TickSpan(at, span.Duration), 0, music.NotesIn(span.Onset, span.End).Count, [], [], new DraftInsert(at, span), decided.Of(TechniqueKind.InsertBars, bar, [], []))]));
         }
 
         return result;

@@ -65,6 +65,23 @@ public class PlaceTechniquesTests
         Assert.True(octave.IsSure);
     }
 
+    [Fact]
+    public void A_whole_bar_octave_is_sure_as_an_empty_bar_matches_and_a_bar_played_otherwise_is_not()
+    {
+        SourceMusic Bar2(int[] melody, int bass)
+        {
+            SourceMusic score = Score(melody: bar => bar == 1 ? melody : [72, 74, 76, 77], prefix: "h");
+            return score with { Notes = [.. score.Notes.Select(note => note.Id == "h1l" ? note with { Pitch = new Pitch(bass) } : note)] };
+        }
+
+        PlaceTechnique octave = Assert.Single(Drafted(Bar2([84, 86, 88, 89], 60)).TechniquesOf("pl_1"));
+        // Its melody played otherwise over the same bass, so the bar is still found in its place: «иначе» counts its notes as missed.
+        PlaceTechnique other = Assert.Single(Drafted(Bar2([61, 63, 66, 68], 48)).TechniquesOf("pl_1"));
+
+        Assert.Equal((TechniqueKind.Octave, 0, 0, true), (octave.Kind, octave.Occurrences[0].Matched, octave.Occurrences[0].Total, octave.IsSure));
+        Assert.Equal((TechniqueKind.Other, 1, 5, false), (other.Kind, other.Occurrences[0].Matched, other.Occurrences[0].Total, other.IsSure));
+    }
+
     [Theory]
     [InlineData(4, 85, true)]
     [InlineData(3, 84, false)]
