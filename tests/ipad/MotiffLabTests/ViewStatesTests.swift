@@ -127,11 +127,11 @@ final class ViewStatesTests: XCTestCase {
     @MainActor
     func testTheSwitchOfAllViewsIsHandedToTheNextScreenOfTheFile() throws {
         let file = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("handover.motiff.json")
-        let none = try XCTUnwrap(SourceLayers(answer: #"{"working": null, "originals": [], "notes": [], "views": [], "hidden": 0}"#))
+        let none = try XCTUnwrap(SourceLayers(answer: #"{"working": null, "originals": [], "notes": [], "views": [], "hidden": 0, "drafts": []}"#))
         SourcesHandover.give(none, to: file)
         XCTAssertNil(SourcesHandover.layers(for: file), "layers without working notes are not handed over")
         let layers = try XCTUnwrap(SourceLayers(answer: #"""
-            {"working": "n1", "originals": [], "notes": [], "hidden": 0, "views": [
+            {"working": "n1", "originals": [], "notes": [], "hidden": 0, "drafts": [], "views": [
              {"id": "src_pdf", "kind": "original", "group": "src_pdf", "working": false, "hidden": false, "op": "pdf"},
              {"id": "n1", "kind": "notes", "group": "src_pdf", "working": true, "hidden": false, "op": "pdfRecognition"}]}
             """#))

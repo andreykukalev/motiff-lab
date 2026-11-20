@@ -214,9 +214,9 @@ struct SourcesViewMenu: View {
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    /// The working notes: «{files} · {date}»; other Notes: «{engine} · {date}».
+    /// The working notes: «{files} · {date}»; other Notes: «{engine} · {date}»; a draft: where it came from (v1.1).
     private func line(_ view: SourceLayers.ViewEntry, _ notes: SourceLayers.Notes?) -> String? {
-        guard let notes else { return nil }
+        guard let notes else { return layers.draft(view.id)?.caption }
         let date = notes.at.map { SourceLayers.shortDate($0, text) }
         if view.working {
             return [layers.title(of: notes, text), date].compactMap { $0 }.joined(separator: " · ")

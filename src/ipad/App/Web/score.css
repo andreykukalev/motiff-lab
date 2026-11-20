@@ -77,6 +77,9 @@ button.check-flag span { display: grid; place-items: center; width: 18px; height
    cut short with an ellipsis when the bar is narrow; the printed notes the version does not have in the warning colour. */
 button.perf-marker { position: absolute; z-index: 2; display: block; height: 24px; min-height: 0; padding: 2px 0; border: 0; background: transparent; }
 button.perf-marker span { display: block; height: 20px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--plum-tint); color: var(--plum); font: var(--t-overline); line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A draft's place label (v1.1, ADR 0034): where the place came from, in the second ink on the paper; provenance is told
+   by words, not by a colour of its own. */
+button.perf-marker.place span { background: var(--paper); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--ink-2); }
 .page g.note.not-heard { fill: var(--warning); stroke: var(--warning); color: var(--warning); }
 /* On the comparison layer, and above the phrase in focus, a note the version adds is plum, and a likely artefact of a
    recording's hearing grey (0022, the web app's .version-added and .version-artefact). */

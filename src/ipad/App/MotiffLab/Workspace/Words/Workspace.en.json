@@ -56,5 +56,8 @@
   "recording.unreadable": "This recording's sound is on this iPad but could not be read.",
   "recording.wave": "The recording's waveform",
   "recording.waveHint": "Tap a place to hear the recording from there",
-  "recording.noContents": "The contents come with the notes: recognise them in Sources."
+  "recording.noContents": "The contents come with the notes: recognise them in Sources.",
+  "menu.draft": "Draft",
+  "drafts.selectNotes": "Select notes, then Draft in the selection menu",
+  "drafts.added": "Added to the draft"
 }

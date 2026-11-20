@@ -26,6 +26,9 @@ struct OpenPiece: Identifiable, Sendable {
     /// «Мои правки» as the piece opened (version 0.5, contract 12): whether the player's corrections are laid over the
     /// notes, how many there are and those that no longer fit; nil for a PDF piece and for notes opened only to be shown.
     var edits: EditsLayerState?
+    /// A draft opened to be shown (`drafts.open`, v1.1): its name and places, whose labels stand above each place's start;
+    /// nil for any other piece.
+    var draft: DraftViewAnswer.Draft?
 
     /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave, and the project file of a piece that is

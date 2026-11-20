@@ -226,6 +226,36 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(phrases[2].edited, [], "reset")
     }
 
+    /// The drafts' calls (v1.1, ADR 0034): the «В черновик» sheet and what it offers first, the Sources group and the draft's
+    /// view in the switch, and a draft opened with its places, read only from its "draft" block.
+    func testTheDraftsDecode() throws {
+        let answers = try Self.answers("drafts")
+        XCTAssertEqual(answers.count, 7, "each call's answer")
+        let empty = try XCTUnwrap(FacadeAnswer.decode(DraftSheetAnswer.self, answers[0].text, of: "drafts.sheet"), "\(reported)")
+        XCTAssertEqual(empty.parts, ["all", "right", "left", "melody"])
+        XCTAssertEqual(DraftChoice.first(empty, part: empty.part).into, .new, "no draft yet")
+        let second = try XCTUnwrap(FacadeAnswer.decode(DraftSheetAnswer.self, answers[2].text, of: "drafts.sheet"), "\(reported)")
+        let choice = DraftChoice.first(second, part: second.part)
+        XCTAssertEqual(choice.into, .draft("d_0001"))
+        XCTAssertEqual(choice.way, DraftChoice.Way(drop: .variant, place: "pl_0001", label: "① Notes 1–4", percent: 100))
+
+        let layers = try [1, 3, 4, 6].map { try XCTUnwrap(SourceLayers(answer: answers[$0].text), "\(reported)") }
+        XCTAssertEqual(layers[1].drafts.first?.places, 2)
+        XCTAssertEqual(layers[2].drafts.first?.shelf, 1)
+        XCTAssertEqual(layers[3].drafts.first?.name, "Coda", "renamed")
+        let tab = try XCTUnwrap(layers[3].views.last)
+        XCTAssertEqual(tab.kind, "draft")
+        XCTAssertNil(tab.group)
+        XCTAssertEqual(SourceLayers.word(tab, UIText.current), "Coda")
+        XCTAssertEqual(layers[0].draft("d_0001")?.caption, "from the file's notes")
+
+        let view = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[5].text, of: "drafts.open"), "\(reported)")
+        XCTAssertEqual(view.draft.places.map(\.label), ["① Notes 1–4", "② Notes 5–8"])
+        XCTAssertEqual(view.draft.places.map(\.firstBar), [1, 5])
+        XCTAssertEqual(view.draft.places[1].onset, view.draft.places[0].end, "the places follow one another")
+        XCTAssertEqual(reported, [])
+    }
+
     /// A version with bars taken into the notes, as a file saved before v1.1 holds it (the bar-by-bar merge left the
     /// iPad, ADR 0034 section 8): the answers of a bar taken and restored, read as any version is.
     func testAVersionWithTakenBarsDecodes() throws {

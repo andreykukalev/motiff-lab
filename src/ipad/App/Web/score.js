@@ -94,6 +94,8 @@ const PERFORMANCE_HEIGHT = 20;
 const PERFORMANCE_TARGET = 24;
 const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
+/** A draft's place label (v1.1) says where the place came from, so it may run on longer than a version's. */
+const PLACE_MAX_WIDTH = 360;
 
 /** The layers of marks that can be hidden: the pencil, notes and highlights, bookmarks, the analysis (rings) and Check. */
 const LAYERS = ["ink", "notes", "bookmarks", "analysis", "check"];
@@ -289,7 +291,8 @@ function checks({ flags }) {
 }
 
 /**
- * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars, and the ids of
+ * The bars another version has otherwise, each { bar, tick, text, label }, as plum labels above the bars (in a draft's
+ * view, each place's label above its start, with `place`, in the ink: v1.1, ADR 0034), and the ids of
  * the printed notes it does not have, tinted in place (0022, section 4), and the ticks of the bars `taken` from versions,
  * a thin plum line under each; empty lists draw none. Given to Swift as `performance`; named otherwise here, where
  * `performance` is the clock.
@@ -437,7 +440,8 @@ function placePerformance(geometry, flags) {
     const placed = state.performance.map((marker) => ({ marker, bar: geometry.barAt(marker.tick) })).filter((entry) => entry.bar !== undefined);
     placed.forEach(({ marker, bar }, index) => {
         const next = placed[index + 1];
-        let room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : PERFORMANCE_MAX_WIDTH;
+        const widest = marker.place ? PLACE_MAX_WIDTH : PERFORMANCE_MAX_WIDTH;
+        let room = next !== undefined && next.bar.system === bar.system ? next.bar.left - bar.left - NOTE_OFFSET_X * 2 : widest;
         const ahead = flags.filter((flag) => flag.system === bar.system && flag.left > bar.left && flag.left - bar.left - NOTE_OFFSET_X * 2 < room);
         const flagRoom = Math.min(...ahead.map((flag) => flag.left - bar.left - NOTE_OFFSET_X * 2));
         const lifted = ahead.length > 0 && flagRoom < PERFORMANCE_MIN_WIDTH;
@@ -447,7 +451,7 @@ function placePerformance(geometry, flags) {
         const top = (bar.staves[0]?.top ?? bar.top) - BRACKET_LIFT - PERFORMANCE_HEIGHT - NOTE_OFFSET_X - (PERFORMANCE_TARGET - PERFORMANCE_HEIGHT) / 2;
         const label = document.createElement("button");
         label.type = "button";
-        label.className = "perf-marker";
+        label.className = marker.place ? "perf-marker place" : "perf-marker";
         label.dataset.bar = String(marker.bar);
         const text = document.createElement("span");
         text.textContent = marker.text;
@@ -455,7 +459,7 @@ function placePerformance(geometry, flags) {
         label.setAttribute("aria-label", marker.label);
         label.style.left = `${bar.left + NOTE_OFFSET_X}px`;
         label.style.top = `${lifted ? Math.min(top, Math.min(...ahead.map((flag) => flag.top)) - PERFORMANCE_TARGET - 2) : top}px`;
-        label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(PERFORMANCE_MAX_WIDTH, room))}px`;
+        label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(widest, room))}px`;
         document.body.append(label);
     });
 }

@@ -19,6 +19,9 @@ struct SourcesRow {
     let deleteNotes: (SourceLayers.Notes) -> Void
     /// ⋯ → «Переименовать…» on a version; nil on the PDF, where no score holds the versions.
     var rename: ((SourceLayers.Notes) -> Void)?
+    /// ⋯ → «Переименовать…» and «Удалить…» on a draft (v1.1).
+    var renameDraft: (SourceLayers.Draft) -> Void = { _ in }
+    var deleteDraft: (SourceLayers.Draft) -> Void = { _ in }
 
     func view(_ id: String, in layers: SourceLayers) -> SourceLayers.ViewEntry? { layers.views.first { $0.id == id } }
 
@@ -181,6 +184,45 @@ struct SourcesNotesRow: View {
         }
         Button(role: .destructive) { row.deleteNotes(notes) } label: {
             Label(text["sources.sheet.deleteNotes"], image: "ic-trash")
+        }
+    }
+}
+
+// MARK: - A draft's row
+
+/// A draft in the group «Черновики» (v1.1, ADR 0034; spec «Экран (iPad)»): its pictogram, its name, the eye (its tab in
+/// the switch, as any view) and ⋯ with «Переименовать…» and «Удалить…», then music-core's caption and how many places it
+/// has. Its view is picked in the switch, as every view is; the row opens none.
+struct SourcesDraftRow: View {
+    @ObservedObject var sources: SourcesController
+    let draft: SourceLayers.Draft
+    let row: SourcesRow
+
+    private var text: UIText { row.text }
+
+    var body: some View {
+        let shownView = row.view(draft.id, in: sources.layers)
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            SourcesRowHead(
+                sources: sources, row: row, icon: SourceLayers.pictogram(op: "draft"), iconLabel: nil, title: draft.name, removed: false,
+                eye: shownView.map { (id: $0.id, hidden: $0.hidden) }, menu: AnyView(menu)
+            )
+            Text([draft.caption, text.count("drafts.places", draft.places)].joined(separator: " · "))
+                .dsType(.caption)
+                .foregroundStyle(Color.ds("ink-2"))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, CGFloat.ds("s-3"))
+        .padding(.horizontal, CGFloat.ds("s-2"))
+    }
+
+    @ViewBuilder private var menu: some View {
+        Button { row.renameDraft(draft) } label: {
+            Label(text["sources.sheet.rename"], image: "ic-pencil")
+        }
+        Divider()
+        Button(role: .destructive) { row.deleteDraft(draft) } label: {
+            Label(text["sources.sheet.delete"], image: "ic-trash")
         }
     }
 }
