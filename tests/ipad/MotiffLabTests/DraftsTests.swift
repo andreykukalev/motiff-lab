@@ -223,4 +223,3 @@ final class DraftsTests: XCTestCase {
         return (workspace, piece)
     }
 }
-}
