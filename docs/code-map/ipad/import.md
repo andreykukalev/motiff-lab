@@ -6,7 +6,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 `AddPiece`, `FolderFoundSheet`, `FolderImport`, `FolderPlan`, `FolderReview`, `FolderScan`, `ImportBanner`,
 `ImportFolders`, `ImportJob`, `PartHearing`, `PhotoCapture`, `PhotoPages`, `PhotoReading`, `PhotoReadings`, `PhotoReview`,
-`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanJobs`, `ScanParts`, `VectorPages` (`.swift`).
+`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanCrops`, `ScanJobs`, `ScanParts`, `VectorPages` (`.swift`).
 
 - `ScanJobs.swift` (v1.3, the experiment `experimental.scanJobs`, decision record 0035 section 6): `ScanHealth` (`/health`'s
   seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
@@ -20,6 +20,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   others wait for «Продолжить»), fetches only once the piece is not open on screen,
   deletes the job once the notes are written, and keeps the pages no engine read (`unread`); the banner shows the job's
   pages and engines on a tap (`ScanJobDetail`) and «Повторить» for pieces that did not work.
+
+- `ScanCrops.swift` (v1.3 i-2, 0035 section 6): `ScanCrop` (a bar's evidence box on the server's turned image as a rect on the PDF page, and its turn), `ScanCrops.keepReview`, run by `readByJob` after `scan.join`: the Check bars' variants and crops cut from the PDF kept on this iPad (`ScanReviewStore`); nothing is sent. Tests: `ScanReviewTests`.
 
 - `PhotoReview.swift`: the photos of pages put in order and made one PDF piece (`PhotoPiece.make(pdf:pages:title:language:)`,
   opened as "photos", saved, closed); since v1.1 (finding 29) «Открыть файл» on Add piece also takes a JPEG or PNG

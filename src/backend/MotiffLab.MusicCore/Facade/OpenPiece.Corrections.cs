@@ -56,6 +56,7 @@ internal sealed partial class OpenPiece
         "corrections.add" => AddNote(request),
         "corrections.acceptDraft" => AcceptDraft(request),
         "corrections.undoDraft" => UndoDraft(request),
+        "corrections.variant" => TakeVariant(request),
         "corrections.set" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Set(CorrectableNote(request), request))),
         "corrections.change" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Changed(CorrectableNote(request), request))),
         "corrections.remove" => Correct(request, edits => edits.Remove(Piece.Notes, CorrectableNote(request).Id)),
@@ -94,6 +95,71 @@ internal sealed partial class OpenPiece
         _acceptedDraft = (before, Project.Edits);
         return answer;
     }
+
+    /// <summary>
+    /// corrections.variant {"bar", "staves": [{"part", "staff", "notes": [{"onset" (ticks in the bar), "pitch", "length"}]}]}
+    /// (v1.3 i-2, ADR 0035 section 6): another engine's reading of a scan's bar to check, as scan.join answered it, chosen by
+    /// the player: the bar's notes on those staves are taken out and the variant's put in, the player's corrections accepted
+    /// together (one group), and corrections.undoDraft takes them back at once. Only that bar changes: a note of the variant
+    /// starting outside it is refused, so no bar is ever fixed from another. Refused on a bar with a note taken from a version.
+    /// </summary>
+    private string TakeVariant(Request request)
+    {
+        Bar bar = CorrectionBar(request);
+        VariantStaff[] staves = [.. request.Elements("staves").Select(staff => VariantStaff.Of(Request.Of(staff), bar))];
+        if (staves.Length == 0)
+        {
+            throw FacadeException.BadRequest("Send \"staves\", the variant's.");
+        }
+
+        Note[] replaced = [.. Notes.Where(note => bar.Span.Contains(note.Span.Onset) && staves.Any(staff => staff.Track == note.Track && staff.Staff == StaffOf(note)))];
+        if (replaced.Any(static note => PerformanceTake.IsTaken(note.Id)))
+        {
+            throw FacadeException.Unavailable(Words.T("The bar has a note taken from a version.", "В такте есть нота, взятая из версии."));
+        }
+
+        string group = Projects.Project.NextId("g_", Project.Edits.Edits.Select(static edit => edit.Group).OfType<string>());
+        NoteEditLog before = Project.Edits;
+        string answer = Correct(request, edits =>
+        {
+            NoteEditLog log = staves.Aggregate(replaced.Aggregate(edits, (current, note) => current.Remove(Piece.Notes, note.Id)), (current, staff) => staff.AddTo(current, Piece.Notes, replaced));
+            return new NoteEditLog([.. edits.Edits, .. log.Edits.Skip(edits.Edits.Count).Select(edit => edit with { Group = group })]);
+        });
+        _acceptedDraft = (before, Project.Edits);
+        return answer;
+    }
+
+    /// <summary>One staff of a variant as corrections.variant takes it: its track (the part from 0), its staff, and its notes in the bar's ticks.</summary>
+    private sealed record VariantStaff(int Track, int Staff, IReadOnlyList<NoteValues> Notes)
+    {
+        public static VariantStaff Of(Request staff, Bar bar)
+        {
+            int part = staff.Int("part") ?? throw FacadeException.BadRequest("Each staff needs \"part\", from 1.");
+            int number = staff.Int("staff") ?? throw FacadeException.BadRequest("Each staff needs \"staff\", from 1.");
+            return new VariantStaff(part - 1, number, [.. staff.Elements("notes").Select(note => Values(Request.Of(note), bar))]);
+        }
+
+        /// <summary>The notes added to the log on this staff: as loud as the notes they replace there, the staff's hand when the track has hands.</summary>
+        public NoteEditLog AddTo(NoteEditLog log, IReadOnlyList<Note> imported, IReadOnlyList<Note> replaced)
+        {
+            Hand? hand = imported.Any(note => note.Track == Track && note.Hand is not null) ? Staff switch { 1 => Hand.Right, 2 => Hand.Left, _ => null } : null;
+            int velocity = replaced.FirstOrDefault(note => note.Track == Track)?.Velocity ?? 80;
+            return Notes.Aggregate(log, (current, note) => current.Add(imported, note with { Velocity = velocity }, Track, hand, out _));
+        }
+
+        private static NoteValues Values(Request note, Bar bar)
+        {
+            long onset = bar.Span.Onset.Value + (note.Long("onset") ?? throw FacadeException.BadRequest("Each note needs \"onset\", in ticks in the bar."));
+            int pitch = note.Int("pitch") ?? throw FacadeException.BadRequest("Each note needs \"pitch\".");
+            long length = note.Long("length") ?? throw FacadeException.BadRequest("Each note needs \"length\", in ticks.");
+            return bar.Span.Contains(new Tick(onset)) && pitch is >= 0 and <= Pitch.MaxMidiNumber && length > 0
+                ? new NoteValues(new Pitch(pitch), new TickSpan(new Tick(onset), length), Note.MinVelocity)
+                : throw FacadeException.BadRequest("A note of the variant starts outside its bar, or its pitch or length is out of range.");
+        }
+    }
+
+    /// <summary>The staff of the part a note is on: the staff it was read on, else 2 for a left hand and 1 for any other.</summary>
+    private static int StaffOf(Note note) => note.Source is MusicXmlSourceLocation read ? read.Staff : note.Hand?.Value == Hand.Left ? 2 : 1;
 
     private string UndoDraft(Request request)
     {

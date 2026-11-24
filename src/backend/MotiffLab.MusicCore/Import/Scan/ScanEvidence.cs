@@ -13,10 +13,13 @@ public sealed class ScanEvidence
     /// <summary>The version of the evidence's schema this reads.</summary>
     public const int Version = 1;
 
-    private ScanEvidence(IReadOnlyList<ScanEvidenceBar> bars) => Bars = bars;
+    private ScanEvidence(IReadOnlyList<ScanEvidenceBar> bars, ScanImage? image) => (Bars, Image) = (bars, image);
 
     /// <summary>The page's bars in reading order: the systems top down, each system's bars left to right.</summary>
     internal IReadOnlyList<ScanEvidenceBar> Bars { get; }
+
+    /// <summary>The page image all coordinates are in, as the server turned it; null when the evidence does not say.</summary>
+    internal ScanImage? Image { get; }
 
     /// <summary>The evidence of one page, as JSON: {"evidence": 1, "systems": [...], "symbols": [...]}.</summary>
     /// <exception cref="ArgumentException">The text is not version 1 of the page evidence.</exception>
@@ -41,14 +44,15 @@ public sealed class ScanEvidence
             throw new FormatException("Another version of the evidence.");
         }
 
-        var bars = new List<(int System, int Bar, Dictionary<int, double> Spaces, List<ScanSymbol> Symbols)>();
+        var bars = new List<(int System, int Bar, Dictionary<int, double> Spaces, List<ScanSymbol> Symbols, ScanBox? Box)>();
         int system = 0;
         foreach (JsonElement found in root.GetProperty("systems").EnumerateArray())
         {
             Dictionary<int, double> spaces = found.GetProperty("staves").EnumerateArray()
                 .ToDictionary(staff => staff.GetProperty("staff").GetInt32(), staff => staff.GetProperty("space").GetDouble());
-            int count = found.GetProperty("bars").GetArrayLength();
-            bars.AddRange(Enumerable.Range(0, count).Select(bar => (system, bar, spaces, new List<ScanSymbol>())));
+            double[]? box = Numbers(found, "box", 4);
+            bars.AddRange(found.GetProperty("bars").EnumerateArray().Select((bar, index) =>
+                (system, index, spaces, new List<ScanSymbol>(), box is not null && Numbers(bar, "x", 2) is { } x ? new ScanBox(x[0], box[1], x[1], box[3]) : (ScanBox?)null)));
             system++;
         }
 
@@ -61,12 +65,34 @@ public sealed class ScanEvidence
             }
         }
 
-        return new ScanEvidence([.. bars.Select(bar => new ScanEvidenceBar(bar.Spaces, bar.Symbols))]);
+        ScanImage? image = root.TryGetProperty("image", out JsonElement page) && page.ValueKind == JsonValueKind.Object
+            && page.TryGetProperty("width", out JsonElement width) && page.TryGetProperty("height", out JsonElement height)
+            ? new ScanImage(width.GetInt32(), height.GetInt32(), page.TryGetProperty("rotated", out JsonElement rotated) && rotated.ValueKind == JsonValueKind.Number ? rotated.GetInt32() : 0)
+            : null;
+        return new ScanEvidence([.. bars.Select(bar => new ScanEvidenceBar(bar.Spaces, bar.Symbols) { Box = bar.Box })], image);
     }
+
+    /// <summary>The <paramref name="count"/> numbers of a list named <paramref name="name"/>; null when there is no such list.</summary>
+    private static double[]? Numbers(JsonElement element, string name, int count) =>
+        element.TryGetProperty(name, out JsonElement list) && list.ValueKind == JsonValueKind.Array && list.GetArrayLength() == count
+            ? [.. list.EnumerateArray().Select(value => value.GetDouble())]
+            : null;
 }
 
-/// <summary>One bar found on the page: each staff's space (the distance between its lines, by staff from 1) and the symbols in it.</summary>
-internal sealed record ScanEvidenceBar(IReadOnlyDictionary<int, double> Spaces, IReadOnlyList<ScanSymbol> Symbols);
+/// <summary>The page image the evidence's coordinates are in: its size in pixels and the degrees clockwise the server turned the page (0, 90, 180 or 270).</summary>
+public sealed record ScanImage(int Width, int Height, int Rotated);
+
+/// <summary>A box on the page image, in its pixels from the top left: left, top, right, bottom.</summary>
+public sealed record ScanBox(double Left, double Top, double Right, double Bottom);
+
+/// <summary>
+/// One bar found on the page: each staff's space (the distance between its lines, by staff from 1), the symbols in it, and
+/// its box on the page, its x range over its system's height (null when the evidence gives no box).
+/// </summary>
+internal sealed record ScanEvidenceBar(IReadOnlyDictionary<int, double> Spaces, IReadOnlyList<ScanSymbol> Symbols)
+{
+    public ScanBox? Box { get; init; }
+}
 
 /// <summary>
 /// A symbol the detector found: its SMuFL class ("noteheadBlack", "restQuarter", "accidentalSharp", "augmentationDot",

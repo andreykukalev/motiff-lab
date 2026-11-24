@@ -118,5 +118,13 @@
   "padEdits.saveEditFirst": "Сначала сохраните или отмените правку нот в фортепианном ролле.",
   "phrases.reset": "Вернуть найденные границы",
   "phrases.resetWarning": "Ваших границ: {0}. Они заменятся найденными",
-  "phrases.resetConfirm": "Вернуть найденные"
+  "phrases.resetConfirm": "Вернуть найденные",
+  "scanReview.page": "На странице",
+  "scanReview.cropLabel": "Такт {0} на странице оригинала",
+  "scanReview.variants": "Другие прочтения движков",
+  "scanReview.variantHint": "Ставит эти ноты только в этот такт, как вашу правку",
+  "scanReview.none": "Иначе этот такт ни один движок не прочитал.",
+  "scanReview.missing": "Вырезка страницы и прочтения движков для этого такта есть только на iPad, который распознавал скан.",
+  "scanReview.chosen": "Сейчас в такте: {0}",
+  "scanReview.undo": "Отменить выбор"
 }

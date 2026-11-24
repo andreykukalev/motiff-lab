@@ -28,8 +28,18 @@ public enum ScanLevel
 /// <param name="Staff">The staff in the part, from 1.</param>
 public sealed record ScanStaffSource(int Part, int Staff, IReadOnlyList<string> Engines);
 
-/// <summary>One bar of a merged page: its level and the engines that gave each staff.</summary>
-public sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSource> Staves);
+/// <summary>
+/// One bar of a merged page: its level and the engines that gave each staff; a bar to check also its other readings and its
+/// place on the page (v1.3 i-2).
+/// </summary>
+public sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSource> Staves)
+{
+    /// <summary>A bar to check: the engines' readings of its staves to check other than the one taken (<see cref="ScanVariant"/>); empty for other bars.</summary>
+    public IReadOnlyList<ScanVariant> Variants { get; init; } = [];
+
+    /// <summary>A bar to check: where it is on the page image, from the page's evidence; null without evidence or where the bar was not found.</summary>
+    public ScanCrop? Crop { get; init; }
+}
 
 /// <summary>A page merged from several readings: its MusicXML, the engines that read it in the merge's order, and each bar in order.</summary>
 public sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engines, IReadOnlyList<ScanMergedBar> Bars);
@@ -102,16 +112,20 @@ public static partial class ScanMerge
                 .Where(pair => pair.Pairs[measure] is not null)
                 .Select(pair => (pair.Reading, pair.Pairs[measure]!.Value))];
             var staves = new List<ScanStaffSource>();
-            int fewest = int.MaxValue;
+            var choices = new List<Choice>();
             foreach ((int part, int staff) in backbone.Staves())
             {
                 Choice choice = Vote(candidates, measure, part, staff, backbone, page);
-                taken.Add(choice);
+                choices.Add(choice);
                 staves.Add(new ScanStaffSource(part + 1, staff, [.. choice.Agreeing.Select(reading => reading.Engine)]));
-                fewest = Math.Min(fewest, choice.Agreeing.Count);
             }
 
-            bars.Add(new ScanMergedBar(fewest >= SureEngines ? ScanLevel.Sure : fewest >= AgreeingEngines ? ScanLevel.Probable : ScanLevel.Check, staves));
+            taken.AddRange(choices);
+            int fewest = choices.Min(choice => choice.Agreeing.Count);
+            ScanLevel level = fewest >= SureEngines ? ScanLevel.Sure : fewest >= AgreeingEngines ? ScanLevel.Probable : ScanLevel.Check;
+            bars.Add(level == ScanLevel.Check
+                ? new ScanMergedBar(level, staves) { Variants = Variants(candidates, choices), Crop = page?.CropOf(measure) }
+                : new ScanMergedBar(level, staves));
         }
 
         XElement root = Written(backbone, taken, bars);
@@ -270,11 +284,14 @@ public static partial class ScanMerge
             Import.Parts.SelectMany(part => Enumerable.Range(1, Math.Max(1, part.Staves)).Select(staff => (part.Index, staff)));
 
         /// <summary>The notes of one staff of a bar as text: onset in the bar, pitch and length within the bar, in order.</summary>
-        public string Content(int measure, int part, int staff)
+        public string Content(int measure, int part, int staff) => ContentOf(Notes(measure, part, staff));
+
+        /// <summary>The notes of one staff of a bar as the merge compares them: onset in the bar, pitch and length within the bar, in ticks.</summary>
+        public IEnumerable<(long Onset, int Pitch, long Length)> Notes(int measure, int part, int staff)
         {
             TickSpan bar = Import.Measures[measure].Span;
-            return ContentOf(_notes[(measure, part, staff)]
-                .Select(note => (note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value)));
+            return _notes[(measure, part, staff)]
+                .Select(note => (note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value));
         }
 
         /// <summary>Whether one staff of a bar adds up to the meter in force there (<see cref="ScanRepair.AddsUp"/>).</summary>

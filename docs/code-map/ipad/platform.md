@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
-`OpenPiece`, `OriginalSounds`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
+`OpenPiece`, `OriginalSounds`, `ScanReview`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
@@ -13,9 +13,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
+- `ScanReview.swift` (v1.3 i-2): a scan's Check bars kept only on this iPad (`ScanReviewStore`, Application Support/ScanReview/<fingerprint>/: review.json, bar-<n>.png, newest 40), found by `check`'s "fingerprint"; `ScanVariant` as `scan.join` gave it.
 - `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b, a struct): the hot features'
   calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls),
-  `draftSheet` and `draftTechniques` (v1.1), each answered as `PieceCore.Answer` (the typed value, the text,
+  `variant` (v1.3 i-2), `draftSheet` and `draftTechniques` (v1.1), each answered as `PieceCore.Answer` (the typed value, the text,
   music-core's `message`). Features make these calls only here; the other calls move with their features in phase C.
 - `FormSection.swift`: `FormSection`, a section of the form as music-core letters it (`Answer.FormSection`), one type
   for Piece DNA's form lane, the Contents' structure and the letters on the score (`PiecePhrases.sections`).

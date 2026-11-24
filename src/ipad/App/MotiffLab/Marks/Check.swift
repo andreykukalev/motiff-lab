@@ -87,6 +87,9 @@ struct CheckShelf: Equatable, Sendable {
     var engine: String?
     /// The scan's pages, in order; empty without page reports.
     var pages: [CheckPageEntry] = []
+    /// The working notes' music by its SHA-256 (v1.3 i-2), as `scan.join` named the score: what this iPad keeps of a scan's
+    /// bars to check is found by it (`ScanReviewStore`).
+    var fingerprint: String?
 
     init() {}
 
@@ -123,6 +126,7 @@ struct CheckShelf: Equatable, Sendable {
         open = Int(number(object["open"]) ?? 0)
         origin = object["origin"] as? String ?? "imported"
         engine = object["engine"] as? String
+        fingerprint = object["fingerprint"] as? String
         pages = (object["pages"] as? [[String: Any]] ?? []).compactMap { entry in
             guard let page = number(entry["page"]) else { return nil }
             return CheckPageEntry(
@@ -134,6 +138,9 @@ struct CheckShelf: Equatable, Sendable {
     }
 
     var hasFlags: Bool { !flags.isEmpty }
+
+    /// The reason of a scan's bar no two engines agree on some staff of (v1.3, music-core's CheckReason).
+    static let enginesDisagree = "EnginesDisagree"
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
@@ -387,6 +394,13 @@ struct CheckDrawer: View {
                     .dsType(.caption)
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            // The bar tapped where the scan's engines disagree (v1.3 i-2): its crop and the engines' readings.
+            if selected, let review = score.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
+                ScanReviewBlock(
+                    review: review, bar: bar.bar, chosen: score.variantChosen.flatMap { $0.bar == bar.bar ? $0.engines : nil },
+                    editsOn: score.editsOn, text: text, choose: { score.chooseVariant($0, bar: bar.bar) }, undo: { score.undoVariant() }
+                )
             }
             HStack(spacing: CGFloat.ds("s-2")) {
                 Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }

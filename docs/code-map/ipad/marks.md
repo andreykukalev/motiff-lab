@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 ## Files
 
-`Bookmarks`, `Check`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `SegmentedChoice` (`.swift`).
+`Bookmarks`, `Check`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `ScanReviewBlock`, `SegmentedChoice` (`.swift`).
 
 - `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as
   `highlight.remove` and `highlight.add` (span and colour): a passage coloured lays it in its colour (other colours give
@@ -22,6 +22,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 - `Check.swift`: `CheckShelf` (`check`), the Check drawer, and Fix notes: `NoteCorrections`, a bar's notes built from
   `CorrectionsAnswer` (`PieceCore.corrections`), listed by `CorrectionsList`.
+- `ScanReviewBlock.swift` (v1.3 i-2, experiment `experimental.scanJobs`): in the Check entry of the bar selected, an
+  EnginesDisagree bar's crop of the page and the engines' other readings, one tap each (`ScoreController.chooseVariant`,
+  `corrections.variant`; `undoVariant`, `corrections.undoDraft`), from `ScoreController.scanReview`; without it a short line.
 - `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState`, built from `EditsLayerAnswer` (every corrections
   answer, and the open answer's "edits": "count", "layer", "moved", "unfit"), `EditsLayerSection` in More (the switch,
   its line, the misfits with «Убрать»). `OpenPiece.openRequest` opens a project file with "edits": "piece" (the file keeps "off");

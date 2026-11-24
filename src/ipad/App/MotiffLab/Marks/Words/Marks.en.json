@@ -116,5 +116,13 @@
   "padEdits.saveEditFirst": "Save or cancel the note editing in the piano roll first.",
   "phrases.reset": "Restore the found boundaries",
   "phrases.resetWarning": "Your boundaries: {0}. They will be replaced by the found ones",
-  "phrases.resetConfirm": "Restore the found ones"
+  "phrases.resetConfirm": "Restore the found ones",
+  "scanReview.page": "On the page",
+  "scanReview.cropLabel": "Bar {0} on the page of the original",
+  "scanReview.variants": "The engines' other readings",
+  "scanReview.variantHint": "Puts these notes in this bar only, as your correction",
+  "scanReview.none": "No engine read this bar otherwise.",
+  "scanReview.missing": "The page's crop and the engines' readings of this bar are kept only on the iPad that read the scan.",
+  "scanReview.chosen": "In the bar now: {0}",
+  "scanReview.undo": "Undo the choice"
 }

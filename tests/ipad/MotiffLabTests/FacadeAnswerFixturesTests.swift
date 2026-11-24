@@ -583,7 +583,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
 
     /// Each answer a file keeps, with its request, as the facade's text; a call that only builds the state keeps none.
     /// `fixture`: the file the piece is made from, as the file names it.
-    private static func answers(_ name: String, of fixture: String = "FurElise.musicxml") throws -> [(request: [String: Any]?, text: String)] {
+    static func answers(_ name: String, of fixture: String = "FurElise.musicxml") throws -> [(request: [String: Any]?, text: String)] {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("contracts/facade-answers/\(name).json")
         let file = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any], url.path)

@@ -118,6 +118,11 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
+    /// With «Распознавание в фоне» on (v1.3 i-2), what this iPad kept of the working notes' scan: its bars to check with
+    /// their variants and crops, none for notes read elsewhere or before; nil with the experiment off.
+    @Published private(set) var scanReview: ScanReview?
+    /// The bar whose variant the player chose last, which one Undo takes back whole while nothing came after it.
+    @Published private(set) var variantChosen: (bar: Int, engines: [String])?
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
     /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that
@@ -717,7 +722,36 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func revertNote(_ id: String) { correct(.revert, ["id": id], notes: true) }
 
     /// Takes back the last correction.
-    func undoCorrection() { correct(.undo, [:], notes: true) }
+    func undoCorrection() {
+        variantChosen = nil
+        correct(.undo, [:], notes: true)
+    }
+
+    /// Another engine's reading of a scan's bar to check chosen (v1.3 i-2, 0035 section 6): music-core puts it in that bar's
+    /// staves to check only, as the player's corrections (`corrections.variant`); the bar's notes are listed to correct, the
+    /// score engraved again and saved.
+    func chooseVariant(_ variant: ScanVariant, bar: Int) {
+        guard let piece else { return }
+        let body = facadeRequest(variant.fields(bar: bar))
+        Task {
+            let answer = await PieceCore(piece: piece.id).variant(body)
+            guard let read = answer.value else {
+                problem = FacadeAnswer.problem(answer.text)
+                return
+            }
+            variantChosen = (bar, variant.engines)
+            corrections = NoteCorrections(read)
+            readEdits(read)
+            await notesDidChange()
+        }
+    }
+
+    /// The variant chosen last taken back whole (`corrections.undoDraft`), while nothing came after it.
+    func undoVariant() {
+        guard let chosen = variantChosen else { return }
+        variantChosen = nil
+        correct(.undoDraft, ["bar": chosen.bar], notes: true)
+    }
 
     /// Accepts a draft of the assistant (#582 item 17.3): music-core makes it again from its call over the notes as they
     /// are now and adds its edits as corrections (`corrections.acceptDraft`), each undone like any other, and the score is
@@ -885,6 +919,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func loadCheck(_ piece: OpenPiece) async {
         check = CheckShelf(answer: await MusicCore.run { MusicCore.call(piece: piece.id, "check") }) ?? CheckShelf()
+        scanReview = ScanServer.jobs ? check.fingerprint.flatMap { ScanReviewStore.load($0) } ?? ScanReview(fingerprint: "", bars: []) : nil
+        variantChosen = nil
         await drawChecks()
     }
 

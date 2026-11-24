@@ -1,10 +1,12 @@
 using System.Text;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Vector;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
 
@@ -15,7 +17,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// Nothing is kept: the app opens the score as any scan, and the reports are not saved. Within contract 14 (version 1.3,
 /// ADR 0035 section 5), a page of "pages" may be its readings by several engines, merged staff by staff (<see cref="ScanMerge"/>),
 /// and such a page answers "merge"; a form and a field added. Also within 14 (c-1b): such a page may come with the page's
-/// evidence, {"readings", "evidence"}; a form added, the answer as before.
+/// evidence, {"readings", "evidence"}; a form added, the answer as before. Also within 14 (v1.3 i-2): the answer's
+/// "fingerprint" (the SHA-256 of the score as its Notes keep it, as `check` answers it) and a bar to check's "variants" and
+/// "crop"; fields added.
 /// </summary>
 internal static class ScanRequest
 {
@@ -28,6 +32,10 @@ internal static class ScanRequest
     /// the page's evidence from the scan server}: they are merged (<see cref="ScanMerge"/>, the evidence settling the staves
     /// no two engines agree on) and the page answers "merge": {"engines": [as sent, in the merge's order], "bars": [{"bar",
     /// "level": "sure", "probable" or "check", "staves": [{"part", "staff", "engines"}]}]}, one per bar of the page in order.
+    /// A bar to check also answers "variants": [{"engines", "staves": [{"part", "staff", "notes": [{"onset" (in the bar),
+    /// "pitch", "length" (ticks), "name"}]}]}], the other readings of its staves to check, and "crop": {"box": [left, top,
+    /// right, bottom], "width", "height", "rotated"} in the page image's pixels, or null. "fingerprint" names the score as
+    /// the Notes made from it keep it (`check` answers the working notes' own), so the app can keep these beside them.
     /// </summary>
     public static string Join(Request fields)
     {
@@ -43,6 +51,7 @@ internal static class ScanRequest
         return Answer.Write(json =>
         {
             json.WriteString("score", Encoding.UTF8.GetString(score));
+            json.WriteString("fingerprint", PieceOriginal.Fingerprint(ScanRepair.Repair(score)));
             json.WriteStartArray("pages");
             for (int page = 1; page <= pages.Count; page++)
             {
@@ -157,10 +166,81 @@ internal static class ScanRequest
             }
 
             json.WriteEndArray();
+            if (read.Level == ScanLevel.Check)
+            {
+                Variants(json, read.Variants);
+                Crop(json, read.Crop);
+            }
+
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
+        json.WriteEndObject();
+    }
+
+    /// <summary>A bar to check's other readings (v1.3 i-2): each with its engines and its notes on the bar's staves to check.</summary>
+    private static void Variants(Utf8JsonWriter json, IReadOnlyList<ScanVariant> variants)
+    {
+        json.WriteStartArray("variants");
+        foreach (ScanVariant variant in variants)
+        {
+            json.WriteStartObject();
+            json.WriteStartArray("engines");
+            foreach (string engine in variant.Engines)
+            {
+                json.WriteStringValue(engine);
+            }
+
+            json.WriteEndArray();
+            json.WriteStartArray("staves");
+            foreach (ScanVariantStaff staff in variant.Staves)
+            {
+                json.WriteStartObject();
+                json.WriteNumber("part", staff.Part);
+                json.WriteNumber("staff", staff.Staff);
+                json.WriteStartArray("notes");
+                foreach (ScanVariantNote note in staff.Notes)
+                {
+                    json.WriteStartObject();
+                    json.WriteNumber("onset", note.Onset);
+                    json.WriteNumber("pitch", note.Pitch);
+                    json.WriteNumber("length", note.Length);
+                    json.WriteString("name", new Pitch(note.Pitch).ToString());
+                    json.WriteEndObject();
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>A bar to check's place on its page image (v1.3 i-2): its box and the image's size and turn; null without them.</summary>
+    private static void Crop(Utf8JsonWriter json, ScanCrop? crop)
+    {
+        if (crop is null)
+        {
+            json.WriteNull("crop");
+            return;
+        }
+
+        json.WriteStartObject("crop");
+        json.WriteStartArray("box");
+        foreach (double value in (double[])[crop.Box.Left, crop.Box.Top, crop.Box.Right, crop.Box.Bottom])
+        {
+            json.WriteNumberValue(value);
+        }
+
+        json.WriteEndArray();
+        json.WriteNumber("width", crop.Image.Width);
+        json.WriteNumber("height", crop.Image.Height);
+        json.WriteNumber("rotated", crop.Image.Rotated);
         json.WriteEndObject();
     }
 
