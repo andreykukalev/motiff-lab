@@ -62,6 +62,9 @@ public static partial class CheckRepairs
             CheckReason.PageQuality => ([], w.T(
                 "The whole page was read poorly, and no rule tells which note is wrong. Compare the bar with the page.",
                 "Вся страница распознана плохо, и никакое правило не скажет, какая нота неверна. Сверьте такт со страницей.")),
+            CheckReason.EnginesDisagree => ([], w.T(
+                "The engines read this bar in different ways, and no rule tells which reading is right. Compare the bar with the page.",
+                "Движки распознавания прочитали этот такт по-разному, и никакое правило не скажет, какое прочтение верно. Сверьте такт со страницей.")),
             CheckReason.HandsGuessed => ([], w.T(
                 "Corrections change a note's pitch, timing and loudness, not its hand, so the hands cannot be repaired here.",
                 "Правки меняют высоту, время и громкость ноты, но не руку, поэтому руки здесь не исправить.")),

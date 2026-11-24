@@ -130,7 +130,7 @@ internal sealed class SystemReading(VectorPage page, VectorSystem system, Readin
         PlaceMeters(Signatures.Meters(glyphs, staff, normalSize), bounds, bars);
         PlaceClefs(index, clefs, bounds, bars);
         int Octaves(double x) => ottavas.Where(ottava => x >= ottava.From - (0.5 * _space) && x <= ottava.To + (0.5 * _space)).Sum(ottava => ottava.Octaves);
-        TieMap ties = Ties.Find(page.Curves, staff, heads, heads.Count > 0 ? heads.Min(head => head.X) : system.Right, bounds[^1]);
+        TieMap ties = Ties.Find(page.Curves, staff, heads, events, heads.Count > 0 ? heads.Min(head => head.X) : system.Right, bounds[^1]);
         Spell(index, events, (bounds, bars), keys, new Spelling(staff, written, ties, (ClefAt, Octaves)) { FromBefore = state.TiesOf(index) });
         state.Set(index, clefs.Count > 0 ? clefs[^1].Clef : state.ClefOf(index), keys[^1].Fifths);
     }

@@ -53,6 +53,7 @@ internal static class ScoreBuilder
         {
             Barlines = ScoreMarks.Barlines(parts, starts),
             Texts = ScoreMarks.Texts(parts, At),
+            EnginesDisagree = [.. measures.Where(measure => parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index].EnginesDisagree).Select(measure => measure.Index)],
         };
     }
 

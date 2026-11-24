@@ -75,6 +75,7 @@ public sealed record ScanCheck
             .ToLookup(static pair => pair.First.MeasureIndex);
         var restsByMeasure = import.Rests.ToLookup(static rest => rest.MeasureIndex);
         var graceByMeasure = import.GraceNotes.ToLookup(static grace => grace.MeasureIndex);
+        HashSet<int> disagreed = [.. import.EnginesDisagree];
 
         var bars = new List<ScanBar>(import.Measures.Count);
         for (int i = 0; i < import.Measures.Count; i++)
@@ -106,10 +107,7 @@ public sealed record ScanCheck
                 flags.Add(ScanFlag.OutOfPianoRange);
             }
 
-            if (graceByMeasure[measure.Index].Any())
-            {
-                flags.Add(ScanFlag.GraceNotes);
-            }
+            flags.AddRange(Marked(graceByMeasure[measure.Index].Any(), disagreed.Contains(measure.Index)));
 
             int? page = map?.PageOf(measure.Span.Onset);
             PageQuality? quality = page is { } number ? pages![number - 1].Quality : null;
@@ -131,6 +129,20 @@ public sealed record ScanCheck
         }
 
         return new ScanCheck(bars, PagesOf(pages, bars));
+    }
+
+    /// <summary>The flags of what the score marks in a measure: grace notes, and a scan merge's bar the engines disagree on.</summary>
+    private static IEnumerable<ScanFlag> Marked(bool graceNotes, bool enginesDisagree)
+    {
+        if (graceNotes)
+        {
+            yield return ScanFlag.GraceNotes;
+        }
+
+        if (enginesDisagree)
+        {
+            yield return ScanFlag.EnginesDisagree;
+        }
     }
 
     /// <summary>Each reported page with the bars read from it; none without reports.</summary>
@@ -255,6 +267,9 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
         ScanFlag.PageQuality => words.T(
             "The page this bar is on was too dark, too soft or could not be read, so any note in it may be wrong. Compare it with the page, or photograph the page again.",
             "Страница с этим тактом слишком тёмная, нечёткая или не прочиталась, поэтому любая нота в такте может быть неверной. Сверьте такт со страницей или переснимите её."),
+        ScanFlag.EnginesDisagree => words.T(
+            "The engines that read the page disagree on this bar: no two of them read one of its staves alike. Compare the bar with the page.",
+            "Движки распознавания, читавшие страницу, разошлись в этом такте: никакие два не прочитали один из нотоносцев одинаково. Сверьте такт со страницей."),
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }
@@ -284,4 +299,7 @@ public enum ScanFlag
 
     /// <summary>The bar is on a page the scan server's report calls poor (<see cref="PageReport.Quality"/>).</summary>
     PageQuality,
+
+    /// <summary>No two engines agree on some staff of the bar, as a scan merge marked it (<see cref="ScanMerge"/>, version 1.3).</summary>
+    EnginesDisagree,
 }
