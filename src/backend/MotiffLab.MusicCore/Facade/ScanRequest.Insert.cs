@@ -37,16 +37,9 @@ internal static partial class ScanRequest
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        if (!project.CanInsertPage)
-        {
-            throw FacadeException.Unavailable(words.T(
-                "The page can be put into notes read from this PDF only while nothing but corrections is on the score: phrases, marks, bookmarks, motifs and ideas would move.",
-                "Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок: фразы, пометки, закладки, мотивы и идеи сдвинулись бы."));
-        }
-
         int page = fields.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", the page's place among the notes' pages, from 1.");
         Dictionary<int, ScanMergedPage> merged = [];
-        PageInserted? inserted;
+        PageInserted inserted;
         try
         {
             byte[] musicXml = Read(fields.Element("reading") ?? throw FacadeException.BadRequest("Send \"reading\", the page read again."), page, merged);
@@ -58,11 +51,20 @@ internal static partial class ScanRequest
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        if (inserted is not { Project: { } with })
+        if (inserted.Project is not { } with)
         {
-            throw FacadeException.Unavailable(words.T(
-                "The page cannot be put in: a correction would no longer apply to the same notes.",
-                "Страницу не вставить: правка перестала бы относиться к тем же нотам."));
+            throw FacadeException.Unavailable(inserted.Refused switch
+            {
+                PageRefusal.Work => words.T(
+                    "The page can be put into notes read from this PDF only while nothing but corrections is on the score: phrases, marks, bookmarks, motifs and ideas would move.",
+                    "Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок: фразы, пометки, закладки, мотивы и идеи сдвинулись бы."),
+                PageRefusal.Across => words.T(
+                    "The page cannot be put in: a corrected note sounds across the place where it goes.",
+                    "Страницу не вставить: исправленная нота звучит через место, куда она встаёт."),
+                _ => words.T(
+                    "The page cannot be put in: a correction would no longer apply to the same notes.",
+                    "Страницу не вставить: правка перестала бы относиться к тем же нотам."),
+            });
         }
 
         ImportedPiece piece = PieceImporter.Import(with.FileName, with.Source).Piece!;

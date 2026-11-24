@@ -45,8 +45,14 @@ struct RecognitionTag: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             tag
-            // The pages no engine read go again on their own, into these same notes (v1.3 i-1b).
+            // The pages no engine read go again on their own, into these same notes (v1.3 i-1b), and why they did not last time.
             if item.state == .done, item.unread != nil {
+                if let reason = item.reason, !reason.isEmpty {
+                    Text(text.format("recognition.againWhy", reason))
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .lineLimit(2)
+                }
                 Button(text["recognition.retry"]) { queue.retryUnread(item.file) }
                     .buttonStyle(DSButtonStyle(kind: .quiet))
                     .accessibilityHint(text["recognition.retryPagesHint"])

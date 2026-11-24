@@ -243,7 +243,7 @@ extension ScanServer {
         }
         ScanCrops.keepReview(object, pages: joined.numbers, pdf: data)
         let engines = [plan.engine].compactMap { $0 } + joined.engines
-        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread)
+        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread, read: joined.numbers)
         return .success((result, job))
     }
 

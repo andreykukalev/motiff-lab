@@ -308,8 +308,26 @@ final class ScanJobsTests: XCTestCase {
         return StubAPI.Answer(status: 200, body: body ?? Data())
     }
 
-    private func follow(_ kept: ScanJobRecord? = nil) -> RecognitionJob {
-        RecognitionJob(kept: kept, keep: { _ in }, hear: { _ in }, wanted: { true }, ready: { true })
+    private func follow(_ kept: ScanJobRecord? = nil, ready: @escaping () async -> Bool = { true }) -> RecognitionJob {
+        RecognitionJob(kept: kept, keep: { _ in }, hear: { _ in }, wanted: { true }, ready: ready)
+    }
+
+    /// The piece's file with its first note a semitone higher, saved as the score screen saves a correction.
+    private func correctFirstNote(_ url: URL) throws {
+        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
+        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
+        defer { MusicCore.close(piece: piece) }
+        XCTAssertNil(facadeObject(MusicCore.call(piece: piece, "corrections.change", #"{"bar": 1, "id": "n_0001", "pitch": 1}"#))?["error"])
+        try Data(MusicCore.call(piece: piece, "project.save", "{}").utf8).write(to: url, options: .atomic)
+    }
+
+    /// The pitches the piece of the file at `url` plays in `bar`, its corrections on.
+    private func pitches(_ url: URL, bar: Int) throws -> [Int] {
+        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
+        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
+        defer { MusicCore.close(piece: piece) }
+        let notes = facadeObject(MusicCore.call(piece: piece, "corrections", #"{"bar": \#(bar)}"#))?["notes"] as? [[String: Any]]
+        return (notes ?? []).compactMap { $0["pitch"] as? Int }
     }
 
     func testAPieceReadByAJobIsWrittenThenItsJobDeletedAndAPageNoEngineReadIsReadAgainIntoTheSameNotes() async throws {
@@ -325,6 +343,7 @@ final class ScanJobsTests: XCTestCase {
 
         guard case .success(let read) = first else { return XCTFail("read: \(first)") }
         XCTAssertEqual(read.unread, [2])
+        XCTAssertEqual(read.read, [1], "the PDF pages the notes have, kept for a page read again")
         let summary = await PieceSummary.read(url)
         XCTAssertEqual(summary?.hasNotes, true, "the notes are written into the piece's file")
         XCTAssertEqual(sent("DELETE", "jobs/j1"), 1, "then the job is deleted on the server")
@@ -333,32 +352,69 @@ final class ScanJobsTests: XCTestCase {
         StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j2"}"#), "http://scan.test/jobs/j2": done,
                        "http://scan.test/jobs/j2/result": job("j2", page: 2, step: "E"), "DELETE http://scan.test/jobs/j2": answer(204, "")])
 
-        let again = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(), again: [2], session: StubAPI.session(), isOpen: { false })
+        // While the job runs the player corrects a note and the screen saves the file: that correction stays.
+        let again = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(ready: { (try? self.correctFirstNote(url)) != nil }), again: [2], read: read.read, session: StubAPI.session(), isOpen: { false })
 
         guard case .success(let inserted) = again else { return XCTFail("again: \(again)") }
         XCTAssertEqual(inserted.unread, [], "page 2 is read now")
+        XCTAssertEqual(inserted.read, [1, 2])
+        XCTAssertNil(inserted.why)
         let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
         XCTAssertTrue(form.contains("name=\"pages\"\r\n\r\n2\r\n"), "only the page no engine read")
         XCTAssertEqual(sent("DELETE", "jobs/j2"), 1)
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
-        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
-        defer { MusicCore.close(piece: piece) }
-        let bar = try XCTUnwrap(facadeObject(MusicCore.call(piece: piece, "corrections", #"{"bar": 2}"#)))
-        XCTAssertEqual((bar["notes"] as? [[String: Any]])?.compactMap { $0["pitch"] as? Int }, [64], "bar 2 is page 2's E4")
+        XCTAssertEqual(try pitches(url, bar: 1), [61], "the correction saved during the wait is in the notes")
+        XCTAssertEqual(try pitches(url, bar: 2), [64], "bar 2 is page 2's E4")
     }
 
-    func testAPageReadAgainThatNoEngineReadStaysUnreadAndThePieceKeepsItsNotes() async {
+    func testAPageReadAgainThatNoEngineReadStaysUnreadAndThePieceKeepsItsNotes() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("again-\(UUID().uuidString).motiff.json")
+        try Data("{}".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
         StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j3"}"#),
                        "http://scan.test/jobs/j3": answer(200, #"{"id": "j3", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j3/result": job("j3", page: 2, step: nil)])
-        let outcome = await ScanPageAgain.read([2], file: "{}", pdf: notAPdf, to: target, job: follow(), text: english)
+        let outcome = await ScanPageAgain.read([2], read: [1], pages: 2, file: file, pdf: notAPdf, to: target, job: follow(), text: english)
 
         guard case .success(let read) = outcome else { return XCTFail("again: \(outcome)") }
         XCTAssertEqual(read.unread, [2], "the line keeps «Повторить»")
         XCTAssertEqual(read.file, "{}", "the notes as they were")
         XCTAssertEqual(read.job.id, "j3")
+        XCTAssertEqual(read.read, [1])
+        XCTAssertNil(read.why)
         XCTAssertEqual(ScanPageAgain.place(of: 3, read: [1, 2, 5]), 3, "after the pages the notes have before it")
         XCTAssertEqual(ScanPageAgain.place(of: 1, read: [2, 3]), 1)
-        XCTAssertNotEqual(english["recognition.retryPagesHint"], "recognition.retryPagesHint")
-        XCTAssertNotEqual(russian["recognition.retryPagesHint"], "recognition.retryPagesHint")
+        for key in ["recognition.retryPagesHint", "recognition.againWhy"] {
+            XCTAssertNotEqual(english[key], key)
+            XCTAssertNotEqual(russian[key], key)
+        }
+    }
+
+    func testPagesReadAgainThatDidNotWorkLeaveThePieceWithItsNotesAndTheReasonOnItsLine() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("queue-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try pdfPieceFile(in: folder)
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j1"}"#),
+                       "http://scan.test/jobs/j1": answer(200, #"{"id": "j1", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j1/result": result])
+        guard case .success(let first) = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(), session: StubAPI.session(), isOpen: { false }) else {
+            return XCTFail("the first read")
+        }
+        // The server is gone now: the page read again does not work.
+        StubAPI.reset([:])
+        let queue = RecognitionQueue()
+        queue.root = folder
+        queue.projects = { folder }
+        queue.account = Account(options: nil)
+        queue.session = StubAPI.session()
+        var item = RecognitionItem(file: url.lastPathComponent, title: "Pages", pages: 2)
+        item.unread = first.unread
+        item.read = first.read
+        queue.start([item], address: server, hosted: false)
+
+        for _ in 0..<100 where queue.batch?.finished != true || queue.running { try await Task.sleep(nanoseconds: 50_000_000) }
+
+        let after = try XCTUnwrap(queue.batch?.items.first)
+        XCTAssertEqual(after.state, .done, "the piece keeps its notes, not «не вышло»")
+        XCTAssertEqual(after.unread, [2], "the line keeps «Повторить»")
+        XCTAssertFalse((after.reason ?? "").isEmpty, "and says why")
     }
 }

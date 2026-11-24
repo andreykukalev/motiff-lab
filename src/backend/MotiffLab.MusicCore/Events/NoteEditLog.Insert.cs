@@ -10,7 +10,7 @@ public sealed partial record NoteEditLog
     /// applies to the same music; null when one cannot be carried exactly. The one place corrections move: notes are
     /// numbered in time order, so a correction of an imported note names that note's number among <paramref name="after"/>,
     /// and every value it records from <paramref name="at"/> on moves on by <paramref name="length"/>; an added note keeps its
-    /// id. Exact means: laid on <paramref name="after"/>, the carried log applies, moves and leaves unfit the same corrections
+    /// id; a correction of a note across <paramref name="at"/> is not carried (<see cref="Crosses"/>). Exact means: laid on <paramref name="after"/>, the carried log applies, moves and leaves unfit the same corrections
     /// as on <paramref name="before"/>, and every note it changes or adds there it changes or adds here, moved so. The
     /// other notes are the music as read again: a note tied into the page put in sounds as the page now goes on.
     /// </summary>
@@ -19,7 +19,7 @@ public sealed partial record NoteEditLog
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
         int put = after.Count - before.Count;
-        if (put < 0 || length < 0)
+        if (put < 0 || length < 0 || Crosses(at))
         {
             return null;
         }
@@ -55,6 +55,14 @@ public sealed partial record NoteEditLog
     }
 
     private static IEnumerable<NoteFace> Faces(IEnumerable<Note> notes) => notes.Select(NoteFace.Of).Order();
+
+    /// <summary>
+    /// Whether a correction records a note that sounds across <paramref name="at"/> (from before it to after it): music put in
+    /// there would cut it, so it cannot be carried over (<see cref="CarriedOver"/>).
+    /// </summary>
+    public bool Crosses(Tick at) => Edits.Any(edit => Across(edit.Before, at) || Across(edit.After, at));
+
+    private static bool Across(NoteValues? values, Tick at) => values is { } found && found.Span.Onset < at && found.Span.End > at;
 
     /// <summary>Values from <paramref name="at"/> on moved on by <paramref name="length"/>; earlier ones as they are.</summary>
     private static NoteValues MovedOn(NoteValues values, Tick at, long length) => values.Span.Onset < at

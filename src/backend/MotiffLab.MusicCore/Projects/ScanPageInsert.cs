@@ -15,17 +15,16 @@ public static class ScanPageInsert
     /// checked bars and Check flags after it move on by its bars, its own bars get the scan's flags, the page's report goes in
     /// at its place when the notes keep reports (<paramref name="report"/> is then required), the PDF's
     /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and a resume point at or
-    /// after the page goes back to the start, as <see cref="Project.ChangeBars"/> does. Null when the corrections or the bars cannot be
-    /// carried over exactly: nothing is dropped.
+    /// after the page goes back to the start, as <see cref="Project.ChangeBars"/> does. Refused, with why, while <see cref="Project.CanInsertPage"/>
+    /// is false or when the corrections or the bars cannot be carried over exactly: nothing is dropped.
     /// </summary>
-    /// <exception cref="InvalidOperationException"><see cref="Project.CanInsertPage"/> is false.</exception>
     /// <exception cref="ArgumentException">The place or the page is not one, or the notes keep reports and none is sent.</exception>
-    public static PageInserted? Into(Project project, int page, byte[] musicXml, PageReport? report, int documentPages)
+    public static PageInserted Into(Project project, int page, byte[] musicXml, PageReport? report, int documentPages)
     {
         ArgumentNullException.ThrowIfNull(project);
         if (!project.CanInsertPage)
         {
-            throw new InvalidOperationException("A page goes into a scan's notes only before the player put anything on the score but corrections.");
+            return PageInserted.Not(PageRefusal.Work);
         }
 
         int pages = ScanJoin.Split(project.Source).Count;
@@ -40,15 +39,20 @@ public static class ScanPageInsert
         Tick at = map.StartOf(page);
         long length = (page <= pages ? map.StartOf(page + 1) : after.MusicXml!.Measures[^1].Span.End).Value - at.Value;
         ScanBar[] put = [.. ScanCheck.Of(after, null).Bars.Where(bar => bar.Span.Onset >= at && bar.Span.Onset.Value < at.Value + length)];
+        if (project.Edits.Crosses(at))
+        {
+            return PageInserted.Not(PageRefusal.Across);
+        }
+
         if (put.Length == 0 || project.Edits.CarriedOver(before.Notes, after.Notes, at, length) is not { } edits)
         {
-            return null;
+            return PageInserted.Not(PageRefusal.NotExact);
         }
 
         int first = put[0].Bar, bars = put.Length;
         if (!BarsMoveOn(before, after, at, length, first, bars))
         {
-            return null;
+            return PageInserted.Not(PageRefusal.NotExact);
         }
 
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);

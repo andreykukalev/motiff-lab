@@ -29,19 +29,29 @@ public class PageInsertTests
     private static string Page(string step, string beats = "4") => Encoding.UTF8.GetString(Score(2, beats, Bar(step, 5, int.Parse(beats, System.Globalization.CultureInfo.InvariantCulture)), Bar(step, 4, int.Parse(beats, System.Globalization.CultureInfo.InvariantCulture))));
 
     /// <summary>The project file of a PDF piece of <paramref name="pdfPages"/> pages whose notes were read from <paramref name="pages"/>.</summary>
-    private static string Read(int pdfPages, params string[] pages)
+    private static string Read(int pdfPages, params string[] pages) => Read(pdfPages, null, pages);
+
+    /// <summary>As <see cref="Read(int, string[])"/>, with each page's report kept by the scan when <paramref name="reports"/> are given.</summary>
+    private static string Read(int pdfPages, object[]? reports, params string[] pages)
     {
         var facade = new MusicCoreFacade();
         using JsonDocument joined = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages })));
         string score = joined.RootElement.GetProperty("score").GetString()!;
         Assert.DoesNotContain("\"error\"", facade.Open("Photos.pdf", "%PDF-1.4\n%%EOF\n"u8.ToArray(), $$"""{"id": "p_scan", "photos": {{pdfPages}}, "now": "{{Now}}"}"""), StringComparison.Ordinal);
-        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = pdfPages, now = Now });
+        string request = reports is null
+            ? JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = pdfPages, now = Now })
+            : JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = pdfPages, now = Now, reports });
         using JsonDocument read = JsonDocument.Parse(facade.Call(1, "document.read", request));
         return read.RootElement.GetProperty("file").GetString()!;
     }
 
-    private static JsonDocument Insert(string file, int page, object reading, int pdfPages = 3) =>
-        JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", JsonSerializer.Serialize(new { file, page, reading, pages = pdfPages, language = "en" })));
+    private static JsonDocument Insert(string file, int page, object reading, int pdfPages = 3, object[]? reports = null) =>
+        JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", reports is null
+            ? JsonSerializer.Serialize(new { file, page, reading, pages = pdfPages, language = "en" })
+            : JsonSerializer.Serialize(new { file, page, reading, pages = pdfPages, language = "en", reports })));
+
+    private static Dictionary<string, object> Report(double sharpness) =>
+        new() { ["page"] = 1, ["sharpness"] = sharpness, ["contrast"] = 110, ["barLines"] = 4, ["measures"] = 2 };
 
     /// <summary>The file with the corrections of <paramref name="changes"/>, each a note id, its bar and how many semitones it goes up.</summary>
     private static string Corrected(string file, params (string Id, int Bar, int Pitch)[] changes)
@@ -165,6 +175,7 @@ public class PageInsertTests
         using JsonDocument refused = Insert(file, 2, Page("G"));
 
         Assert.Equal("unavailable", refused.RootElement.GetProperty("error").GetString());
+        Assert.Contains("sounds across", refused.RootElement.GetProperty("message").GetString(), StringComparison.Ordinal);
         // Without the correction the same page goes in: the tie now ends where the page put in starts.
         using JsonDocument inserted = Insert(read, 2, Page("G"));
         Assert.False(inserted.RootElement.TryGetProperty("error", out _));
@@ -184,8 +195,72 @@ public class PageInsertTests
             Scan = read.Scan!.Confirm([1, 3]),
             Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.BarTooLong, true), new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooLong, false)],
         };
-        PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3)!;
-        Assert.Equal([1, 5], inserted.Project.Scan!.ConfirmedBars);
+        PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3);
+        Assert.Equal([1, 5], inserted.Project!.Scan!.ConfirmedBars);
         Assert.Equal([(1, true), (6, false)], inserted.Project.Check!.Select(flag => (flag.Bar, flag.Resolved)));
+    }
+
+    public static TheoryData<string> Work => ["performance", "assembly", "draft", "no PDF"];
+
+    [Theory]
+    [MemberData(nameof(Work))]
+    public void Versions_an_assembly_a_draft_or_no_PDF_refuse_the_page(string kind)
+    {
+        Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        Assert.True(read.CanInsertPage);
+        DateTimeOffset now = DateTimeOffset.Parse(Now, System.Globalization.CultureInfo.InvariantCulture);
+        Project with = kind switch
+        {
+            "performance" => read.AddPerformance(new MotiffLab.MusicCore.Performance.SavedPerformance("perf_1", "Take", MotiffLab.MusicCore.Performance.PerformanceSource.Recording, read.Source, 0, [])),
+            "assembly" => read with { Assembly = new PieceAssembly([new MotiffLab.MusicCore.Assembly.NoteStep(1, now, "n_0002", 1)], 2) },
+            "draft" => read with { Drafts = [Drafts.DraftFixtures.Drafted(Drafts.DraftFixtures.Octaves())] },
+            _ => read with { Document = null },
+        };
+
+        Assert.False(with.CanInsertPage);
+        Assert.Equal(PageRefusal.Work, ScanPageInsert.Into(with, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Refused);
+    }
+
+    [Fact]
+    public void A_resume_point_before_the_page_stays_and_one_at_or_after_it_goes_back_to_the_start_as_when_bars_change()
+    {
+        Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        ResumePoint start = read.ResumePoints[0];
+        Project resumed = read with
+        {
+            ResumePoints = [start with { At = new Tick(960) }, ResumePoint.Start("r_2", start.CreatedAt) with { At = new Tick(4 * 1920), Loop = true }, ResumePoint.Start("r_3", start.CreatedAt) with { At = new Tick(960), Passage = new SavedPassage(new TickSpan(new Tick(960), 3840), MotiffLab.MusicCore.Motifs.SelectionFilter.All) }],
+        };
+
+        Project inserted = ScanPageInsert.Into(resumed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Project!;
+
+        Assert.Equal([(960L, false), (0L, false), (0L, false)], inserted.ResumePoints.Select(point => (point.At.Value, point.Loop)));
+        Assert.Null(inserted.ResumePoints[2].Passage);
+    }
+
+    [Fact]
+    public void The_page_s_report_goes_in_at_its_place_and_notes_that_keep_reports_need_it()
+    {
+        string file = Read(3, [Report(0.7), Report(0.8)], Page("C"), Page("E"));
+
+        using JsonDocument inserted = Insert(file, 2, Page("G"), reports: [Report(0.9)]);
+        using JsonDocument refused = Insert(file, 2, Page("G"));
+
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!));
+        Assert.Equal([(1, 0.7), (2, 0.9), (3, 0.8)], project.Scan!.Pages.Select(report => (report.Page, report.Sharpness)));
+        Assert.Equal("badRequest", refused.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public void Bars_the_engines_disagree_on_are_flagged_on_the_page_put_in()
+    {
+        string file = Read(3, Page("C"), Page("E"));
+        static string Disagreeing(string step) => Encoding.UTF8.GetString(Score(2, "4", Bar("G", 5), Bar(step, 4)));
+        object[] readings = [new { engine = "homr", musicxml = Disagreeing("A") }, new { engine = "copisteria", musicxml = Disagreeing("B") }, new { engine = "audiveris", musicxml = Disagreeing("D") }];
+
+        using JsonDocument inserted = Insert(file, 2, readings);
+
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!));
+        Assert.Equal([4], project.Check!.Where(flag => flag.Reason == CheckReason.EnginesDisagree).Select(flag => flag.Bar));
+        Assert.Equal("check", inserted.RootElement.GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[1].GetProperty("level").GetString());
     }
 }

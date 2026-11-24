@@ -163,4 +163,20 @@ final class ScanReviewTests: XCTestCase {
             }
         }
     }
+
+    func testAPagePutInLaterKeepsTheBarsToCheckOfTheNotesItWentIntoMovedOnWithTheirCrops() throws {
+        let kept = ScanReview(fingerprint: "before", bars: [ScanReview.Bar(bar: 1, variants: [], cropped: false), ScanReview.Bar(bar: 3, variants: [], cropped: true)])
+        ScanReviewStore.save(kept, crops: [3: Data("png of bar 3".utf8)], in: root)
+        let answer = try json(#"{"fingerprint": "after", "was": "before", "firstBar": 3, "bars": 2, "pages": [{"page": 2, "merge": {"bars": [{"bar": 3, "level": "check", "variants": [], "crop": null}, {"bar": 4, "level": "sure"}]}}]}"#)
+
+        ScanCrops.keepReview(answer, pages: [2], pdf: Data(), in: root)
+
+        let review = try XCTUnwrap(ScanReviewStore.load("after", in: root))
+        XCTAssertEqual(review.bars.map(\.bar).sorted(), [1, 3, 5], "bar 3 before is bar 5 now; the page's own bar 3 joins")
+        XCTAssertEqual(review.bar(5)?.cropped, true)
+        XCTAssertEqual(ScanReviewStore.crop("after", bar: 5, in: root), Data("png of bar 3".utf8), "its crop goes with it")
+        XCTAssertEqual(review.bar(3)?.cropped, false)
+        XCTAssertNil(ScanReviewStore.crop("after", bar: 3, in: root))
+        XCTAssertEqual(review.bar(1)?.cropped, false)
+    }
 }

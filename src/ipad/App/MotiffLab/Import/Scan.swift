@@ -12,6 +12,8 @@ struct ScanResult: Sendable {
     var partReports: [String]?
     /// A PDF read by a scan job (decision record 0035): its pages no engine read, from 1, left out of the notes.
     var unread: [Int] = []
+    /// The PDF pages in the notes, in order, from 1 (v1.3 i-1b).
+    var read: [Int] = []
 
     /// The reports on the pages as `document.read` takes them: one header per request, in order.
     var reports: [String]? { partReports ?? report.map { [$0] } }

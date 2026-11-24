@@ -23,9 +23,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 - `ScanPageAgain.swift` (v1.3 i-1b): «Повторить» on a piece's «стр. N не распознана» (`RecognitionTag`,
   `RecognitionQueue.retryUnread`): only those pages go as a new job (`ScanServer.readJob`, followed and resumed as any
-  job), each read page put into the same notes at its place by `scan.insert` (`place(of:read:)`: after the pages the
-  notes have before it), the bars to check carried to the new fingerprint (`keepReview`'s "was"); the file written
-  (`RecognitionQueue.recognise(again:)`), then the job deleted; a page again unread keeps the line with «Повторить».
+  job), each read page put into the same notes at its place by `scan.insert` (`place(of:read:)`: after the PDF pages the
+  notes have before it, kept as `RecognitionItem.read` at the first read; the file read again once the job is done), the bars to check carried to the new fingerprint (`keepReview`'s "was"); the file written
+  (`RecognitionQueue.recognise(again:)`), then the job deleted; a page again unread keeps the line with «Повторить» and the reason (`RecognitionItem.reason`, «Не вставлено: …»).
 
 - `ScanCrops.swift` (v1.3 i-2, 0035 section 6): `ScanCrop` (a bar's evidence box on the server's turned image as a rect on the PDF page, and its turn), `ScanCrops.keepReview`, run by `readByJob` after `scan.join`: the Check bars' variants and crops cut from the PDF kept on this iPad (`ScanReviewStore`); nothing is sent. Tests: `ScanReviewTests`.
 
