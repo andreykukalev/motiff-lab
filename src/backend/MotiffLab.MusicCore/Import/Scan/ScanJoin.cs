@@ -138,6 +138,25 @@ public static class ScanJoin
         return Join(pages);
     }
 
+    /// <summary>
+    /// The score with <paramref name="musicXml"/>, a page read again after the others, put in as its page
+    /// <paramref name="page"/> (from 1; one past the last puts it at the end): split, put in, joined, so its first measure
+    /// keeps its own attributes and the measures after it are numbered on (v1.3 i-1b).
+    /// </summary>
+    /// <exception cref="ArgumentException">The place is not before, between or after the score's pages, or <see cref="Split"/> or <see cref="Join"/> fails.</exception>
+    public static byte[] Insert(byte[] score, int page, byte[] musicXml)
+    {
+        ArgumentNullException.ThrowIfNull(musicXml);
+        List<byte[]> pages = [.. Split(score)];
+        if (page < 1 || page > pages.Count + 1)
+        {
+            throw new ArgumentException($"The score has {pages.Count} pages, so a page goes in as page 1 to {pages.Count + 1}, not {page}.", nameof(page));
+        }
+
+        pages.Insert(page - 1, musicXml);
+        return Join(pages);
+    }
+
     /// <summary>The measures of a part, page by page, cut before each measure marked as starting a page.</summary>
     private static List<List<XElement>> PagesOf(XElement part)
     {

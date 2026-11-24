@@ -211,7 +211,7 @@ extension ScanServer {
     /// job (`kept` resumes one sent before, `keep` hears a new one's id to keep on the device), whose state is asked until
     /// it is done (`hear` hears each), its readings fetched once `ready` says so, and merged with the device's pages by
     /// music-core (`scan.join`); the merge's bars to check are kept on this iPad with their variants and crops
-    /// (`ScanCrops.keepReview`, v1.3 i-2). The job stays on the server: the caller deletes it once the notes are saved. Nil, before
+    /// (`ScanCrops.keepReview`, v1.3 i-2). The job (`readJob`) stays on the server: the caller deletes it once the notes are saved. Nil, before
     /// anything is sent, when the server takes no jobs: the caller sends the PDF to `/recognise` as before.
     static func readByJob(
         fileName: String, data: Data, pages: Int, to target: ScanTarget, job kept: ScanJobRecord? = nil,
@@ -223,21 +223,14 @@ extension ScanServer {
             guard case .success(let server) = await health(target.address, session: target.session), server.takesJobs else { return nil }
         }
         let plan = await ScanJobPlan.of(data, pages: pages)
-        var job = kept
-        if job == nil, !plan.server.isEmpty {
-            switch await submitJob(fileName: fileName, data: data, pages: plan.server, to: target) {
-            case .failure(let problem): return .failure(problem)
-            case .success(let id):
-                let made = ScanJobRecord(id: id, pages: plan.server)
-                keep(made)
-                job = made
-            }
-        }
         var read: [[String: Any]] = []
-        if let job {
-            switch await waitForJob(job, to: target, hear: hear, wanted: wanted, ready: ready, pause: pause) {
+        var job = kept
+        if kept != nil || !plan.server.isEmpty {
+            switch await readJob(fileName: fileName, data: data, pages: plan.server, to: target, job: kept, keep: keep, hear: hear, wanted: wanted, ready: ready, pause: pause) {
             case .failure(let problem): return .failure(problem)
-            case .success(let pages): read = pages
+            case .success(let done):
+                read = done.pages
+                job = done.job
             }
         }
         let text = UIText.current
@@ -250,8 +243,30 @@ extension ScanServer {
         }
         ScanCrops.keepReview(object, pages: joined.numbers, pdf: data)
         let engines = [plan.engine].compactMap { $0 } + joined.engines
-        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread)
+        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread, read: joined.numbers)
         return .success((result, job))
+    }
+
+    /// The PDF's `pages` read by a scan job: `kept`, one sent before, else a new one (`keep` hears its id to keep on the
+    /// device), asked until it is done (`hear` hears each state) and its pages fetched once `ready` says so: each page's
+    /// engines and evidence as `GET /jobs/{id}/result` gives them. The job stays on the server: the caller deletes it.
+    static func readJob(
+        fileName: String, data: Data, pages: [Int], to target: ScanTarget, job kept: ScanJobRecord?, keep: (ScanJobRecord) -> Void,
+        hear: (ScanJobStatus) -> Void, wanted: () -> Bool, ready: () async -> Bool,
+        pause: (Double) async -> Void = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
+    ) async -> Result<(pages: [[String: Any]], job: ScanJobRecord), ScanProblem> {
+        let job: ScanJobRecord
+        if let kept {
+            job = kept
+        } else {
+            switch await submitJob(fileName: fileName, data: data, pages: pages, to: target) {
+            case .failure(let problem): return .failure(problem)
+            case .success(let id):
+                job = ScanJobRecord(id: id, pages: pages)
+                keep(job)
+            }
+        }
+        return await waitForJob(job, to: target, hear: hear, wanted: wanted, ready: ready, pause: pause).map { read in (pages: read, job: job) }
     }
 
     /// `POST /jobs` with the pages to read: the job's id, or why not.

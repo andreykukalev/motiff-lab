@@ -61,11 +61,19 @@ struct ScanCrop: Equatable, Sendable {
 enum ScanCrops {
     /// The bars to check of a `scan.join` answer kept on this iPad (`ScanReviewStore`): each with its variants and its crop
     /// cut from `pdf`'s page, `pages` naming the PDF page of each of the answer's pages in order. Nothing is kept when the
-    /// answer has no bar to check or no fingerprint. Writes files; sends nothing.
+    /// answer has no bar to check or no fingerprint. A `scan.insert` answer (v1.3 i-1b) adds its page's bars to those kept
+    /// for the notes it went into ("was"), each from "firstBar" on moved on by its "bars", crops and all. Writes files; sends nothing.
     static func keepReview(_ answer: [String: Any], pages: [Int], pdf: Data, in root: URL = ScanReviewStore.root) {
         guard let fingerprint = answer["fingerprint"] as? String else { return }
         var bars: [ScanReview.Bar] = []
         var crops: [Int: Data] = [:]
+        if let was = answer["was"] as? String, let first = answer["firstBar"] as? Int, let put = answer["bars"] as? Int, let kept = ScanReviewStore.load(was, in: root) {
+            for bar in kept.bars {
+                let moved = bar.bar < first ? bar.bar : bar.bar + put
+                if bar.cropped, let png = ScanReviewStore.crop(was, bar: bar.bar, in: root) { crops[moved] = png }
+                bars.append(ScanReview.Bar(bar: moved, variants: bar.variants, cropped: crops[moved] != nil))
+            }
+        }
         let document = PDFDocument(data: pdf)
         for (index, page) in (answer["pages"] as? [[String: Any]] ?? []).enumerated() {
             let merge = page["merge"] as? [String: Any]

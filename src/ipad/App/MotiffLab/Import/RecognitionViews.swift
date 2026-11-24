@@ -27,7 +27,8 @@ extension EnvironmentValues {
     }
 }
 
-/// A piece's recognition on its line (import-ipad-5-status): «в очереди», «распознаётся», «есть ноты», «не вышло: …». While
+/// A piece's recognition on its line (import-ipad-5-status): «в очереди», «распознаётся», «есть ноты», «не вышло: …», and
+/// «есть ноты · стр. 3 не распознана» with «Повторить» for those pages only (v1.3 i-1b). While
 /// it is read, a small bar of its pages and the page being read, «распознаётся · стр. 2 из 3», as on the web (v0.5.6, #533
 /// section 1).
 @MainActor
@@ -42,6 +43,24 @@ struct RecognitionTag: View {
     }
 
     var body: some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            tag
+            // The pages no engine read go again on their own, into these same notes (v1.3 i-1b), and why they did not last time.
+            if item.state == .done, item.unread != nil {
+                if let reason = item.reason, !reason.isEmpty {
+                    Text(text.format("recognition.againWhy", reason))
+                        .dsType(.caption)
+                        .foregroundStyle(Color.ds("ink-2"))
+                        .lineLimit(2)
+                }
+                Button(text["recognition.retry"]) { queue.retryUnread(item.file) }
+                    .buttonStyle(DSButtonStyle(kind: .quiet))
+                    .accessibilityHint(text["recognition.retryPagesHint"])
+            }
+        }
+    }
+
+    private var tag: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             switch item.state {
             case .queued: Circle().strokeBorder(Color.ds("ink-3")).frame(width: 8, height: 8)

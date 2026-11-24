@@ -19,8 +19,19 @@ struct RecognitionItem: Codable, Equatable, Identifiable, Sendable {
     var job: ScanJobRecord?
     /// The pages no engine read, from 1: the notes have the others.
     var unread: [Int]?
+    /// The PDF pages the notes have, in order, from 1 (v1.3 i-1b): where a page read again goes among them.
+    var read: [Int]?
 
     var id: String { file }
+}
+
+/// What one piece's reading came to: the pages sent, those no engine read, the PDF pages the notes have, and why a page
+/// read again was not put in (v1.3 i-1b).
+struct RecognitionRead: Equatable {
+    var pages = 0
+    var unread: [Int] = []
+    var read: [Int] = []
+    var why: String?
 }
 
 /// How the batch follows one piece's scan job: the job kept from before, where a new one's id is kept, who hears its
@@ -128,6 +139,8 @@ final class RecognitionQueue: ObservableObject {
     var links = OriginalLinks.folder
     var projects: () -> URL = { ProjectFiles.folder }
     var defaults = UserDefaults.standard
+    /// What the scan jobs' requests go by: the app's session, a stub's in tests.
+    var session = URLSession.shared
     private var restored = false
     /// The project file of the piece open on screen. The batch leaves it queued and never writes it: closing the screen
     /// saves the piece over anything written meanwhile. It is read once the screen closes.
@@ -216,6 +229,16 @@ final class RecognitionQueue: ObservableObject {
         resume()
     }
 
+    /// «Повторить» on a piece's «стр. 3 не распознана» (v1.3 i-1b): only those pages are sent again, as a new scan job, and
+    /// put into its notes; the piece keeps its notes meanwhile.
+    func retryUnread(_ file: String) {
+        guard let index = batch?.items.firstIndex(where: { $0.file == file && $0.state == .done && $0.unread != nil }) else { return }
+        batch?.items[index].state = .queued
+        batch?.items[index].job = nil
+        batch?.items[index].reason = nil
+        resume()
+    }
+
     /// Stops: the pieces not read yet stay without notes; those read keep theirs. Their scan jobs are deleted on the server.
     func stop() {
         if let batch, let address = URL(string: batch.address), let account {
@@ -273,6 +296,7 @@ final class RecognitionQueue: ObservableObject {
                 projects().appendingPathComponent(file), address: address, account: account, links: links, folders: root,
                 progress: { [weak self] in self?.progress = (file, $0) },
                 job: follow(item, index: index, batch: current.id),
+                again: item.unread, read: item.read, session: session,
                 isOpen: { self.open == file }
             )
             if let timed = progress, timed.file == file { measured += timed.progress.milliseconds }
@@ -284,11 +308,15 @@ final class RecognitionQueue: ObservableObject {
                 batch?.items[index].state = .done
                 batch?.items[index].job = nil
                 batch?.items[index].unread = read.unread.isEmpty ? nil : read.unread
+                batch?.items[index].read = read.read
+                batch?.items[index].reason = read.why
                 if current.hosted, let player = account.player { DailyPages.add(read.pages, player: player, defaults: defaults) }
             case .failure(let failure) where failure.open:
                 batch?.items[index].state = .queued
             case .failure(let failure):
-                batch?.items[index].state = failure.stop == nil ? .failed : .queued
+                // Pages read again that did not work leave the piece with its notes and the line with «Повторить» (v1.3 i-1b).
+                let again = item.unread != nil
+                batch?.items[index].state = failure.stop == nil ? (again ? .done : .failed) : .queued
                 batch?.items[index].reason = failure.stop == nil ? failure.reason : nil
                 // A job that did not work is no longer waited for; one the batch stopped at is asked again on «Продолжить».
                 if failure.stop == nil, let sent = batch?.items[index].job {
@@ -334,13 +362,19 @@ final class RecognitionQueue: ObservableObject {
     /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
     /// ноты» on its PDF does: the pages sent and those no engine read, or why not. `isOpen` says, just before the notes
     /// are written, whether the piece is open on screen now; `progress` hears as each page is sent and read; `job`, the scan
-    /// job it is read by (version 1.3), deleted on the server once the notes are written.
-    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, job: RecognitionJob? = nil, isOpen: () -> Bool) async -> Result<(pages: Int, unread: [Int]), RecognitionFailure> {
+    /// job it is read by (version 1.3), deleted on the server once the notes are written, its requests going by `session`;
+    /// `again`, the pages of a piece with notes no engine read, read again into its notes (v1.3 i-1b).
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, job: RecognitionJob? = nil, again unread: [Int]? = nil, read notes: [Int]? = nil, session: URLSession = .shared, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
             return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
         }
-        if summary.hasNotes { return .success((0, [])) }
+        if summary.hasNotes {
+            guard let unread, !unread.isEmpty else { return .success(RecognitionRead()) }
+            guard let job, let notes else { return .failure(RecognitionFailure(reason: text["pdf.readNone"])) }
+            let pages = max(1, summary.originals.first(where: \.isDocument)?.pages ?? summary.documentPages.count)
+            return await readAgain(unread, read: notes, pages: pages, url: url, project: project, to: ScanTarget(address: address, account: account, session: session), text: text, job: job, isOpen: isOpen)
+        }
         var pdf: Data?
         if AwayPdf.isAway(summary) {
             switch await AwayPdf.read(url, summary, links: links, folders: folders) {
@@ -352,12 +386,12 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, address: address, account: account, text: text, progress: progress, job: job, isOpen: isOpen)
+        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, isOpen: isOpen)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<(pages: Int, unread: [Int]), RecognitionFailure> {
+    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
@@ -367,11 +401,11 @@ final class RecognitionQueue: ObservableObject {
         var sent: ScanJobRecord?
         let scanning: Result<ScanResult, ScanProblem>
         if let job, pages <= ScanParts.mostPages,
-           let byJob = await ScanServer.readByJob(fileName: name, data: data, pages: pages, to: ScanTarget(address: address, account: account), job: job.kept, keep: job.keep, hear: job.hear, wanted: job.wanted, ready: job.ready) {
+           let byJob = await ScanServer.readByJob(fileName: name, data: data, pages: pages, to: target, job: job.kept, keep: job.keep, hear: job.hear, wanted: job.wanted, ready: job.ready) {
             scanning = byJob.map { $0.result }
             if case .success(let read) = byJob { sent = read.job }
         } else {
-            scanning = await ScanServer.recognise(fileName: name, data: data, address: address, account: account, progress: progress)
+            scanning = await ScanServer.recognise(fileName: name, data: data, address: target.address, account: target.account, progress: progress)
         }
         switch scanning {
         case .failure(.stopped):
@@ -391,8 +425,38 @@ final class RecognitionQueue: ObservableObject {
                 return .failure(RecognitionFailure(reason: error.localizedDescription))
             }
             // Saved: the job goes from the server now, not after its 10 minutes' grace (lead's decision, version 1.3).
-            if let sent { await ScanServer.deleteJob(sent.id, to: ScanTarget(address: address, account: account)) }
-            return .success((pages, scanned.unread))
+            if let sent { await ScanServer.deleteJob(sent.id, to: target) }
+            return .success(RecognitionRead(pages: pages, unread: scanned.unread, read: scanned.read))
+        }
+    }
+
+    /// The pages of a piece with notes no engine read, read again and put into its notes (`ScanPageAgain`, v1.3 i-1b), its
+    /// PDF of `pages` pages having `read` in the notes: the file written unless the piece is open on screen now, then the job
+    /// deleted; the pages sent, those still unread and why.
+    private static func readAgain(_ unread: [Int], read notes: [Int], pages: Int, url: URL, project: Data, to target: ScanTarget, text: UIText, job: RecognitionJob, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+        guard case .success(let open) = await OpenPiece.open(fileName: url.lastPathComponent, data: project, language: text.language, asPdf: true), open.isDocument else {
+            return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
+        }
+        let piece = open.id
+        let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
+        _ = await MusicCore.run { MusicCore.close(piece: piece) }
+        guard let base64 = facadeObject(document)?["pdf"] as? String, let data = Data(base64Encoded: base64) else {
+            return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
+        }
+        switch await ScanPageAgain.read(unread, read: notes, pages: pages, file: url, pdf: data, to: target, job: job, text: text) {
+        case .failure(.stopped):
+            return .failure(RecognitionFailure(reason: "", open: true))
+        case .failure(let problem):
+            return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
+        case .success(let outcome):
+            if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
+            do {
+                try Data(outcome.file.utf8).write(to: url, options: .atomic)
+            } catch {
+                return .failure(RecognitionFailure(reason: error.localizedDescription))
+            }
+            await ScanServer.deleteJob(outcome.job.id, to: target)
+            return .success(RecognitionRead(pages: unread.count, unread: outcome.unread, read: outcome.read, why: outcome.why))
         }
     }
 

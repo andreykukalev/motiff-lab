@@ -21,7 +21,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// "fingerprint" (the SHA-256 of the score as its Notes keep it, as `check` answers it) and a bar to check's "variants" and
 /// "crop"; fields added.
 /// </summary>
-internal static class ScanRequest
+internal static partial class ScanRequest
 {
     /// <summary>
     /// {"pages": [MusicXML text, one per page]} or {"score": a joined score, "replace": [{"page", "musicxml"}]} for pages read
@@ -55,26 +55,7 @@ internal static class ScanRequest
             json.WriteStartArray("pages");
             for (int page = 1; page <= pages.Count; page++)
             {
-                ScanBar[] bars = [.. check.Bars.Where(bar => map.PageOf(bar.Span.Onset) == page)];
-                json.WriteStartObject();
-                json.WriteNumber("page", page);
-                json.WriteNumber("bars", bars.Length);
-                json.WriteNumber("doubtful", bars.Count(static bar => bar.Confidence < ScanCheck.CleanConfidence));
-                if (reports is null)
-                {
-                    json.WriteNull("quality");
-                }
-                else
-                {
-                    json.WriteString("quality", JsonNamingPolicy.CamelCase.ConvertName(reports[page - 1].Quality.ToString()));
-                }
-
-                if (merged.TryGetValue(page, out ScanMergedPage? readings))
-                {
-                    Merge(json, readings, bars);
-                }
-
-                json.WriteEndObject();
+                Page(json, page, [.. check.Bars.Where(bar => map.PageOf(bar.Span.Onset) == page)], reports?[page - 1], merged.GetValueOrDefault(page));
             }
 
             json.WriteEndArray();
@@ -130,6 +111,30 @@ internal static class ScanRequest
 
             json.WriteEndArray();
         });
+    }
+
+    /// <summary>One page of the answer: its number, its bars and how many are doubtful, its quality, and its merge when it was merged.</summary>
+    private static void Page(Utf8JsonWriter json, int page, ScanBar[] bars, PageReport? report, ScanMergedPage? merged)
+    {
+        json.WriteStartObject();
+        json.WriteNumber("page", page);
+        json.WriteNumber("bars", bars.Length);
+        json.WriteNumber("doubtful", bars.Count(static bar => bar.Confidence < ScanCheck.CleanConfidence));
+        if (report is null)
+        {
+            json.WriteNull("quality");
+        }
+        else
+        {
+            json.WriteString("quality", JsonNamingPolicy.CamelCase.ConvertName(report.Quality.ToString()));
+        }
+
+        if (merged is not null)
+        {
+            Merge(json, merged, bars);
+        }
+
+        json.WriteEndObject();
     }
 
     /// <summary>A merged page's engines and each of its bars' level and the engines that gave each staff.</summary>
@@ -279,7 +284,7 @@ internal static class ScanRequest
 
             IReadOnlyList<JsonElement> pages = fields.Elements("pages");
             return pages.Count > 0
-                ? ScanJoin.Join([.. pages.Select((page, index) => Page(page, index + 1, merged))])
+                ? ScanJoin.Join([.. pages.Select((page, index) => Read(page, index + 1, merged))])
                 : throw FacadeException.BadRequest("Send \"pages\", the MusicXML read from each page, or \"score\".");
         }
         catch (ArgumentException exception)
@@ -292,7 +297,7 @@ internal static class ScanRequest
     /// One page of "pages": its MusicXML, or its readings [{"engine", "musicxml"}] merged, or {"readings": those, "evidence":
     /// the page's evidence as the scan server gives it (optional)} merged with the evidence (<see cref="ScanEvidence"/>).
     /// </summary>
-    private static byte[] Page(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged)
+    private static byte[] Read(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged)
     {
         if (page.ValueKind == JsonValueKind.String)
         {
