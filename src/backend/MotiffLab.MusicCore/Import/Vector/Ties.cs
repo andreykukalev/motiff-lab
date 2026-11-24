@@ -27,11 +27,9 @@ internal static class Ties
     {
         double space = staff.Space;
         // A tie from a dotted note starts after its dots, as Sibelius prints it: further from the head than from an undotted one.
-        var dotted = new Dictionary<PlacedGlyph, double>();
-        foreach (VectorEvent item in events.Where(item => item.DotsRight is not null))
-        {
-            item.Heads.ForEach(head => dotted.TryAdd(head, item.DotsRight!.Value));
-        }
+        Dictionary<PlacedGlyph, double> dotted = events.Where(item => item.DotsRight is not null)
+            .SelectMany(item => item.Heads.Select(head => (Head: head, After: item.DotsRight!.Value)))
+            .DistinctBy(pair => pair.Head).ToDictionary(pair => pair.Head, pair => pair.After);
 
         var map = new TieMap();
         foreach (Curve curve in curves.Where(curve => curve.Right - curve.Left > 0.8 * space && curve.Bottom - curve.Top < 2 * space

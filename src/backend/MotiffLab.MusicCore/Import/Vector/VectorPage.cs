@@ -170,7 +170,7 @@ internal sealed class VectorPage
     /// </summary>
     internal static PlacedGlyph Placed(MusicGlyph glyph, MusicFonts.Family family, Letter letter, double height) =>
         new(glyph, letter.StartBaseLine.X, height - letter.StartBaseLine.Y, letter.PointSize,
-            family == MusicFonts.Family.Legacy ? letter.BoundingBox.Right : letter.EndBaseLine.X);
+            family.IsLegacy() ? letter.BoundingBox.Right : letter.EndBaseLine.X);
 
     private void Add(PdfPath path)
     {

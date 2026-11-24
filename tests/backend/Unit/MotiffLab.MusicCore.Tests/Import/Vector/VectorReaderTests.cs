@@ -96,6 +96,13 @@ public class VectorReaderTests
     [InlineData("ABCDEF+Petrucci-0-50", "Legacy")]
     [InlineData("OpusTextStd", "None")]
     [InlineData("Tamburo", "Unknown")]
+    [InlineData("ABCDEF+OpusChordsStd", "Unknown")]
+    [InlineData("Opus Roman Chords", "Unknown")]
+    [InlineData("OpusFiguredBassStd", "Unknown")]
+    [InlineData("OpusFunctionSymbolsStd", "Unknown")]
+    [InlineData("OpusPercussionStd", "Unknown")]
+    [InlineData("ABCDEF+OpusSpecialStd", "LegacySpecial")]
+    [InlineData("HelsinkiSpecialStd", "LegacySpecial")]
     [InlineData("TimesNewRomanPSMT", "None")]
     public void A_font_is_known_by_its_name(string font, string family) => Assert.Equal(family, MusicFonts.Of(font).ToString());
 

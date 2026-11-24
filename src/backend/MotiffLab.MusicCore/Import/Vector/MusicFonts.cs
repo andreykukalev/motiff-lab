@@ -25,6 +25,12 @@ internal static class MusicFonts
 
         /// <summary>A legacy font of Sibelius or Finale (Opus, Petrucci, Maestro and their family), in Maestro's layout.</summary>
         Legacy,
+
+        /// <summary>
+        /// A legacy font's companion of special symbols (Opus Special, Helsinki Special), not in Maestro's layout: only its
+        /// augmentation dot is read, so none of its characters can change a pitch or a meter.
+        /// </summary>
+        LegacySpecial,
     }
 
     private static readonly string[] s_smufl = ["Bravura", "Leland", "Petaluma", "FinaleMaestro", "FinaleBroadway", "FinaleJazz", "FinaleAsh", "FinaleEngraver", "FinaleLegacy", "MuseJazz", "Sebastian", "Gootville", "Leipzig"];
@@ -32,6 +38,10 @@ internal static class MusicFonts
     private static readonly string[] s_legacy = ["Petrucci", "Maestro", "Opus", "Helsinki", "Engraver", "Jazz", "Reprise", "Inkpen", "Broadway", "Sonata", "Golden", "November"];
 
     private static readonly string[] s_unknownMusic = ["Tamburo"];
+
+    // A legacy font's companions of chord symbols, figured bass, function symbols and percussion print letters and digits
+    // where Maestro's layout has clefs, meters and accidentals: not read, as Tamburo.
+    private static readonly string[] s_legacyCompanions = ["Chord", "Figured", "Function", "Percussion"];
 
     /// <summary>The family of a PDF font, from its base name without the subset prefix ("ABCDEF+MScoreRegular").</summary>
     public static Family Of(string fontName)
@@ -65,7 +75,17 @@ internal static class MusicFonts
             return Family.Unknown;
         }
 
-        return s_legacy.Any(family => squeezed.Contains(family, StringComparison.OrdinalIgnoreCase)) ? Family.Legacy : Family.None;
+        if (!s_legacy.Any(family => squeezed.Contains(family, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Family.None;
+        }
+
+        if (s_legacyCompanions.Any(companion => squeezed.Contains(companion, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Family.Unknown;
+        }
+
+        return squeezed.Contains("Special", StringComparison.OrdinalIgnoreCase) ? Family.LegacySpecial : Family.Legacy;
     }
 
     /// <summary>
@@ -76,8 +96,12 @@ internal static class MusicFonts
     {
         Family.MScore => s_mscore.GetValueOrDefault(codePoint, MusicGlyph.Other),
         Family.Legacy => s_legacyCodes.GetValueOrDefault(codePoint is >= 0xF020 and <= 0xF0FF ? codePoint - 0xF000 : codePoint, MusicGlyph.Other),
+        Family.LegacySpecial => ByCodePoint(Family.Legacy, codePoint) is MusicGlyph.AugmentationDot ? MusicGlyph.AugmentationDot : MusicGlyph.Other,
         _ => s_smuflCodes.GetValueOrDefault(codePoint, MusicGlyph.Other),
     };
+
+    /// <summary>Whether a family is a legacy font of Sibelius or Finale, whose advance runs wider than its glyphs.</summary>
+    public static bool IsLegacy(this Family family) => family is Family.Legacy or Family.LegacySpecial;
 
     /// <summary>The symbol of an Emmentaler glyph name, as LilyPond names it ("noteheads.s2"); <see cref="MusicGlyph.Other"/> for one not read.</summary>
     public static MusicGlyph ByEmmentalerName(string name) => s_emmentaler.GetValueOrDefault(name, MusicGlyph.Other);

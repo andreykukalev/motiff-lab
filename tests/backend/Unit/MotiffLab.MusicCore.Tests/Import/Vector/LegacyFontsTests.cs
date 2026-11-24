@@ -9,8 +9,9 @@ namespace MotiffLab.MusicCore.Tests.Import.Vector;
 
 /// <summary>
 /// The legacy music fonts of Sibelius and Finale (Opus, Petrucci and their family): their characters in Maestro's layout,
-/// also at the symbol font's 0xF0xx codes, the right edge of the glyph drawn rather than of its advance, and a tie that
-/// starts after a dotted note's dot. Synthetic glyphs, as the reader's own page holds them.
+/// also at the symbol font's 0xF0xx codes, only the dots of their fonts of special symbols, the right edge of the glyph
+/// drawn rather than of its advance, and a tie that starts after a dotted note's dot. Synthetic glyphs, as the reader's own
+/// page holds them.
 /// </summary>
 public class LegacyFontsTests
 {
@@ -29,12 +30,22 @@ public class LegacyFontsTests
     }
 
     [Fact]
+    public void A_legacy_font_of_special_symbols_gives_only_its_dots()
+    {
+        Assert.Equal(MusicGlyph.AugmentationDot, MusicFonts.ByCodePoint(MusicFonts.Family.LegacySpecial, 0x2122));
+        Assert.Equal(MusicGlyph.AugmentationDot, MusicFonts.ByCodePoint(MusicFonts.Family.LegacySpecial, 0xF02E));
+        // Its characters where Maestro's layout has a notehead, a clef, a meter or an accidental are not those.
+        Assert.All([0xCF, 0xF0CF, '&', '?', '4', 'C', 'b', '#'], code => Assert.Equal(MusicGlyph.Other, MusicFonts.ByCodePoint(MusicFonts.Family.LegacySpecial, code)));
+    }
+
+    [Fact]
     public void A_legacy_glyph_ends_where_it_is_drawn_and_another_where_its_advance_ends()
     {
         // An Opus notehead: drawn 6.2 pt wide, advancing 7.6 pt.
         Letter head = Letter("", "ABCDEF+Opus", left: 100, drawnRight: 106.2, advanceRight: 107.6);
 
         Assert.Equal(106.2, VectorPage.Placed(MusicGlyph.NoteheadBlack, MusicFonts.Family.Legacy, head, 842).Right, 3);
+        Assert.Equal(106.2, VectorPage.Placed(MusicGlyph.AugmentationDot, MusicFonts.Family.LegacySpecial, head, 842).Right, 3);
         Assert.Equal(107.6, VectorPage.Placed(MusicGlyph.NoteheadBlack, MusicFonts.Family.Smufl, head, 842).Right, 3);
         Assert.Equal(842 - 700, VectorPage.Placed(MusicGlyph.NoteheadBlack, MusicFonts.Family.Legacy, head, 842).Y, 3);
     }
