@@ -92,7 +92,10 @@ public class VectorReaderTests
     [InlineData("MScore", "MScore")]
     [InlineData("Bravura", "Smufl")]
     [InlineData("Bravura Text", "None")]
-    [InlineData("Opus Std", "Unknown")]
+    [InlineData("Opus Std", "Legacy")]
+    [InlineData("ABCDEF+Petrucci-0-50", "Legacy")]
+    [InlineData("OpusTextStd", "None")]
+    [InlineData("Tamburo", "Unknown")]
     [InlineData("TimesNewRomanPSMT", "None")]
     public void A_font_is_known_by_its_name(string font, string family) => Assert.Equal(family, MusicFonts.Of(font).ToString());
 

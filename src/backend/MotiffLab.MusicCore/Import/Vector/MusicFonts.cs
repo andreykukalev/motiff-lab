@@ -5,8 +5,9 @@ namespace MotiffLab.MusicCore.Import.Vector;
 /// <summary>
 /// The music fonts the vector reader knows (decision record 0029), each with how its glyphs are named: SMuFL fonts by
 /// their standard code points, MuseScore 2's MScore by its own private-use code points (its font's glyphnames.json),
-/// LilyPond's Emmentaler by the glyph names its embedded font keeps. A font of another notation program is not known:
-/// its page is read by the scan server instead.
+/// LilyPond's Emmentaler by the glyph names its embedded font keeps, the legacy fonts of Sibelius and Finale by the
+/// characters of Maestro's layout, which they share. A font of another notation program is not known: its page is read by
+/// the scan server instead.
 /// </summary>
 internal static class MusicFonts
 {
@@ -16,16 +17,21 @@ internal static class MusicFonts
         /// <summary>Not a music font: text, lyrics, titles.</summary>
         None,
 
-        /// <summary>A music font the reader cannot read yet (a legacy font of Sibelius or Finale, for example).</summary>
+        /// <summary>A music font the reader cannot read yet (Sibelius's percussion font Tamburo, for example).</summary>
         Unknown,
         Smufl,
         MScore,
         Emmentaler,
+
+        /// <summary>A legacy font of Sibelius or Finale (Opus, Petrucci, Maestro and their family), in Maestro's layout.</summary>
+        Legacy,
     }
 
     private static readonly string[] s_smufl = ["Bravura", "Leland", "Petaluma", "FinaleMaestro", "FinaleBroadway", "FinaleJazz", "FinaleAsh", "FinaleEngraver", "FinaleLegacy", "MuseJazz", "Sebastian", "Gootville", "Leipzig"];
 
-    private static readonly string[] s_unknownMusic = ["Petrucci", "Maestro", "Opus", "Helsinki", "Engraver", "Jazz", "Reprise", "Inkpen", "Broadway", "Tamburo", "Sonata", "Golden", "November"];
+    private static readonly string[] s_legacy = ["Petrucci", "Maestro", "Opus", "Helsinki", "Engraver", "Jazz", "Reprise", "Inkpen", "Broadway", "Sonata", "Golden", "November"];
+
+    private static readonly string[] s_unknownMusic = ["Tamburo"];
 
     /// <summary>The family of a PDF font, from its base name without the subset prefix ("ABCDEF+MScoreRegular").</summary>
     public static Family Of(string fontName)
@@ -54,12 +60,24 @@ internal static class MusicFonts
             return Family.Smufl;
         }
 
-        return s_unknownMusic.Any(family => squeezed.Contains(family, StringComparison.OrdinalIgnoreCase)) ? Family.Unknown : Family.None;
+        if (s_unknownMusic.Any(family => squeezed.Contains(family, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Family.Unknown;
+        }
+
+        return s_legacy.Any(family => squeezed.Contains(family, StringComparison.OrdinalIgnoreCase)) ? Family.Legacy : Family.None;
     }
 
-    /// <summary>The symbol of a code point in a SMuFL font or MuseScore 2's MScore; <see cref="MusicGlyph.Other"/> for one not read.</summary>
-    public static MusicGlyph ByCodePoint(Family family, int codePoint) =>
-        (family == Family.MScore ? s_mscore : s_smuflCodes).GetValueOrDefault(codePoint, MusicGlyph.Other);
+    /// <summary>
+    /// The symbol of a code point in a SMuFL font, MuseScore 2's MScore or a legacy font; <see cref="MusicGlyph.Other"/> for
+    /// one not read. A legacy font embedded as a symbol font gives its characters at 0xF000 and up (0xF0CF for 0xCF).
+    /// </summary>
+    public static MusicGlyph ByCodePoint(Family family, int codePoint) => family switch
+    {
+        Family.MScore => s_mscore.GetValueOrDefault(codePoint, MusicGlyph.Other),
+        Family.Legacy => s_legacyCodes.GetValueOrDefault(codePoint is >= 0xF020 and <= 0xF0FF ? codePoint - 0xF000 : codePoint, MusicGlyph.Other),
+        _ => s_smuflCodes.GetValueOrDefault(codePoint, MusicGlyph.Other),
+    };
 
     /// <summary>The symbol of an Emmentaler glyph name, as LilyPond names it ("noteheads.s2"); <see cref="MusicGlyph.Other"/> for one not read.</summary>
     public static MusicGlyph ByEmmentalerName(string name) => s_emmentaler.GetValueOrDefault(name, MusicGlyph.Other);
@@ -164,6 +182,50 @@ internal static class MusicFonts
         [0xE10C] = MusicGlyph.Rest64th,
         [0xE102] = MusicGlyph.RestWhole,
         [0xE103] = MusicGlyph.RestHalf,
+    }.ToFrozenDictionary();
+
+    // The legacy fonts of Sibelius and Finale (Opus, Petrucci, Maestro, ...), by the characters of Maestro's layout they
+    // share; the dot of Opus Special comes as the trademark sign.
+    private static readonly FrozenDictionary<int, MusicGlyph> s_legacyCodes = new Dictionary<int, MusicGlyph>
+    {
+        ['&'] = MusicGlyph.ClefG,
+        ['V'] = MusicGlyph.ClefG8vb,
+        ['B'] = MusicGlyph.ClefC,
+        ['?'] = MusicGlyph.ClefF,
+        ['0'] = MusicGlyph.TimeSig0,
+        ['1'] = MusicGlyph.TimeSig1,
+        ['2'] = MusicGlyph.TimeSig2,
+        ['3'] = MusicGlyph.TimeSig3,
+        ['4'] = MusicGlyph.TimeSig4,
+        ['5'] = MusicGlyph.TimeSig5,
+        ['6'] = MusicGlyph.TimeSig6,
+        ['7'] = MusicGlyph.TimeSig7,
+        ['8'] = MusicGlyph.TimeSig8,
+        ['9'] = MusicGlyph.TimeSig9,
+        ['c'] = MusicGlyph.TimeSigCommon,
+        ['C'] = MusicGlyph.TimeSigCut,
+        ['W'] = MusicGlyph.NoteheadDoubleWhole,
+        ['w'] = MusicGlyph.NoteheadWhole,
+        [0xFA] = MusicGlyph.NoteheadHalf,
+        [0xCF] = MusicGlyph.NoteheadBlack,
+        ['.'] = MusicGlyph.AugmentationDot,
+        ['k'] = MusicGlyph.AugmentationDot,
+        [0x2122] = MusicGlyph.AugmentationDot,
+        ['J'] = MusicGlyph.Flag8thUp,
+        ['j'] = MusicGlyph.Flag8thDown,
+        ['R'] = MusicGlyph.Flag16thUp,
+        ['r'] = MusicGlyph.Flag16thDown,
+        ['b'] = MusicGlyph.AccidentalFlat,
+        ['n'] = MusicGlyph.AccidentalNatural,
+        ['#'] = MusicGlyph.AccidentalSharp,
+        [0xDC] = MusicGlyph.AccidentalDoubleSharp,
+        [0xBA] = MusicGlyph.AccidentalDoubleFlat,
+        [0xB7] = MusicGlyph.RestWhole,
+        [0xE3] = MusicGlyph.RestHalf,
+        [0xCE] = MusicGlyph.RestQuarter,
+        [0xE4] = MusicGlyph.Rest8th,
+        [0xC5] = MusicGlyph.Rest16th,
+        [0xA8] = MusicGlyph.Rest32nd,
     }.ToFrozenDictionary();
 
     // LilyPond's Emmentaler, by the glyph names its subset keeps in the PDF.
