@@ -68,7 +68,7 @@ The release (`rg-motifflab`):
 
 1. Before the release pull request: `az deployment group create --resource-group rg-motifflab --name scan-base --template-file infra/scan-base.bicep` (new setups: `setup.ps1` does it).
 2. Right before approving the `Scan server` deploy from `main`: `az containerapp delete --resource-group rg-motifflab --name ca-motifflab-scan --yes`; then approve.
-3. `gh variable set SCAN_URL --body <the address in the run's summary>`, and `Account.Scan` in `Account.json` becomes it. iPad builds with the old address cannot scan until they are updated.
+3. `gh variable set SCAN_URL --body <the address>`, and `Account.Scan` in `Account.json` becomes it. The address is known once the base is deployed (step 1: `https://ca-motifflab-scan.<defaultDomain of cae-motifflab-scan>`, the deployment's `scanUrl` output), so the `Account.json` change can go into the release pull request itself. iPad builds with the old address cannot scan until they are updated.
 
 ## The develop environment
 
