@@ -407,7 +407,7 @@ struct RecognitionLayer: ViewModifier {
             .task(id: on) {
                 guard on else { return }
                 RecognitionQueue.shared.account = account
-                RecognitionQueue.shared.restore()
+                RecognitionQueue.shared.restoreAndFollowJobs()
                 ImportRunner.shared.added = { url in
                     guard let offer = RecognitionOffer.of(account), offer.allowed else { return }
                     Task { await RecognitionQueue.shared.append(url, address: offer.address, hosted: offer.hosted) }

@@ -190,8 +190,6 @@ final class ScanServer: ObservableObject {
                 let engine = http?.value(forHTTPHeaderField: "X-Engine") ?? "unknown engine"
                 let pages = Int(http?.value(forHTTPHeaderField: "X-Pages") ?? "") ?? 1
                 return (.success(ScanResult(musicXml: answer, engine: engine, pages: pages, report: report)), report)
-            case 403 where hostedServer:
-                return (.failure(.needsPro), nil)
             case let status:
                 return (.failure(problem(status, answer, hosted: hostedServer, engine: engine)), report)
             }
@@ -245,6 +243,8 @@ final class ScanServer: ObservableObject {
 struct ScanTarget {
     let address: URL
     let account: Account
+    /// What the job's requests go by: the app's session, a stub's in tests.
+    var session = URLSession.shared
 
     var hosted: Bool { address == ScanServer.hosted(account) }
 

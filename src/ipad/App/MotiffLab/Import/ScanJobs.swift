@@ -37,12 +37,13 @@ struct ScanHealth: Equatable, Sendable {
     var takesJobs: Bool { !secondsPerPage.isEmpty }
 
     /// About how many minutes `pages` pages take there, at least one: every engine reads each page, after the units already
-    /// queued (each at the engines' mean time), as many at once as the server reads; nil for no page or no timed engine.
+    /// queued (each at the engines' mean time), as many at once as the server reads, and never less than its slowest
+    /// engine takes for a page; nil for no page or no timed engine.
     func minutes(pages: Int) -> Int? {
-        guard pages > 0, takesJobs else { return nil }
+        guard pages > 0, takesJobs, let slowest = secondsPerPage.values.max() else { return nil }
         let all = secondsPerPage.values.reduce(0, +)
         let ahead = Double(queue) * all / Double(secondsPerPage.count)
-        let seconds = (Double(pages) * all + ahead) / Double(workers)
+        let seconds = max(slowest, (Double(pages) * all + ahead) / Double(workers))
         return max(1, Int((seconds / 60).rounded(.up)))
     }
 }
@@ -101,6 +102,8 @@ struct ScanJobRecord: Codable, Equatable, Sendable {
 struct ScanJobPlan: Sendable {
     /// Page number to its MusicXML, read on the device.
     var device: [Int: String] = [:]
+    /// Page number to its page report as the vector reader wrote it (`X-Page-Report`'s form), for the pages read here.
+    var reports: [Int: String] = [:]
     /// The vector reader's name ("vector 1"), when it read a page.
     var engine: String?
     var server: [Int] = []
@@ -112,6 +115,7 @@ struct ScanJobPlan: Sendable {
         for page in vector.pages {
             if let musicXml = page.musicXml {
                 plan.device[page.number] = musicXml
+                plan.reports[page.number] = page.report
             } else if page.kind == "scan" {
                 plan.server.append(page.number)
             }
@@ -143,6 +147,11 @@ enum ScanJobs {
         return names.sorted { (engineOrder.firstIndex(of: $0) ?? last, $0) < (engineOrder.firstIndex(of: $1) ?? last, $1) }
     }
 
+    /// A status a job's state is asked again after: the server busy (429) or failing (5xx).
+    static func isMiss(_ status: Int) -> Bool {
+        status == 429 || (500..<600).contains(status)
+    }
+
     /// The seconds before a job's state is asked again (spec part 2a: every 2–3 s while the app is open): 2.5 s while the
     /// server answers, twice as long after each ask in a row it did not answer, at most a minute.
     static func pause(misses: Int) -> Double {
@@ -152,9 +161,12 @@ enum ScanJobs {
     /// `scan.join`'s pages (forms of c-1a and c-1b) from the pages read on the device and a job's result: each page in
     /// order, as its MusicXML when read here, else as the readings of the engines that read it, with the page's evidence when
     /// the server gave one. A page no engine read is left out, as «Авто» leaves out a page with no music, and named in
-    /// `unread`; `engines` names the engines that read, with their versions, as they first come.
-    static func joined(device: [Int: String], server: [[String: Any]]) -> (pages: [Any], engines: [String], unread: [Int]) {
+    /// `unread`; `engines` names the engines that read, with their versions, as they first come. `reports` gives each page
+    /// joined its page report, as `/recognise` and «Авто» pass them on: the device's, else that of the first engine in
+    /// order that read it; nil unless every page has one.
+    static func joined(device: [Int: String], reports deviceReports: [Int: String] = [:], server: [[String: Any]]) -> (pages: [Any], engines: [String], unread: [Int], reports: [String]?) {
         var pages: [Int: Any] = device.mapValues { $0 as Any }
+        var reports = deviceReports
         var engines: [String] = []
         var unread: [Int] = []
         for entry in server.sorted(by: { ($0["page"] as? Int ?? 0) < ($1["page"] as? Int ?? 0) }) {
@@ -164,6 +176,10 @@ enum ScanJobs {
             for name in ordered(read.keys) {
                 guard let reading = read[name], reading["state"] as? String == "read", let musicXml = reading["musicxml"] as? String else { continue }
                 readings.append(["engine": name, "musicxml": musicXml])
+                if reports[number] == nil, let report = reading["report"] as? [String: Any],
+                   let written = try? JSONSerialization.data(withJSONObject: [report], options: [.sortedKeys]) {
+                    reports[number] = String(decoding: written, as: UTF8.self)
+                }
                 let named = [name, reading["version"] as? String].compactMap { $0 }.joined(separator: " ")
                 if !engines.contains(named) { engines.append(named) }
             }
@@ -175,7 +191,9 @@ enum ScanJobs {
             if let evidence = entry["evidence"] { page["evidence"] = evidence }
             pages[number] = page
         }
-        return (pages.keys.sorted().compactMap { pages[$0] }, engines, unread.sorted())
+        let order = pages.keys.sorted()
+        let told = order.compactMap { reports[$0] }
+        return (order.compactMap { pages[$0] }, engines, unread.sorted(), told.count == order.count ? told : nil)
     }
 }
 
@@ -197,10 +215,11 @@ extension ScanServer {
     static func readByJob(
         fileName: String, data: Data, pages: Int, to target: ScanTarget, job kept: ScanJobRecord? = nil,
         keep: (ScanJobRecord) -> Void = { _ in }, hear: (ScanJobStatus) -> Void = { _ in },
-        wanted: () -> Bool = { !Task.isCancelled }, ready: () async -> Bool = { !Task.isCancelled }
+        wanted: () -> Bool = { !Task.isCancelled }, ready: () async -> Bool = { !Task.isCancelled },
+        pause: (Double) async -> Void = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) async -> Result<(result: ScanResult, job: ScanJobRecord?), ScanProblem>? {
         if kept == nil {
-            guard case .success(let server) = await health(target.address), server.takesJobs else { return nil }
+            guard case .success(let server) = await health(target.address, session: target.session), server.takesJobs else { return nil }
         }
         let plan = await ScanJobPlan.of(data, pages: pages)
         var job = kept
@@ -215,13 +234,13 @@ extension ScanServer {
         }
         var read: [[String: Any]] = []
         if let job {
-            switch await waitForJob(job, to: target, hear: hear, wanted: wanted, ready: ready) {
+            switch await waitForJob(job, to: target, hear: hear, wanted: wanted, ready: ready, pause: pause) {
             case .failure(let problem): return .failure(problem)
             case .success(let pages): read = pages
             }
         }
         let text = UIText.current
-        let joined = ScanJobs.joined(device: plan.device, server: read)
+        let joined = ScanJobs.joined(device: plan.device, reports: plan.reports, server: read)
         guard !joined.pages.isEmpty else { return .failure(.server(text["pdf.readNone"])) }
         let json = facadeRequest(["pages": joined.pages])
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
@@ -229,7 +248,7 @@ extension ScanServer {
             return .failure(.server(text["import.scanPagesNotJoined"]))
         }
         let engines = [plan.engine].compactMap { $0 } + joined.engines
-        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, unread: joined.unread)
+        let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread)
         return .success((result, job))
     }
 
@@ -243,12 +262,11 @@ extension ScanServer {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         guard await target.sign(&request) else { return .failure(.signIn) }
         request.httpBody = form([("pages", pages.map(String.init).joined(separator: ","))], fileName: fileName, data: data, boundary: boundary)
-        switch await send(request, to: target) {
+        switch answered(await send(request, to: target), to: target) {
         case .failure(let problem): return .failure(problem)
         case .success(let answer):
-            guard let id = (try? JSONSerialization.jsonObject(with: answer) as? [String: Any])?["id"] as? String, !id.isEmpty else {
-                return .failure(.notAScanServer)
-            }
+            let object = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
+            guard let id = object?["id"] as? String, !id.isEmpty else { return .failure(.notAScanServer) }
             return .success(id)
         }
     }
@@ -258,60 +276,85 @@ extension ScanServer {
         _ = await jobCall(["jobs", id], method: "DELETE", to: target)
     }
 
-    /// Asks the job's state every few seconds, longer while the server does not answer (`ScanJobs.pause`), until every unit
-    /// has finished, then fetches its pages once `ready`; `.stopped` once `wanted` or `ready` says no.
-    private static func waitForJob(_ job: ScanJobRecord, to target: ScanTarget, hear: (ScanJobStatus) -> Void, wanted: () -> Bool, ready: () async -> Bool) async -> Result<[[String: Any]], ScanProblem> {
+    /// Asks the job's state every few seconds, longer while the server does not answer or is busy (no answer, a 5xx or a
+    /// 429 is a miss, `ScanJobs.pause`), until every unit has finished, then fetches its pages once `ready`; `.stopped`
+    /// once `wanted` or `ready` says no. Any other refusal ends it: a 404 is a job the server no longer has.
+    private static func waitForJob(_ job: ScanJobRecord, to target: ScanTarget, hear: (ScanJobStatus) -> Void, wanted: () -> Bool, ready: () async -> Bool, pause: (Double) async -> Void) async -> Result<[[String: Any]], ScanProblem> {
         var misses = 0
         while wanted() {
-            switch await jobCall(["jobs", job.id], to: target) {
-            case .success(let body):
-                misses = 0
-                guard let status = (try? JSONSerialization.jsonObject(with: body) as? [String: Any]).flatMap { ScanJobStatus($0) } else {
-                    return .failure(.notAScanServer)
-                }
-                hear(status)
-                if status.finished { return await jobPages(job, to: target, ready: ready) }
-            case .failure(.unreachable):
+            let answer = await jobCall(["jobs", job.id], to: target)
+            if answer.isMiss {
                 misses += 1
-            case .failure(let problem):
-                return .failure(problem)
+            } else {
+                misses = 0
+                switch answered(answer, to: target) {
+                case .failure(let problem): return .failure(problem)
+                case .success(let body):
+                    let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+                    guard let status = object.flatMap({ ScanJobStatus($0) }) else { return .failure(.notAScanServer) }
+                    hear(status)
+                    if status.finished { return await jobPages(job, to: target, ready: ready) }
+                }
             }
-            try? await Task.sleep(nanoseconds: UInt64(ScanJobs.pause(misses: misses) * 1_000_000_000))
+            await pause(ScanJobs.pause(misses: misses))
         }
         return .failure(.stopped)
     }
 
-    /// `GET /jobs/{id}/result`'s pages, once the app may take them.
+    /// `GET /jobs/{id}/result`'s pages, once the app may take them; a miss is `.unreachable`, which stops a batch with the
+    /// job kept, to be asked again on «Продолжить».
     private static func jobPages(_ job: ScanJobRecord, to target: ScanTarget, ready: () async -> Bool) async -> Result<[[String: Any]], ScanProblem> {
         guard await ready() else { return .failure(.stopped) }
-        switch await jobCall(["jobs", job.id, "result"], to: target) {
+        let answer = await jobCall(["jobs", job.id, "result"], to: target)
+        if answer.isMiss { return .failure(.unreachable(target.address)) }
+        switch answered(answer, to: target) {
         case .failure(let problem): return .failure(problem)
         case .success(let body):
-            guard let pages = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["pages"] as? [[String: Any]] else {
-                return .failure(.notAScanServer)
-            }
+            let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+            guard let pages = object?["pages"] as? [[String: Any]] else { return .failure(.notAScanServer) }
             return .success(pages)
         }
     }
 
     /// A request on a job, signed for Motiff Lab's server as an upload is.
-    private static func jobCall(_ path: [String], method: String = "GET", to target: ScanTarget) async -> Result<Data, ScanProblem> {
+    private static func jobCall(_ path: [String], method: String = "GET", to target: ScanTarget) async -> ScanJobAnswer {
         var request = URLRequest(url: path.reduce(target.address) { $0.appendingPathComponent($1) })
         request.httpMethod = method
         request.timeoutInterval = 30
-        guard await target.sign(&request) else { return .failure(.signIn) }
+        guard await target.sign(&request) else { return .notSignedIn }
         return await send(request, to: target)
     }
 
-    /// The answer's body for a 2xx, else why not; no answer at all, or none in time, is `.unreachable`, which a job's state
-    /// is asked again after.
-    private static func send(_ request: URLRequest, to target: ScanTarget) async -> Result<Data, ScanProblem> {
-        do {
-            let (answer, response) = try await URLSession.shared.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            return (200..<300).contains(status) ? .success(answer) : .failure(problem(status, answer, hosted: target.hosted, engine: nil))
-        } catch {
-            return .failure(.unreachable(target.address))
+    private static func send(_ request: URLRequest, to target: ScanTarget) async -> ScanJobAnswer {
+        guard let answer = try? await target.session.data(for: request) else { return .unanswered }
+        return .answered(status: (answer.1 as? HTTPURLResponse)?.statusCode ?? 0, body: answer.0)
+    }
+
+    /// An answer as the player's words: its body for a 2xx, else why not.
+    private static func answered(_ answer: ScanJobAnswer, to target: ScanTarget) -> Result<Data, ScanProblem> {
+        switch answer {
+        case .notSignedIn: return .failure(.signIn)
+        case .unanswered: return .failure(.unreachable(target.address))
+        case .answered(let status, let body):
+            return (200..<300).contains(status) ? .success(body) : .failure(problem(status, body, hosted: target.hosted, engine: nil))
+        }
+    }
+}
+
+/// What a request on a scan job came to.
+enum ScanJobAnswer {
+    /// The player has no token for Motiff Lab's server: nothing was sent.
+    case notSignedIn
+    /// No answer, or none in time.
+    case unanswered
+    case answered(status: Int, body: Data)
+
+    /// The state is asked again after it, the pause growing: no answer, or the server busy or failing.
+    var isMiss: Bool {
+        switch self {
+        case .notSignedIn: false
+        case .unanswered: true
+        case .answered(let status, _): ScanJobs.isMiss(status)
         }
     }
 }

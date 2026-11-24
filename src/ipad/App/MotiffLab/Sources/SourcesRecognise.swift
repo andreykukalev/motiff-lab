@@ -51,7 +51,7 @@ struct SourcesRecognisePanel: View {
         if row.hosted && account.player == nil { return Offer(blocker: text["scan.signInPrompt"]) }
         if row.hosted && !account.allows(.scan) { return Offer(blocker: text["scan.proPrompt"]) }
         let line = row.hosted
-            ? SourceLayers.counted("sources.sheet.readHosted", pages, text: text)
+            ? SourceLayers.counted(row.jobs ? "sources.sheet.readHostedJob" : "sources.sheet.readHosted", pages, text: text)
             : SourceLayers.counted("sources.sheet.readOwn", pages, address.absoluteString, text: text)
         return Offer(line: line, send: SourceLayers.counted("sources.sheet.send", pages, text: text))
     }

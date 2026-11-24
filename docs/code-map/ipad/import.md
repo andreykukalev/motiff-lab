@@ -11,11 +11,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 - `ScanJobs.swift` (v1.3, the experiment `experimental.scanJobs`, decision record 0035 section 6): `ScanHealth` (`/health`'s
   seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
   the line before sending), `ScanJobStatus`, `ScanJobRecord`; `ScanServer.readByJob` (submit, ask every 2.5 s with a
-  pause doubling to a minute while the server does not answer, fetch once `ready`, merge by `scan.join` with readings and
-  evidence, engines in `ScanJobs.engineOrder`), `submitJob`, `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which
-  signs for Motiff Lab's server. `ScanServer.recognise` uses a job when the switch is on and the server takes jobs, else
+  pause doubling to a minute after a miss: no answer, a 5xx or a 429; a 404 is a job gone; fetch once `ready`, merge by
+  `scan.join` with readings and evidence, engines in `ScanJobs.engineOrder`, each page's report passed on), `submitJob`,
+  `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which signs for Motiff Lab's server and carries the
+  `URLSession` (a stub's in `ScanJobsTests`). `ScanServer.recognise` uses a job when the switch is on and the server takes jobs, else
   `/recognise` as before. The batch (`Recognition.swift`) keeps a piece's job in `recognition.json` (`RecognitionItem.job`,
-  device state, not the project file), asks again after a relaunch, fetches only once the piece is not open on screen,
+  device state, not the project file), asks again after a relaunch for those pieces only (`restoreAndFollowJobs`; the
+  others wait for «Продолжить»), fetches only once the piece is not open on screen,
   deletes the job once the notes are written, and keeps the pages no engine read (`unread`); the banner shows the job's
   pages and engines on a tap (`ScanJobDetail`) and «Повторить» for pieces that did not work.
 

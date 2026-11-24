@@ -134,6 +134,8 @@ final class RecognitionQueue: ObservableObject {
     private(set) var open: String?
     /// The batch stopped only at the open piece, to go on once it closes.
     private var waiting = false
+    /// After a relaunch, only the pieces whose scan job goes on on the server are followed, until «Продолжить».
+    private var jobsOnly = false
 
     /// About how many minutes the batch's pages left take, from the pages timed so far, the piece being read's own among
     /// them; nil before the first page is back (v0.5.6, #533 section 1).
@@ -148,7 +150,9 @@ final class RecognitionQueue: ObservableObject {
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
 
-    func restore() {
+    /// Reads the batch kept on the device, once, and starts following at once the pieces whose scan job goes on on the
+    /// server (spec part 5: after a relaunch the app asks again); every other piece waits for «Продолжить», as before.
+    func restoreAndFollowJobs() {
         guard !restored else { return }
         restored = true
         batch = RecognitionStore.load(in: root)
@@ -157,6 +161,7 @@ final class RecognitionQueue: ObservableObject {
         }
         // A scan job goes on on the server while the app is closed: its state is asked again at once (spec part 5).
         if let batch, !batch.paused, batch.items.contains(where: { $0.job != nil && $0.state == .queued }) {
+            jobsOnly = true
             Task { await run() }
         }
     }
@@ -171,6 +176,7 @@ final class RecognitionQueue: ObservableObject {
             batch = RecognitionBatch(address: address.absoluteString, hosted: hosted, items: items)
             measured = []
         }
+        jobsOnly = false
         RecognitionStore.save(batch, in: root)
         Task { await run() }
     }
@@ -192,6 +198,7 @@ final class RecognitionQueue: ObservableObject {
     }
 
     func resume() {
+        jobsOnly = false
         batch?.paused = false
         batch?.stopped = nil
         RecognitionStore.save(batch, in: root)
@@ -233,9 +240,9 @@ final class RecognitionQueue: ObservableObject {
         }
     }
 
-    /// The next piece to read: the first queued, except the one open on screen.
-    static func next(in batch: RecognitionBatch, open: String?) -> Int? {
-        batch.items.firstIndex { $0.state == .queued && $0.file != open }
+    /// The next piece to read: the first queued, except the one open on screen; with `jobsOnly`, the first with a scan job.
+    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false) -> Int? {
+        batch.items.firstIndex { $0.state == .queued && $0.file != open && (!jobsOnly || $0.job != nil) }
     }
 
     /// What is happening to the piece's notes in the batch, if it is in it.
@@ -251,7 +258,7 @@ final class RecognitionQueue: ObservableObject {
             waiting = batch.map { !$0.paused && $0.items.contains { $0.state == .queued } } ?? false
             revision += 1
         }
-        while let current = batch, !current.paused, let index = Self.next(in: current, open: open) {
+        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly) {
             guard let address = URL(string: current.address) else { return stop() }
             let item = current.items[index]
             if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {

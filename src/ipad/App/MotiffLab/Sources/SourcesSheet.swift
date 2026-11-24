@@ -219,7 +219,7 @@ struct SourcesSheet: View {
     /// What the rows take from the sheet: the view shown now, where recognising goes, and their buttons' actions here.
     private var row: SourcesRow {
         SourcesRow(
-            text: text, current: current, address: scanAddress, hosted: hosted, pick: pick,
+            text: text, current: current, address: scanAddress, hosted: hosted, jobs: ScanServer.jobs, pick: pick,
             delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
             rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
             renameDraft: { renamingDraft = $0 }, deleteDraft: { deletingDraft = $0 }

@@ -33,7 +33,7 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(health.engine, "homr 0.7.0")
         XCTAssertTrue(health.takesJobs)
         XCTAssertEqual(health.minutes(pages: 2), 3, "2 × 360 s shared by 4 at once is 180 s: 3 minutes")
-        XCTAssertEqual(health.minutes(pages: 1), 2, "90 s, rounded up")
+        XCTAssertEqual(health.minutes(pages: 1), 3, "never less than the slowest engine's 125 s for a page")
         XCTAssertNil(health.minutes(pages: 0))
         let busy = ScanHealth(engine: "homr 0.7.0", secondsPerPage: health.secondsPerPage, queue: 8, workers: 4)
         XCTAssertEqual(busy.minutes(pages: 2), 6, "8 units ahead at the mean 90 s add 180 s")
@@ -101,8 +101,22 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(joined.unread, [3])
         XCTAssertEqual(RecognitionTop.unreadLine(joined.unread, russian), "стр. 3 не распознана")
         XCTAssertEqual(RecognitionTop.unreadLine([3, 5], english), "pages 3, 5 not recognised")
-        let bare = ScanJobs.joined(device: [:], server: [try json(#"{"page": 1, "engines": {"homr": {"state": "read", "musicxml": "H"}}}"#)])
+        XCTAssertNil(joined.reports, "the device's page has no report here, so none are passed on")
+        let one = try json(#"{"page": 1, "engines": {"homr": {"state": "read", "musicxml": "H"}}}"#)
+        let bare = ScanJobs.joined(device: [:], server: [one])
         XCTAssertNil((bare.pages.first as? [String: Any])?["evidence"], "no evidence is sent when the server gave none")
+    }
+
+    func testEachPageJoinedKeepsItsPageReportAsRecogniseAndAutoPassThemOn() throws {
+        let entry = try json("""
+        {"page": 2, "engines": {"copisteria": {"state": "read", "musicxml": "C", "report": {"page": 2, "measures": 7}},
+          "homr": {"state": "read", "musicxml": "H", "report": {"page": 2, "measures": 8}}}}
+        """)
+
+        let joined = ScanJobs.joined(device: [1: "V"], reports: [1: #"[{"page":1}]"#], server: [entry])
+
+        XCTAssertEqual(joined.reports, [#"[{"page":1}]"#, #"[{"measures":8,"page":2}]"#], "the device's, then the first engine's in order, homr")
+        XCTAssertNil(ScanJobs.joined(device: [1: "V"], server: [entry]).reports, "nil unless every page has one")
     }
 
     func testMusicCoreMergesAJobsReadingsWithThePageReadOnTheDevice() async throws {
@@ -152,5 +166,127 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertTrue(english["recognition.whereHostedJob"].contains("at most 24 hours"), "the job path's promise (0035 section 4)")
         XCTAssertTrue(russian["pdf.readLineHostedJob"].contains("не дольше 24 часов"))
         XCTAssertTrue(english["recognition.whereHosted"].hasSuffix("deletes them once read."), "/recognise keeps its own")
+    }
+
+    // MARK: - The requests, against a stub server
+
+    private let server = URL(string: "http://scan.test/")!
+    private let notAPdf = Data("not a pdf".utf8)
+
+    private var target: ScanTarget { ScanTarget(address: server, account: Account(options: nil), session: StubAPI.session()) }
+
+    private func answer(_ status: Int, _ body: String) -> StubAPI.Answer { StubAPI.Answer(status: status, body: Data(body.utf8)) }
+
+    private var jobServer: StubAPI.Answer {
+        answer(200, #"{"engine": "homr", "version": "0.7.0", "engines": [{"engine": "homr", "secondsPerPage": 75}], "jobs": {"queue": 0, "workers": 1}}"#)
+    }
+
+    private func status(_ state: String) -> StubAPI.Answer {
+        let engine = state == "done" ? "read" : "reading"
+        return answer(200, #"{"id": "j1", "state": "\#(state)", "etaSeconds": 30, "pages": [{"page": 1, "engines": {"homr": "\#(engine)"}}, {"page": 2, "engines": {"homr": "\#(engine)"}}]}"#)
+    }
+
+    /// The job's result: page 1 read by homr with its report, page 2 read by none.
+    private var result: StubAPI.Answer {
+        let reading: [String: Any] = ["state": "read", "version": "0.7.0", "musicxml": page("C"), "report": ["page": 1, "measures": 1]]
+        let pages: [[String: Any]] = [["page": 1, "engines": ["homr": reading]], ["page": 2, "engines": ["homr": ["state": "not_read"] as [String: Any]]]]
+        let body = try? JSONSerialization.data(withJSONObject: ["id": "j1", "pages": pages] as [String: Any])
+        return StubAPI.Answer(status: 200, body: body ?? Data())
+    }
+
+    private func sent(_ method: String, _ path: String) -> Int {
+        StubAPI.requests.filter { ($0.httpMethod ?? "GET") == method && $0.url?.absoluteString == "http://scan.test/" + path }.count
+    }
+
+    func testAJobIsSentAskedUntilDoneAndItsReadingsMergedWithTheJobLeftForTheCallerToDelete() async throws {
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j1", "status": "/jobs/j1"}"#), "http://scan.test/jobs/j1": status("running")])
+        var kept: [ScanJobRecord] = []
+        var heard: [String] = []
+        var pauses: [Double] = []
+
+        let outcome = await ScanServer.readByJob(
+            fileName: "a.pdf", data: notAPdf, pages: 2, to: target, keep: { kept.append($0) }, hear: { heard.append($0.state) },
+            pause: { seconds in
+                pauses.append(seconds)
+                StubAPI.answer(["http://scan.test/jobs/j1": self.status("done"), "http://scan.test/jobs/j1/result": self.result])
+            }
+        )
+
+        guard case .success(let read)? = outcome else { return XCTFail("read: \(String(describing: outcome))") }
+        XCTAssertEqual(kept, [ScanJobRecord(id: "j1", pages: [1, 2])], "the id is kept as soon as the server gives it")
+        XCTAssertEqual(read.job, kept.first)
+        XCTAssertEqual(heard, ["running", "done"])
+        XCTAssertEqual(pauses, [2.5])
+        XCTAssertEqual(read.result.unread, [2])
+        XCTAssertEqual(read.result.engine, "homr 0.7.0")
+        XCTAssertEqual(read.result.partReports?.count, 1, "page 1's report goes on to document.read")
+        let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
+        XCTAssertTrue(form.contains("name=\"pages\"\r\n\r\n1,2\r\n"), "the pages the device did not read")
+        XCTAssertEqual(sent("DELETE", "jobs/j1"), 0, "deleted by the caller once the notes are saved")
+    }
+
+    func testAJobKeptFromBeforeIsAskedAgainWithoutSendingThePdf() async {
+        StubAPI.reset(["http://scan.test/jobs/j1": status("done"), "http://scan.test/jobs/j1/result": result])
+
+        let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]))
+
+        guard case .success? = outcome else { return XCTFail("read: \(String(describing: outcome))") }
+        XCTAssertEqual(sent("POST", "jobs"), 0)
+        XCTAssertEqual(sent("GET", "health"), 0)
+    }
+
+    func testAServerWithoutJobsLeavesThePdfToRecogniseAsBefore() async {
+        StubAPI.reset(["http://scan.test/health": answer(200, #"{"engine": "homr", "version": "0.7.0"}"#)])
+
+        let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target)
+
+        XCTAssertNil(outcome)
+        XCTAssertEqual(sent("POST", "jobs"), 0)
+    }
+
+    func testNoAnswerAndA503WhilePollingAreMissesThatDoubleThePauseNotFailures() async {
+        StubAPI.reset(["http://scan.test/jobs/j1/result": result])
+        var pauses: [Double] = []
+
+        let outcome = await ScanServer.readByJob(
+            fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]),
+            pause: { seconds in
+                pauses.append(seconds)
+                StubAPI.answer(["http://scan.test/jobs/j1": pauses.count == 1 ? self.answer(503, "{}") : self.status("done")])
+            }
+        )
+
+        guard case .success? = outcome else { return XCTFail("read: \(String(describing: outcome))") }
+        XCTAssertEqual(pauses, [5, 10], "no answer, then a 503: the pause doubles each time")
+    }
+
+    func testAJobTheServerNoLongerHasIsAFailureWithItsWords() async {
+        StubAPI.reset(["http://scan.test/jobs/j1": answer(404, #"{"code": "job", "message": "There is no such scan job."}"#)])
+
+        let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]))
+
+        guard case .failure(.server("There is no such scan job."))? = outcome else { return XCTFail("gone: \(String(describing: outcome))") }
+    }
+
+    func testAJobNoLongerWaitedForStopsAndStaysOnTheServer() async {
+        StubAPI.reset(["http://scan.test/jobs/j1": status("running")])
+        var stopped = false
+
+        let outcome = await ScanServer.readByJob(
+            fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]),
+            hear: { _ in stopped = true }, wanted: { !stopped }, pause: { _ in }
+        )
+
+        guard case .failure(.stopped)? = outcome else { return XCTFail("stopped: \(String(describing: outcome))") }
+        XCTAssertEqual(sent("DELETE", "jobs/j1"), 0, "kept, to be asked again on «Продолжить»")
+        XCTAssertEqual(sent("GET", "jobs/j1/result"), 0)
+    }
+
+    func testDeletingAJobIsOneDeleteOfIt() async {
+        StubAPI.reset(["DELETE http://scan.test/jobs/j1": answer(204, "")])
+
+        await ScanServer.deleteJob("j1", to: target)
+
+        XCTAssertEqual(sent("DELETE", "jobs/j1"), 1)
     }
 }
