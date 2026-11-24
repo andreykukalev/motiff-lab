@@ -10,11 +10,11 @@ Tests: `src/backend/omr/tests`, `python -m pytest` there, with stand-ins for eve
   `/recognise` (one request, pages joined by `merge.py`), `/transcribe`, `/jobs` and its status, result and delete.
   `signed_in` (the player's id or a 401/403, via `auth.py`), `_upload` (size and kind), `_problem` (the error shape).
   Starts and stops the job threads (`job_worker.Runner`) in its lifespan.
-- `engines.py`: `Engine(name, version, read, seconds)`, the pluggable list (`others()`: the installed engines besides
-  homr that `ENGINES` keeps); `seconds` is the starting estimate of a page. A job runs `read` in a child process, so it
+- `engines.py`: `Engine(name, version, read, seconds, evidence)`, the pluggable list (`others()`: the installed
+  engines besides homr that `ENGINES` keeps; an unknown name stops the server at start); `seconds` is the starting estimate of a page. A job runs `read` in a child process, so it
   is a module function or a `functools.partial`.
-- `recognise.py` (homr; `run`, an engine's program under the page time limit, for every engine; `Reading`, `Found`,
-  `RecogniseError`), `copisteria_reader.py` (and the page's evidence), `audiveris_reader.py` (its `.mxl` movements
+- `recognise.py` (homr; `run`, an engine's program under the page time limit, for every engine; `threads`, `cores`;
+  `Reading`, `Found`, `RecogniseError`), `copisteria_reader.py` (`page_evidence`, for jobs only), `audiveris_reader.py` (its `.mxl` movements
   joined by `merge.merge(new_page=False)`), `transcoda_reader.py` (compact kern to standard Humdrum, music21 to
   MusicXML, two parts to one part with two staves): one engine each, its own program run unmodified.
 - `evidence.py`: a page's evidence (0035 §1): staves, systems and bar lines by image processing (numpy), copisteria's
@@ -27,9 +27,10 @@ Tests: `src/backend/omr/tests`, `python -m pytest` there, with stand-ins for eve
   (memory and a folder, one process). s-3 adds the Azure Storage queue and blobs behind it.
 - `jobs.py`: `Jobs`, the job records and what the routes ask (`submit`, `find`, `status`, `result`, `delete`,
   `figures`), the measured seconds per page (`seconds_per_page`, `measure`) and the `supervise` pass; `Settings`.
-- `job_worker.py`: `Worker.step` (one message: lease, read, retry 10/20/40 s, poison, breaker) and `Runner` (threads,
-  by default one per engine, so a page's engines read it in parallel).
-- `unit_process.py`: `read_within`, an engine's read in its own process group, killed at the time limit.
+- `job_worker.py`: `Worker.step` (one message: lease, read, the engine's `evidence` after it, retry 10/20/40 s,
+  poison, breaker) and `Runner` (threads, by default one per engine, so a page's engines read it in parallel).
+- `unit_process.py`: `read_within`, an engine's read in its own process group, killed at the time limit, its programs
+  limited to `Settings.threads` cores (`set_thread_limits`: OpenMP, MKL, OpenBLAS, Java; `recognise.threads`).
 
 ## State and rules
 

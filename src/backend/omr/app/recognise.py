@@ -8,6 +8,7 @@ for those counts only and never passed on, since it also holds the title homr re
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -15,7 +16,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
-from typing import Any
 
 ENGINE = "homr"
 
@@ -49,8 +49,6 @@ class Found:
 class Reading:
     musicxml: bytes
     found: Found = field(default_factory=Found)
-    # What else the engine saw of the page, for a scan job's result (evidence.py); copisteria's reading only.
-    evidence: dict[str, Any] | None = None
 
 
 class RecogniseError(RuntimeError):
@@ -77,6 +75,16 @@ def run(
         return subprocess.run(command, cwd=folder, env=env, capture_output=True, timeout=PAGE_TIMEOUT_SECONDS, check=False)
     except subprocess.TimeoutExpired as error:
         raise RecogniseError(f"Reading page {page_number} took too long and was stopped.") from error
+
+
+def threads() -> int:
+    """The cores an engine's program may use: its share when a job reads engines side by side (unit_process), else all."""
+    limit = os.environ.get("OMP_NUM_THREADS", "")
+    return int(limit) if limit.isdigit() and int(limit) > 0 else cores()
+
+
+def cores() -> int:
+    return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
 
 
 def recognise_page(image: Path, page_number: int) -> Reading:

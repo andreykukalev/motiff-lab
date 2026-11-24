@@ -132,3 +132,21 @@ def test_the_bars_of_a_printed_page_are_found(tmp_path: Path):
     assert found["image"]["dpi"] == pages.PDF_DPI
     assert [len(system["staves"]) for system in found["systems"]] == [2] * 6
     assert [len(system["bars"]) for system in found["systems"]] == [6, 6, 5, 5, 5, 5]
+
+
+def test_a_staff_at_the_top_edge_and_odd_detections_are_read_without_failing(tmp_path: Path):
+    image = Image.new("L", (600, 300), 255)
+    draw = ImageDraw.Draw(image)
+    staff(draw, 0, 10, 590)  # its top line on the first row of the image
+    path = tmp_path / "edge.png"
+    image.save(path)
+    detections = [
+        {"cls": "note_quarter", "conf": None, "xyxy": [100, 20, 110, 30], "attrs": {"staff_position": 2.0, "dots": None}},
+        {"cls": "note_quarter", "conf": 0.5, "xyxy": ["a", 20, 110, 30]},
+        {"cls": "note_quarter", "conf": "high", "xyxy": [100, 20, 110]},
+    ]
+    found = evidence.of_page(path, detections, {})
+    assert [staff["lines"][0] for system in found["systems"] for staff in system["staves"]] == [0.5]
+    assert found["symbols"] == [{"system": 0, "bar": 0, "staff": 1, "class": "noteheadBlack", "duration": "quarter",
+                                 "position": 2, "dots": 0, "grace": False, "x": 105.0, "y": 25.0,
+                                 "box": [100.0, 20.0, 110.0, 30.0], "confidence": 0.0}]

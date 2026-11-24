@@ -76,7 +76,7 @@ def create_app(
     readers = {
         engine.name: engine
         for engine in [
-            engines.Engine(recognise.ENGINE, recognise.engine_version, recognise_page, 30.0),
+            engines.Engine(recognise.ENGINE, recognise.engine_version, recognise_page, 75.0),
             *(engines.others() if other_engines is None else other_engines),
         ]
     }

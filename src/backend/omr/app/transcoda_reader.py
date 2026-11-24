@@ -46,11 +46,9 @@ def engine_version() -> str:
 
 def recognise_page(image: Path, page_number: int) -> Reading:
     kern = image.parent / f"{image.stem}-transcoda.krn"
-    # Half the cores: a job reads the other engines' units of the page beside it.
-    threads = str(max(1, (os.cpu_count() or 2) // 2))
     # Its encoder and weights are in the image, so nothing is fetched (and nothing about the page is sent).
     offline = {**os.environ, "HF_HOME": str(HOME / "hf"), "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
-    command = [str(python()), "scripts/infer.py", "--image", str(image), "--out", str(kern), "--threads", threads]
+    command = [str(python()), "scripts/infer.py", "--image", str(image), "--out", str(kern), "--threads", str(recognise.threads())]
     result = recognise.run(command, HOME, page_number, offline)
     text = kern.read_text(encoding="utf-8") if kern.exists() else ""
     if result.returncode != 0 or not text.strip():

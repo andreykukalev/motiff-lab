@@ -54,6 +54,11 @@ class Settings:
     idle_seconds: float = 1.0  # how long a worker waits when the queue is empty
 
     @property
+    def threads(self) -> int:
+        """The cores each unit's engine may use, so that the workers' engines share them."""
+        return max(1, recognise.cores() // self.workers)
+
+    @property
     def tries(self) -> int:
         return len(self.retry_delays) + 1
 

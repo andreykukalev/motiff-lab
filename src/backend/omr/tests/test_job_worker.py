@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app import job_worker
+from app import job_worker, recognise
 from app.engines import Engine
 from app.job_store import FolderStore, LeaseLost
 from app.jobs import Jobs, Settings, message_body
@@ -242,3 +242,13 @@ def test_a_job_deleted_while_it_is_read_leaves_nothing(tmp_path: Path):
     assert drain(worker) == 2
     assert stand_ins.calls(tmp_path / "homr") == []
     assert jobs.store.names("") == []
+
+
+def test_engines_reading_side_by_side_share_the_cores(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(recognise, "cores", lambda: 8)
+    readers = engines(tmp_path, homr=stand_ins.notes_threads, copisteria=stand_ins.notes_threads)
+    jobs, worker = service(tmp_path, readers, Clock(), workers=4)
+    submit(jobs, tmp_path, 1)
+    drain(worker)
+    limits = (tmp_path / "homr").read_text().splitlines()[0]
+    assert limits.startswith("2|") and limits.endswith("-XX:ActiveProcessorCount=2")

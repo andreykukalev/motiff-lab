@@ -117,7 +117,7 @@ def find_staves(ink: np.ndarray) -> tuple[list[dict[str, Any]], float]:
         if five is None:
             i += 1
             continue
-        band = lines[int(five[0]) - 1:int(five[4]) + 2]
+        band = lines[max(0, int(five[0]) - 1):int(five[4]) + 2]
         columns = np.flatnonzero(band.any(axis=0))
         staves.append({"lines": five, "space": (five[4] - five[0]) / 4, "x0": int(columns[0]), "x1": int(columns[-1])})
         i = centres.index(five[4]) + 1
@@ -259,7 +259,7 @@ def place_symbols(detections: list[dict[str, Any]], systems: list[dict[str, Any]
     for detection in detections:
         named = symbol_class(str(detection.get("cls", "")), detection.get("attrs") or {})
         box = detection.get("xyxy")
-        if named is None or not staves or not isinstance(box, list) or len(box) != 4:
+        if named is None or not staves or not _numbers(box, 4):
             continue
         x, y = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
         distance, index, staff = min(
@@ -272,7 +272,7 @@ def place_symbols(detections: list[dict[str, Any]], systems: list[dict[str, Any]
         placed.append({
             "system": index, "bar": bar, "staff": staff["staff"], **named,
             "x": _round(x), "y": _round(y), "box": [_round(v) for v in box],
-            "confidence": round(float(detection.get("conf", 0.0)), 3),
+            "confidence": round(float(detection["conf"]), 3) if _numbers([detection.get("conf")], 1) else 0.0,
         })
     return sorted(placed, key=lambda s: (s["system"], s["bar"], s["staff"], s["x"], s["y"], s["class"]))
 
@@ -317,10 +317,18 @@ def symbol_class(name: str, attrs: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _whole(value: object) -> int | None:
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
     try:
         return int(str(value))
     except ValueError:
         return None
+
+
+def _numbers(values: object, count: int) -> bool:
+    """Whether the detector gave `count` numbers here (it should, but its file is read as it is)."""
+    return (isinstance(values, list) and len(values) == count
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) and np.isfinite(v) for v in values))
 
 
 def _round(value: float) -> float:

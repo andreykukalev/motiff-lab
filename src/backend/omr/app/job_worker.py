@@ -89,8 +89,9 @@ class Worker:
                 path.write_bytes(image)
                 settings = self._jobs.settings
                 reading = unit_process.read_within(
-                    engine.read, path, page, settings.unit_seconds, renew_lease, settings.lease_seconds / 3
+                    engine.read, path, page, settings.unit_seconds, renew_lease, settings.lease_seconds / 3, settings.threads
                 )
+                found = engine.evidence(path) if engine.evidence else None
         except RecogniseError as error:
             self._failed(job, page, name, unit, error)
             return
@@ -101,7 +102,7 @@ class Worker:
             "musicxml": reading.musicxml.decode("utf-8", "replace"),
             "found": asdict(reading.found),
             "version": engine.version(),
-            "evidence": reading.evidence,
+            "evidence": found,
         })
         self._jobs.write_unit(job_id, page, name, replace(unit, state=READ))
         self._jobs.measure(name, seconds)

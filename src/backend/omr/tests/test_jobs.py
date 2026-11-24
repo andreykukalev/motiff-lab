@@ -1,6 +1,7 @@
 import json
 import re
 import time
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
@@ -221,17 +222,40 @@ def test_the_app_may_delete_a_job_and_read_where_its_status_is(tmp_path: Path):
     assert "Location" in simple.headers["access-control-expose-headers"]
 
 
+def with_evidence(readers: dict[str, Engine], found) -> dict[str, Engine]:
+    """copisteria's stand-in, with the page's evidence it gives after reading."""
+    return {**readers, "copisteria": replace(readers["copisteria"], evidence=found)}
+
+
 def test_the_result_gives_each_page_s_evidence_from_the_engine_that_saw_it(tmp_path: Path):
-    jobs, worker = service(tmp_path, engines(tmp_path, copisteria=stand_ins.reads_with_evidence), Clock())
+    seen: list[Path] = []
+
+    def found(image: Path) -> dict:
+        seen.append(image)
+        assert image.exists()  # still beside what the engine left when it read the page
+        return stand_ins.EVIDENCE
+
+    jobs, worker = service(tmp_path, with_evidence(engines(tmp_path), found), Clock())
     job_id = submit(jobs, tmp_path, 2)
     drain(worker)
     result = jobs.fetch_result(jobs.find(job_id, None))
     assert [page["evidence"] for page in result["pages"]] == [evidence.for_page(n, 0, stand_ins.EVIDENCE) for n in (1, 2)]
     assert all("evidence" not in reading for page in result["pages"] for reading in page["engines"].values())
+    assert [image.name for image in seen] == ["page-01.png", "page-02.png"]
+
+
+def test_a_page_without_evidence_keeps_its_readings(tmp_path: Path):
+    jobs, worker = service(tmp_path, with_evidence(engines(tmp_path), lambda image: None), Clock())
+    job_id = submit(jobs, tmp_path, 1)
+    drain(worker)
+    page = jobs.fetch_result(jobs.find(job_id, None))["pages"][0]
+    assert "evidence" not in page
+    assert page["engines"]["copisteria"]["state"] == "read" and "musicxml" in page["engines"]["copisteria"]
 
 
 def test_a_page_no_engine_gave_evidence_for_has_none(tmp_path: Path):
-    jobs, worker = service(tmp_path, engines(tmp_path, copisteria=stand_ins.fails), Clock(), retry_delays=())
+    readers = with_evidence(engines(tmp_path, copisteria=stand_ins.fails), lambda image: stand_ins.EVIDENCE)
+    jobs, worker = service(tmp_path, readers, Clock(), retry_delays=())
     job_id = submit(jobs, tmp_path, 1)
     drain(worker)
     assert "evidence" not in jobs.fetch_result(jobs.find(job_id, None))["pages"][0]

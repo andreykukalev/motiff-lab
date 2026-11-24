@@ -5,8 +5,8 @@ copisteria (KobiMusic, Apache-2.0, code and the copista-28m weights) is called a
 next to the page, `<page>.musicxml`, `<page>.reading.json` (each symbol's reading with its probability, and the
 readings the context changed) and a viewer page; beside the page it caches its detections. Only the MusicXML is
 passed on; the reading is read for the page report's counts and never passed on. The detections give the page
-report's staff space and, in a scan job, the symbols of the page's evidence (evidence.py), their classes and places
-only. The whole folder is deleted with the upload.
+report's staff space and, after a scan job's reading, the symbols of the page's evidence (page_evidence), their
+classes and places only. The whole folder is deleted with the upload.
 """
 
 from __future__ import annotations
@@ -54,8 +54,16 @@ def recognise_page(image: Path, page_number: int) -> Reading:
         raise RecogniseError(
             f"No music staves were found on page {page_number}. Check that the page is sharp and fills the photo.", found
         )
-    detector = {"name": ENGINE, "version": engine_version()}
-    return Reading(output.read_bytes(), found, evidence.of_page(image, detections(image), detector))
+    return Reading(output.read_bytes(), found)
+
+
+def page_evidence(image: Path) -> dict[str, Any] | None:
+    """The page's evidence (evidence.py), from the page and the detections copisteria cached beside it when it read
+    it; for a scan job only. None when it cannot be made: the reading is kept without it."""
+    try:
+        return evidence.of_page(image, detections(image), {"name": ENGINE, "version": engine_version()})
+    except (ValueError, IndexError, TypeError, OSError):
+        return None
 
 
 def detections(image: Path) -> list[dict[str, Any]]:

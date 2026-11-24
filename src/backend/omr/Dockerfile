@@ -47,7 +47,8 @@ RUN curl -fsSL -o /tmp/audiveris.deb \
 # commit, in an environment of its own made from its lock file (its PyTorch, Transformers and NumPy differ from homr's),
 # and its weights (CC BY-NC 4.0, non-commercial) from Hugging Face at a pinned revision, checked by their SHA-256, with
 # the ConvNeXt V2 encoder they start from, which Transcoda loads before its weights. Only what its inference needs is
-# kept: its training, evaluation and data-generation code and the Rust and vendored parsers it builds them with are not.
+# kept: its training, evaluation and data-generation code and the Rust and vendored parsers it builds them with are not,
+# nor Triton (0.9 GB), which PyTorch's Linux wheel brings for GPU kernels and a CPU never loads.
 FROM python:3.12-slim AS transcoda
 ARG TRANSCODA_COMMIT=389cca243cb0c531281524662d86da2fe7362703
 ARG TRANSCODA_REVISION=6a46a8c2534c882fab8c0b4f9647b78c4e289bde
@@ -62,7 +63,8 @@ RUN git init --quiet . \
     && rm -rf .git tests docs evaluation examples pipelines vendor crates Cargo.toml Cargo.lock train.py
 RUN pip install --no-cache-dir uv==0.11.32 \
     && UV_PROJECT_ENVIRONMENT=/opt/transcoda/.venv UV_PYTHON_DOWNLOADS=never \
-        uv sync --frozen --no-dev --no-install-project --no-cache --extra cpu --extra constraints --python /usr/local/bin/python3.12
+        uv sync --frozen --no-dev --no-install-project --no-cache --extra cpu --extra constraints --python /usr/local/bin/python3.12 \
+    && rm -rf .venv/lib/python3.12/site-packages/triton .venv/lib/python3.12/site-packages/triton-*.dist-info
 RUN weights="https://huggingface.co/btrkeks/transcoda-v2.1/resolve/$TRANSCODA_REVISION" \
     && encoder="https://huggingface.co/facebook/convnextv2-tiny-22k-224/resolve/$CONVNEXT_REVISION" \
     && cache=hf/hub/models--facebook--convnextv2-tiny-22k-224 \

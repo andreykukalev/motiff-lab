@@ -17,6 +17,7 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from app import audiveris_reader, copisteria_reader, recognise, transcoda_reader
 
@@ -30,16 +31,26 @@ class Engine:
     read: Callable[[Path, int], recognise.Reading]  # a job runs it in a process of its own, so it is picklable (unit_process.py)
     # About how long it takes to read a page here, until this server has measured it (jobs.py, the estimate).
     seconds: float = 60.0
+    # The page's evidence from what the engine left beside the page after reading it, in a scan job (copisteria's).
+    evidence: Callable[[Path], dict[str, Any] | None] | None = None
+
+
+KNOWN = (recognise.ENGINE, copisteria_reader.ENGINE, audiveris_reader.ENGINE, transcoda_reader.ENGINE)
 
 
 def others(chosen: str | None = None) -> list[Engine]:
-    """The engines besides homr that this server has installed and reads with (chosen: ENGINES by default). Their
-    figures are about the seconds a page takes on 4 CPU cores, until this server has measured its own (jobs.py)."""
+    """The engines besides homr that this server has installed and reads with (chosen: ENGINES by default); a name it
+    does not know stops the server at start (ValueError). The figures are about the seconds a page takes on 4 CPU cores
+    with the four engines side by side, until this server has measured its own (jobs.py)."""
     names = _names(os.environ.get("ENGINES") if chosen is None else chosen)
+    if unknown := sorted((names or set()) - set(KNOWN)):
+        raise ValueError(f"ENGINES names {', '.join(unknown)}, which this server does not have. It has {', '.join(KNOWN)}.")
     installed = [
-        (copisteria_reader.is_installed, Engine(copisteria_reader.ENGINE, copisteria_reader.engine_version, copisteria_reader.recognise_page, 25.0)),
-        (audiveris_reader.is_installed, Engine(audiveris_reader.ENGINE, audiveris_reader.engine_version, audiveris_reader.recognise_page, 35.0)),
-        (transcoda_reader.is_installed, Engine(transcoda_reader.ENGINE, transcoda_reader.engine_version, transcoda_reader.recognise_page, 75.0)),
+        (copisteria_reader.is_installed, Engine(
+            copisteria_reader.ENGINE, copisteria_reader.engine_version, copisteria_reader.recognise_page, 90.0, copisteria_reader.page_evidence
+        )),
+        (audiveris_reader.is_installed, Engine(audiveris_reader.ENGINE, audiveris_reader.engine_version, audiveris_reader.recognise_page, 70.0)),
+        (transcoda_reader.is_installed, Engine(transcoda_reader.ENGINE, transcoda_reader.engine_version, transcoda_reader.recognise_page, 140.0)),
     ]
     return [engine for is_installed, engine in installed if (names is None or engine.name in names) and is_installed()]
 
