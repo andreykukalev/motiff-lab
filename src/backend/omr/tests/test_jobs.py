@@ -1,12 +1,13 @@
 import json
 import re
 import time
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import pages
+from app import evidence, pages, recognise
 from app.auth import AuthError
 from app.engines import Engine
 from app.job_store import FolderStore
@@ -219,3 +220,52 @@ def test_the_app_may_delete_a_job_and_read_where_its_status_is(tmp_path: Path):
     assert "DELETE" in preflight.headers["access-control-allow-methods"]
     simple = client.get("/health", headers={"Origin": "https://motiff.example"})
     assert "Location" in simple.headers["access-control-expose-headers"]
+
+
+def with_evidence(readers: dict[str, Engine], found) -> dict[str, Engine]:
+    """copisteria's stand-in, with the page's evidence it gives after reading."""
+    return {**readers, "copisteria": replace(readers["copisteria"], evidence=found)}
+
+
+def test_the_result_gives_each_page_s_evidence_from_the_engine_that_saw_it(tmp_path: Path):
+    seen: list[Path] = []
+
+    def found(image: Path) -> dict:
+        seen.append(image)
+        assert image.exists()  # still beside what the engine left when it read the page
+        return stand_ins.EVIDENCE
+
+    jobs, worker = service(tmp_path, with_evidence(engines(tmp_path), found), Clock())
+    job_id = submit(jobs, tmp_path, 2)
+    drain(worker)
+    result = jobs.fetch_result(jobs.find(job_id, None))
+    assert [page["evidence"] for page in result["pages"]] == [evidence.for_page(n, 0, stand_ins.EVIDENCE) for n in (1, 2)]
+    assert all("evidence" not in reading for page in result["pages"] for reading in page["engines"].values())
+    assert [image.name for image in seen] == ["page-01.png", "page-02.png"]
+
+
+def test_a_page_without_evidence_keeps_its_readings(tmp_path: Path):
+    jobs, worker = service(tmp_path, with_evidence(engines(tmp_path), lambda image: None), Clock())
+    job_id = submit(jobs, tmp_path, 1)
+    drain(worker)
+    page = jobs.fetch_result(jobs.find(job_id, None))["pages"][0]
+    assert "evidence" not in page
+    assert page["engines"]["copisteria"]["state"] == "read" and "musicxml" in page["engines"]["copisteria"]
+
+
+def test_a_page_no_engine_gave_evidence_for_has_none(tmp_path: Path):
+    readers = with_evidence(engines(tmp_path, copisteria=stand_ins.fails), lambda image: stand_ins.EVIDENCE)
+    jobs, worker = service(tmp_path, readers, Clock(), retry_delays=())
+    job_id = submit(jobs, tmp_path, 1)
+    drain(worker)
+    assert "evidence" not in jobs.fetch_result(jobs.find(job_id, None))["pages"][0]
+
+
+def test_a_page_s_engines_read_it_in_parallel_by_default_but_no_more_than_the_cores(monkeypatch):
+    monkeypatch.delenv("JOB_WORKERS", raising=False)
+    monkeypatch.setattr(recognise, "cores", lambda: 4)
+    assert Settings.from_environment(4).workers == 4
+    monkeypatch.setattr(recognise, "cores", lambda: 2)
+    assert Settings.from_environment(4).workers == 2
+    monkeypatch.setenv("JOB_WORKERS", "3")
+    assert Settings.from_environment(4).workers == 3

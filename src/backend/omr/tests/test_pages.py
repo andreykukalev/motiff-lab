@@ -67,3 +67,28 @@ def test_the_pages_chosen_are_written_with_their_own_numbers(tmp_path: Path):
     ]:
         with pytest.raises(pages.PageError, match=reason):
             pages.write_pages(pages.sniff(upload), tmp_path, 1, numbers)
+
+
+def test_a_pdf_page_keeps_the_resolution_it_was_rendered_at_and_a_photo_has_none(tmp_path: Path):
+    from tests.test_app import pdf, png
+
+    (tmp_path / "pdf").mkdir()
+    (tmp_path / "photo").mkdir()
+    (rendered,) = pages.write_pages(pages.sniff(pdf(1)), tmp_path / "pdf", 8)
+    (photo,) = pages.write_pages(pages.sniff(png()), tmp_path / "photo", 8)
+    with Image.open(rendered.path) as page, Image.open(photo.path) as picture:
+        assert round(page.info["dpi"][0]) == pages.PDF_DPI
+        assert "dpi" not in picture.info
+
+
+def test_a_large_pdf_page_scaled_down_keeps_its_resolution_true(tmp_path: Path):
+    import pypdfium2 as pdfium
+
+    document = pdfium.PdfDocument.new()
+    document.new_page(1190, 1684)  # A2: 7016 pixels tall at 300 dpi, scaled to 4200
+    buffer = io.BytesIO()
+    document.save(buffer)
+    (rendered,) = pages.write_pages(pages.sniff(buffer.getvalue()), tmp_path, 8)
+    with Image.open(rendered.path) as page:
+        assert max(page.size) == pages.MAX_LONG_SIDE
+        assert round(page.info["dpi"][0]) == 180

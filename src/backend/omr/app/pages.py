@@ -97,7 +97,7 @@ def write_pages(upload: Upload, folder: Path, max_pages: int, numbers: list[int]
                 turn = not drawn(page)
             finally:
                 page.close()
-            written.append(_write(image, folder, index + 1, turn))
+            written.append(_write(image, folder, index + 1, turn, PDF_DPI))
         return written
     finally:
         pdf.close()
@@ -137,12 +137,14 @@ def _open_image(data: bytes) -> Image.Image:
     return ImageOps.exif_transpose(image)
 
 
-def _write(image: Image.Image, folder: Path, number: int, turn: bool = True) -> Page:
+def _write(image: Image.Image, folder: Path, number: int, turn: bool = True, dpi: int | None = None) -> Page:
     image, look = quality.examine(image, turn)
     long_side = max(image.size)
     if long_side > MAX_LONG_SIDE:
         image.thumbnail((MAX_LONG_SIDE, MAX_LONG_SIDE), Image.Resampling.LANCZOS)
+        dpi = round(dpi * max(image.size) / long_side) if dpi else None
     path = folder / f"page-{number:02d}.png"
-    # Saving through Pillow also drops the photo's metadata (location, camera), which homr does not need.
-    image.save(path, format="PNG")
+    # Saving through Pillow also drops the photo's metadata (location, camera), which homr does not need. A PDF page
+    # keeps the resolution it was rendered at, for the page's evidence (evidence.py); a photo has none to tell.
+    image.save(path, format="PNG", **({"dpi": (dpi, dpi)} if dpi else {}))
     return Page(path, look)

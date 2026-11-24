@@ -17,3 +17,7 @@ mir-eval==0.8.2
 # its own requirements: homr brings NumPy, Pillow and OpenCV's headless build, PyTorch's index torchvision; this is
 # the one it needs besides them.
 scipy==1.18.1
+# Transcoda writes Humdrum **kern; music21 (BSD-3-Clause) with converter21's Humdrum reader (MIT) turns it into
+# MusicXML here (transcoda_reader.py), as a program of this service rather than in Transcoda's own environment.
+music21==10.5.2
+converter21==4.0.2
