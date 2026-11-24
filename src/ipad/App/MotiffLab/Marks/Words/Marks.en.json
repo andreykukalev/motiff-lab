@@ -124,5 +124,6 @@
   "scanReview.none": "No engine read this bar otherwise.",
   "scanReview.missing": "The page's crop and the engines' readings of this bar are kept only on the iPad that read the scan.",
   "scanReview.chosen": "In the bar now: {0}",
-  "scanReview.undo": "Undo the choice"
+  "scanReview.undo": "Undo the choice",
+  "scanReview.rest": "rest"
 }

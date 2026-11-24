@@ -119,10 +119,12 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// The bars a scan or a transcription is unsure of (0018 section 9), as music-core answered the last Check call.
     @Published private(set) var check = CheckShelf()
     /// With «Распознавание в фоне» on (v1.3 i-2), what this iPad kept of the working notes' scan: its bars to check with
-    /// their variants and crops, none for notes read elsewhere or before; nil with the experiment off.
+    /// their variants, none for notes read elsewhere or before; nil with the experiment off. Read with its crops
+    /// (`scanCrops`, by bar) once for the working notes, off the main thread.
     @Published private(set) var scanReview: ScanReview?
-    /// The bar whose variant the player chose last, which one Undo takes back whole while nothing came after it.
-    @Published private(set) var variantChosen: (bar: Int, engines: [String])?
+    @Published private(set) var scanCrops: [Int: UIImage] = [:]
+    /// The variant the player chose last, which one Undo takes back whole while nothing came after it.
+    @Published private(set) var variantChoice = ScanVariantChoice()
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
     /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that
@@ -722,10 +724,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func revertNote(_ id: String) { correct(.revert, ["id": id], notes: true) }
 
     /// Takes back the last correction.
-    func undoCorrection() {
-        variantChosen = nil
-        correct(.undo, [:], notes: true)
-    }
+    func undoCorrection() { correct(.undo, [:], notes: true) }
 
     /// Another engine's reading of a scan's bar to check chosen (v1.3 i-2, 0035 section 6): music-core puts it in that bar's
     /// staves to check only, as the player's corrections (`corrections.variant`); the bar's notes are listed to correct, the
@@ -739,7 +738,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
                 problem = FacadeAnswer.problem(answer.text)
                 return
             }
-            variantChosen = (bar, variant.engines)
+            variantChoice.chose(bar: bar, engines: variant.engines, notes: check.fingerprint)
             corrections = NoteCorrections(read)
             readEdits(read)
             await notesDidChange()
@@ -748,9 +747,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// The variant chosen last taken back whole (`corrections.undoDraft`), while nothing came after it.
     func undoVariant() {
-        guard let chosen = variantChosen else { return }
-        variantChosen = nil
-        correct(.undoDraft, ["bar": chosen.bar], notes: true)
+        guard let bar = variantChoice.bar else { return }
+        correct(.undoDraft, ["bar": bar], notes: true)
     }
 
     /// Accepts a draft of the assistant (#582 item 17.3): music-core makes it again from its call over the notes as they
@@ -759,6 +757,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func acceptAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
         guard let piece, let body = draft.acceptRequest?.text else { return "" }
+        variantChoice.edited()
         let answer = await PieceCore(piece: piece.id).corrections(.acceptDraft, body)
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
         readEdits(read)
@@ -773,6 +772,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
         let bar = draft.firstBar ?? 1
+        variantChoice.edited()
         let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, "{\"bar\": \(bar)}")
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
         readEdits(read)
@@ -781,8 +781,10 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         return nil
     }
 
+    /// A correction call; one that changes the notes (`notes`) ends what a variant's Undo may take back.
     private func correct(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false) {
         guard let piece, let bar = fields["bar"] as? Int ?? corrections?.bar else { return }
+        if notes { variantChoice.edited() }
         var request = fields
         request["bar"] = bar
         let body = facadeRequest(request)
@@ -819,6 +821,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func editsCall(_ call: PieceCore.Correction, _ fields: [String: Any]) {
         guard let piece else { return }
+        variantChoice.edited()
         let body = facadeRequest(fields)
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
@@ -894,6 +897,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func noteEditCall(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
         guard let piece else { return }
+        if notes { variantChoice.edited() }
         var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
         request["bar"] = selectionModel.selection?.firstBar ?? 1
@@ -918,10 +922,28 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     private func loadCheck(_ piece: OpenPiece) async {
+        let before = check.fingerprint
         check = CheckShelf(answer: await MusicCore.run { MusicCore.call(piece: piece.id, "check") }) ?? CheckShelf()
-        scanReview = ScanServer.jobs ? check.fingerprint.flatMap { ScanReviewStore.load($0) } ?? ScanReview(fingerprint: "", bars: []) : nil
-        variantChosen = nil
+        variantChoice.notesRead(check.fingerprint)
+        if check.fingerprint != before || ScanServer.jobs != (scanReview != nil) { await loadScanReview() }
         await drawChecks()
+    }
+
+    /// What this iPad kept of the working notes' scan and its crops, read from the device off the main thread (v1.3 i-2).
+    private func loadScanReview() async {
+        guard ScanServer.jobs else {
+            (scanReview, scanCrops) = (nil, [:])
+            return
+        }
+        let fingerprint = check.fingerprint
+        let kept = await Task.detached(priority: .utility) { () -> (ScanReview?, [Int: Data]) in
+            guard let fingerprint, let review = ScanReviewStore.load(fingerprint) else { return (nil, [:]) }
+            var crops: [Int: Data] = [:]
+            for bar in review.bars where bar.cropped { crops[bar.bar] = ScanReviewStore.crop(fingerprint, bar: bar.bar) }
+            return (review, crops)
+        }.value
+        scanReview = kept.0 ?? ScanReview(fingerprint: fingerprint ?? "", bars: [])
+        scanCrops = kept.1.compactMapValues { UIImage(data: $0) }
     }
 
     /// The open bars as amber flags on the score, each labelled with its reasons.

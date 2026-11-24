@@ -36,7 +36,7 @@ final class ScanReviewTests: XCTestCase {
         XCTAssertTrue(review.bars.allSatisfy { !$0.cropped }, "no PDF, no crop")
         let variant = try XCTUnwrap(review.bars.lazy.flatMap(\.variants).first)
         XCTAssertFalse(variant.engines.isEmpty)
-        XCTAssertFalse(variant.names.isEmpty)
+        XCTAssertFalse(variant.names(rest: "rest").isEmpty)
         XCTAssertNil(ScanReviewStore.load("another", in: root), "notes read elsewhere have none")
     }
 
@@ -81,7 +81,19 @@ final class ScanReviewTests: XCTestCase {
 
         XCTAssertEqual(ScanReviewStore.load("f2", in: root)?.bar(5)?.cropped, true)
         let image = try XCTUnwrap(ScanReviewStore.crop("f2", bar: 5, in: root).flatMap { UIImage(data: $0) })
-        XCTAssertEqual(image.size.width / image.size.height, 100.0 / 140.0, accuracy: 0.05, "as wide and high as the box on the server's image")
+        XCTAssertEqual(image.size, CGSize(width: 100, height: 140), "the box on the server's image, at its pixels")
+        for point in [CGPoint(x: 50, y: 70), CGPoint(x: 3, y: 3), CGPoint(x: 96, y: 136)] {
+            XCTAssertLessThan(brightness(image, at: point), 0.2, "the filled rectangle at \(point)")
+        }
+    }
+
+    /// How bright one pixel of an image is, from 0 (black) to 1 (white).
+    private func brightness(_ image: UIImage, at point: CGPoint) -> CGFloat {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let one = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1), format: format).image { _ in image.draw(at: CGPoint(x: -point.x, y: -point.y)) }
+        guard let data = one.cgImage?.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return 1 }
+        return CGFloat(bytes[1]) / 255
     }
 
     func testAVariantGoesBackToMusicCoreAsItCame() throws {
@@ -94,8 +106,31 @@ final class ScanReviewTests: XCTestCase {
         let staff = try XCTUnwrap((fields["staves"] as? [[String: Any]])?.first)
         XCTAssertEqual(staff["part"] as? Int, 1)
         XCTAssertEqual((staff["notes"] as? [[String: Int]])?.map { $0["pitch"] }, [79, 81])
-        XCTAssertEqual(variant.names, "G5 A5")
+        XCTAssertEqual(variant.names(rest: "rest"), "G5 A5")
+        let rest = try XCTUnwrap(ScanVariant(try json(#"{"engines": ["homr"], "staves": [{"part": 1, "staff": 1, "notes": []}, {"part": 1, "staff": 2, "notes": [{"onset": 0, "pitch": 48, "length": 1920, "name": "C3"}]}]}"#)))
+        XCTAssertEqual(rest.names(rest: UIText(language: "ru")["scanReview.rest"]), "пауза · C3")
+        XCTAssertEqual(rest.names(rest: UIText(language: "en")["scanReview.rest"]), "rest · C3")
         XCTAssertNil(ScanVariant(try json(#"{"staves": []}"#)))
+    }
+
+    func testABarTheEnginesDisagreeOnIsKnownByTheReasonCheckWrites() throws {
+        let shelf = try XCTUnwrap(CheckShelf(answer: #"{"flags": [{"bar": 2, "reason": "enginesDisagree", "name": "Engines disagree", "text": "", "resolved": false, "span": {"onset": 1920, "end": 3840}}], "open": 1}"#))
+
+        XCTAssertEqual(shelf.openBars.first?.flags.first?.reason, CheckShelf.enginesDisagree)
+    }
+
+    func testAVariantsUndoHoldsOnlyUntilAnotherEditOrOtherNotes() {
+        var choice = ScanVariantChoice()
+        choice.chose(bar: 4, engines: ["audiveris"], notes: "n1")
+        XCTAssertEqual(choice.engines(in: 4), ["audiveris"])
+        XCTAssertNil(choice.engines(in: 5))
+        choice.notesRead("n1")
+        XCTAssertEqual(choice.bar, 4, "the score engraved again on the same notes keeps it")
+        choice.notesRead("n2")
+        XCTAssertNil(choice.bar, "other working notes end it")
+        choice.chose(bar: 4, engines: ["audiveris"], notes: "n1")
+        choice.edited()
+        XCTAssertNil(choice.engines(in: 4), "another edit ends it, so its Undo cannot take back an assistant's draft")
     }
 
     func testCheckNamesTheWorkingNotesByTheirFingerprint() {
@@ -111,7 +146,7 @@ final class ScanReviewTests: XCTestCase {
     }
 
     func testThePanelsWordsAreInBothLanguages() {
-        for key in ["scanReview.page", "scanReview.cropLabel", "scanReview.variants", "scanReview.variantHint", "scanReview.none", "scanReview.missing", "scanReview.chosen", "scanReview.undo"] {
+        for key in ["scanReview.rest", "scanReview.page", "scanReview.cropLabel", "scanReview.variants", "scanReview.variantHint", "scanReview.none", "scanReview.missing", "scanReview.chosen", "scanReview.undo"] {
             for text in [UIText(language: "en"), UIText(language: "ru")] {
                 XCTAssertNotEqual(text[key], key, "\(text.language): \(key)")
             }

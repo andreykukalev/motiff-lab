@@ -5,7 +5,10 @@ import SwiftUI
 /// correction of that bar only, and Undo of the one chosen. Without what this iPad kept of the scan (an older piece, read
 /// on another device), a short line says so; Fix notes and Looks right stay as for any bar.
 struct ScanReviewBlock: View {
-    let review: ScanReview
+    /// What this iPad kept of the bar; nil when it kept nothing of it.
+    let entry: ScanReview.Bar?
+    /// The bar's crop of its page, read once with the review (`ScoreController.scanCrops`).
+    let crop: UIImage?
     let bar: Int
     /// The engines of the variant chosen last in this bar, while one Undo takes it back whole; nil otherwise.
     let chosen: [String]?
@@ -17,10 +20,10 @@ struct ScanReviewBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            if let entry = review.bar(bar) {
-                if entry.cropped, let png = ScanReviewStore.crop(review.fingerprint, bar: bar), let image = UIImage(data: png) {
+            if let entry {
+                if let crop {
                     Text(text["scanReview.page"]).overline()
-                    Image(uiImage: image)
+                    Image(uiImage: crop)
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,7 +40,7 @@ struct ScanReviewBlock: View {
                     Button { choose(variant) } label: {
                         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
                             Text(variant.engines.joined(separator: ", ")).dsType(.label)
-                            Text(variant.names).dsType(.caption).fixedSize(horizontal: false, vertical: true)
+                            Text(variant.names(rest: text["scanReview.rest"])).dsType(.caption).fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }

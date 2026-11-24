@@ -42,9 +42,9 @@ struct ScanVariant: Codable, Equatable, Sendable {
         }]
     }
 
-    /// «G5 A5 B5 C5», a staff's notes by name in order, the staves apart by « · ».
-    var names: String {
-        staves.map { $0.notes.map(\.name).joined(separator: " ") }.joined(separator: " · ")
+    /// «G5 A5 B5 C5», a staff's notes by name in order (a staff with none `rest`, «пауза»), the staves apart by « · ».
+    func names(rest: String) -> String {
+        staves.map { $0.notes.isEmpty ? rest : $0.notes.map(\.name).joined(separator: " ") }.joined(separator: " · ")
     }
 }
 
@@ -63,6 +63,30 @@ struct ScanReview: Codable, Equatable, Sendable {
     var bars: [Bar]
 
     func bar(_ number: Int) -> Bar? { bars.first { $0.bar == number } }
+}
+
+/// The variant of a scan's bar the player chose last (v1.3 i-2): one Undo (`corrections.undoDraft`) takes it back whole
+/// only while nothing else changed the notes since, so any other edit, or other working notes, end it.
+struct ScanVariantChoice: Equatable, Sendable {
+    private(set) var bar: Int?
+    private var chosenEngines: [String] = []
+    /// The fingerprint of the notes it was chosen on.
+    private var notes: String?
+
+    mutating func chose(bar: Int, engines: [String], notes: String?) {
+        (self.bar, chosenEngines, self.notes) = (bar, engines, notes)
+    }
+
+    /// The engines of the variant chosen in `bar`, while its Undo holds; nil otherwise.
+    func engines(in bar: Int) -> [String]? { self.bar == bar ? chosenEngines : nil }
+
+    /// Another edit of the notes: the choice can no longer be undone whole.
+    mutating func edited() { self = ScanVariantChoice() }
+
+    /// The working notes read again: the choice holds only for the notes it was made on.
+    mutating func notesRead(_ fingerprint: String?) {
+        if fingerprint != notes { self = ScanVariantChoice() }
+    }
 }
 
 /// Where the scans' bars to check are kept on this iPad: a folder a fingerprint, with `review.json` and each bar's crop as

@@ -139,8 +139,8 @@ struct CheckShelf: Equatable, Sendable {
 
     var hasFlags: Bool { !flags.isEmpty }
 
-    /// The reason of a scan's bar no two engines agree on some staff of (v1.3, music-core's CheckReason).
-    static let enginesDisagree = "EnginesDisagree"
+    /// The reason of a scan's bar no two engines agree on some staff of (v1.3), as `check` writes music-core's CheckReason.
+    static let enginesDisagree = "enginesDisagree"
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
@@ -398,7 +398,7 @@ struct CheckDrawer: View {
             // The bar tapped where the scan's engines disagree (v1.3 i-2): its crop and the engines' readings.
             if selected, let review = score.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
                 ScanReviewBlock(
-                    review: review, bar: bar.bar, chosen: score.variantChosen.flatMap { $0.bar == bar.bar ? $0.engines : nil },
+                    entry: review.bar(bar.bar), crop: score.scanCrops[bar.bar], bar: bar.bar, chosen: score.variantChoice.engines(in: bar.bar),
                     editsOn: score.editsOn, text: text, choose: { score.chooseVariant($0, bar: bar.bar) }, undo: { score.undoVariant() }
                 )
             }

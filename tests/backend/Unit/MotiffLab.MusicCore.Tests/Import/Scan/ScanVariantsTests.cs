@@ -4,6 +4,7 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Variations;
 
 using static MotiffLab.MusicCore.Tests.Import.Scan.ScanAssemblyTests;
 using static MotiffLab.MusicCore.Tests.Import.Scan.ScanRepairTests;
@@ -59,7 +60,8 @@ public class ScanVariantsTests
     {
         ScanMergedPage page = ScanMerge.Merge(Readings(), Evidence(2));
 
-        Assert.Equal(new ScanCrop(new ScanBox(100, 80, 200, 220), new ScanImage(1000, 400, 0)), page.Bars[1].Crop);
+        // The system's lines run from 80 to 220; the crop reaches four staff spaces (10) above and below, for ledger lines and stems.
+        Assert.Equal(new ScanCrop(new ScanBox(100, 40, 200, 260), new ScanImage(1000, 400, 0)), page.Bars[1].Crop);
         Assert.Null(page.Bars[0].Crop);
     }
 
@@ -73,7 +75,7 @@ public class ScanVariantsTests
         JsonElement bar = joined.RootElement.GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[1];
         Assert.Equal(["copisteria", "audiveris"], bar.GetProperty("variants").EnumerateArray().Select(variant => variant.GetProperty("engines")[0].GetString()));
         Assert.Equal("G5", bar.GetProperty("variants")[0].GetProperty("staves")[0].GetProperty("notes")[0].GetProperty("name").GetString());
-        Assert.Equal([100.0, 80, 200, 220], bar.GetProperty("crop").GetProperty("box").EnumerateArray().Select(value => value.GetDouble()));
+        Assert.Equal([100.0, 40, 200, 260], bar.GetProperty("crop").GetProperty("box").EnumerateArray().Select(value => value.GetDouble()));
         Assert.Equal((1000, 400, 0), (bar.GetProperty("crop").GetProperty("width").GetInt32(), bar.GetProperty("crop").GetProperty("height").GetInt32(), bar.GetProperty("crop").GetProperty("rotated").GetInt32()));
         Assert.False(joined.RootElement.GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[0].TryGetProperty("variants", out _));
         string score = joined.RootElement.GetProperty("score").GetString()!;
@@ -108,6 +110,35 @@ public class ScanVariantsTests
         string outside = JsonSerializer.Serialize(new { bar = 2, staves = new[] { new { part = 1, staff = 1, notes = new[] { new { onset = 1920, pitch = 79, length = 480 } } } } });
         Assert.Equal("badRequest", JsonDocument.Parse(piece.Call(1, "corrections.variant", outside)).RootElement.GetProperty("error").GetString());
         Assert.Equal("badRequest", JsonDocument.Parse(piece.Call(1, "corrections.variant", """{"bar": 2}""")).RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public void A_note_tied_past_the_bar_line_keeps_its_part_in_the_next_bar_when_a_variant_replaces_it()
+    {
+        // Bar 1: C5 for three quarters and E5 tied into bar 2 for a half in all; bar 2 goes on with G5 for three quarters.
+        string score = """
+            <?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+            <part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+            <note><pitch><step>C</step><octave>5</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+            <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><tie type="start"/><type>quarter</type></note></measure>
+            <measure number="2"><note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><tie type="stop"/><type>quarter</type></note>
+            <note><pitch><step>G</step><octave>5</octave></pitch><duration>3</duration><type>half</type><dot/></note></measure></part></score-partwise>
+            """;
+        var facade = new MusicCoreFacade();
+        Assert.DoesNotContain("\"error\"", facade.Open("tie.musicxml", Encoding.UTF8.GetBytes(score), """{"id": "p_tie"}"""), StringComparison.Ordinal);
+        using JsonDocument next = JsonDocument.Parse(facade.Call(1, "corrections", """{"bar": 2}"""));
+
+        string variant = JsonSerializer.Serialize(new { bar = 1, staves = new[] { new { part = 1, staff = 1, notes = new[] { new { onset = 0, pitch = 74, length = 1920 } } } } });
+        using JsonDocument chosen = JsonDocument.Parse(facade.Call(1, "corrections.variant", variant));
+
+        Assert.Equal([74], Pitches(chosen.RootElement));
+        using JsonDocument after = JsonDocument.Parse(facade.Call(1, "corrections", """{"bar": 2}"""));
+        // The E5 tied over still sounds from bar 2's first beat, as long as before; G5 as it was.
+        Assert.Equal([79], Pitches(next.RootElement));
+        Assert.Equal([76, 79], Pitches(after.RootElement));
+        JsonElement tied = after.RootElement.GetProperty("notes").EnumerateArray().Single(note => note.GetProperty("pitch").GetInt32() == 76);
+        Assert.Equal((1920, 1, 1), (tied.GetProperty("onset").GetInt32(), tied.GetProperty("atBar").GetInt32() - 1, tied.GetProperty("beat").GetInt32()));
+        Assert.Equal(VariationFacts.Length(480), tied.GetProperty("length").GetString());
     }
 
     private static int[] Pitches(JsonElement corrections) => [.. corrections.GetProperty("notes").EnumerateArray().Select(note => note.GetProperty("pitch").GetInt32()).Order()];

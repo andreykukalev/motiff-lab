@@ -75,7 +75,7 @@ enum ScanCrops {
                 guard let bar = entry["bar"] as? Int else { continue }
                 let variants = (entry["variants"] as? [[String: Any]] ?? []).compactMap(ScanVariant.init)
                 if let crop = ScanCrop(entry["crop"]), index < pages.count, let pdfPage = document?.page(at: pages[index] - 1) {
-                    image = image ?? pdfPage.thumbnail(of: crop.pageSize, for: .cropBox)
+                    image = image ?? drawn(pdfPage, size: crop.pageSize)
                     if let image, let png = cut(image, crop) { crops[bar] = png }
                 }
                 bars.append(ScanReview.Bar(bar: bar, variants: variants, cropped: crops[bar] != nil))
@@ -83,6 +83,21 @@ enum ScanCrops {
         }
         guard !bars.isEmpty else { return }
         ScanReviewStore.save(ScanReview(fingerprint: fingerprint, bars: bars), crops: crops, in: root)
+    }
+
+    /// The PDF page as the PDF shows it (its turn applied), drawn `size` pixels wide and high at scale 1, as the server's image.
+    private static func drawn(_ page: PDFPage, size: CGSize) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let box = page.bounds(for: .cropBox)
+        let shown = page.rotation % 180 == 0 ? box.size : CGSize(width: box.height, height: box.width)
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            context.cgContext.translateBy(x: 0, y: size.height)
+            context.cgContext.scaleBy(x: size.width / shown.width, y: -size.height / shown.height)
+            page.draw(with: .cropBox, to: context.cgContext)
+        }
     }
 
     /// The crop's part of the page image, turned as on the server's image, as PNG.

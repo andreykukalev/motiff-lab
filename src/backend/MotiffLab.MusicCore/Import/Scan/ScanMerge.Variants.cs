@@ -39,10 +39,26 @@ public static partial class ScanMerge
             })];
     }
 
+    /// <summary>The staff spaces a crop reaches above the system's top line and below its bottom one: ledger lines, stems and beams.</summary>
+    private const double CropSpaces = 4;
+
     internal sealed partial class Page
     {
-        /// <summary>Where the backbone's bar is on the page; null when it was not found there or the evidence gives no box or image.</summary>
-        public ScanCrop? CropOf(int measure) =>
-            _bars[measure] is int bar && _evidence.Bars[bar].Box is { } box && _evidence.Image is { } image ? new ScanCrop(box, image) : null;
+        /// <summary>
+        /// Where the backbone's bar is on the page: its box reaching <see cref="CropSpaces"/> staff spaces (its staves' widest)
+        /// above and below its system's lines, inside the image; null when it was not found there or the evidence gives no box or image.
+        /// </summary>
+        public ScanCrop? CropOf(int measure)
+        {
+            if (_bars[measure] is not int bar || _evidence.Bars[bar].Box is not { } box || _evidence.Image is not { } image)
+            {
+                return null;
+            }
+
+            double reach = CropSpaces * _evidence.Bars[bar].Spaces.Values.DefaultIfEmpty(0).Max();
+            return new ScanCrop(
+                new ScanBox(Math.Clamp(box.Left, 0, image.Width), Math.Clamp(box.Top - reach, 0, image.Height), Math.Clamp(box.Right, 0, image.Width), Math.Clamp(box.Bottom + reach, 0, image.Height)),
+                image);
+        }
     }
 }

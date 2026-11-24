@@ -24,7 +24,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   `CorrectionsAnswer` (`PieceCore.corrections`), listed by `CorrectionsList`.
 - `ScanReviewBlock.swift` (v1.3 i-2, experiment `experimental.scanJobs`): in the Check entry of the bar selected, an
   EnginesDisagree bar's crop of the page and the engines' other readings, one tap each (`ScoreController.chooseVariant`,
-  `corrections.variant`; `undoVariant`, `corrections.undoDraft`), from `ScoreController.scanReview`; without it a short line.
+  `corrections.variant`; `undoVariant`, `corrections.undoDraft`, held by `ScanVariantChoice`), from `ScoreController.scanReview` and `scanCrops` (read once, off the main thread); without them a short line.
 - `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState`, built from `EditsLayerAnswer` (every corrections
   answer, and the open answer's "edits": "count", "layer", "moved", "unfit"), `EditsLayerSection` in More (the switch,
   its line, the misfits with «Убрать»). `OpenPiece.openRequest` opens a project file with "edits": "piece" (the file keeps "off");

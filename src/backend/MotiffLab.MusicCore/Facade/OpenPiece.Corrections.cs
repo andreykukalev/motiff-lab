@@ -99,7 +99,7 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// corrections.variant {"bar", "staves": [{"part", "staff", "notes": [{"onset" (ticks in the bar), "pitch", "length"}]}]}
     /// (v1.3 i-2, ADR 0035 section 6): another engine's reading of a scan's bar to check, as scan.join answered it, chosen by
-    /// the player: the bar's notes on those staves are taken out and the variant's put in, the player's corrections accepted
+    /// the player: the bar's notes on those staves are taken out (a note tied past the bar line kept from it on) and the variant's put in, the player's corrections accepted
     /// together (one group), and corrections.undoDraft takes them back at once. Only that bar changes: a note of the variant
     /// starting outside it is refused, so no bar is ever fixed from another. Refused on a bar with a note taken from a version.
     /// </summary>
@@ -122,12 +122,20 @@ internal sealed partial class OpenPiece
         NoteEditLog before = Project.Edits;
         string answer = Correct(request, edits =>
         {
-            NoteEditLog log = staves.Aggregate(replaced.Aggregate(edits, (current, note) => current.Remove(Piece.Notes, note.Id)), (current, staff) => staff.AddTo(current, Piece.Notes, replaced));
+            NoteEditLog log = staves.Aggregate(replaced.Aggregate(edits, (current, note) => Leave(current, note, bar)), (current, staff) => staff.AddTo(current, Piece.Notes, replaced));
             return new NoteEditLog([.. edits.Edits, .. log.Edits.Skip(edits.Edits.Count).Select(edit => edit with { Group = group })]);
         });
         _acceptedDraft = (before, Project.Edits);
         return answer;
     }
+
+    /// <summary>
+    /// A note of the bar taken out for a variant: removed, or, when it sounds on past the bar line (tied into the next bar),
+    /// kept from the bar line on, so the next bar sounds as before: no other bar changes.
+    /// </summary>
+    private NoteEditLog Leave(NoteEditLog log, Note note, Bar bar) => note.Span.End <= bar.Span.End
+        ? log.Remove(Piece.Notes, note.Id)
+        : log.Change(Piece.Notes, note.Id, NoteValues.Of(note) with { Span = new TickSpan(bar.Span.End, note.Span.End.Value - bar.Span.End.Value) });
 
     /// <summary>One staff of a variant as corrections.variant takes it: its track (the part from 0), its staff, and its notes in the bar's ticks.</summary>
     private sealed record VariantStaff(int Track, int Staff, IReadOnlyList<NoteValues> Notes)
