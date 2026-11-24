@@ -8,12 +8,7 @@ internal readonly record struct VectorClef(char Sign, int Line, int Octave)
     public static readonly VectorClef Bass = new('F', 4, 0);
 
     /// <summary>The diatonic step (C0 = 0, seven an octave) of the note on the clef's own line: G4, F3 or C4, shifted by its octave.</summary>
-    public int Reference => (Sign switch
-    {
-        'G' => (4 * 7) + 4,
-        'F' => (3 * 7) + 3,
-        _ => 4 * 7,
-    }) + (7 * Octave);
+    public int Reference => StaffPitch.Reference(Sign, Octave);
 
     /// <summary>The clef a glyph prints, on the staff line nearest its origin.</summary>
     public static VectorClef Of(MusicGlyph glyph, VectorStaff staff, double y)
@@ -36,17 +31,7 @@ internal readonly record struct VectorClef(char Sign, int Line, int Octave)
 }
 
 /// <summary>A written pitch: step letter, alteration in semitones, octave, and whether a tie joins it to the next note or the one before.</summary>
-internal readonly record struct VectorPitch(char Step, int Alter, int Octave, bool TieStart = false, bool TieStop = false)
-{
-    private const string Steps = "CDEFGAB";
-
-    /// <summary>The diatonic step (C0 = 0) of the pitch.</summary>
-    public int Diatonic => (Octave * 7) + Steps.IndexOf(Step, StringComparison.Ordinal);
-
-    public static char StepOf(int diatonic) => Steps[((diatonic % 7) + 7) % 7];
-
-    public static int OctaveOf(int diatonic) => (int)Math.Floor(diatonic / 7.0);
-}
+internal readonly record struct VectorPitch(char Step, int Alter, int Octave, bool TieStart = false, bool TieStop = false);
 
 /// <summary>A note, chord or rest read from one staff, placed in its bar by <see cref="BarTiming"/>.</summary>
 internal sealed class VectorEvent
