@@ -6,8 +6,10 @@
 .DESCRIPTION
   In the subscription that holds rg-motifflab (Visual Studio Premium), Poland Central:
   1. the resource group rg-motifflab-dev;
-  2. infra/dev-env.bicep there: the Container Apps environment cae-motifflab-dev (Consumption only, scales to zero),
-     a serverless Cosmos DB account cosmos-motifflab-dev-<8 characters> with the database motifflab and the container projects,
+  2. infra/dev-env.bicep there: the API's Container Apps environment cae-motifflab-dev (Consumption only, scales to
+     zero), the scan server's base (infra/scan-base.bicep: its environment cae-motifflab-scan-dev with workload profiles,
+     Consumption only, its identity id-motifflab-scan-dev and its job storage stmlscan<13 characters>, with that identity's
+     roles on the job queue and container), a serverless Cosmos DB account cosmos-motifflab-dev-<8 characters> with the database motifflab and the container projects,
      the API's identity id-motifflab-api-dev (data access to that database only), and the CI identity
      id-motifflab-github-dev, which signs in from the develop branch and is Contributor on this group only;
   3. the GitHub repository variables the API and Scan server workflows read for develop (identifiers, not secrets):
@@ -47,7 +49,9 @@ $ArmArgs = @('--subscription', "$($account.id)")
 
 Write-MotiffStep 'What this creates'
 Write-MotiffInfo "Resource group $ResourceGroup ($Location) with:"
-Write-MotiffInfo '  - Container Apps environment cae-motifflab-dev (the develop API and scan server go here)'
+Write-MotiffInfo '  - Container Apps environment cae-motifflab-dev (the develop API goes here)'
+Write-MotiffInfo '  - Container Apps environment cae-motifflab-scan-dev (the develop scan server, 4 vCPU and 8 GiB, goes here)'
+Write-MotiffInfo '  - identity id-motifflab-scan-dev and storage account stmlscan... (queue scan-units, container scan-jobs; roles on them only)'
 Write-MotiffInfo '  - serverless Cosmos DB account cosmos-motifflab-dev-..., database motifflab, container projects'
 Write-MotiffInfo '  - identities id-motifflab-api-dev (that database only) and id-motifflab-github-dev (CI from develop, this group only)'
 Write-MotiffInfo "On ${Repository}: variables AZURE_DEV_CLIENT_ID, AZURE_DEV_RESOURCE_GROUP, COSMOS_ENDPOINT_DEV, API_URL_DEV, SCAN_URL_DEV"
@@ -60,7 +64,7 @@ if (-not $Yes) {
 Write-MotiffStep "Resource group $ResourceGroup"
 Invoke-MotiffAz (@('group', 'create', '--name', $ResourceGroup, '--location', $Location, '--tags', 'app=motiff-lab', 'env=develop', '-o', 'none') + $ArmArgs) | Out-Null
 
-Write-MotiffStep 'Environment, database and identities (5 to 10 minutes the first time)'
+Write-MotiffStep 'Environments, job storage, database and identities (5 to 10 minutes the first time)'
 $template = Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'dev-env.bicep'
 $outputs = Invoke-MotiffAz (@('deployment', 'group', 'create', '--resource-group', $ResourceGroup, '--name', 'dev-env',
     '--template-file', $template, '--query', 'properties.outputs', '-o', 'json') + $ArmArgs) | ConvertFrom-Json

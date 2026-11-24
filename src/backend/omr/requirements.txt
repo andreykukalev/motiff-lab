@@ -21,3 +21,8 @@ scipy==1.18.1
 # MusicXML here (transcoda_reader.py), as a program of this service rather than in Transcoda's own environment.
 music21==10.5.2
 converter21==4.0.2
+# The hosted server's scan jobs (azure_store.py, decision record 0035): an Azure Storage queue and blob container,
+# signed in as the container app's managed identity. Unused on the player's own computer.
+azure-storage-queue==12.18.1
+azure-storage-blob==12.31.1
+azure-identity==1.27.0

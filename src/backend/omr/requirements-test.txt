@@ -9,3 +9,7 @@ numpy==2.3.5
 pypdfium2==5.14.0
 PyJWT[crypto]==2.12.1
 cryptography==46.0.3
+# The Azure store's tests (test_job_store.py run its contract against Azurite when it is running).
+azure-storage-queue==12.18.1
+azure-storage-blob==12.31.1
+azure-identity==1.27.0
