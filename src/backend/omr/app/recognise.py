@@ -8,16 +8,19 @@ for those counts only and never passed on, since it also holds the title homr re
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import xml.etree.ElementTree as ET
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
 
 ENGINE = "homr"
 
-# A page takes 20 to 40 s on 4 CPU cores; a slow machine gets plenty of room before it is given up.
+# Every engine's page: homr takes 20 to 40 s on 4 CPU cores, copisteria 17 to 26, Audiveris about 30 and Transcoda 50
+# to 90; a slow machine gets plenty of room before it is given up.
 PAGE_TIMEOUT_SECONDS = 300
 
 # homr 0.7.0's log lines (homr/main.py, detect_staffs_in_image), one count each.
@@ -63,17 +66,29 @@ def engine_version() -> str:
         return "not installed"
 
 
-def recognise_page(image: Path, page_number: int) -> Reading:
+def run(
+    command: list[str], folder: Path, page_number: int, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[bytes]:
+    """Runs an engine's own program on a page in the page's folder, its output captured, and stops it after
+    PAGE_TIMEOUT_SECONDS: every engine's pages get the same room."""
     try:
-        result = subprocess.run(
-            ["homr", "--gpu", "no", str(image)],
-            cwd=image.parent,
-            capture_output=True,
-            timeout=PAGE_TIMEOUT_SECONDS,
-            check=False,
-        )
+        return subprocess.run(command, cwd=folder, env=env, capture_output=True, timeout=PAGE_TIMEOUT_SECONDS, check=False)
     except subprocess.TimeoutExpired as error:
         raise RecogniseError(f"Reading page {page_number} took too long and was stopped.") from error
+
+
+def threads() -> int:
+    """The cores an engine's program may use: its share when a job reads engines side by side (unit_process), else all."""
+    limit = os.environ.get("OMP_NUM_THREADS", "")
+    return int(limit) if limit.isdigit() and int(limit) > 0 else cores()
+
+
+def cores() -> int:
+    return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+
+
+def recognise_page(image: Path, page_number: int) -> Reading:
+    result = run(["homr", "--gpu", "no", str(image)], image.parent, page_number)
 
     found = read_log(result.stderr)
     output = image.with_suffix(".musicxml")

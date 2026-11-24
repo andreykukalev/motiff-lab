@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app import copisteria_reader
+from app import audiveris_reader, copisteria_reader, engines, transcoda_reader
 from app.engines import Engine
 from app.main import create_app
 from app.recognise import Found, Reading
@@ -85,3 +86,30 @@ def test_a_reading_that_is_missing_gives_no_counts(tmp_path: Path):
     image = tmp_path / "page-01.png"
     Image.new("L", (100, 100), 255).save(image)
     assert copisteria_reader.read_found(tmp_path / "none.json", image) == Found()
+
+
+def test_the_engines_setting_switches_installed_engines_off(monkeypatch):
+    for reader in (copisteria_reader, audiveris_reader, transcoda_reader):
+        monkeypatch.setattr(reader, "is_installed", lambda: True)
+    assert [engine.name for engine in engines.others("")] == ["copisteria", "audiveris", "transcoda"]
+    assert [engine.name for engine in engines.others(" homr, Copisteria ,audiveris")] == ["copisteria", "audiveris"]
+    monkeypatch.setenv("ENGINES", "homr,transcoda")
+    assert [engine.name for engine in engines.others()] == ["transcoda"]
+    monkeypatch.setattr(transcoda_reader, "is_installed", lambda: False)
+    assert engines.others() == []
+
+
+def test_copisteria_s_evidence_is_made_from_its_detections_or_left_out(tmp_path: Path):
+    image = tmp_path / "page-01.png"
+    Image.new("L", (400, 300), 255).save(image)
+    (tmp_path / "page-01.dets_v7_1792.json").write_text(json.dumps([{"cls": "note_quarter", "conf": 0.9, "xyxy": [1, 2, 3, 4]}]))
+    found = copisteria_reader.page_evidence(image)
+    assert found["detector"]["name"] == "copisteria" and found["image"]["width"] == 400 and found["systems"] == []
+    image.write_bytes(b"not a picture")
+    assert copisteria_reader.page_evidence(image) is None
+
+
+def test_an_engine_the_server_does_not_know_stops_it_at_start(monkeypatch):
+    monkeypatch.setenv("ENGINES", "homr,audivers")
+    with pytest.raises(ValueError, match="ENGINES names audivers, which this server does not have. It has homr, copisteria"):
+        engines.others()

@@ -51,3 +51,9 @@ def test_a_page_whose_first_measure_has_a_print_keeps_it():
     second = page("1").replace(b'<measure number="1">', b'<measure number="1"><print new-system="yes"/>')
     printed = ET.fromstring(merge([page("1"), second])).find("part/measure[2]/print")
     assert printed.get("new-page") == "yes" and printed.get("new-system") == "yes"
+
+
+def test_parts_of_one_page_follow_each_other_without_a_page_break():
+    score = merge([page("1", "2"), page("1")], new_page=False)
+    assert numbers(score) == ["1", "2", "3"]
+    assert ET.fromstring(score).find(".//print") is None

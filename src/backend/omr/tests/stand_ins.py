@@ -25,6 +25,16 @@ def reads(log: Path, image: Path, number: int) -> Reading:
     return Reading(page(str(number)), Found(staves=2, noteheads=10, bar_lines=3, space_px=12.0))
 
 
+EVIDENCE = {"detector": {"name": "copisteria", "version": "1.3.4"}, "image": {"width": 2480, "height": 3508, "dpi": 300},
+            "systems": [], "symbols": []}
+
+
+def notes_threads(log: Path, image: Path, number: int) -> Reading:
+    """Notes the limits its programs would inherit."""
+    _note(log, f"{os.environ.get('OMP_NUM_THREADS')}|{os.environ.get('JAVA_TOOL_OPTIONS')}")
+    return reads(log, image, number)
+
+
 def fails(log: Path, image: Path, number: int) -> Reading:
     _note(log, number)
     raise RecogniseError(f"No music staves were found on page {number}.", Found(noteheads=4))

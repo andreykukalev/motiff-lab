@@ -3,7 +3,8 @@
 A worker takes one message from the queue, leases it, and reads that page with that engine in a process of its own
 (unit_process.py), renewing the lease while it does. Then:
 
-- read: the result is written under the unit's name (a repeat overwrites it) and the engine's time is measured;
+- read: the result, with the page's evidence where the engine gives it (copisteria), is written under the unit's name
+  (a repeat overwrites it) and the engine's time is measured;
 - failed or past the time limit: retried after 10, 20 and 40 s; after the last try the unit is not read by this
   engine, what was seen of the page is kept for its report, and the job goes on;
 - a worker that dies leaves its lease to run out, and the message comes back to another; its try counts, so a page
@@ -88,8 +89,9 @@ class Worker:
                 path.write_bytes(image)
                 settings = self._jobs.settings
                 reading = unit_process.read_within(
-                    engine.read, path, page, settings.unit_seconds, renew_lease, settings.lease_seconds / 3
+                    engine.read, path, page, settings.unit_seconds, renew_lease, settings.lease_seconds / 3, settings.threads
                 )
+                found = engine.evidence(path) if engine.evidence else None
         except RecogniseError as error:
             self._failed(job, page, name, unit, error)
             return
@@ -100,6 +102,7 @@ class Worker:
             "musicxml": reading.musicxml.decode("utf-8", "replace"),
             "found": asdict(reading.found),
             "version": engine.version(),
+            "evidence": found,
         })
         self._jobs.write_unit(job_id, page, name, replace(unit, state=READ))
         self._jobs.measure(name, seconds)

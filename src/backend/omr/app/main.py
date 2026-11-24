@@ -2,13 +2,14 @@
 
 POST /recognise takes one PDF or photo of printed music and returns MusicXML, with a report on each page in
 the X-Page-Report header: numbers only, never the music (see pages.page_report). The form field `engine` picks the
-engine that reads it, homr by default or copisteria where it is installed (engines.py); GET /health lists them. POST /transcribe takes an
+engine that reads it, homr by default or another installed one (engines.py); GET /health lists them. POST /transcribe takes an
 audio or video recording and returns the notes heard in it as MIDI (Transkun, decision record 0014).
 Each upload lives in its own temporary folder for as long as the request, and the folder is deleted when
 it ends. Nothing about the music is logged: the log has the request line and status only.
 
-POST /jobs reads the pages of an upload in the background, each page by every engine (decision record 0035):
-GET /jobs/{id} gives its progress, GET /jobs/{id}/result the readings, DELETE /jobs/{id} removes it (jobs.py).
+POST /jobs reads the pages of an upload in the background, each page by every engine in parallel (decision record
+0035): GET /jobs/{id} gives its progress, GET /jobs/{id}/result the readings and each page's evidence, DELETE /jobs/{id}
+removes it (jobs.py).
 """
 
 from __future__ import annotations
@@ -75,11 +76,12 @@ def create_app(
     readers = {
         engine.name: engine
         for engine in [
-            engines.Engine(recognise.ENGINE, recognise.engine_version, recognise_page, 30.0),
+            engines.Engine(recognise.ENGINE, recognise.engine_version, recognise_page, 75.0),
             *(engines.others() if other_engines is None else other_engines),
         ]
     }
-    work = jobs.Jobs(jobs_store or job_store.FolderStore(JOBS_FOLDER), readers, job_settings or jobs.Settings.from_environment())
+    settings = job_settings or jobs.Settings.from_environment(len(readers))
+    work = jobs.Jobs(jobs_store or job_store.FolderStore(JOBS_FOLDER), readers, settings)
     runner = job_worker.Runner(work)
 
     @asynccontextmanager
@@ -101,7 +103,7 @@ def create_app(
         max_age=600,
     )
 
-    # homr, copisteria and Transkun use every core, so one upload is read at a time and a second waits its turn.
+    # The engines and Transkun use every core, so one upload is read at a time and a second waits its turn.
     busy = threading.Lock()
 
     @app.middleware("http")
