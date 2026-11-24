@@ -132,7 +132,7 @@ struct FolderFoundSheet: View {
             if let offer, offer.allowed {
                 choice(text["folderImport.recognise"], [(false, text["folderImport.recogniseLater"]), (true, text["folderImport.recogniseNow"])], review.recognise) { review.recognise = $0 }
                 if review.recognise {
-                    Text(offer.hosted ? text.format("folderImport.recogniseHosted", String(offer.leftToday), String(DailyPages.limit)) : text.format("folderImport.recogniseOwn", offer.address.host ?? offer.address.absoluteString))
+                    Text(offer.hosted ? text.format(ScanServer.jobs ? "folderImport.recogniseHostedJob" : "folderImport.recogniseHosted", String(offer.leftToday), String(DailyPages.limit)) : text.format("folderImport.recogniseOwn", offer.address.host ?? offer.address.absoluteString))
                         .dsType(.caption)
                         .foregroundStyle(Color.ds("ink-2"))
                         .fixedSize(horizontal: false, vertical: true)

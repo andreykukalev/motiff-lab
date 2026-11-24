@@ -74,6 +74,19 @@ public class SettingsTests
     }
 
     [Fact]
+    public void Scan_jobs_are_an_experiment_kept_on_the_device_and_off_until_turned_on()
+    {
+        // Version 1.3 (decision record 0035): the one experiment switch, beside the scan engine it goes with.
+        Setting jobs = SettingsCatalogue.Get("experimental.scanJobs");
+
+        Assert.Equal(SettingSection.Experimental, jobs.Section);
+        Assert.Equal(SettingScope.Device, jobs.Scope);
+        Assert.Equal(SettingKind.Switch, jobs.Kind);
+        Assert.False(SettingsState.Default.IsOn("experimental.scanJobs"));
+        Assert.DoesNotContain("experimental.scanJobs", s_experimentSwitches);
+    }
+
+    [Fact]
     public void A_piece_overrides_only_what_it_may_and_the_project_file_keeps_it()
     {
         Project project = Project.Create("p_test", "a.mid", [1, 2, 3], DateTimeOffset.UnixEpoch)

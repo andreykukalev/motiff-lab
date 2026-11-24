@@ -439,7 +439,7 @@ struct PdfScreen: View {
                 }
                 .presentationDetents([.large])
             } else {
-                readPanel(readNotes).fittedSheet()
+                readPanel(readNotes, pdf: pdf.original).fittedSheet()
             }
         }
         .sheet(isPresented: $referenceOpen) {
@@ -679,7 +679,7 @@ struct PdfScreen: View {
     }
 
     /// Read the notes, as the panel offers it: what leaves the iPad and to where, and what to do on Send.
-    private func readPanel(_ read: @escaping () async -> String?, heading: String? = nil, keeps: String? = nil, line: String? = nil) -> ReadNotesPanel {
+    private func readPanel(_ read: @escaping () async -> String?, heading: String? = nil, keeps: String? = nil, line: String? = nil, pdf: Data? = nil) -> ReadNotesPanel {
         ReadNotesPanel(
             address: scanAddress,
             hosted: hosted,
@@ -693,7 +693,7 @@ struct PdfScreen: View {
                 settingsNext = true
                 readingOpen = false
             },
-            read: read
+            read: read, pdf: pdf
         )
     }
 

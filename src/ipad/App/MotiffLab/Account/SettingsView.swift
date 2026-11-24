@@ -282,6 +282,8 @@ struct SettingsSheet: View {
             // The engine that reads scans (v0.5.7; a setting since v0.6.5): homr or copisteria on the scan server, or «Авто»
             // (0029), which reads a notation program's pages on the iPad; homr until chosen.
             choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"], hint: text["settings.scanEngineHint"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
+            // Scan jobs (version 1.3, an experiment, off until turned on): four engines on the server, in the background.
+            switchRow(ScanServer.jobsKey, text["settings.scanJobs"], hint: text["settings.scanJobsHint"])
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)

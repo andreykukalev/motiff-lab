@@ -6,7 +6,18 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 `AddPiece`, `FolderFoundSheet`, `FolderImport`, `FolderPlan`, `FolderReview`, `FolderScan`, `ImportBanner`,
 `ImportFolders`, `ImportJob`, `PartHearing`, `PhotoCapture`, `PhotoPages`, `PhotoReading`, `PhotoReadings`, `PhotoReview`,
-`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanParts`, `VectorPages` (`.swift`).
+`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanJobs`, `ScanParts`, `VectorPages` (`.swift`).
+
+- `ScanJobs.swift` (v1.3, the experiment `experimental.scanJobs`, decision record 0035 section 6): `ScanHealth` (`/health`'s
+  seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
+  the line before sending), `ScanJobStatus`, `ScanJobRecord`; `ScanServer.readByJob` (submit, ask every 2.5 s with a
+  pause doubling to a minute while the server does not answer, fetch once `ready`, merge by `scan.join` with readings and
+  evidence, engines in `ScanJobs.engineOrder`), `submitJob`, `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which
+  signs for Motiff Lab's server. `ScanServer.recognise` uses a job when the switch is on and the server takes jobs, else
+  `/recognise` as before. The batch (`Recognition.swift`) keeps a piece's job in `recognition.json` (`RecognitionItem.job`,
+  device state, not the project file), asks again after a relaunch, fetches only once the piece is not open on screen,
+  deletes the job once the notes are written, and keeps the pages no engine read (`unread`); the banner shows the job's
+  pages and engines on a tap (`ScanJobDetail`) and «Повторить» for pieces that did not work.
 
 - `PhotoReview.swift`: the photos of pages put in order and made one PDF piece (`PhotoPiece.make(pdf:pages:title:language:)`,
   opened as "photos", saved, closed); since v1.1 (finding 29) «Открыть файл» on Add piece also takes a JPEG or PNG
