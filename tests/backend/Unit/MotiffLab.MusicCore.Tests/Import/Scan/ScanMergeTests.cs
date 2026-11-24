@@ -7,6 +7,7 @@ using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
+using static MotiffLab.MusicCore.Tests.Import.Scan.ScanAssemblyTests;
 using static MotiffLab.MusicCore.Tests.Import.Scan.ScanRepairTests;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
@@ -248,6 +249,110 @@ public class ScanMergeTests
         using JsonDocument empty = JsonDocument.Parse(facade.Call(0, "scan.join", """{"pages": [[]]}"""));
         Assert.Equal("badRequest", empty.RootElement.GetProperty("error").GetString());
         using JsonDocument wrong = JsonDocument.Parse(facade.Call(0, "scan.join", """{"pages": [1]}"""));
+        Assert.Equal("badRequest", wrong.RootElement.GetProperty("error").GetString());
+    }
+
+    /// <summary>
+    /// The heads the page shows in one bar of evidence: the right hand's quarters at octave 5 in the treble clef (a step a
+    /// staff position from B4), a quarter's length given (a half note for a step after a "/"), and the left hand's whole C3.
+    /// </summary>
+    private static object[] Page(int bar, params string[] right) =>
+    [
+        .. right.Select((step, i) => Head(bar, 1, 10 + (20 * i), (5 * 7) + "CDEFGAB".IndexOf(step[^1], StringComparison.Ordinal) - 34, step.StartsWith('/') ? "half" : "quarter")),
+        Head(bar, 2, 10, -1, "whole"),
+    ];
+
+    [Fact]
+    public void Without_agreement_the_reading_the_page_s_symbols_assemble_is_taken()
+    {
+        ScanReading[] readings = [Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, Second)];
+
+        ScanMergedPage page = ScanMerge.Merge(readings, Evidence(2, [.. Page(0, First), .. Page(1, Second)]));
+
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+        Assert.Equal(ScanLevel.Check, page.Bars[1].Level);
+        Assert.Equal([["copisteria"], ["homr", "copisteria"]], Engines(page.Bars[1]));
+        Assert.Equal([79, 81, 83, 74], Right(ScanMerge.Merge(readings), 2));
+        Assert.Contains("without agreement, the reading the page's symbols agree with; 1 of 2 bars to check.", Encoding.UTF8.GetString(page.MusicXml), StringComparison.Ordinal);
+        Assert.Equal(page.MusicXml, ScanMerge.Merge(readings, Evidence(2, [.. Page(0, First), .. Page(1, Second)])).MusicXml);
+    }
+
+    [Fact]
+    public void Two_against_two_is_settled_by_the_page_s_symbols_before_the_first_engine()
+    {
+        ScanMergedPage page = ScanMerge.Merge(
+            [Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, ["G", "A", "B", "D"]), Reading("audiveris", First, Second), Reading("transcoda", First, Second)],
+            Evidence(2, [.. Page(0, First), .. Page(1, Second)]));
+
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+        Assert.Equal(ScanLevel.Probable, page.Bars[1].Level);
+        Assert.Equal(["audiveris", "transcoda"], page.Bars[1].Staves[0].Engines);
+    }
+
+    [Fact]
+    public void When_the_symbols_do_not_fill_the_bar_the_reading_whose_heads_agree_best_with_the_page_is_taken()
+    {
+        ScanMergedPage page = ScanMerge.Merge([Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, Second)], Evidence(2, [.. Page(0, First), .. Page(1, "G", "A", "B", "/C")]));
+
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+        Assert.Equal(["copisteria"], page.Bars[1].Staves[0].Engines);
+    }
+
+    [Fact]
+    public void The_heads_on_the_page_choose_only_among_readings_that_add_up()
+    {
+        string longer = Note("G", 5, 2, 1) + Note("A", 5, 2, 1) + Note("B", 5, 2, 1) + Note("C", 5, 4, 1) + Backup(10) + Note("C", 3, 8, 2);
+        ScanReading homr = new("homr", Score(2, "4", Bar(First), longer));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, Reading("copisteria", First, ["G", "A", "B", "D"])], Evidence(2, [.. Page(0, First), .. Page(1, "G", "A", "B", "/C")]));
+
+        Assert.Equal([79, 81, 83, 74], Right(page, 2));
+        Assert.Equal(["copisteria"], page.Bars[1].Staves[0].Engines);
+    }
+
+    [Fact]
+    public void The_page_s_bars_are_paired_with_the_readings_by_their_heads_when_the_page_found_another_number()
+    {
+        ScanMergedPage page = ScanMerge.Merge([Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, Second)], Evidence(3, [.. Page(1, First), .. Page(2, "G", "A", "B", "/C")]));
+
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+    }
+
+    [Fact]
+    public void A_key_change_inside_a_bar_whose_staves_come_from_another_reading_stays_at_its_onset()
+    {
+        string homrBar = Note("G", 5, 2, 1) + Note("A", 5, 2, 1) + "<attributes><key><fifths>-1</fifths></key></attributes>" + Note("B", 5, 2, 1) + Note("D", 5, 2, 1) + Backup(8) + Note("C", 3, 8, 2);
+        string otherBar = string.Concat(Second.Select(step => Note(step, 5, 2, 1))) + Backup(8) + Note("E", 3, 8, 2);
+        ScanReading homr = new("homr", Score(2, "4", Bar(First), homrBar));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, new ScanReading("copisteria", Score(2, "4", Bar(First), otherBar)), new ScanReading("audiveris", Score(2, "4", Bar(First), otherBar))]);
+
+        ScanRepair.Bar bar = ScanRepair.Bars(ScanRepair.Parse(page.MusicXml)!.Element("part")!)[1];
+        Assert.Equal([("key", 4L)], bar.Placed().Where(other => other.Element.Element("key") is not null).Select(other => ("key", other.Onset)));
+        Assert.Equal([1, -1], Import(page.MusicXml).MusicXml!.KeySignatures.Select(key => key.Fifths));
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+    }
+
+    [Fact]
+    public void The_facade_merges_a_page_sent_with_its_evidence()
+    {
+        var facade = new MusicCoreFacade();
+        static string Text(ScanReading reading) => Encoding.UTF8.GetString(reading.MusicXml);
+        object[] readings =
+        [
+            new Dictionary<string, string> { ["engine"] = "homr", ["musicxml"] = Text(Reading("homr", First, ["G", "A", "B", "D"])) },
+            new Dictionary<string, string> { ["engine"] = "copisteria", ["musicxml"] = Text(Reading("copisteria", First, Second)) },
+        ];
+        using JsonDocument page = JsonDocument.Parse(EvidenceJson(2, [.. Page(0, First), .. Page(1, Second)]));
+        string request = JsonSerializer.Serialize(new { pages = new[] { new { readings, evidence = page.RootElement } } });
+
+        using JsonDocument answer = JsonDocument.Parse(facade.Call(0, "scan.join", request));
+
+        JsonElement staff = answer.RootElement.GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[1].GetProperty("staves")[0];
+        Assert.Equal(["copisteria"], staff.GetProperty("engines").EnumerateArray().Select(engine => engine.GetString()));
+        using JsonDocument without = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { new { readings } } })));
+        Assert.Equal(["homr"], without.RootElement.GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[1].GetProperty("staves")[0].GetProperty("engines").EnumerateArray().Select(engine => engine.GetString()));
+        using JsonDocument wrong = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { new { readings, evidence = JsonDocument.Parse("""{"evidence": 2}""").RootElement } } })));
         Assert.Equal("badRequest", wrong.RootElement.GetProperty("error").GetString());
     }
 }
