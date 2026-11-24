@@ -39,8 +39,8 @@ def verifier() -> TokenVerifier:
     return TokenVerifier(AUTHORITY, AUDIENCE, fetch_json=_fetch)
 
 
-def test_a_signed_in_player_with_the_scan_scope_may_scan():
-    verifier().verify(f"Bearer {token()}")
+def test_a_signed_in_player_with_the_scan_scope_may_scan_and_is_named_by_the_token():
+    assert verifier().verify(f"Bearer {token()}") == "player-1"
 
 
 @pytest.mark.parametrize(
