@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import evidence, pages
+from app import evidence, pages, recognise
 from app.auth import AuthError
 from app.engines import Engine
 from app.job_store import FolderStore
@@ -261,5 +261,11 @@ def test_a_page_no_engine_gave_evidence_for_has_none(tmp_path: Path):
     assert "evidence" not in jobs.fetch_result(jobs.find(job_id, None))["pages"][0]
 
 
-def test_a_page_s_engines_read_it_in_parallel_by_default():
+def test_a_page_s_engines_read_it_in_parallel_by_default_but_no_more_than_the_cores(monkeypatch):
+    monkeypatch.delenv("JOB_WORKERS", raising=False)
+    monkeypatch.setattr(recognise, "cores", lambda: 4)
     assert Settings.from_environment(4).workers == 4
+    monkeypatch.setattr(recognise, "cores", lambda: 2)
+    assert Settings.from_environment(4).workers == 2
+    monkeypatch.setenv("JOB_WORKERS", "3")
+    assert Settings.from_environment(4).workers == 3

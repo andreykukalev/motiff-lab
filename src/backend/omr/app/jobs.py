@@ -42,7 +42,7 @@ _ID = re.compile(r"^[A-Za-z0-9_-]{24}$")
 
 @dataclass(frozen=True)
 class Settings:
-    workers: int = 1  # units read at once: by default as many as the engines, so a page's engines read it in parallel
+    workers: int = 1  # units read at once: by default as many as the engines (at most the cores), side by side
     unit_seconds: float = 300.0  # a unit's time limit, as the engines' own (recognise.PAGE_TIMEOUT_SECONDS)
     lease_seconds: float = 60.0  # renewed every third of it while the unit is read
     retry_delays: tuple[float, ...] = (10.0, 20.0, 40.0)  # a unit is tried once and retried after each of these
@@ -64,7 +64,9 @@ class Settings:
 
     @classmethod
     def from_environment(cls, engines: int = 1) -> Settings:
-        return cls(workers=max(1, int(os.environ.get("JOB_WORKERS", str(engines)))))
+        """JOB_WORKERS, or as many workers as engines but no more than the cores, so that each engine has a core of
+        its own and none runs past its time limit on a small computer."""
+        return cls(workers=max(1, int(os.environ.get("JOB_WORKERS", str(min(engines, recognise.cores()))))))
 
 
 @dataclass(frozen=True)
