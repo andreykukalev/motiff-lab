@@ -163,8 +163,8 @@ enum ScanJobs {
     /// the server gave one. A page no engine read is left out, as «Авто» leaves out a page with no music, and named in
     /// `unread`; `engines` names the engines that read, with their versions, as they first come. `reports` gives each page
     /// joined its page report, as `/recognise` and «Авто» pass them on: the device's, else that of the first engine in
-    /// order that read it; nil unless every page has one.
-    static func joined(device: [Int: String], reports deviceReports: [Int: String] = [:], server: [[String: Any]]) -> (pages: [Any], engines: [String], unread: [Int], reports: [String]?) {
+    /// order that read it; nil unless every page has one. `numbers` names each page's number in the PDF, in the same order.
+    static func joined(device: [Int: String], reports deviceReports: [Int: String] = [:], server: [[String: Any]]) -> (pages: [Any], engines: [String], unread: [Int], reports: [String]?, numbers: [Int]) {
         var pages: [Int: Any] = device.mapValues { $0 as Any }
         var reports = deviceReports
         var engines: [String] = []
@@ -193,7 +193,7 @@ enum ScanJobs {
         }
         let order = pages.keys.sorted()
         let told = order.compactMap { reports[$0] }
-        return (order.compactMap { pages[$0] }, engines, unread.sorted(), told.count == order.count ? told : nil)
+        return (order.compactMap { pages[$0] }, engines, unread.sorted(), told.count == order.count ? told : nil, order)
     }
 }
 
@@ -210,7 +210,8 @@ extension ScanServer {
     /// A PDF read by a scan job (0035 section 6): the pages the vector reader reads here stay here; the others go as one
     /// job (`kept` resumes one sent before, `keep` hears a new one's id to keep on the device), whose state is asked until
     /// it is done (`hear` hears each), its readings fetched once `ready` says so, and merged with the device's pages by
-    /// music-core (`scan.join`). The job stays on the server: the caller deletes it once the notes are saved. Nil, before
+    /// music-core (`scan.join`); the merge's bars to check are kept on this iPad with their variants and crops
+    /// (`ScanCrops.keepReview`, v1.3 i-2). The job stays on the server: the caller deletes it once the notes are saved. Nil, before
     /// anything is sent, when the server takes no jobs: the caller sends the PDF to `/recognise` as before.
     static func readByJob(
         fileName: String, data: Data, pages: Int, to target: ScanTarget, job kept: ScanJobRecord? = nil,
@@ -247,6 +248,7 @@ extension ScanServer {
         guard let object = facadeObject(answer), object["error"] == nil, let score = object["score"] as? String else {
             return .failure(.server(text["import.scanPagesNotJoined"]))
         }
+        ScanCrops.keepReview(object, pages: joined.numbers, pdf: data)
         let engines = [plan.engine].compactMap { $0 } + joined.engines
         let result = ScanResult(musicXml: Data(score.utf8), engine: engines.joined(separator: " + "), pages: pages, partReports: joined.reports, unread: joined.unread)
         return .success((result, job))

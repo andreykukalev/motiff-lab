@@ -29,7 +29,7 @@ public static partial class ScanMerge
     /// The page's evidence as the merge reads it: its bars paired with the backbone's (in order when as many, else by
     /// alignment on the heads of each staff), and the page's staves as the backbone's (part, staff), top down.
     /// </summary>
-    internal sealed class Page
+    internal sealed partial class Page
     {
         private readonly ScanEvidence _evidence;
         private readonly Reading _backbone;

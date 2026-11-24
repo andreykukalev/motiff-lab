@@ -15,7 +15,7 @@ through the facade; the API references it.
   (`BarGrid`, `GridMeter`; found and applied in `Import.Transcription`), `PageMap`, `Transcribed`, the player's
   `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`), where Notes came from
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
-- `Import`: the readers: MIDI, MusicXML, scans (`Scan`; `ScanMerge`: engines' readings per staff, bar levels, settled by the page: `ScanEvidence`, `ScanAssembly`, `ScanMerge.Staffing` reads a reading's clefs), `StaffPitch` (steps, clefs, key alterations, MIDI of a written note: MusicXML, Vector, Scan), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
+- `Import`: the readers: MIDI, MusicXML, scans (`Scan`; `ScanMerge`: engines' readings per staff, bar levels, settled by the page: `ScanEvidence`, `ScanAssembly`, `ScanMerge.Staffing` reads a reading's clefs; `ScanMerge.Variants`: a Check bar's other readings and crop box, v1.3 i-2, put in by `corrections.variant`), `StaffPitch` (steps, clefs, key alterations, MIDI of a written note: MusicXML, Vector, Scan), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.

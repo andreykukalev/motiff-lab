@@ -115,7 +115,7 @@ struct PieceCore: Sendable {
         /// Fix notes in Check: a note stepped, taken out, put back as imported; the last correction undone (in the note
         /// editor, its last edit).
         case change, remove, revert, undo
-        /// The assistant's draft accepted, and undone whole.
+        /// The assistant's draft accepted, and undone whole (so is a scan's variant put in, `variant(_:)`).
         case acceptDraft, undoDraft
         /// «Мои правки»: the layer on or off; the corrections that no longer fit taken out.
         case layer, drop
@@ -157,6 +157,12 @@ struct PieceCore: Sendable {
         case .save:
             return await correctionsCall("corrections.save", request)
         }
+    }
+
+    /// `corrections.variant` (v1.3 i-2): another engine's reading of a scan's bar to check put in that bar as the player's
+    /// corrections, undone whole by `.undoDraft`; the bar's notes as they are then.
+    func variant(_ request: String) async -> Answer<CorrectionsAnswer> {
+        await correctionsCall("corrections.variant", request)
     }
 
     // Each name written where the call is made, one per case (the facade call scan reads them here).

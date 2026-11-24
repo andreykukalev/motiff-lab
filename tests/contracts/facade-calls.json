@@ -35,6 +35,7 @@
     { "name": "corrections.set", "on": ["piece"] },
     { "name": "corrections.undo", "on": ["piece"] },
     { "name": "corrections.undoDraft", "on": ["piece"] },
+    { "name": "corrections.variant", "on": ["piece"] },
     { "name": "dna", "on": ["piece"] },
     { "name": "document", "on": ["pdf"] },
     { "name": "document.bookmark.add", "on": ["pdf"] },

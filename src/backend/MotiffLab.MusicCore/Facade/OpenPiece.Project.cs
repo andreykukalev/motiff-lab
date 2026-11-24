@@ -133,6 +133,9 @@ internal sealed partial class OpenPiece
         Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
+        // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
+        // beside a scan's Check bars on the device is found by it.
+        json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));
     }
 
     private string Marks(Func<Marks, Marks> change) => Change(project => project.ChangeMarks(change), json => Answer.Marks(json, Project.Marks, Piece.Meter));
