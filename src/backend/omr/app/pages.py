@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from app import quality
+from app import quality, recognise
 
 # 300 dpi is what homr was tested at (docs/architecture/adr/0011-sheet-music-recognition.md).
 PDF_DPI = 300
@@ -66,9 +66,12 @@ def count_pages(upload: Upload) -> int:
         pdf.close()
 
 
-def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Page]:
-    """Writes each page, the right way up, as a greyscale PNG into the folder, in order."""
+def write_pages(upload: Upload, folder: Path, max_pages: int, numbers: list[int] | None = None) -> list[Page]:
+    """Writes each page, or those numbered (1 is the first, in order, no repeats), the right way up, as a greyscale
+    PNG into the folder, in order."""
     if upload.kind == "image":
+        if numbers not in (None, [1]):
+            raise PageError("A photo has one page.")
         return [_write(_open_image(upload.data), folder, 1)]
 
     import pypdfium2 as pdfium
@@ -80,10 +83,14 @@ def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Page]:
     try:
         if len(pdf) == 0:
             raise PageError("This PDF has no pages.")
-        if len(pdf) > max_pages:
+        if numbers is None and len(pdf) > max_pages:
             raise PageError(f"This PDF has {len(pdf)} pages. Scanning reads up to {max_pages} pages at a time.")
+        if numbers is not None and len(numbers) > max_pages:
+            raise PageError(f"{len(numbers)} pages were chosen. Scanning reads up to {max_pages} pages at a time.")
+        if numbers is not None and not all(1 <= number <= len(pdf) for number in numbers):
+            raise PageError(f"This PDF has {len(pdf)} pages, so only pages 1 to {len(pdf)} can be read.")
         written = []
-        for index in range(len(pdf)):
+        for index in (range(len(pdf)) if numbers is None else [number - 1 for number in numbers]):
             page = pdf[index]
             try:
                 image = page.render(scale=PDF_DPI / 72, grayscale=True).to_pil()
@@ -94,6 +101,23 @@ def write_pages(upload: Upload, folder: Path, max_pages: int) -> list[Page]:
         return written
     finally:
         pdf.close()
+
+
+def page_report(number: int, look: quality.Look, found: recognise.Found, musicxml: bytes | None) -> dict[str, int | float]:
+    """One page's report: only counts and measurements, never the music. What was seen of the photo before the engine
+    (sharpness, contrast, how far it was turned), what the engine found (staves, noteheads, bar lines, the height of a
+    notehead in its working copy, about one staff space) and how many measures came out."""
+    return {
+        "page": number,
+        "rotation": look.rotation,
+        "sharpness": look.sharpness,
+        "contrast": look.contrast,
+        "staves": found.staves,
+        "noteheads": found.noteheads,
+        "barLines": found.bar_lines,
+        "spacePx": found.space_px,
+        "measures": recognise.count_measures(musicxml) if musicxml is not None else 0,
+    }
 
 
 def drawn(page) -> bool:
