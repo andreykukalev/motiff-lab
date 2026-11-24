@@ -166,10 +166,10 @@ internal sealed class Chords(VectorPage page, VectorStaff staff, int index, IRea
     private void AssignDots(List<VectorEvent> events, List<PlacedGlyph> dots)
     {
         // The dots of a chord stand in columns, one dot a head; each column is one dot of length.
-        var columns = new Dictionary<VectorEvent, List<double>>();
+        var columns = new Dictionary<VectorEvent, List<PlacedGlyph>>();
         foreach (PlacedGlyph dot in dots.OrderBy(dot => dot.X))
         {
-            VectorEvent? owner = columns.FirstOrDefault(pair => pair.Value.Any(x => dot.X - x > 0.3 * _space && dot.X - x < 1.6 * _space)
+            VectorEvent? owner = columns.FirstOrDefault(pair => pair.Value.Any(column => dot.X - column.X > 0.3 * _space && dot.X - column.X < 1.6 * _space)
                     && AtHeight(pair.Key, dot.Y, 1.0)).Key
                 ?? events.Where(item => dot.X - item.Right > -0.1 * _space && dot.X - item.Right < 2.6 * _space && AtHeight(item, dot.Y, 0.6))
                     .OrderBy(item => item.Grace ? 1 : 0).ThenBy(item => dot.X - item.Right).FirstOrDefault();
@@ -179,15 +179,16 @@ internal sealed class Chords(VectorPage page, VectorStaff staff, int index, IRea
             }
 
             columns.TryAdd(owner, []);
-            if (!columns[owner].Any(x => Math.Abs(x - dot.X) < 0.3 * _space))
+            if (!columns[owner].Any(column => Math.Abs(column.X - dot.X) < 0.3 * _space))
             {
-                columns[owner].Add(dot.X);
+                columns[owner].Add(dot);
             }
         }
 
-        foreach ((VectorEvent item, List<double> xs) in columns)
+        foreach ((VectorEvent item, List<PlacedGlyph> dotsOf) in columns)
         {
-            item.Dots = xs.Count;
+            item.Dots = dotsOf.Count;
+            item.DotsRight = dotsOf.Max(dot => dot.Right);
         }
     }
 

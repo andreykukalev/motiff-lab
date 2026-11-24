@@ -13,7 +13,7 @@ namespace MotiffLab.MusicCore.Import.Vector;
 /// <param name="X">The glyph's origin, its left edge.</param>
 /// <param name="Y">The glyph's origin on its baseline: a notehead's centre line, an accidental's or a clef's reference line.</param>
 /// <param name="Size">The font size it is printed at; a grace note's or a cue note's is smaller.</param>
-/// <param name="Right">The right edge of its advance.</param>
+/// <param name="Right">The right edge of its advance; of the glyph drawn, in a legacy font (<see cref="VectorPage.Placed"/>).</param>
 internal sealed record PlacedGlyph(MusicGlyph Glyph, double X, double Y, double Size, double Right);
 
 /// <summary>A number printed in a text font where a tuplet's number may be: its value, left and right edges, baseline and size.</summary>
@@ -160,9 +160,17 @@ internal sealed class VectorPage
         MusicGlyphs++;
         if (glyph != MusicGlyph.Other)
         {
-            Glyphs.Add(new PlacedGlyph(glyph, letter.StartBaseLine.X, Height - letter.StartBaseLine.Y, letter.PointSize, letter.EndBaseLine.X));
+            Glyphs.Add(Placed(glyph, family, letter, Height));
         }
     }
+
+    /// <summary>
+    /// A music font's letter as a glyph on a page of the given height. A legacy font's advance runs wider than its glyph
+    /// (Opus's notehead by about 1.5 pt, past the stem beside it), so its right edge is the drawn glyph's.
+    /// </summary>
+    internal static PlacedGlyph Placed(MusicGlyph glyph, MusicFonts.Family family, Letter letter, double height) =>
+        new(glyph, letter.StartBaseLine.X, height - letter.StartBaseLine.Y, letter.PointSize,
+            family.IsLegacy() ? letter.BoundingBox.Right : letter.EndBaseLine.X);
 
     private void Add(PdfPath path)
     {
