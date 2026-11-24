@@ -8,6 +8,7 @@ for those counts only and never passed on, since it also holds the title homr re
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import subprocess
@@ -83,8 +84,28 @@ def threads() -> int:
     return int(limit) if limit.isdigit() and int(limit) > 0 else cores()
 
 
-def cores() -> int:
-    return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+def cores(cgroup: Path = Path("/sys/fs/cgroup")) -> int:
+    """The cores this process may use: those it may run on, but no more than its CPU quota, which is how Container Apps
+    and Docker's --cpus limit a container (a 4 vCPU replica may run on a host of 64 cores)."""
+    available = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    quota = _cpu_quota(cgroup)
+    return available if quota is None else max(1, min(available, math.ceil(quota)))
+
+
+def _cpu_quota(cgroup: Path) -> float | None:
+    """The CPU quota in cores from cgroup v2's cpu.max ("<quota> <period>", or "max"), else from cgroup v1's
+    cpu.cfs_quota_us and cpu.cfs_period_us (-1 for none); None when there is none."""
+    try:
+        limit, period = (cgroup / "cpu.max").read_text().split()[:2]
+        return None if limit == "max" else int(limit) / int(period)
+    except (OSError, ValueError, ZeroDivisionError):
+        pass
+    try:
+        quota = int((cgroup / "cpu" / "cpu.cfs_quota_us").read_text())
+        period = int((cgroup / "cpu" / "cpu.cfs_period_us").read_text())
+    except (OSError, ValueError):
+        return None
+    return quota / period if quota > 0 and period > 0 else None
 
 
 def recognise_page(image: Path, page_number: int) -> Reading:

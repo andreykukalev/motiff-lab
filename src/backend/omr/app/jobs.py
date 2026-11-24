@@ -267,20 +267,26 @@ class Jobs:
         a new one; closes the units whose engine this server no longer has, and the jobs past their deadline."""
         now = self.clock()
         sent = 0  # messages this pass has sent
-        for job_id in sorted({name.split("/")[1] for name in self.store.names("jobs/")}):
+        for job_id in (folder.split("/")[1] for folder in self.store.folders("jobs/")):
             job = self.job(job_id)
             # A job whose time is up before the next pass goes now, so none is kept past its time.
             if job is None or self._expired(job, now + self.settings.supervisor_seconds):
                 self.store.delete(f"jobs/{job_id}/")
                 continue
             late = now - job.created > self.settings.deadline_seconds
+            # The queue's length is a request on Azure, and approximate: while it holds messages besides this pass's
+            # own, it is asked once a job; while it holds none, again before each unit, since a worker may send meanwhile.
+            idle: bool | None = None
             for page, engine, unit in self.units(job):
                 if unit.state in FINAL:
                     continue
                 if late or engine not in self.readers:
                     self.write_unit(job_id, page, engine, replace(unit, state=NOT_READ, why="closed" if late else "engine"))
-                elif self.store.queue_length() == sent:
-                    # The queue holds no message but this pass's own, so a unit read unfinished after looking has
+                    continue
+                if idle is not False:
+                    idle = self.store.queue_length() == sent
+                if idle:
+                    # The queue held no message but this pass's own, so a unit read unfinished after looking has
                     # none: it gets one, after the rest of its retry pause.
                     unit = self.unit(job_id, page, engine)
                     if unit.state not in FINAL:

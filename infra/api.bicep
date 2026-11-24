@@ -1,5 +1,6 @@
 // The Motiff Lab API (src/backend/MotiffLab.Api, decision record 0014): a signed-in player's projects in Cosmos DB.
-// Deployed by .github/workflows/api.yml after it publishes the image, into the environment of scan.bicep.
+// Deployed by .github/workflows/api.yml after it publishes the image, into its Consumption-only environment, which
+// it shared with the scan server until that moved to its own (scan-base.bicep, version 1.3).
 // It reaches Cosmos DB as id-motifflab-api, which infra/azure/setup.ps1 allows into the motifflab
 // database only; no account key is used.
 // The same file deploys develop's API (branch 'develop'): ca-motifflab-api-dev in rg-motifflab-dev, as
@@ -58,8 +59,15 @@ param tags object = {
 var suffix = branch == 'develop' ? '-dev' : ''
 var appTags = branch == 'develop' ? union(tags, { env: 'develop' }) : tags
 
-resource environment 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
+// A Consumption-only environment on Azure's own network costs nothing by itself (no load balancer), and no Log
+// Analytics workspace is attached. develop's, cae-motifflab-dev, dev-env.bicep made with the same properties.
+resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-motifflab${suffix}'
+  location: location
+  tags: appTags
+  properties: {
+    zoneRedundant: false
+  }
 }
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {

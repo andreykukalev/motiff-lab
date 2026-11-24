@@ -1,3 +1,4 @@
+import PDFKit
 import UIKit
 import XCTest
 @testable import MotiffLab
@@ -77,23 +78,33 @@ final class ScanReviewTests: XCTestCase {
          {"bar": 5, "level": "check", "variants": [], "crop": {"box": [100, 80, 200, 220], "width": 1000, "height": 400, "rotated": 90}}]}}]}
         """)
 
+        // The page drawn as the PDF shows it, at its points: the rectangle where it was filled, white elsewhere.
+        let page = try XCTUnwrap(PDFDocument(data: pdf)?.page(at: 0).flatMap { ScanCrops.drawn($0, size: CGSize(width: 400, height: 1000)) })
+        XCTAssertEqual(page.size, CGSize(width: 400, height: 1000))
+        XCTAssertLessThan(try brightness(page, at: CGPoint(x: 150, y: 850)), 0.2, "the rectangle drawn")
+        XCTAssertGreaterThan(try brightness(page, at: CGPoint(x: 10, y: 10)), 0.8, "white round it")
+
         ScanCrops.keepReview(answer, pages: [1], pdf: pdf, in: root)
 
         XCTAssertEqual(ScanReviewStore.load("f2", in: root)?.bar(5)?.cropped, true)
         let image = try XCTUnwrap(ScanReviewStore.crop("f2", bar: 5, in: root).flatMap { UIImage(data: $0) })
         XCTAssertEqual(image.size, CGSize(width: 100, height: 140), "the box on the server's image, at its pixels")
         for point in [CGPoint(x: 50, y: 70), CGPoint(x: 3, y: 3), CGPoint(x: 96, y: 136)] {
-            XCTAssertLessThan(brightness(image, at: point), 0.2, "the filled rectangle at \(point)")
+            XCTAssertLessThan(try brightness(image, at: point), 0.2, "the filled rectangle at \(point)")
         }
     }
 
-    /// How bright one pixel of an image is, from 0 (black) to 1 (white).
-    private func brightness(_ image: UIImage, at point: CGPoint) -> CGFloat {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let one = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1), format: format).image { _ in image.draw(at: CGPoint(x: -point.x, y: -point.y)) }
-        guard let data = one.cgImage?.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return 1 }
-        return CGFloat(bytes[1]) / 255
+    /// How bright one pixel of an image is, from 0 (black) to 1 (white), `point` from its top left in pixels: the image
+    /// drawn into an 8-bit grey bitmap, whose first row is its top.
+    private func brightness(_ image: UIImage, at point: CGPoint) throws -> CGFloat {
+        let source = try XCTUnwrap(image.cgImage, "the image has pixels")
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: source.width, height: source.height, bitsPerComponent: 8, bytesPerRow: source.width,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ))
+        context.draw(source, in: CGRect(x: 0, y: 0, width: source.width, height: source.height))
+        let bytes = try XCTUnwrap(context.data).assumingMemoryBound(to: UInt8.self)
+        return CGFloat(bytes[Int(point.y) * source.width + Int(point.x)]) / 255
     }
 
     func testAVariantGoesBackToMusicCoreAsItCame() throws {

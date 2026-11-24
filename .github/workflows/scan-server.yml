@@ -2,8 +2,11 @@ name: Scan server
 run-name: ${{ format('Deploy scan server · {0} to {1}', github.event_name == 'workflow_dispatch' && 'by hand' || 'push', github.ref_name) }}
 
 # Publishes the scan server's image (src/backend/omr) to GitHub's container registry and deploys it to
-# Azure Container Apps (infra/scan.bicep, decision record 0014). Its own workflow, not a CI step:
-# the image is about 2 GB and takes longer to build than CI's 5 minutes. CI still runs its tests.
+# Azure Container Apps (infra/scan.bicep, decision records 0014 and 0035). Its own workflow, not a CI step:
+# the image is about 7 GB with its four engines and takes longer to build than CI's 5 minutes. CI still runs its tests.
+# scan.bicep stands on infra/scan-base.bicep (the scan server's environment, identity and job storage, with roles this
+# workflow's Contributor identity may not give), which Andrei makes once per group: until it is there, the image is
+# published and nothing is deployed (infra/README.md, "Scan jobs").
 # The services live in rg-motifflab next to their database and the web app, and sign in as the CI identity
 # set up by infra/azure/setup.ps1 (AZURE_SERVICES_*).
 # develop deploys the same image to its own group, rg-motifflab-dev (ca-motifflab-scan-dev), by itself and without
@@ -44,7 +47,7 @@ jobs:
     steps:
       - run: echo "Deploy of ${{ github.sha }} approved."
 
-  # Until infra/azure/dev-env.ps1 has run, a develop run builds and deploys nothing (the image is about 2 GB).
+  # Until infra/azure/dev-env.ps1 has run, a develop run builds and deploys nothing (the image is about 7 GB).
   develop-not-set-up:
     if: github.ref == 'refs/heads/develop' && vars.AZURE_DEV_CLIENT_ID == ''
     runs-on: ubuntu-latest
@@ -106,7 +109,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.licenses=AGPL-3.0-only
-            org.opencontainers.image.description=Motiff Lab scan server: homr behind a small HTTP service
+            org.opencontainers.image.description=Motiff Lab scan server: homr, copisteria, Audiveris and Transcoda behind a small HTTP service
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -127,8 +130,31 @@ jobs:
           tenant-id: ${{ vars.AZURE_SERVICES_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SERVICES_SUBSCRIPTION_ID }}
 
-      - name: Deploy to Container Apps
+      # The base is made once by Andrei (scan-base.bicep). The app cannot move between environments, so one still in the
+      # old Consumption-only environment (before version 1.3) is deleted by him once first; this says so instead of the
+      # deployment's own error.
+      - name: Check the scan server's base
+        id: base
         if: steps.target.outputs.client-id != ''
+        env:
+          RESOURCE_GROUP: ${{ steps.target.outputs.group }}
+          SUFFIX: ${{ steps.target.outputs.branch == 'develop' && '-dev' || '' }}
+        run: |
+          if ! az identity show --resource-group "$RESOURCE_GROUP" --name "id-motifflab-scan$SUFFIX" --output none 2> /dev/null; then
+            echo "::notice::The scan server is not deployed to $RESOURCE_GROUP: its base (infra/scan-base.bicep) is not there yet. Andrei makes it once (infra/README.md, Scan jobs)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          environment="$(az resource show --resource-group "$RESOURCE_GROUP" --name "ca-motifflab-scan$SUFFIX" \
+            --resource-type Microsoft.App/containerApps --query properties.environmentId --output tsv 2> /dev/null || true)"
+          if [[ -n "$environment" && "${environment,,}" != */managedenvironments/cae-motifflab-scan"$SUFFIX" ]]; then
+            echo "::error::ca-motifflab-scan$SUFFIX is still in its old environment. Andrei deletes it once (infra/README.md, Scan jobs), then re-runs this workflow."
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Container Apps
+        if: steps.target.outputs.client-id != '' && steps.base.outputs.ready == 'true'
         env:
           RESOURCE_GROUP: ${{ steps.target.outputs.group }}
         run: |
