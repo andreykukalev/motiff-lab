@@ -4,6 +4,8 @@ Reads a PDF or a photo of printed music and returns MusicXML, for Motiff Lab's *
 
 It also transcribes a recording, audio or video, into MIDI notes with [Transkun](https://github.com/Yujia-Yan/Skipping-The-Frame-Level) (decision record [0014](../../../docs/architecture/adr/0014-hosted-scan-server.md)), a piano transcription model that also hears the sustain pedal. On a CPU it takes about a second of two cores for a second of sound, so it hears the first 2½ minutes of a recording. The notes are still a draft for the player to check.
 
+Version 1.3 extends this service to four engines and background jobs (decision record [0035](../../../docs/architecture/adr/0035-scan-jobs-four-engines.md)). The background jobs have landed ([Scan jobs](#scan-jobs), and `/jobs` in the API below); the four engines come with the next change, until then a job reads with the engines this server has.
+
 ## Run it
 
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows or macOS) or Docker on Linux. In a copy of this repository:
