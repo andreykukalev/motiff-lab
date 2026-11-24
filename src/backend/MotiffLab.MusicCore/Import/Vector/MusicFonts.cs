@@ -39,9 +39,9 @@ internal static class MusicFonts
 
     private static readonly string[] s_unknownMusic = ["Tamburo"];
 
-    // A legacy font's companions of chord symbols, figured bass, function symbols and percussion print letters and digits
-    // where Maestro's layout has clefs, meters and accidentals: not read, as Tamburo.
-    private static readonly string[] s_legacyCompanions = ["Chord", "Figured", "Function", "Percussion"];
+    // A legacy font's companions of chord symbols, figured bass, function symbols, percussion, ornaments and metronome marks
+    // print other symbols where Maestro's layout has clefs, meters and accidentals: not read, as Tamburo.
+    private static readonly string[] s_legacyCompanions = ["Chord", "Figured", "Function", "Percussion", "Ornament", "Metronome"];
 
     /// <summary>The family of a PDF font, from its base name without the subset prefix ("ABCDEF+MScoreRegular").</summary>
     public static Family Of(string fontName)

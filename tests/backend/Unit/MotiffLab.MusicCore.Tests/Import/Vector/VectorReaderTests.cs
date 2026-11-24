@@ -101,6 +101,8 @@ public class VectorReaderTests
     [InlineData("OpusFiguredBassStd", "Unknown")]
     [InlineData("OpusFunctionSymbolsStd", "Unknown")]
     [InlineData("OpusPercussionStd", "Unknown")]
+    [InlineData("ABCDEF+OpusOrnaments", "Unknown")]
+    [InlineData("OpusMetronomeStd", "Unknown")]
     [InlineData("ABCDEF+OpusSpecialStd", "LegacySpecial")]
     [InlineData("HelsinkiSpecialStd", "LegacySpecial")]
     [InlineData("TimesNewRomanPSMT", "None")]
