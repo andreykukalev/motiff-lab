@@ -10,6 +10,8 @@ struct ScanResult: Sendable {
     var report: String?
     /// A PDF read in parts (issue #479): each part's report, in order, when every part sent one.
     var partReports: [String]?
+    /// A PDF read by a scan job (decision record 0035): its pages no engine read, from 1, left out of the notes.
+    var unread: [Int] = []
 
     /// The reports on the pages as `document.read` takes them: one header per request, in order.
     var reports: [String]? { partReports ?? report.map { [$0] } }
@@ -19,7 +21,8 @@ struct ScanResult: Sendable {
 /// server, which reads it with homr and gives MusicXML back. In a build with sign-in, Motiff Lab's hosted server is the
 /// choice until the player gives their own server's address or turns scanning off in Settings; it reads only for a
 /// signed-in player with Pro. In a build without sign-in, scanning is off until the player gives an address. The PDF goes
-/// only to that address, and only when the player sends it; the server deletes it once read.
+/// only to that address, and only when the player sends it; the server deletes it once read, or, sent as a scan job
+/// (`ScanJobs.swift`, the experiment `jobsKey`), once the app has fetched what it read, and at the latest after 24 hours.
 @MainActor
 final class ScanServer: ObservableObject {
     static let shared = ScanServer()
@@ -42,6 +45,15 @@ final class ScanServer: ObservableObject {
         let chosen = settings[engineChoice]
         return chosen.isEmpty || chosen == auto ? nil : chosen
     }
+
+    /// The experiment «Распознавание в фоне» (version 1.3, spec part 5): scans go as jobs to the server's four engines
+    /// (`ScanJobs.swift`); off, to `/recognise` as before.
+    static let jobsKey = "experimental.scanJobs"
+
+    static func jobsOn(_ settings: DeviceSettings) -> Bool { settings.isOn(jobsKey) }
+
+    /// Whether scan jobs are on, in the settings of this iPad.
+    static var jobs: Bool { jobsOn(DeviceSettings.shared) }
 
     /// True when the player chose «Авто»: the pages a notation program drew are read on the device.
     static func choseAuto(_ settings: DeviceSettings) -> Bool {
@@ -102,16 +114,19 @@ final class ScanServer: ObservableObject {
 
     /// The engine the server runs, such as "homr 0.7.0", or why it cannot be reached.
     nonisolated static func check(_ address: URL, session: URLSession = .shared) async -> Result<String, ScanProblem> {
+        await health(address, session: session).map(\.engine)
+    }
+
+    /// What the server says of itself on `/health`, or why it cannot be reached.
+    nonisolated static func health(_ address: URL, session: URLSession = .shared) async -> Result<ScanHealth, ScanProblem> {
         var request = URLRequest(url: address.appendingPathComponent("health"))
         request.timeoutInterval = 10
         do {
             let (body, response) = try await session.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-                  let engine = object["engine"] as? String, !engine.isEmpty
+                  let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any], let health = ScanHealth(object)
             else { return .failure(.notAScanServer) }
-            let version = object["version"] as? String ?? ""
-            return .success("\(engine) \(version)".trimmingCharacters(in: .whitespaces))
+            return .success(health)
         } catch {
             return .failure(.unreachable(address))
         }
@@ -130,6 +145,12 @@ final class ScanServer: ObservableObject {
         }
         let pages = document.pageCount
         guard pages <= ScanParts.mostPages else { return .failure(.tooManyPages(pages)) }
+        let target = ScanTarget(address: address, account: account)
+        if jobs, let byJob = await readByJob(fileName: fileName, data: data, pages: pages, to: target, hear: { report?($0.progress) }) {
+            // The notes are back here: the job goes from the server now (lead's decision, version 1.3).
+            if case .success(let read) = byJob, let job = read.job { await deleteJob(job.id, to: target) }
+            return byJob.map { $0.result }
+        }
         if choseAuto(DeviceSettings.shared), let vector = await vectorPages(data) {
             return await recogniseAuto(fileName: fileName, document: document, vector: vector, address: address, account: account, report: report)
         }
@@ -156,21 +177,9 @@ final class ScanServer: ObservableObject {
         request.httpMethod = "POST"
         request.timeoutInterval = 600
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        if address == hosted(account) {
-            guard let options = account.options, let token = await account.token(options.scanScope) else { return (.failure(.signIn), nil) }
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            account.addPlanChoice(to: &request)
-        }
-        let name = fileName.replacingOccurrences(of: "\"", with: "")
-        var body = Data()
+        guard await sign(&request, address: address, account: account) else { return (.failure(.signIn), nil) }
         let engine = chosenEngine(DeviceSettings.shared)
-        if let engine {
-            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"engine\"\r\n\r\n\(engine)\r\n".utf8))
-        }
-        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
-        body.append(data)
-        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
-        request.httpBody = body
+        request.httpBody = form(engine.map { [("engine", $0)] } ?? [(String, String)](), fileName: fileName, data: data, boundary: boundary)
         let hostedServer = address == hosted(account)
         do {
             let (answer, response) = try await URLSession.shared.data(for: request)
@@ -181,22 +190,66 @@ final class ScanServer: ObservableObject {
                 let engine = http?.value(forHTTPHeaderField: "X-Engine") ?? "unknown engine"
                 let pages = Int(http?.value(forHTTPHeaderField: "X-Pages") ?? "") ?? 1
                 return (.success(ScanResult(musicXml: answer, engine: engine, pages: pages, report: report)), report)
-            case 403 where hostedServer:
-                return (.failure(.needsPro), nil)
             case let status:
-                let problem = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
-                if let engine, problem?["code"] as? String == "engine" {
-                    return (.failure(.server(UIText.current.format("scan.engineMissing", engine))), report)
-                }
-                let message = problem?["message"] as? String
-                if let message, !message.isEmpty { return (.failure(.server(message)), report) }
-                return (.failure(status == 404 ? .notAScanServer : .server("The scan server could not read this file.")), report)
+                return (.failure(problem(status, answer, hosted: hostedServer, engine: engine)), report)
             }
-        } catch let error as URLError where error.code == .timedOut {
-            return (.failure(.server("The scan server took too long to answer.")), nil)
         } catch {
-            return (.failure(.unreachable(address)), nil)
+            return (.failure(problem(error, address: address)), nil)
         }
+    }
+
+    /// Signs a request to Motiff Lab's server with the player's Scan token and a tester's plan choice, and one to any other
+    /// address with nothing of the player's; false when the player has no token for Motiff Lab's server.
+    static func sign(_ request: inout URLRequest, address: URL, account: Account) async -> Bool {
+        guard address == hosted(account) else { return true }
+        guard let options = account.options, let token = await account.token(options.scanScope) else { return false }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        account.addPlanChoice(to: &request)
+        return true
+    }
+
+    /// The multipart form the scan server takes: the fields, then the file.
+    nonisolated static func form(_ fields: [(String, String)], fileName: String, data: Data, boundary: String) -> Data {
+        var body = Data()
+        for (name, value) in fields {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
+        }
+        let file = fileName.replacingOccurrences(of: "\"", with: "")
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(file)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
+        body.append(data)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        return body
+    }
+
+    /// Why the server refused a request, from its status and answer: Pro on Motiff Lab's server, an engine it does not have,
+    /// its own message, or that the address is not a scan server.
+    static func problem(_ status: Int, _ answer: Data, hosted: Bool, engine: String?) -> ScanProblem {
+        if status == 403 && hosted { return .needsPro }
+        let problem = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
+        if let engine, problem?["code"] as? String == "engine" { return .server(UIText.current.format("scan.engineMissing", engine)) }
+        if let message = problem?["message"] as? String, !message.isEmpty { return .server(message) }
+        return status == 404 ? .notAScanServer : .server("The scan server could not read this file.")
+    }
+
+    /// Why a request did not reach the server or was not answered in time.
+    nonisolated static func problem(_ error: Error, address: URL) -> ScanProblem {
+        (error as? URLError)?.code == .timedOut ? .server("The scan server took too long to answer.") : .unreachable(address)
+    }
+}
+
+/// Where a scan goes, and how a request to it is signed: to Motiff Lab's server with the player's Scan token, to any other
+/// address with nothing of the player's (`ScanServer.sign`).
+@MainActor
+struct ScanTarget {
+    let address: URL
+    let account: Account
+    /// What the job's requests go by: the app's session, a stub's in tests.
+    var session = URLSession.shared
+
+    var hosted: Bool { address == ScanServer.hosted(account) }
+
+    func sign(_ request: inout URLRequest) async -> Bool {
+        await ScanServer.sign(&request, address: address, account: account)
     }
 }
 
@@ -211,6 +264,8 @@ enum ScanProblem: Error, Equatable {
     /// A PDF of more pages than a score may have (`ScanParts.mostPages`); nothing was sent.
     case tooManyPages(Int)
     case server(String)
+    /// A scan job no longer waited for: its batch was paused or stopped, or its panel closed; it is kept on the server.
+    case stopped
 
     func text(_ text: UIText) -> String {
         switch self {
@@ -221,6 +276,7 @@ enum ScanProblem: Error, Equatable {
         case .tooLarge: text["import.scanTooLarge"] + " " + text["import.scanTooLargeTip"]
         case .tooManyPages(let pages): text.format("scan.tooManyPages", String(pages), String(ScanParts.mostPages))
         case .server(let message): message
+        case .stopped: ""
         }
     }
 
@@ -315,8 +371,12 @@ struct ReadNotesPanel: View {
     let settings: () -> Void
     /// Sends the PDF and puts the notes into the piece, or adds them as a version; answers why not, or nil once done.
     let read: () async -> String?
+    /// The PDF to be sent: with scan jobs on (decision record 0035 section 6), the panel says before sending which pages the
+    /// iPad read itself, which go to the server and about how long they take (`ScanServer.jobPlanLine`).
+    var pdf: Data? = nil
     @State private var reading = false
     @State private var problem: String?
+    @State private var planned: String?
     @StateObject private var feed = ScanFeed()
 
     var body: some View {
@@ -333,6 +393,7 @@ struct ReadNotesPanel: View {
                     }
                 } else {
                     caption(line.map { text.format($0, address.absoluteString) } ?? sentTo(address))
+                    if let planned { caption(planned) }
                     Button {
                         Task { await send() }
                     } label: {
@@ -356,16 +417,20 @@ struct ReadNotesPanel: View {
         .padding(CGFloat.ds("s-4"))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface"))
+        .task { if ScanServer.jobs { planned = await ScanServer.jobPlanLine(data: pdf, address: address, text: text) } }
     }
 
     private func caption(_ words: String) -> some View {
         Text(words).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Where Recognise notes sends the PDF: Motiff Lab's server, or the address set in Settings.
+    /// Where Recognise notes sends the PDF: Motiff Lab's server, or the address set in Settings; as a scan job, kept there
+    /// until the iPad has fetched what was read, at most 24 hours (decision record 0035 section 4).
     private func sentTo(_ address: URL) -> String {
-        if hosted { return text["pdf.readLineHosted"] }
-        return text.format(ScanServer.isLocal(address) ? "pdf.readLineHere" : "pdf.readLine", address.absoluteString)
+        let job = ScanServer.jobs
+        if hosted { return text[job ? "pdf.readLineHostedJob" : "pdf.readLineHosted"] }
+        let here = ScanServer.isLocal(address)
+        return text.format(here ? (job ? "pdf.readLineHereJob" : "pdf.readLineHere") : (job ? "pdf.readLineJob" : "pdf.readLine"), address.absoluteString)
     }
 
     /// Sends the PDF on the player's press, with the pages as they go to the bar.

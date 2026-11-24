@@ -11,6 +11,8 @@ struct SourcesRow {
     let address: URL?
     /// The scan server chosen is Motiff Lab's: recognising is Pro.
     let hosted: Bool
+    /// Scan jobs are on (version 1.3): Motiff Lab's server keeps the PDF until this iPad has fetched what was read.
+    var jobs = false
     /// A file to pick in Files for a row: the same file as a deleted original, or where a linked one lies.
     let pick: (SourcesSheet.Picking) -> Void
     /// ⋯ → «Удалить…» on an original: the warning before it goes.

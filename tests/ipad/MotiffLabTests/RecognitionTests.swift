@@ -51,7 +51,7 @@ final class RecognitionTests: XCTestCase {
 
         let again = RecognitionQueue()
         again.root = base
-        again.restore()
+        again.restoreAndFollowJobs()
 
         XCTAssertEqual(again.batch?.items.first?.state, .queued, "a piece being read when the app closed is read again")
         XCTAssertTrue(again.interrupted)

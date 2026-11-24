@@ -14,8 +14,23 @@ struct RecognitionItem: Codable, Equatable, Identifiable, Sendable {
     var state = State.queued
     /// Why its notes were not read, in the player's words.
     var reason: String?
+    /// Its scan job on the server while it is read by one (version 1.3, decision record 0035 section 6): kept here, on the
+    /// device, so a relaunch asks for the same job again; gone once the notes are saved.
+    var job: ScanJobRecord?
+    /// The pages no engine read, from 1: the notes have the others.
+    var unread: [Int]?
 
     var id: String { file }
+}
+
+/// How the batch follows one piece's scan job: the job kept from before, where a new one's id is kept, who hears its
+/// state, whether it is still waited for, and when its readings may be fetched (once the piece is not open on screen).
+struct RecognitionJob {
+    var kept: ScanJobRecord?
+    var keep: (ScanJobRecord) -> Void
+    var hear: (ScanJobStatus) -> Void
+    var wanted: () -> Bool
+    var ready: () async -> Bool
 }
 
 /// «Распознать ноты» for several pieces at once (version 0.5, the approved screens import-ipad-4-consent.png and
@@ -104,6 +119,8 @@ final class RecognitionQueue: ObservableObject {
     @Published private(set) var revision = 0
     /// How far the piece being read is, by its project file's name (issue #479 item 10); nil between pieces.
     @Published private(set) var progress: (file: String, progress: ScanProgress)?
+    /// The scan job of the piece being read, as its server last told it: its pages and their engines (version 1.3).
+    @Published private(set) var job: (file: String, status: ScanJobStatus)?
     /// How long each page this batch read here took, from send to answer (v0.5.6, #533 section 1), for the time left.
     private(set) var measured: [Int] = []
     var account: Account?
@@ -117,24 +134,35 @@ final class RecognitionQueue: ObservableObject {
     private(set) var open: String?
     /// The batch stopped only at the open piece, to go on once it closes.
     private var waiting = false
+    /// After a relaunch, only the pieces whose scan job goes on on the server are followed, until «Продолжить».
+    private var jobsOnly = false
 
     /// About how many minutes the batch's pages left take, from the pages timed so far, the piece being read's own among
     /// them; nil before the first page is back (v0.5.6, #533 section 1).
     var minutesLeft: Int? {
         guard let batch else { return nil }
         let current = progress?.progress
+        // A scan job's server tells its own estimate (version 1.3).
+        if let told = current?.told { return told }
         return ScanProgress.minutes(measured: measured + (current?.milliseconds ?? []), pagesLeft: batch.pagesLeft - (current?.done ?? 0))
     }
 
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
 
-    func restore() {
+    /// Reads the batch kept on the device, once, and starts following at once the pieces whose scan job goes on on the
+    /// server (spec part 5: after a relaunch the app asks again); every other piece waits for «Продолжить», as before.
+    func restoreAndFollowJobs() {
         guard !restored else { return }
         restored = true
         batch = RecognitionStore.load(in: root)
         for index in batch?.items.indices ?? 0..<0 where batch?.items[index].state == .reading {
             batch?.items[index].state = .queued
+        }
+        // A scan job goes on on the server while the app is closed: its state is asked again at once (spec part 5).
+        if let batch, !batch.paused, batch.items.contains(where: { $0.job != nil && $0.state == .queued }) {
+            jobsOnly = true
+            Task { await run() }
         }
     }
 
@@ -148,6 +176,7 @@ final class RecognitionQueue: ObservableObject {
             batch = RecognitionBatch(address: address.absoluteString, hosted: hosted, items: items)
             measured = []
         }
+        jobsOnly = false
         RecognitionStore.save(batch, in: root)
         Task { await run() }
     }
@@ -169,14 +198,31 @@ final class RecognitionQueue: ObservableObject {
     }
 
     func resume() {
+        jobsOnly = false
         batch?.paused = false
         batch?.stopped = nil
         RecognitionStore.save(batch, in: root)
         Task { await run() }
     }
 
-    /// Stops: the pieces not read yet stay without notes; those read keep theirs.
+    /// «Повторить» for the pieces whose notes were not read: each sent again, as a new scan job when it is read by one.
+    func retryFailed() {
+        guard batch != nil else { return }
+        for index in batch?.items.indices ?? 0..<0 where batch?.items[index].state == .failed {
+            batch?.items[index].state = .queued
+            batch?.items[index].reason = nil
+            batch?.items[index].job = nil
+        }
+        resume()
+    }
+
+    /// Stops: the pieces not read yet stay without notes; those read keep theirs. Their scan jobs are deleted on the server.
     func stop() {
+        if let batch, let address = URL(string: batch.address), let account {
+            let jobs = batch.items.compactMap(\.job)
+            let target = ScanTarget(address: address, account: account)
+            Task { for job in jobs { await ScanServer.deleteJob(job.id, to: target) } }
+        }
         batch = nil
         measured = []
         RecognitionStore.save(nil, in: root)
@@ -194,9 +240,9 @@ final class RecognitionQueue: ObservableObject {
         }
     }
 
-    /// The next piece to read: the first queued, except the one open on screen.
-    static func next(in batch: RecognitionBatch, open: String?) -> Int? {
-        batch.items.firstIndex { $0.state == .queued && $0.file != open }
+    /// The next piece to read: the first queued, except the one open on screen; with `jobsOnly`, the first with a scan job.
+    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false) -> Int? {
+        batch.items.firstIndex { $0.state == .queued && $0.file != open && (!jobsOnly || $0.job != nil) }
     }
 
     /// What is happening to the piece's notes in the batch, if it is in it.
@@ -212,7 +258,7 @@ final class RecognitionQueue: ObservableObject {
             waiting = batch.map { !$0.paused && $0.items.contains { $0.state == .queued } } ?? false
             revision += 1
         }
-        while let current = batch, !current.paused, let index = Self.next(in: current, open: open) {
+        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly) {
             guard let address = URL(string: current.address) else { return stop() }
             let item = current.items[index]
             if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {
@@ -226,20 +272,29 @@ final class RecognitionQueue: ObservableObject {
             let outcome = await Self.recognise(
                 projects().appendingPathComponent(file), address: address, account: account, links: links, folders: root,
                 progress: { [weak self] in self?.progress = (file, $0) },
+                job: follow(item, index: index, batch: current.id),
                 isOpen: { self.open == file }
             )
             if let timed = progress, timed.file == file { measured += timed.progress.milliseconds }
             progress = nil
+            job = nil
             guard batch?.id == current.id, batch?.items.indices.contains(index) == true else { return }
             switch outcome {
-            case .success(let pages):
+            case .success(let read):
                 batch?.items[index].state = .done
-                if current.hosted, let player = account.player { DailyPages.add(pages, player: player, defaults: defaults) }
+                batch?.items[index].job = nil
+                batch?.items[index].unread = read.unread.isEmpty ? nil : read.unread
+                if current.hosted, let player = account.player { DailyPages.add(read.pages, player: player, defaults: defaults) }
             case .failure(let failure) where failure.open:
                 batch?.items[index].state = .queued
             case .failure(let failure):
                 batch?.items[index].state = failure.stop == nil ? .failed : .queued
                 batch?.items[index].reason = failure.stop == nil ? failure.reason : nil
+                // A job that did not work is no longer waited for; one the batch stopped at is asked again on «Продолжить».
+                if failure.stop == nil, let sent = batch?.items[index].job {
+                    batch?.items[index].job = nil
+                    Task { await ScanServer.deleteJob(sent.id, to: ScanTarget(address: address, account: account)) }
+                }
                 if let stop = failure.stop {
                     batch?.paused = true
                     batch?.stopped = stop
@@ -250,15 +305,42 @@ final class RecognitionQueue: ObservableObject {
         }
     }
 
+    /// How the batch follows the item's scan job: one kept from before, else a new one with scan jobs on (version 1.3);
+    /// nil to send the PDF to `/recognise` as before. A new job's id is kept in the batch at once, so a relaunch finds it.
+    private func follow(_ item: RecognitionItem, index: Int, batch id: String) -> RecognitionJob? {
+        guard item.job != nil || ScanServer.jobs else { return nil }
+        let file = item.file
+        let wanted = { [weak self] in self?.batch?.id == id && self?.batch?.paused == false }
+        return RecognitionJob(
+            kept: item.job,
+            keep: { [weak self] made in
+                guard let self, self.batch?.id == id, self.batch?.items.indices.contains(index) == true else { return }
+                self.batch?.items[index].job = made
+                RecognitionStore.save(self.batch, in: self.root)
+            },
+            hear: { [weak self] status in
+                self?.job = (file, status)
+                self?.progress = (file, status.progress)
+            },
+            wanted: wanted,
+            ready: { [weak self] in
+                // The screen saves the open piece over anything written meanwhile: its readings wait until it closes.
+                while wanted(), self?.open == file { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+                return wanted()
+            }
+        )
+    }
+
     /// One piece's PDF read by the scan server and its notes put into the same piece (`document.read`), as «Распознать
-    /// ноты» on its PDF does: the pages sent, or why not. `isOpen` says, just before the notes are written, whether the piece
-    /// is open on screen now; `progress` hears as each page is sent and read.
-    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
+    /// ноты» on its PDF does: the pages sent and those no engine read, or why not. `isOpen` says, just before the notes
+    /// are written, whether the piece is open on screen now; `progress` hears as each page is sent and read; `job`, the scan
+    /// job it is read by (version 1.3), deleted on the server once the notes are written.
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, job: RecognitionJob? = nil, isOpen: () -> Bool) async -> Result<(pages: Int, unread: [Int]), RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
             return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
         }
-        if summary.hasNotes { return .success(0) }
+        if summary.hasNotes { return .success((0, [])) }
         var pdf: Data?
         if AwayPdf.isAway(summary) {
             switch await AwayPdf.read(url, summary, links: links, folders: folders) {
@@ -270,19 +352,30 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, address: address, account: account, text: text, progress: progress, isOpen: isOpen)
+        let outcome = await read(piece, url: url, address: address, account: account, text: text, progress: progress, job: job, isOpen: isOpen)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, progress: ScanProgressListener?, isOpen: () -> Bool) async -> Result<Int, RecognitionFailure> {
+    private static func read(_ piece: Int32, url: URL, address: URL, account: Account, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<(pages: Int, unread: [Int]), RecognitionFailure> {
         let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let name = (object["fileName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "score.pdf"
         let pages = max(1, PDFDocument(data: data)?.pageCount ?? 1)
-        switch await ScanServer.recognise(fileName: name, data: data, address: address, account: account, progress: progress) {
+        var sent: ScanJobRecord?
+        let scanning: Result<ScanResult, ScanProblem>
+        if let job, pages <= ScanParts.mostPages,
+           let byJob = await ScanServer.readByJob(fileName: name, data: data, pages: pages, to: ScanTarget(address: address, account: account), job: job.kept, keep: job.keep, hear: job.hear, wanted: job.wanted, ready: job.ready) {
+            scanning = byJob.map { $0.result }
+            if case .success(let read) = byJob { sent = read.job }
+        } else {
+            scanning = await ScanServer.recognise(fileName: name, data: data, address: address, account: account, progress: progress)
+        }
+        switch scanning {
+        case .failure(.stopped):
+            return .failure(RecognitionFailure(reason: "", open: true))
         case .failure(let problem):
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let scanned):
@@ -297,7 +390,9 @@ final class RecognitionQueue: ObservableObject {
             } catch {
                 return .failure(RecognitionFailure(reason: error.localizedDescription))
             }
-            return .success(pages)
+            // Saved: the job goes from the server now, not after its 10 minutes' grace (lead's decision, version 1.3).
+            if let sent { await ScanServer.deleteJob(sent.id, to: ScanTarget(address: address, account: account)) }
+            return .success((pages, scanned.unread))
         }
     }
 
@@ -307,7 +402,7 @@ final class RecognitionQueue: ObservableObject {
         case .signIn: "signIn"
         case .needsPro: "needsPro"
         case .unreachable, .notAScanServer: "unreachable"
-        case .tooLarge, .tooManyPages, .server: nil
+        case .tooLarge, .tooManyPages, .server, .stopped: nil
         }
     }
 }

@@ -155,5 +155,8 @@
   "drafts.toastAnchored": "Anchored in bar {0}",
   "drafts.toastUnanchored": "Anchor in bar {0} removed",
   "drafts.anchorLabel": "Anchor in bar {0} · {1}",
-  "drafts.toastProposal": "Accepted: {0}"
+  "drafts.toastProposal": "Accepted: {0}",
+  "sources.sheet.readHostedJob.one": "{0} page goes to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours.",
+  "sources.sheet.readHostedJob.few": "{0} pages go to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours.",
+  "sources.sheet.readHostedJob.many": "{0} pages go to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours."
 }

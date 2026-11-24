@@ -73,6 +73,10 @@ struct RecognitionTag: View {
     private var words: String {
         switch item.state {
         case .failed: text.format("recognition.failedWhy", item.reason ?? "")
+        case .reading where queue.job?.file == item.file:
+            RecognitionTop.jobLine(queue.job?.status.progress ?? ScanProgress(pages: item.pages), text)
+        case .done where item.unread != nil:
+            text["recognition.state.done"] + " · " + RecognitionTop.unreadLine(item.unread ?? [], text)
         case .reading where reading?.current != nil:
             text.format("recognition.readingPage", String(reading?.current ?? 1), String(reading?.pages ?? 1))
         default: text["recognition.state." + item.state.rawValue]
@@ -98,6 +102,8 @@ struct RecognitionTop: View {
     /// The pieces the list shows now, which «Выбрать все» picks.
     var shown: [LibraryEntry] = []
     let recognise: () -> Void
+    /// The scan job's pages and engines shown under the banner, on a tap (version 1.3).
+    @State private var showsJob = false
 
     var body: some View {
         if let batch = queue.batch {
@@ -143,16 +149,32 @@ struct RecognitionTop: View {
             HStack(spacing: CGFloat.ds("s-4")) {
                 Text(headline(batch)).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
                 if !batch.finished && batch.stopped == nil, let reading = Self.reading(batch, current, minutes: queue.minutesLeft, text) {
-                    Text(reading)
-                        .monospacedDigit()
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("ink-2"))
+                    if queue.job != nil {
+                        Button {
+                            showsJob.toggle()
+                        } label: {
+                            Text(reading).monospacedDigit().dsType(.label).foregroundStyle(Color.ds("ink-2"))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(text["scanJob.detailHint"])
+                    } else {
+                        Text(reading)
+                            .monospacedDigit()
+                            .dsType(.label)
+                            .foregroundStyle(Color.ds("ink-2"))
+                    }
                 }
                 Spacer(minLength: CGFloat.ds("s-2"))
                 actions(batch)
             }
             .padding(.horizontal, CGFloat.ds("s-4"))
             .frame(minHeight: CGFloat.ds("h-touch"))
+            if showsJob, let job = queue.job {
+                ScanJobDetail(status: job.status, text: text)
+                    .padding(.horizontal, CGFloat.ds("s-4"))
+                    .padding(.bottom, CGFloat.ds("s-3"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if !batch.finished {
                 ProgressSegments(segments: Self.segments(batch, current), height: 3)
             }
@@ -187,6 +209,18 @@ struct RecognitionTop: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// A piece read by a scan job (spec part 5): «распознаётся · 2 из 5 страниц · ещё около 2 мин.», the pages every engine is
+    /// done with and the server's estimate.
+    static func jobLine(_ progress: ScanProgress, _ text: UIText) -> String {
+        let pages = text.format("recognition.jobPages." + UIText.pluralForm(text.language, progress.pages), String(progress.done), String(progress.pages))
+        return progress.minutesLeft.map { pages + " · " + text.format("recognition.left", String($0)) } ?? pages
+    }
+
+    /// «стр. 3, 5 не распознаны»: the pages no engine read, left out of the notes.
+    static func unreadLine(_ pages: [Int], _ text: UIText) -> String {
+        text.format(pages.count == 1 ? "recognition.unreadPage" : "recognition.unreadPages", pages.map(String.init).joined(separator: ", "))
+    }
+
     /// A segment a piece: read (its notes or its reason back), being read with the share of its pages read, or waiting.
     static func segments(_ batch: RecognitionBatch, _ current: (file: String, progress: ScanProgress)?) -> [ProgressSegments.Segment] {
         batch.items.map { item in
@@ -202,6 +236,9 @@ struct RecognitionTop: View {
     @ViewBuilder
     private func actions(_ batch: RecognitionBatch) -> some View {
         if batch.finished {
+            if batch.failed > 0 {
+                Button(text["recognition.retry"]) { queue.retryFailed() }.buttonStyle(DSButtonStyle(kind: .quiet))
+            }
             Button(text["folderImport.done"]) { queue.stop() }.buttonStyle(DSButtonStyle(kind: .quiet))
         } else if batch.paused || queue.interrupted {
             Button(text["folderImport.resume"]) { queue.resume() }.buttonStyle(DSButtonStyle(kind: .quiet))
@@ -292,7 +329,9 @@ struct RecogniseConsentSheet: View {
     @ViewBuilder
     private func facts(_ offer: RecognitionOffer) -> some View {
         let local = ScanServer.isLocal(offer.address)
-        line(text["recognition.where"], offer.hosted ? text["recognition.whereHosted"] : text.format(local ? "recognition.whereHere" : "recognition.whereOwn", offer.address.host ?? offer.address.absoluteString))
+        // As a scan job (version 1.3), Motiff Lab's server keeps them until the iPad has fetched what was read, at most 24 hours.
+        let hosted = ScanServer.jobs ? "recognition.whereHostedJob" : "recognition.whereHosted"
+        line(text["recognition.where"], offer.hosted ? text[hosted] : text.format(local ? "recognition.whereHere" : "recognition.whereOwn", offer.address.host ?? offer.address.absoluteString))
         line(text["recognition.howLong"], text.format("recognition.howLongLine", String(DailyPages.minutes(pages))))
         if offer.hosted {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -368,7 +407,7 @@ struct RecognitionLayer: ViewModifier {
             .task(id: on) {
                 guard on else { return }
                 RecognitionQueue.shared.account = account
-                RecognitionQueue.shared.restore()
+                RecognitionQueue.shared.restoreAndFollowJobs()
                 ImportRunner.shared.added = { url in
                     guard let offer = RecognitionOffer.of(account), offer.allowed else { return }
                     Task { await RecognitionQueue.shared.append(url, address: offer.address, hosted: offer.hosted) }
@@ -381,5 +420,28 @@ extension View {
     @MainActor
     func recognition(chosen: Binding<Set<URL>?>, consenting: Binding<Bool>, account: Account, entries: [LibraryEntry], on: Bool, text: UIText, settings: @escaping () -> Void, reload: @escaping () async -> Void) -> some View {
         modifier(RecognitionLayer(chosen: chosen, consenting: consenting, account: account, entries: entries, on: on, text: text, settings: settings, reload: reload))
+    }
+}
+
+/// A scan job's pages and the engines on each, as its server last told them (spec part 2a: «подробно, по нажатию»).
+struct ScanJobDetail: View {
+    let status: ScanJobStatus
+    let text: UIText
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+            ForEach(status.pages, id: \.page) { page in
+                HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-3")) {
+                    Text(text.format("scanJob.page", String(page.page))).dsType(.label).foregroundStyle(Color.ds("ink"))
+                    Text(Self.engines(page, text)).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    /// «homr: прочитал · copisteria: читает · …», in the engines' order.
+    static func engines(_ page: ScanJobStatus.Page, _ text: UIText) -> String {
+        ScanJobs.ordered(page.engines.keys).map { text.format("scanJob.engine", $0, text["scanJob.state." + (page.engines[$0] ?? "waiting")]) }.joined(separator: " · ")
     }
 }

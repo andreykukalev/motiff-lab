@@ -49,12 +49,21 @@ struct ScanProgress: Equatable, Sendable {
     private(set) var done = 0
     /// How long each page read took, from send to answer, in milliseconds.
     private(set) var milliseconds: [Int] = []
+    /// The minutes left as a scan job's server tells them (decision record 0035), in place of the pages timed here.
+    private(set) var told: Int?
 
     /// Who hears the progress of a score read in this task: Recognise notes' panel sets it around its send.
     @TaskLocal static var listener: ScanProgressListener? = nil
 
     init(pages: Int) {
         self.pages = max(1, pages)
+    }
+
+    /// A scan job's pages as its server tells them: those every engine has finished with, and about how long is left.
+    init(pages: Int, done: Int, minutesLeft: Int?) {
+        self.pages = max(1, pages)
+        self.done = min(self.pages, max(0, done))
+        told = minutesLeft
     }
 
     /// The page being read, from 1; nil once every page is back.
@@ -77,7 +86,7 @@ struct ScanProgress: Equatable, Sendable {
     }
 
     /// About how many minutes are left, at least one; nil before the first page is back, or once all are.
-    var minutesLeft: Int? { Self.minutes(measured: milliseconds, pagesLeft: pages - done) }
+    var minutesLeft: Int? { told ?? Self.minutes(measured: milliseconds, pagesLeft: pages - done) }
 
     /// About how many minutes `pagesLeft` pages take from the pages `measured`: their mean, rounded up, at least one.
     static func minutes(measured: [Int], pagesLeft: Int) -> Int? {

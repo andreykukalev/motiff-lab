@@ -168,5 +168,8 @@
   "drafts.toastAnchored": "Опорная точка в такте {0}",
   "drafts.toastUnanchored": "Опорная точка в такте {0} откреплена",
   "drafts.anchorLabel": "Опорная точка в такте {0} · {1}",
-  "drafts.toastProposal": "Принято: {0}"
+  "drafts.toastProposal": "Принято: {0}",
+  "sources.sheet.readHostedJob.one": "{0} страница уйдёт на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов.",
+  "sources.sheet.readHostedJob.few": "{0} страницы уйдут на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов.",
+  "sources.sheet.readHostedJob.many": "{0} страниц уйдут на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов."
 }

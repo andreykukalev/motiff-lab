@@ -78,6 +78,11 @@ public static class SettingsCatalogue
         // copisteria, so the two can be compared on the player's own pages; "auto" (decision record 0029) reads a born-digital
         // PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with the server's own engine.
         Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
+
+        // Scan jobs (version 1.3, decision record 0035, an experiment): with it on, the iPad reads a born-digital PDF's pages on
+        // the device first and sends the others as a job to the scan server's four engines, whose readings music-core merges
+        // (scan.join); off, scans go to /recognise as before.
+        Switch("experimental.scanJobs", SettingSection.Experimental, null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
