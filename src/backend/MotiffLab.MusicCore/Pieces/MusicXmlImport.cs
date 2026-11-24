@@ -42,6 +42,16 @@ public sealed record MusicXmlImport(
     /// <summary>Velocity for notes the score gives no playback dynamics: between mp and mf.</summary>
     public const int DefaultVelocity = 80;
 
+    /// <summary>
+    /// The text of the hidden direction (<c>&lt;other-direction print-object="no"&gt;</c>) a scan merge writes in a measure
+    /// where no two engines agree on some staff (ADR 0035, section 5): schema-valid MusicXML that every copy of the measure
+    /// keeps and no reader shows.
+    /// </summary>
+    public const string EnginesDisagreeMark = "Motiff Lab scan: engines disagree";
+
+    /// <summary>The measures (<see cref="MusicXmlMeasure.Index"/>, in order) a scan merge marked with <see cref="EnginesDisagreeMark"/>.</summary>
+    public IReadOnlyList<int> EnginesDisagree { get; init; } = [];
+
     /// <summary>The bar lines drawn other than single (double, final, heavy), one per position and style, in time order.</summary>
     public IReadOnlyList<MusicXmlBarline> Barlines { get; init; } = [];
 
