@@ -184,7 +184,7 @@ public class PageInsertTests
             Scan = read.Scan!.Confirm([1, 3]),
             Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.BarTooLong, true), new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooLong, false)],
         };
-        PageInserted inserted = confirmed.InsertPage(2, Encoding.UTF8.GetBytes(Page("G")), null, 3)!;
+        PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3)!;
         Assert.Equal([1, 5], inserted.Project.Scan!.ConfirmedBars);
         Assert.Equal([(1, true), (6, false)], inserted.Project.Check!.Select(flag => (flag.Bar, flag.Resolved)));
     }

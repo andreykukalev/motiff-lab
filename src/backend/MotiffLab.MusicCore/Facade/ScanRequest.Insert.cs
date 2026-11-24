@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
 /// scan.insert on piece 0 (within contract 14, a call added; v1.3 i-1b, Andrei 2026-11-24 «Вставить в те же ноты»): a page no
-/// engine read, read again by itself once the rest of the piece opened, put into the same Notes (<see cref="Project.InsertPage"/>).
+/// engine read, read again by itself once the rest of the piece opened, put into the same Notes (<see cref="ScanPageInsert.Into"/>).
 /// </summary>
 internal static partial class ScanRequest
 {
@@ -51,7 +51,7 @@ internal static partial class ScanRequest
         {
             byte[] musicXml = Read(fields.Element("reading") ?? throw FacadeException.BadRequest("Send \"reading\", the page read again."), page, merged);
             PageReport? report = ReportsIn(fields) is { Count: > 0 } reports ? reports[0] : null;
-            inserted = project.InsertPage(page, musicXml, report, fields.Int("pages") ?? project.DocumentPages?.Pages ?? 1);
+            inserted = ScanPageInsert.Into(project, page, musicXml, report, fields.Int("pages") ?? project.DocumentPages?.Pages ?? 1);
         }
         catch (ArgumentException exception)
         {

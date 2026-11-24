@@ -41,10 +41,15 @@ public sealed partial record Project
     /// of the Check drawer). Only before the player has put anything on the score: corrections, phrase changes,
     /// marks, bookmarks, ideas, observations and checked bars are kept by their place in the bars, which would move.
     /// </summary>
-    public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && !TakenBars.Any() && Phrases.IsEmpty && ShortPhrases.IsEmpty && Sentences.IsEmpty
-        && Marks.IsEmpty && Bookmarks.Count == 0 && Motifs.Count == 0 && Variations.Count == 0 && Observations.Count == 0
-        && Unknown.Count == 0 && Marks.Unknown.Count == 0
-        && !(Check ?? []).Any(flag => flag.Resolved);
+    public bool CanChangeBars => Transcription is not null && Edits.IsEmpty && !PlacedInBars && !(Check ?? []).Any(flag => flag.Resolved);
+
+    /// <summary>
+    /// Whether the player put on the score what is kept by its place in the bars, but corrections and checked bars: taken bars,
+    /// phrase changes, marks, bookmarks, motifs, variations, observations, or what this build cannot read.
+    /// </summary>
+    private bool PlacedInBars => TakenBars.Any() || !Phrases.IsEmpty || !ShortPhrases.IsEmpty || !Sentences.IsEmpty
+        || !Marks.IsEmpty || Bookmarks.Count > 0 || Motifs.Count > 0 || Variations.Count > 0 || Observations.Count > 0
+        || Unknown.Count > 0 || Marks.Unknown.Count > 0;
 
     /// <summary>
     /// The transcription written in other bars, or as the engine wrote it when <paramref name="bars"/> is null. Its
