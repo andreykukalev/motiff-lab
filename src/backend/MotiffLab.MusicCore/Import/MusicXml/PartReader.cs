@@ -10,8 +10,6 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// <summary>Walks one part: keeps a position cursor per measure and collects notes, attributes and directions.</summary>
 internal sealed partial class PartReader(int index, string id, string? name, string? instrumentName, ImportIssueCollector issues)
 {
-    private static readonly int[] s_stepSemitones = [9, 11, 0, 2, 4, 5, 7]; // A to G
-
     private MusicXmlDivisions? _divisions;
     private int _transpose;
     private int? _velocity;
@@ -336,7 +334,7 @@ internal sealed partial class PartReader(int index, string id, string? name, str
             }
         }
 
-        long midi = ((octave + 1L) * 12) + s_stepSemitones[step[0] - 'A'] + alter + _transpose;
+        long midi = StaffPitch.Midi(step[0], octave, alter) + _transpose;
         return midi is >= 0 and <= Pitch.MaxMidiNumber ? (int)midi : null;
     }
 

@@ -28,7 +28,9 @@ public sealed partial class MusicCoreFacade
     /// Also within 14 (version 1.3, ADR 0035 section 5): a page of scan.join's "pages" may be its readings by several engines,
     /// [{"engine", "musicxml"}], merged staff by staff (<see cref="Import.Scan.ScanMerge"/>), and such a page answers "merge":
     /// its engines and each bar's "level" (sure, probable, check) with the engines of each staff; a page sent as text and
-    /// "score" with "replace" answer as before; a form and a field added.
+    /// "score" with "replace" answer as before; a form and a field added. Also within 14 (c-1b): such a page may be
+    /// {"readings": [...], "evidence": the scan server's page evidence}, the evidence settling the staves no two engines
+    /// agree on (<see cref="Import.Scan.ScanEvidence"/>); a form added, the answer as before.
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
     /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
     /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they

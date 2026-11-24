@@ -25,7 +25,7 @@ internal sealed class Spelling(VectorStaff staff, Dictionary<PlacedGlyph, MusicG
                 VectorClef clef = at.ClefAt(head.X);
                 int diatonic = clef.Reference + staff.StepsAbove(head.Y, clef.LineY(staff));
                 int sounding = diatonic + (7 * at.Octaves(head.X));
-                char step = VectorPitch.StepOf(diatonic);
+                char step = StaffPitch.StepOf(diatonic);
                 int alter;
                 if (written.TryGetValue(head, out MusicGlyph accidental))
                 {
@@ -41,7 +41,7 @@ internal sealed class Spelling(VectorStaff staff, Dictionary<PlacedGlyph, MusicG
                 }
                 else
                 {
-                    alter = held.TryGetValue(diatonic, out int kept) ? kept : Signatures.KeyAlter(fifths, step);
+                    alter = held.TryGetValue(diatonic, out int kept) ? kept : StaffPitch.KeyAlter(fifths, step);
                 }
 
                 _alters[head] = alter;
@@ -50,7 +50,7 @@ internal sealed class Spelling(VectorStaff staff, Dictionary<PlacedGlyph, MusicG
                     ToNext[sounding] = alter;
                 }
 
-                item.Pitches.Add(new VectorPitch(step, alter, VectorPitch.OctaveOf(sounding), ties.Starts(head), ties.Stops(head)));
+                item.Pitches.Add(new VectorPitch(step, alter, StaffPitch.OctaveOf(sounding), ties.Starts(head), ties.Stops(head)));
             }
         }
     }
