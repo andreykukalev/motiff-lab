@@ -12,7 +12,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// scan.join on piece 0 (contract 12, a call added; v0.4, notes from photos of pages): the MusicXML of pages read one
 /// request at a time joined into one score (<see cref="ScanJoin"/>), with each page's bars and how many of them are
 /// doubtful once the scan server's page reports count (<see cref="ScanCheck.Of(ImportedPiece, IReadOnlyList{PageReport})"/>).
-/// Nothing is kept: the app opens the score as any scan, and the reports are not saved.
+/// Nothing is kept: the app opens the score as any scan, and the reports are not saved. Within contract 14 (version 1.3,
+/// ADR 0035 section 5), a page of "pages" may be its readings by several engines, merged staff by staff (<see cref="ScanMerge"/>),
+/// and such a page answers "merge"; a form and a field added.
 /// </summary>
 internal static class ScanRequest
 {
@@ -21,10 +23,14 @@ internal static class ScanRequest
     /// again, and "reports" (optional): one per page in order, each the X-Page-Report header as text, its list or one of
     /// its objects → {"score": the joined MusicXML, "pages": [{"page", "bars", "doubtful", "quality": "good", "weak",
     /// "poor" or null without reports}]}. "doubtful" counts the bars below the 0.6 a hint needs: flagged, or on a weak page.
+    /// A page of "pages" may instead be a list of its readings, [{"engine", "musicxml"}]: they are merged (<see cref="ScanMerge"/>)
+    /// and the page answers "merge": {"engines": [as sent, in the merge's order], "bars": [{"bar", "level": "sure", "probable"
+    /// or "check", "staves": [{"part", "staff", "engines"}]}]}, one per bar of the page in order.
     /// </summary>
     public static string Join(Request fields)
     {
-        byte[] score = Score(fields);
+        Dictionary<int, ScanMergedPage> merged = [];
+        byte[] score = Score(fields, merged);
         IReadOnlyList<byte[]> pages = ScanJoin.Split(score);
         IReadOnlyList<PageReport>? reports = Reports(fields, pages.Count);
         ImportedPiece piece = PieceImporter.Import("scan.musicxml", score) is { Piece: { } read }
@@ -50,6 +56,11 @@ internal static class ScanRequest
                 else
                 {
                     json.WriteString("quality", JsonNamingPolicy.CamelCase.ConvertName(reports[page - 1].Quality.ToString()));
+                }
+
+                if (merged.TryGetValue(page, out ScanMergedPage? readings))
+                {
+                    Merge(json, readings, bars);
                 }
 
                 json.WriteEndObject();
@@ -110,6 +121,47 @@ internal static class ScanRequest
         });
     }
 
+    /// <summary>A merged page's engines and each of its bars' level and the engines that gave each staff.</summary>
+    private static void Merge(Utf8JsonWriter json, ScanMergedPage page, ScanBar[] bars)
+    {
+        json.WriteStartObject("merge");
+        json.WriteStartArray("engines");
+        foreach (string engine in page.Engines)
+        {
+            json.WriteStringValue(engine);
+        }
+
+        json.WriteEndArray();
+        json.WriteStartArray("bars");
+        foreach ((ScanBar bar, ScanMergedBar read) in bars.Zip(page.Bars))
+        {
+            json.WriteStartObject();
+            json.WriteNumber("bar", bar.Bar);
+            json.WriteString("level", JsonNamingPolicy.CamelCase.ConvertName(read.Level.ToString()));
+            json.WriteStartArray("staves");
+            foreach (ScanStaffSource staff in read.Staves)
+            {
+                json.WriteStartObject();
+                json.WriteNumber("part", staff.Part);
+                json.WriteNumber("staff", staff.Staff);
+                json.WriteStartArray("engines");
+                foreach (string engine in staff.Engines)
+                {
+                    json.WriteStringValue(engine);
+                }
+
+                json.WriteEndArray();
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteEndObject();
+    }
+
     /// <summary>A page report with the keys of the scan server's X-Page-Report header.</summary>
     private static void Report(Utf8JsonWriter json, PageReport report)
     {
@@ -126,7 +178,8 @@ internal static class ScanRequest
         json.WriteEndObject();
     }
 
-    private static byte[] Score(Request fields)
+    /// <summary>The joined score; the pages sent as readings are merged first, and their merges kept in <paramref name="merged"/> by page.</summary>
+    private static byte[] Score(Request fields, Dictionary<int, ScanMergedPage> merged)
     {
         try
         {
@@ -142,15 +195,35 @@ internal static class ScanRequest
                 return ScanJoin.Replace(Encoding.UTF8.GetBytes(fields.Required("score")), replaced);
             }
 
-            IReadOnlyList<string> pages = fields.Texts("pages");
+            IReadOnlyList<JsonElement> pages = fields.Elements("pages");
             return pages.Count > 0
-                ? ScanJoin.Join([.. pages.Select(Encoding.UTF8.GetBytes)])
+                ? ScanJoin.Join([.. pages.Select((page, index) => Page(page, index + 1, merged))])
                 : throw FacadeException.BadRequest("Send \"pages\", the MusicXML read from each page, or \"score\".");
         }
         catch (ArgumentException exception)
         {
             throw FacadeException.BadRequest(exception.Message);
         }
+    }
+
+    /// <summary>One page of "pages": its MusicXML, or its readings [{"engine", "musicxml"}] merged.</summary>
+    private static byte[] Page(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged)
+    {
+        if (page.ValueKind == JsonValueKind.String)
+        {
+            return Encoding.UTF8.GetBytes(page.GetString()!);
+        }
+
+        if (page.ValueKind != JsonValueKind.Array)
+        {
+            throw FacadeException.BadRequest("Each of \"pages\" is a page's MusicXML or a list of its readings, {\"engine\", \"musicxml\"}.");
+        }
+
+        List<ScanReading> readings = [.. page.EnumerateArray().Select(Request.Of)
+            .Select(reading => new ScanReading(reading.Required("engine"), Encoding.UTF8.GetBytes(reading.Required("musicxml"))))];
+        ScanMergedPage merge = ScanMerge.Merge(readings.Count > 0 ? readings : throw FacadeException.BadRequest($"Page {number} has no reading."));
+        merged[number] = merge;
+        return merge.MusicXml;
     }
 
     private static IReadOnlyList<PageReport>? Reports(Request fields, int pages)

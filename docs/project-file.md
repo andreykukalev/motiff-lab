@@ -316,10 +316,13 @@ What the scan server, the transcription or a performance left for the player to 
     "reason": "BarTooLong" | "BarTooShort" | "StavesDiffer" | "OutOfPianoRange" | "GraceNotes"   // scan
             | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed"                     // transcription
             | "RecordingOctave" | "RecordingBarLength"                                            // a performance (version 13)
-            | "PageQuality",                                                                        // scan: a bar on a poor page (version 0.4, within 15)
+            | "PageQuality"                                                                         // scan: a bar on a poor page (version 0.4, within 15)
+            | "EnginesDisagree",                                                                    // scan: no two engines agree on a staff (version 1.3, within 17)
     "resolved": false }
 ]
 ```
+
+`EnginesDisagree` (version 1.3, within version 17, Andrei 2026-11-24; [0035](architecture/adr/0035-scan-jobs-four-engines.md), section 5) flags a bar of a page several engines read where no two of them read some staff alike. The merge marks such a measure in the scan's MusicXML with a hidden direction (`<other-direction print-object="no">Motiff Lab scan: engines disagree</other-direction>`), so the flag is worked out from the notes' bytes like the other scan reasons; which engines gave each staff is not kept in the file. A build before 1.3 keeps the flag whole as an unknown one and writes it back (S6).
 
 `null` only in a file written for a project that was never opened since it was read from an older version; opening such a project works the flags out from the piece (`CheckFlag.FromScan`, or `CheckFlag.FromTranscription` for a transcription) and marks the bars the player had confirmed as resolved (`scan.confirmedBars` of the working notes).
 

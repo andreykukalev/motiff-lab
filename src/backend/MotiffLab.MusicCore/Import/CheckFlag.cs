@@ -58,6 +58,9 @@ public enum CheckReason
 
     /// <summary>The bar is on a page the scan server's report calls poor (scan, version 0.4, within version 15).</summary>
     PageQuality,
+
+    /// <summary>No two of the engines that read the page agree on some staff of the bar (scan, version 1.3, within version 17; ADR 0035).</summary>
+    EnginesDisagree,
 }
 
 /// <summary>
@@ -74,7 +77,8 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// The flags of a scan's check, one per flagged bar and reason, resolved where the player confirmed the bar. A bar on a
     /// poor page (<see cref="ScanFlag.PageQuality"/>, from the page reports the check was given) raises
     /// <see cref="CheckReason.PageQuality"/>, a value of the project file since version 0.4 that a build before it keeps
-    /// whole as an unknown flag (S6).
+    /// whole as an unknown flag (S6); a bar a scan merge marked (<see cref="ScanFlag.EnginesDisagree"/>) raises
+    /// <see cref="CheckReason.EnginesDisagree"/>, a value since version 1.3 (Andrei, 2026-11-24), kept so by a build before it.
     /// </summary>
     public static IReadOnlyList<CheckFlag> FromScan(ScanCheck check, IReadOnlyCollection<int> confirmedBars)
     {
@@ -280,6 +284,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         CheckReason.RecordingBarLength => words.T(
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
+        CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
@@ -294,6 +299,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.OutOfPianoRange => words.T("Note beyond the piano", "Нота вне диапазона фортепиано"),
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
+            CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -333,6 +339,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.RecordingBarLength => words.T(
                 "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
+            CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }
@@ -345,6 +352,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         ScanFlag.OutOfPianoRange => CheckReason.OutOfPianoRange,
         ScanFlag.GraceNotes => CheckReason.GraceNotes,
         ScanFlag.PageQuality => CheckReason.PageQuality,
+        ScanFlag.EnginesDisagree => CheckReason.EnginesDisagree,
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }

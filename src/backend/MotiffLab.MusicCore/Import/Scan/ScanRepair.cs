@@ -51,7 +51,10 @@ public static partial class ScanRepair
     private static readonly XmlReaderSettings Safe = new() { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null };
 
     /// <summary>The score with split moments put back and its time signatures from its bars; the same array when nothing changes.</summary>
-    public static byte[] Repair(byte[] score)
+    public static byte[] Repair(byte[] score) => Repair(score, null);
+
+    /// <summary>The score repaired by the rules for one engine's reading (<paramref name="rules"/>), or by those above alone when null.</summary>
+    private static byte[] Repair(byte[] score, ReadingRules? rules)
     {
         ArgumentNullException.ThrowIfNull(score);
         if (Parse(score) is not { } root)
@@ -62,13 +65,16 @@ public static partial class ScanRepair
         var changes = new Changes();
         foreach (XElement part in root.Elements("part"))
         {
-            foreach (List<Bar> stretch in Stretches(Ranges(Bars(part))))
+            List<List<Bar>> ranges = Ranges(Bars(part));
+            bool printed = rules is { PrintedMeters: true }
+                && ranges.Select(range => range[0].Time).OfType<XElement>().Select(Written).OfType<QuarterFraction>().Distinct().Count() > 1;
+            foreach (List<Bar> stretch in Stretches(ranges))
             {
-                Mend(stretch, changes);
+                Mend(stretch, changes, rules, printed);
             }
         }
 
-        if (changes.Retimed == 0 && changes.Meters.Count == 0)
+        if (changes.Retimed == 0 && changes.Meters.Count == 0 && changes.BarRests == 0 && changes.SharedHeads == 0)
         {
             return score;
         }
@@ -79,12 +85,15 @@ public static partial class ScanRepair
 
     /// <summary>
     /// One stretch of bars judged together (<see cref="Stretches"/>): a range under one written time signature (or none,
-    /// before the first), with the pages that continue it. Re-timed bars, then each signature written in it.
+    /// before the first), with the pages that continue it. Re-timed bars, then a reading's bars by its own rules
+    /// (<see cref="ReadingRules"/>), then each signature written in it, unless the printed meters are the bars' lengths
+    /// (<paramref name="printedMeters"/>: a reading that reads them and changes meter).
     /// </summary>
-    private static void Mend(List<Bar> stretch, Changes changes)
+    private static void Mend(List<Bar> stretch, Changes changes, ReadingRules? rules, bool printedMeters)
     {
         XElement? time = stretch[0].Time;
-        if (Most(stretch, time is null ? null : Written(time)) is not { } most)
+        QuarterFraction? printed = printedMeters && time is not null ? Written(time) : null;
+        if ((printed ?? Most(stretch, time is null ? null : Written(time))) is not { } most)
         {
             return;
         }
@@ -95,6 +104,23 @@ public static partial class ScanRepair
             changes.Retimed++;
         }
 
+        if (rules is not null)
+        {
+            foreach (Bar bar in stretch)
+            {
+                MendBar(bar, most, changes);
+            }
+        }
+
+        if (printed is null)
+        {
+            RewriteSignatures(stretch, most, changes);
+        }
+    }
+
+    /// <summary>Each signature written in the stretch from the length most of its bars have, when enough of them, and half, have it.</summary>
+    private static void RewriteSignatures(List<Bar> stretch, QuarterFraction most, Changes changes)
+    {
         int count = stretch.Count(bar => bar.Length == most);
         if (count < FewestBarsForMeter || count * 2 < stretch.Count)
         {
@@ -169,7 +195,8 @@ public static partial class ScanRepair
         return ranges;
     }
 
-    private static List<Bar> Bars(XElement part)
+    /// <summary>The measures of a part as read, each with the divisions in force.</summary>
+    internal static List<Bar> Bars(XElement part)
     {
         var bars = new List<Bar>();
         long divisions = 1;
@@ -183,34 +210,34 @@ public static partial class ScanRepair
         return bars;
     }
 
-    /// <summary>Writes the bar's notes at their new places: its backups and forwards are written again, nothing else moves.</summary>
-    private static void Retime(Bar bar)
-    {
-        bar.Measure.Elements().Where(element => element.Name.LocalName is "backup" or "forward").Remove();
-        long cursor = 0;
-        int index = 0;
-        foreach (XElement note in bar.Measure.Elements("note").ToList())
-        {
-            Sound sound = bar.Sounds[index];
-            long onset = bar.Retimed![index++];
-            if (sound.IsChord && !sound.IsGrace)
-            {
-                continue;
-            }
-
-            if (onset != cursor)
-            {
-                note.AddBeforeSelf(new XElement(onset < cursor ? "backup" : "forward", new XElement("duration", Math.Abs(cursor - onset).ToString(CultureInfo.InvariantCulture))));
-            }
-
-            cursor = onset + sound.Duration;
-        }
-
-        bar.Length = bar.RetimedLength;
-    }
+    /// <summary>Writes the bar's notes where split moments put back places them (<see cref="Bar.WriteOnsets"/>).</summary>
+    private static void Retime(Bar bar) => bar.WriteOnsets(bar.Retimed!);
 
     /// <summary>Says in the score's encoding what was inferred, so the file keeps it.</summary>
     private static void Describe(XElement root, Changes changes)
+    {
+        var said = new List<string>();
+        if (changes.Retimed > 0)
+        {
+            said.Add($"{changes.Retimed} bars re-timed where the engine wrote notes that sound together one after the other");
+        }
+
+        if (changes.BarRests > 0)
+        {
+            said.Add($"{changes.BarRests} whole rests alone on their staff made to last the bar");
+        }
+
+        if (changes.SharedHeads > 0)
+        {
+            said.Add($"{changes.SharedHeads} bars re-timed where two voices share a notehead the engine wrote twice");
+        }
+
+        said.AddRange(changes.Meters.Distinct().Select(meter => $"time signature {meter}, inferred from the bar contents"));
+        Say(root, "Motiff Lab scan repair: " + string.Join("; ", said) + ".");
+    }
+
+    /// <summary>Adds a sentence to the score's encoding description (<c>identification/encoding</c>), making them where missing.</summary>
+    internal static void Say(XElement root, string sentence)
     {
         XElement? identification = root.Element("identification");
         if (identification is null)
@@ -242,17 +269,11 @@ public static partial class ScanRepair
             }
         }
 
-        var said = new List<string>();
-        if (changes.Retimed > 0)
-        {
-            said.Add($"{changes.Retimed} bars re-timed where the engine wrote notes that sound together one after the other");
-        }
-
-        said.AddRange(changes.Meters.Distinct().Select(meter => $"time signature {meter}, inferred from the bar contents"));
-        encoding.Add(new XElement("encoding-description", "Motiff Lab scan repair: " + string.Join("; ", said) + "."));
+        encoding.Add(new XElement("encoding-description", sentence));
     }
 
-    private static XElement? Parse(byte[] score)
+    /// <summary>The score's root when it is partwise MusicXML; null otherwise.</summary>
+    internal static XElement? Parse(byte[] score)
     {
         try
         {
@@ -272,13 +293,20 @@ public static partial class ScanRepair
         public int Retimed { get; set; }
 
         public List<string> Meters { get; } = [];
+
+        public int BarRests { get; set; }
+
+        public int SharedHeads { get; set; }
     }
 
-    /// <summary>A note or rest of a bar as written: its staff, whether it is a chord tone or a grace note, and its length in divisions.</summary>
-    private sealed record Sound(int Staff, bool IsChord, bool IsGrace, long Duration);
+    /// <summary>
+    /// A note or rest of a bar as written: its staff, whether it is a chord tone or a grace note, its length in divisions,
+    /// whether it is a rest and whether a whole one (<c>type</c> whole, or a measure rest).
+    /// </summary>
+    internal sealed record Sound(int Staff, bool IsChord, bool IsGrace, long Duration, bool IsRest = false, bool IsWholeRest = false);
 
     /// <summary>One measure: its notes where they were read, and where they would be with split moments put back.</summary>
-    private sealed class Bar
+    internal sealed class Bar
     {
         private Bar(XElement measure, long divisions) => (Measure, Divisions) = (measure, divisions);
 
@@ -298,7 +326,7 @@ public static partial class ScanRepair
         /// <summary>Where each sound starts when re-timed; null when nothing would change or the bar is not as the engine writes one.</summary>
         public long[]? Retimed { get; private set; }
 
-        public QuarterFraction Length { get; set; }
+        public QuarterFraction Length { get; private set; }
 
         public QuarterFraction RetimedLength { get; private set; }
 
@@ -315,6 +343,71 @@ public static partial class ScanRepair
 
             return bar;
         }
+
+        /// <summary>
+        /// Writes the notes at <paramref name="onsets"/>, one per sound, and their lengths as <see cref="Sounds"/> has them:
+        /// the backups and forwards are written again, nothing else moves; the bar takes its new length.
+        /// </summary>
+        public void WriteOnsets(IReadOnlyList<long> onsets)
+        {
+            Measure.Elements().Where(element => element.Name.LocalName is "backup" or "forward").Remove();
+            long cursor = 0;
+            int index = 0;
+            foreach (XElement note in Measure.Elements("note").ToList())
+            {
+                Sound sound = Sounds[index];
+                long onset = onsets[index++];
+                if (sound.IsChord && !sound.IsGrace)
+                {
+                    continue;
+                }
+
+                if (onset != cursor)
+                {
+                    note.AddBeforeSelf(Move(cursor, onset));
+                }
+
+                cursor = onset + sound.Duration;
+            }
+
+            Onsets.Clear();
+            Onsets.AddRange(onsets);
+            Length = new QuarterFraction(Enumerable.Range(0, Sounds.Count).Select(i => onsets[i] + Sounds[i].Duration).DefaultIfEmpty(0).Max(), Divisions);
+        }
+
+        /// <summary>The measure's elements other than notes, backups and forwards, in order, each at the cursor where it stands.</summary>
+        public List<(XElement Element, long Onset)> Placed()
+        {
+            var placed = new List<(XElement Element, long Onset)>();
+            long cursor = 0;
+            int index = 0;
+            foreach (XElement element in Measure.Elements())
+            {
+                switch (element.Name.LocalName)
+                {
+                    case "note":
+                        Sound sound = Sounds[index];
+                        cursor = sound.IsChord || sound.IsGrace ? cursor : Onsets[index] + sound.Duration;
+                        index++;
+                        break;
+                    case "backup":
+                        cursor = Math.Max(0, cursor - (Number(element.Element("duration")) ?? 0));
+                        break;
+                    case "forward":
+                        cursor += Number(element.Element("duration")) ?? 0;
+                        break;
+                    default:
+                        placed.Add((element, cursor));
+                        break;
+                }
+            }
+
+            return placed;
+        }
+
+        /// <summary>The backup or forward that takes the cursor from <paramref name="cursor"/> to <paramref name="onset"/>.</summary>
+        public static XElement Move(long cursor, long onset) =>
+            new(onset < cursor ? "backup" : "forward", new XElement("duration", Math.Abs(cursor - onset).ToString(CultureInfo.InvariantCulture)));
 
         /// <summary>Reads the notes as the importer places them; false when the bar has a forward or a note without a length.</summary>
         private bool ReadElements(out long end)
@@ -360,7 +453,9 @@ public static partial class ScanRepair
             }
 
             int staff = Number(note.Element("staff")) is { } number and >= 1 ? (int)number : 1;
-            Sounds.Add(new Sound(staff, chord, grace, duration ?? 0));
+            XElement? rest = note.Element("rest");
+            bool whole = rest is not null && ((string?)note.Element("type") == "whole" || (string?)rest.Attribute("measure") == "yes");
+            Sounds.Add(new Sound(staff, chord, grace, duration ?? 0, rest is not null, whole));
             Onsets.Add(onset);
             end = Math.Max(end, onset + (duration ?? 0));
             return duration is not null;

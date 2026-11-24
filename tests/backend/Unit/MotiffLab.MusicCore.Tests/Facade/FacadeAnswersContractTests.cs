@@ -268,13 +268,16 @@ public class FacadeAnswersContractTests
         // The piano roll's data (step B7): the notes and bars packed as the roll reads them, with their names spelled for
         // the keys in the piece's language, as the roll asks it while the player chose no naming of their own.
         ["roll"] = [("roll", null)],
+        // A page sent as its readings by two engines (version 1.3, ADR 0035 section 5): the example's first page as homr and
+        // copisteria read it, merged staff by staff; the page answers each bar's level and the engines that gave each staff.
+        ["scan.join.readings"] = [("scan.join", """{"pages":[[{"engine":"homr 0.7.0","musicxml":"<homrPage>"},{"engine":"copisteria","musicxml":"<copisteriaPage>"}]]}""")],
     };
 
     /// <summary>Calls whose answer the file does not keep, only their request: those that only build a file's state (another answer's).</summary>
     private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
 
     /// <summary>Calls made on piece 0, with no piece, beside those on the piece open.</summary>
-    private static readonly HashSet<string> s_withoutPiece = ["project.drafts"];
+    private static readonly HashSet<string> s_withoutPiece = ["project.drafts", "scan.join"];
 
     /// <summary>
     /// The files whose calls start from a project file and not from the example opened anew: the file the project is made
@@ -416,14 +419,21 @@ public class FacadeAnswersContractTests
     /// <summary>
     /// The request as it is sent: the file keeps "&lt;pdf&gt;", "&lt;otherPdf&gt;" and "&lt;scan&gt;" in place of the bytes
     /// (base64) of two small PDFs and of the notes the scan server read from the example's first page, and "&lt;played&gt;"
-    /// in place of a MIDI file of the example played with three notes more in bar 5.
+    /// in place of a MIDI file of the example played with three notes more in bar 5; "&lt;homrPage&gt;" and
+    /// "&lt;copisteriaPage&gt;" in place of the MusicXML text the two engines read from the example's first page.
     /// </summary>
     private static string? WithBytes(string? request) => request?
         .Replace("<pdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes(Pdf)), StringComparison.Ordinal)
         .Replace("<otherPdf>", Convert.ToBase64String(Encoding.ASCII.GetBytes("%PDF-1.4\nanother edition\n%%EOF\n")), StringComparison.Ordinal)
         .Replace("<scan>", Convert.ToBase64String(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"))), StringComparison.Ordinal)
+        .Replace("<homrPage>", request.Contains("<homrPage>", StringComparison.Ordinal) ? ScanPage("homr-fur-elise-page1") : "", StringComparison.Ordinal)
+        .Replace("<copisteriaPage>", request.Contains("<copisteriaPage>", StringComparison.Ordinal) ? ScanPage("copisteria-fur-elise-page1") : "", StringComparison.Ordinal)
         .Replace("<played>", request.Contains("<played>", StringComparison.Ordinal) ? Played() : "", StringComparison.Ordinal)
         .Replace("<pieceA>", request.Contains("<pieceA>", StringComparison.Ordinal) ? PieceA() : "", StringComparison.Ordinal);
+
+    /// <summary>A page an engine read, from the scan fixtures, as a JSON string's text.</summary>
+    private static string ScanPage(string name) =>
+        JsonEncodedText.Encode(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", $"{name}.musicxml")), JavaScriptEncoder.UnsafeRelaxedJsonEscaping).ToString();
 
     /// <summary>Another piece's project file, as a JSON string's text: Ode to Joy with a draft "Ode" of its bars 1–2.</summary>
     private static string PieceA()
