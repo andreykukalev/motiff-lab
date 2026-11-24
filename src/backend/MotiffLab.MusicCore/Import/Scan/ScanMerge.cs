@@ -229,7 +229,7 @@ public static partial class ScanMerge
     private sealed record Choice(int Measure, int Part, int Staff, Reading Source, int SourceMeasure, IReadOnlyList<Reading> Agreeing);
 
     /// <summary>One engine's reading, repaired, as XML (each part's bars) and as imported notes.</summary>
-    private sealed partial class Reading
+    internal sealed partial class Reading
     {
         private readonly ILookup<(int Measure, int Track, int Staff), MusicXmlNote> _notes;
         private readonly Dictionary<string, int>[] _heads;

@@ -49,10 +49,10 @@ public class ScanAssemblyTests
     }
 
     /// <summary>Another symbol (a rest, an accidental, a dot, a triplet mark, a clef with its line, a key signature with its fifths).</summary>
-    private static object Mark(int bar, int staff, string glyph, double x, int position = 0, int? line = null, int? fifths = null)
+    private static object Mark(int bar, int staff, string glyph, double x, int position = 0, int? line = null, int? fifths = null, bool measure = false)
     {
         double left = (bar * 100.0) + x, y = Height(staff, position);
-        return new { system = 0, bar, staff, @class = glyph, x = left, y, box = new[] { left - 3, y - 3, left + 3, y + 3 }, confidence = 0.9, line, fifths };
+        return new { system = 0, bar, staff, @class = glyph, x = left, y, box = new[] { left - 3, y - 3, left + 3, y + 3 }, confidence = 0.9, line, fifths, measure };
     }
 
     private static IReadOnlyList<(long Onset, int Pitch, long Length)>? Assemble(StaffKey start, params object[] symbols) =>
@@ -112,9 +112,11 @@ public class ScanAssemblyTests
     }
 
     [Fact]
-    public void A_whole_rest_lasts_the_bar_and_a_staff_that_does_not_fill_it_is_not_assembled()
+    public void A_whole_bar_rest_lasts_the_bar_a_whole_rest_four_quarters_and_a_staff_that_does_not_fill_it_is_not_assembled()
     {
-        Assert.Empty(ScanAssembly.Staff(Evidence(1, Mark(0, 1, "restWhole", 50)).Bars[0], 1, StaffKey.Treble, [1440])!);
+        Assert.Empty(ScanAssembly.Staff(Evidence(1, Mark(0, 1, "restWhole", 50, measure: true)).Bars[0], 1, StaffKey.Treble, [1440])!);
+        Assert.Null(ScanAssembly.Staff(Evidence(1, Mark(0, 1, "restWhole", 50)).Bars[0], 1, StaffKey.Treble, [1440]));
+        Assert.Empty(ScanAssembly.Staff(Evidence(1, Mark(0, 1, "restWhole", 50)).Bars[0], 1, StaffKey.Treble, [1920])!);
         Assert.Equal([(0L, 71, 960L), (480L, 72, 1440L)], Assemble(StaffKey.Treble, Mark(0, 1, "restQuarter", 10), Head(0, 1, 10, 0, "half"), Head(0, 1, 30, 1, "half", dots: 1))!);
         Assert.Null(Assemble(StaffKey.Treble, Head(0, 1, 10, 0), Head(0, 1, 30, 1), Head(0, 1, 50, 2)));
         Assert.Null(Assemble(StaffKey.Treble));

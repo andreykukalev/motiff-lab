@@ -7,14 +7,6 @@ internal static class Signatures
 
     private const string FlatOrder = "BEADGCF";
 
-    /// <summary>The alteration the key signature gives a step.</summary>
-    public static int KeyAlter(int fifths, char step) => fifths switch
-    {
-        > 0 when SharpOrder.IndexOf(step, StringComparison.Ordinal) < fifths => 1,
-        < 0 when FlatOrder.IndexOf(step, StringComparison.Ordinal) < -fifths => -1,
-        _ => 0,
-    };
-
     /// <summary>
     /// A key signature printed from <paramref name="start"/> on: a run of accidentals a space or so apart, the first close to
     /// the start, in the order sharps or flats are written (F C G D A E B, or B E A D G C F), naturals cancelling the old key
@@ -68,7 +60,7 @@ internal static class Signatures
 
     /// <summary>The step letter at a glyph's height under a clef.</summary>
     public static char StepOf(PlacedGlyph glyph, VectorStaff staff, VectorClef clef) =>
-        VectorPitch.StepOf(clef.Reference + staff.StepsAbove(glyph.Y, clef.LineY(staff)));
+        StaffPitch.StepOf(clef.Reference + staff.StepsAbove(glyph.Y, clef.LineY(staff)));
 
     /// <summary>
     /// The meters a staff prints, each where it stands: a column of digits, the upper number above the lower one (each may

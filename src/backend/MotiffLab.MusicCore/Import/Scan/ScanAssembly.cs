@@ -21,7 +21,8 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// step until the bar line.</item>
 /// <item>A triplet mark takes the three neighbouring columns of one value nearest to it.</item>
 /// </list>
-/// The staff is assembled only where its notes and rests fill the bar exactly. Time is exact (<see cref="QuarterFraction"/>);
+/// A whole-bar rest (the evidence's <c>measure</c>) lasts the bar, a whole rest four quarters. The staff is assembled only
+/// where its notes and rests fill the bar exactly. Time is exact (<see cref="QuarterFraction"/>);
 /// the page's coordinates only order the symbols and tell which belong together.
 /// </remarks>
 internal static class ScanAssembly
@@ -45,6 +46,7 @@ internal static class ScanAssembly
     private static readonly Dictionary<string, QuarterFraction> s_rests = new(StringComparer.Ordinal)
     {
         ["restDoubleWhole"] = QuarterFraction.FromQuarters(8),
+        ["restWhole"] = QuarterFraction.FromQuarters(4),
         ["restHalf"] = QuarterFraction.FromQuarters(2),
         ["restQuarter"] = QuarterFraction.FromQuarters(1),
         ["rest8th"] = new(1, 2),
@@ -66,7 +68,7 @@ internal static class ScanAssembly
     /// <summary>
     /// The notes of one staff of a page's bar as assembled, (onset in the bar, MIDI pitch, length) in ticks; null when the
     /// staff has nothing the assembly takes, or its notes and rests do not end together at one of <paramref name="lengths"/>
-    /// (in ticks; the first is the meter's, which a whole rest lasts).
+    /// (in ticks; the first is the meter's, which a whole-bar rest lasts).
     /// </summary>
     public static IReadOnlyList<(long Onset, int Pitch, long Length)>? Staff(ScanEvidenceBar bar, int staff, StaffKey start, IReadOnlyList<long> lengths)
     {
@@ -76,8 +78,8 @@ internal static class ScanAssembly
         }
 
         ScanSymbol[] own = [.. bar.Symbols.Where(symbol => symbol.Staff == staff && symbol.Confidence >= Sure).OrderBy(symbol => symbol.X).ThenBy(symbol => symbol.Y)];
-        var whole = new QuarterFraction(lengths[0], CanonicalTime.TicksPerQuarter);
-        List<Item> items = [.. Heads(own, space).Select(head => Item.Head(head, own, space)), .. Rests(own, whole)];
+        var length = new QuarterFraction(lengths[0], CanonicalTime.TicksPerQuarter);
+        List<Item> items = [.. Heads(own, space).Select(head => Item.Head(head, own, space)), .. Rests(own, length)];
         if (items.Count == 0)
         {
             return null;
@@ -103,10 +105,10 @@ internal static class ScanAssembly
         return kept;
     }
 
-    /// <summary>The rests, a whole rest lasting the bar.</summary>
-    private static IEnumerable<Item> Rests(ScanSymbol[] own, QuarterFraction whole) =>
-        own.Where(symbol => symbol.Class == "restWhole" || s_rests.ContainsKey(symbol.Class))
-            .Select(rest => new Item(rest, rest.Class == "restWhole" ? whole : s_rests[rest.Class]));
+    /// <summary>The rests: a whole-bar rest lasts the bar, a whole rest four quarters.</summary>
+    private static IEnumerable<Item> Rests(ScanSymbol[] own, QuarterFraction bar) =>
+        own.Where(symbol => s_rests.ContainsKey(symbol.Class))
+            .Select(rest => new Item(rest, rest.Measure ? bar : s_rests[rest.Class]));
 
     /// <summary>The items in columns left to right (see the remarks).</summary>
     private static List<List<Item>> Columns(List<Item> items, double space)
@@ -196,6 +198,7 @@ internal static class ScanAssembly
     {
         int middle = own.LastOrDefault(symbol => symbol.X < head.X && Middle(symbol) is not null) is { } clef ? Middle(clef)!.Value : start.Middle;
         int fifths = own.LastOrDefault(symbol => symbol.X < head.X && symbol.Class == "keySignature" && symbol.Fifths is not null)?.Fifths ?? start.Fifths;
+        var key = new StaffKey(middle, fifths);
         int diatonic = middle + position;
         if (own.LastOrDefault(symbol => s_accidentals.ContainsKey(symbol.Class) && symbol.X < head.Left && symbol.X > head.Left - (2.2 * space)
             && Math.Abs(symbol.Y - head.Y) < 0.7 * space) is { } accidental)
@@ -203,14 +206,14 @@ internal static class ScanAssembly
             altered[diatonic] = s_accidentals[accidental.Class];
         }
 
-        return StaffPositions.Pitch(diatonic, altered.TryGetValue(diatonic, out int alter) ? alter : StaffPositions.KeyAlter(diatonic, fifths));
+        return key.Pitch(position, altered.TryGetValue(diatonic, out int alter) ? alter : null);
     }
 
     /// <summary>The middle line under a drawn clef ("gClef", "fClef8vb", "cClef"… with its line); null for another symbol.</summary>
     private static int? Middle(ScanSymbol symbol)
     {
         string name = symbol.Class;
-        if (name.Length < 5 || name[1..5] != "Clef")
+        if (name.Length < 5 || name[1..5] != "Clef" || name[0] is not ('g' or 'f' or 'c'))
         {
             return null;
         }
@@ -224,7 +227,7 @@ internal static class ScanAssembly
             _ => 0,
         };
         char sign = char.ToUpperInvariant(name[0]);
-        return StaffPositions.Middle(sign, symbol.Line ?? (sign == 'F' ? 4 : sign == 'C' ? 3 : 2), octaves);
+        return StaffPitch.Middle(sign, symbol.Line ?? (sign == 'F' ? 4 : sign == 'C' ? 3 : 2), octaves);
     }
 
     private static long Ticks(QuarterFraction position) => CanonicalTime.ToTick(position).Tick.Value;

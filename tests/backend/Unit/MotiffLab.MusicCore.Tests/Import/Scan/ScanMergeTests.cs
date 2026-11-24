@@ -355,4 +355,26 @@ public class ScanMergeTests
         using JsonDocument wrong = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { new { readings, evidence = JsonDocument.Parse("""{"evidence": 2}""").RootElement } } })));
         Assert.Equal("badRequest", wrong.RootElement.GetProperty("error").GetString());
     }
+
+    [Fact]
+    public void On_a_real_page_its_bars_pair_in_order_and_the_assembly_agrees_with_an_engine_on_most_staves()
+    {
+        // Für Elise's first page (public domain, the example's page) as the scan server's job gave it: homr's and
+        // copisteria's readings and the page's evidence (s-2, 2026-11-24).
+        using JsonDocument job = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "fur-elise-page1-job.json")));
+        ScanReading[] sent = [.. job.RootElement.GetProperty("engines").EnumerateObject()
+            .Select(engine => new ScanReading(engine.Name, Encoding.UTF8.GetBytes(engine.Value.GetProperty("musicxml").GetString()!)))];
+        ScanEvidence evidence = ScanEvidence.Parse(job.RootElement.GetProperty("evidence").GetRawText());
+        ScanMerge.Reading[] readings = [.. sent.Select((reading, index) => ScanMerge.Reading.Of(reading, index)!)];
+        ScanMerge.Page page = ScanMerge.Page.Of(evidence, readings[0])!;
+
+        Assert.Equal([32, 32], readings.Select(reading => reading.Measures));
+        Assert.Equal(Enumerable.Range(0, 32).Select(bar => (int?)bar), Enumerable.Range(0, 32).Select(page.BarOf));
+        int agreeing = Enumerable.Range(0, 32).Sum(measure => new[] { 1, 2 }.Count(staff => page.Assembled(measure, 0, staff) is { } assembled
+            && readings.Any(reading => reading.Content(measure, 0, staff) == assembled)));
+        Assert.True(agreeing >= 59, $"The assembly agrees with an engine on {agreeing} of 64 staves.");
+        ScanMergedPage merged = ScanMerge.Merge(sent, evidence);
+        Assert.Equal(32, merged.Bars.Count);
+        Assert.Equal(merged.MusicXml, ScanMerge.Merge(sent, evidence).MusicXml);
+    }
 }
