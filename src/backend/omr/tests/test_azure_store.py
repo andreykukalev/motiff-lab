@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
+from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobPrefix
 
 from app import azure_store, main
@@ -10,9 +11,9 @@ from app.azure_store import AzureStore
 from app.job_store import FolderStore, LeaseLost, Message
 
 
-def _refused(status: int) -> HttpResponseError:
-    error = HttpResponseError(message=f"HTTP {status}")
-    error.status_code = status
+def _refused(status: int, code: str) -> HttpResponseError:
+    error = HttpResponseError(message=f"HTTP {status} {code}")
+    error.status_code, error.error_code = status, code
     return error
 
 
@@ -81,20 +82,21 @@ def test_a_lease_is_whole_seconds_never_shorter_and_a_message_expires_a_day_afte
     assert store.queue_length() == 0
 
 
-@pytest.mark.parametrize("status", [400, 404])
-def test_a_receipt_that_no_longer_names_the_message_is_a_lost_lease(status: int):
-    store = AzureStore(QueueStandIn(_refused(status)), ContainerStandIn([]))  # type: ignore[arg-type]
+@pytest.mark.parametrize(("status", "code"), [(400, "PopReceiptMismatch"), (404, "MessageNotFound")])
+def test_a_receipt_that_no_longer_names_the_message_is_a_lost_lease(status: int, code: str):
+    store = AzureStore(QueueStandIn(_refused(status, code)), ContainerStandIn([]))  # type: ignore[arg-type]
     with pytest.raises(LeaseLost):
         store.renew(Message("m1", "r1", "body"), 60)
     with pytest.raises(LeaseLost):
         store.delete_message(Message("m1", "r1", "body"))
 
 
-def test_any_other_refusal_is_not_taken_for_a_lost_lease():
-    store = AzureStore(QueueStandIn(_refused(503)), ContainerStandIn([]))  # type: ignore[arg-type]
+@pytest.mark.parametrize(("status", "code"), [(400, "InvalidQueryParameterValue"), (403, "AuthorizationPermissionMismatch"), (503, "ServerBusy")])
+def test_any_other_refusal_is_not_taken_for_a_lost_lease(status: int, code: str):
+    store = AzureStore(QueueStandIn(_refused(status, code)), ContainerStandIn([]))  # type: ignore[arg-type]
     with pytest.raises(HttpResponseError) as raised:
         store.renew(Message("m1", "r1", "body"), 60)
-    assert not isinstance(raised.value, LeaseLost) and raised.value.status_code == 503
+    assert not isinstance(raised.value, LeaseLost) and raised.value.error_code == code
 
 
 def test_blobs_missing_or_deleted_meanwhile_are_none_and_folders_are_the_prefixes():
@@ -110,12 +112,21 @@ def test_the_hosted_server_keeps_its_jobs_in_the_storage_account_it_is_given(mon
     monkeypatch.setenv("JOBS_STORAGE_ACCOUNT", "stmotifflabscan")
     monkeypatch.delenv("JOBS_QUEUE", raising=False)
     monkeypatch.setenv("JOBS_CONTAINER", "jobs")
+    monkeypatch.setenv("AZURE_CLIENT_ID", "00000000-0000-0000-0000-00000000abcd")
+    identities: list[str | None] = []
+
+    def identity(client_id: str | None) -> ManagedIdentityCredential:
+        identities.append(client_id)
+        return ManagedIdentityCredential(client_id=client_id)
+
+    monkeypatch.setattr(azure_store, "ManagedIdentityCredential", identity)
     store = main.jobs_store_from_environment()
     assert isinstance(store, AzureStore)
     assert store._queue.url == "https://stmotifflabscan.queue.core.windows.net/scan-units"
     assert store._container.url == "https://stmotifflabscan.blob.core.windows.net/jobs"
-    # Signed in as the managed identity, with no key.
-    assert store._queue.credential.__class__.__name__ == "DefaultAzureCredential"
+    # Signed in as the user-assigned managed identity, with no key.
+    assert identities == ["00000000-0000-0000-0000-00000000abcd"]
+    assert isinstance(store._queue.credential, ManagedIdentityCredential)
 
 
 def test_the_player_s_own_server_keeps_its_jobs_in_a_folder(monkeypatch):

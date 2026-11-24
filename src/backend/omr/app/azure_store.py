@@ -4,15 +4,16 @@ and a blob container, so that every copy of the server works the same jobs and a
 - The queue holds the units' messages: `send` is Put Message, its delay the message's first visibility timeout;
   `receive` is Get Messages for one message, leased for its visibility timeout; `renew` is Update Message with the
   message's pop receipt, which gives the next receipt; `delete_message` is Delete Message with it. A receipt that no
-  longer names the message (its lease ran out and another worker received it, or it was deleted) is LeaseLost.
+  longer names the message is LeaseLost: PopReceiptMismatch when its lease ran out and another worker received it,
+  MessageNotFound when it was deleted. Any other refusal is raised as it is.
   `queue_length` is the queue's approximate message count, leased and delayed messages included. The queue keeps no
   order: the oldest message is usually, not always, the first received.
 - The blobs hold everything else under the same names as FolderStore's files, one blob a name, written whole (Put Blob),
   so a reader sees the old content or the new and the last writer wins. `folders` lists by the delimiter "/", so the
   supervisor reads one name a job rather than every blob.
 
-The server signs in with the container app's managed identity (DefaultAzureCredential; AZURE_CLIENT_ID names the
-user-assigned identity): no key or connection string is in the code or the settings. The account deletes a blob a day
+The server signs in as the container app's user-assigned managed identity (ManagedIdentityCredential with the
+identity's AZURE_CLIENT_ID): no key or connection string is in the code or the settings. The account deletes a blob a day
 after it was last written (infra/scan.bicep), the supervisor sooner (jobs.py); a message expires a day after it was sent.
 """
 
@@ -21,8 +22,9 @@ from __future__ import annotations
 import math
 
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
+from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobPrefix, ContainerClient
-from azure.storage.queue import QueueClient, TextBase64DecodePolicy, TextBase64EncodePolicy
+from azure.storage.queue import QueueClient, StorageErrorCode, TextBase64DecodePolicy, TextBase64EncodePolicy
 
 from app.job_store import LeaseLost, Message
 
@@ -36,11 +38,10 @@ class AzureStore:
         self._container = container
 
     @classmethod
-    def for_account(cls, account: str, queue: str, container: str) -> AzureStore:
-        """The store in the named storage account, signed in as the server's managed identity."""
-        from azure.identity import DefaultAzureCredential
-
-        credential = DefaultAzureCredential()
+    def for_account(cls, account: str, queue: str, container: str, client_id: str | None) -> AzureStore:
+        """The store in the named storage account, signed in as the managed identity with that client id (the
+        system-assigned one without)."""
+        credential = ManagedIdentityCredential(client_id=client_id)
         return cls(
             QueueClient(
                 f"https://{account}.queue.core.windows.net",
@@ -110,6 +111,10 @@ def _seconds(lease: float) -> int:
     return max(1, math.ceil(lease))
 
 
+# Azure Storage's error codes for a pop receipt that no longer names its message.
+_LOST = (StorageErrorCode.POP_RECEIPT_MISMATCH, StorageErrorCode.MESSAGE_NOT_FOUND)
+
+
 def _lost(error: HttpResponseError) -> Exception:
-    """The receipt no longer names the message: 404 when it is gone, 400 when it was received again (another receipt)."""
-    return LeaseLost() if error.status_code in (400, 404) else error
+    """LeaseLost when the receipt no longer names the message (received again with another, or deleted); else the error."""
+    return LeaseLost() if error.error_code in _LOST else error

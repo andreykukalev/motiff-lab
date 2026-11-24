@@ -57,12 +57,15 @@ JOBS_FOLDER = Path(os.environ.get("JOBS_FOLDER") or Path(tempfile.gettempdir()) 
 
 def jobs_store_from_environment() -> job_store.Store:
     """Hosted, with JOBS_STORAGE_ACCOUNT set, the jobs lie in that Azure Storage account's queue (JOBS_QUEUE) and blob
-    container (JOBS_CONTAINER), signed in as the server's managed identity; otherwise in JOBS_FOLDER."""
+    container (JOBS_CONTAINER), signed in as the managed identity AZURE_CLIENT_ID names; otherwise in JOBS_FOLDER."""
     account = os.environ.get("JOBS_STORAGE_ACCOUNT")
     if not account:
         return job_store.FolderStore(JOBS_FOLDER)
     return azure_store.AzureStore.for_account(
-        account, os.environ.get("JOBS_QUEUE") or "scan-units", os.environ.get("JOBS_CONTAINER") or "scan-jobs"
+        account,
+        os.environ.get("JOBS_QUEUE") or "scan-units",
+        os.environ.get("JOBS_CONTAINER") or "scan-jobs",
+        os.environ.get("AZURE_CLIENT_ID") or None,
     )
 
 

@@ -55,7 +55,7 @@ resource environment 'Microsoft.App/managedEnvironments@2025-07-01' = {
   }
 }
 
-// The scan server signs in to its storage as this identity (DefaultAzureCredential with AZURE_CLIENT_ID), and its
+// The scan server signs in to its storage as this identity (ManagedIdentityCredential with AZURE_CLIENT_ID), and its
 // queue scale rule reads the queue's length as it too, so no key exists anywhere.
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: 'id-motifflab-scan${suffix}'

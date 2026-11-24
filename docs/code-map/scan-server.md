@@ -13,7 +13,7 @@ Tests: `src/backend/omr/tests`, `python -m pytest` there, with stand-ins for eve
 - `engines.py`: `Engine(name, version, read, seconds, evidence)`, the pluggable list (`others()`: the installed
   engines besides homr that `ENGINES` keeps; an unknown name stops the server at start); `seconds` is the starting estimate of a page. A job runs `read` in a child process, so it
   is a module function or a `functools.partial`.
-- `recognise.py` (homr; `run`, an engine's program under the page time limit, for every engine; `threads`, `cores`;
+- `recognise.py` (homr; `run`, an engine's program under the page time limit, for every engine; `threads`, `cores` (the affinity, within the cgroup CPU quota);
   `Reading`, `Found`, `RecogniseError`), `copisteria_reader.py` (`page_evidence`, for jobs only), `audiveris_reader.py` (its `.mxl` movements
   joined by `merge.merge(new_page=False)`), `transcoda_reader.py` (compact kern to standard Humdrum, music21 to
   MusicXML, two parts to one part with two staves): one engine each, its own program run unmodified.

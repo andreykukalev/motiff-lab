@@ -55,13 +55,20 @@ From version 1.3 the scan server reads scans as jobs, each page by four engines 
 - **Scale:** besides the HTTP rule, a rule on the queue's length (as `id-motifflab-scan` too) wakes a copy while any unit waits, is read or waits for a retry, one more copy for each 4 units, up to `maxReplicas`; once every job is finished the app scales to zero.
 - **Why the base is its own file:** the `Scan server` workflow signs in as a Contributor, which may not give roles; Andrei's own sign-in makes the base once, and `scan.bicep` only finds it.
 
-**Once, before version 1.3's first deploy** (by Andrei; the cloud server changes only with the release to `main`):
+**Once, in this order** (by Andrei; the players' cloud server changes only with the release to `main`). The `Scan server` workflow change that waits for the base is merged first, or with the server's change. Until the base exists in a group, the workflow deploys nothing there and says so.
 
-1. `az deployment group create --resource-group rg-motifflab --name scan-base --template-file infra/scan-base.bicep` (new setups: `setup.ps1` does it).
-2. `az containerapp delete --resource-group rg-motifflab --name ca-motifflab-scan --yes`: the old app lives in `cae-motifflab`, and an app cannot move to another environment. It keeps nothing: `/recognise` deletes each upload when it answers.
-3. Deploy (the `Scan server` workflow from `main`), then set `SCAN_URL` and the iPad's `Account.json` (`Account.Scan`) to the address in the run's summary, `https://ca-motifflab-scan.<the new environment's domain>`. iPad builds with the old address cannot scan until they are updated.
+develop (`rg-motifflab-dev`):
 
-For develop: run `.\infra\azure\dev-env.ps1` again (it deploys the base as part of `dev-env.bicep` and sets `SCAN_URL_DEV` to the new address), delete `ca-motifflab-scan-dev` from `rg-motifflab-dev` the same way, and change `Environments.Test.Scan` in `Account.json`. Until the base exists in a group, the workflow deploys nothing there and says so.
+1. `.\infra\azure\dev-env.ps1`: deploys the base as part of `dev-env.bicep` and sets `SCAN_URL_DEV` to the new address.
+2. `az containerapp delete --resource-group rg-motifflab-dev --name ca-motifflab-scan-dev --yes`: the old app lives in `cae-motifflab-dev`, and an app cannot move to another environment. It keeps nothing: `/recognise` deletes each upload when it answers.
+3. `gh workflow run scan-server.yml --ref develop` (or *Run workflow* on `develop`): the run's summary shows the address.
+4. `Environments.Test.Scan` in `src/ipad/App/MotiffLab/Account.json` becomes that address.
+
+The release (`rg-motifflab`):
+
+1. Before the release pull request: `az deployment group create --resource-group rg-motifflab --name scan-base --template-file infra/scan-base.bicep` (new setups: `setup.ps1` does it).
+2. Right before approving the `Scan server` deploy from `main`: `az containerapp delete --resource-group rg-motifflab --name ca-motifflab-scan --yes`; then approve.
+3. `gh variable set SCAN_URL --body <the address in the run's summary>`, and `Account.Scan` in `Account.json` becomes it. iPad builds with the old address cannot scan until they are updated.
 
 ## The develop environment
 
