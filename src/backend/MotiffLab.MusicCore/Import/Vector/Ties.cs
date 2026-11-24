@@ -18,30 +18,36 @@ internal sealed class TieMap
 }
 
 /// <summary>
-/// Finds ties: a curve from just after one notehead to just before the next at the same height. A tied note keeps the
-/// accidental of the note it is tied from, across the bar line, and the two sound as one.
+/// Finds ties: a curve from just after one notehead, or after its dots, to just before the next at the same height. A tied
+/// note keeps the accidental of the note it is tied from, across the bar line, and the two sound as one.
 /// </summary>
 internal static class Ties
 {
-    public static TieMap Find(IReadOnlyList<Curve> curves, VectorStaff staff, List<PlacedGlyph> heads, double firstHead, double systemEnd)
+    public static TieMap Find(IReadOnlyList<Curve> curves, VectorStaff staff, List<PlacedGlyph> heads, IReadOnlyList<VectorEvent> events, double firstHead, double systemEnd)
     {
         double space = staff.Space;
+        // A tie from a dotted note starts after its dots, as Sibelius prints it: further from the head than from an undotted one.
+        Dictionary<PlacedGlyph, double> dotted = events.Where(item => item.DotsRight is not null)
+            .SelectMany(item => item.Heads.Select(head => (Head: head, After: item.DotsRight!.Value)))
+            .DistinctBy(pair => pair.Head).ToDictionary(pair => pair.Head, pair => pair.After);
+
         var map = new TieMap();
         foreach (Curve curve in curves.Where(curve => curve.Right - curve.Left > 0.8 * space && curve.Bottom - curve.Top < 2 * space
             && curve.Bottom > staff.Top - (6 * space) && curve.Top < staff.Bottom + (6 * space)))
         {
-            Add(map, curve, heads, space, (firstHead, systemEnd));
+            Add(map, curve, heads, head => dotted.GetValueOrDefault(head, head.Right), space, (firstHead, systemEnd));
         }
 
         return map;
     }
 
     /// <summary>The tie a curve draws, if it draws one: between two noteheads, or from one past the system's end, or to one from before its start.</summary>
-    private static void Add(TieMap map, Curve curve, List<PlacedGlyph> heads, double space, (double FirstHead, double SystemEnd) edges)
+    /// <param name="after">Where a tie from a notehead may start: its right edge, or its dots' for a dotted note.</param>
+    private static void Add(TieMap map, Curve curve, List<PlacedGlyph> heads, Func<PlacedGlyph, double> after, double space, (double FirstHead, double SystemEnd) edges)
     {
         double middle = (curve.Top + curve.Bottom) / 2;
         bool Beside(PlacedGlyph head) => head.Y > curve.Top - space && head.Y < curve.Bottom + space;
-        List<PlacedGlyph> starts = [.. heads.Where(head => Beside(head) && curve.Left > head.X - (0.2 * space) && curve.Left < head.Right + space)];
+        List<PlacedGlyph> starts = [.. heads.Where(head => Beside(head) && curve.Left > head.X - (0.2 * space) && curve.Left < after(head) + space)];
         List<PlacedGlyph> ends = [.. heads.Where(head => Beside(head) && curve.Right > head.X - space && curve.Right < head.Right + (0.2 * space))];
         (PlacedGlyph From, PlacedGlyph To)? pair = starts
             .SelectMany(from => ends.Where(to => to.X > from.Right - (0.2 * space) && Math.Abs(to.Y - from.Y) < 0.2 * space).Select(to => (From: from, To: to)))

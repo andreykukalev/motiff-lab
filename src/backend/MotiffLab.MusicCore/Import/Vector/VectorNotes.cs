@@ -79,6 +79,9 @@ internal sealed class VectorEvent
 
     public int Dots { get; set; }
 
+    /// <summary>The right edge of its last dot, where a tie from it starts; null when it has none.</summary>
+    public double? DotsRight { get; set; }
+
     /// <summary>The tuplet it is in, as actual notes in the time of normal ones (3 in the time of 2); 1 and 1 outside one.</summary>
     public (int Actual, int Normal) Tuplet { get; set; } = (1, 1);
 
