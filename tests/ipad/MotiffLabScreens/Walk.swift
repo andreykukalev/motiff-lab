@@ -295,13 +295,14 @@ final class Walk {
         try until("no selection after Clear selection") { $0["sel"] == "none" }
     }
 
-    /// The pill's Play pressed with the sound loaded: the probe once the playing has moved on.
+    /// The pill's Play pressed with the sound loaded: the probe once the playing has moved on. With Цикл on the playing
+    /// loops the selection, so its tick can wrap back to the loop's start between two reads: any other tick shows it moving.
     @discardableResult
     func play(_ what: String) throws -> Probe {
         try until("the sound loaded", timeout: 30) { $0.on("sound") }
         try press(button(beginning: "Играть с"), "the pill's Play \(what)")
         let first = try until("playing after Play \(what)") { $0.playing }
-        return try until("the playing moving on \(what)") { $0.playing && $0.tick > first.tick }
+        return try until("the playing moving on \(what)") { $0.playing && $0.tick >= 0 && $0.tick != first.tick }
     }
 
     func stop() throws {
