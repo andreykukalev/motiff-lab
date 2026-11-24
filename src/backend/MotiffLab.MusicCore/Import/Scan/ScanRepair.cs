@@ -114,12 +114,12 @@ public static partial class ScanRepair
 
         if (printed is null)
         {
-            Rewrite(stretch, most, changes);
+            RewriteSignatures(stretch, most, changes);
         }
     }
 
     /// <summary>Each signature written in the stretch from the length most of its bars have, when enough of them, and half, have it.</summary>
-    private static void Rewrite(List<Bar> stretch, QuarterFraction most, Changes changes)
+    private static void RewriteSignatures(List<Bar> stretch, QuarterFraction most, Changes changes)
     {
         int count = stretch.Count(bar => bar.Length == most);
         if (count < FewestBarsForMeter || count * 2 < stretch.Count)
@@ -210,8 +210,8 @@ public static partial class ScanRepair
         return bars;
     }
 
-    /// <summary>Writes the bar's notes where split moments put back places them (<see cref="Bar.Rewrite"/>).</summary>
-    private static void Retime(Bar bar) => bar.Rewrite(bar.Retimed!);
+    /// <summary>Writes the bar's notes where split moments put back places them (<see cref="Bar.WriteOnsets"/>).</summary>
+    private static void Retime(Bar bar) => bar.WriteOnsets(bar.Retimed!);
 
     /// <summary>Says in the score's encoding what was inferred, so the file keeps it.</summary>
     private static void Describe(XElement root, Changes changes)
@@ -348,7 +348,7 @@ public static partial class ScanRepair
         /// Writes the notes at <paramref name="onsets"/>, one per sound, and their lengths as <see cref="Sounds"/> has them:
         /// the backups and forwards are written again, nothing else moves; the bar takes its new length.
         /// </summary>
-        public void Rewrite(IReadOnlyList<long> onsets)
+        public void WriteOnsets(IReadOnlyList<long> onsets)
         {
             Measure.Elements().Where(element => element.Name.LocalName is "backup" or "forward").Remove();
             long cursor = 0;
@@ -373,6 +373,36 @@ public static partial class ScanRepair
             Onsets.Clear();
             Onsets.AddRange(onsets);
             Length = new QuarterFraction(Enumerable.Range(0, Sounds.Count).Select(i => onsets[i] + Sounds[i].Duration).DefaultIfEmpty(0).Max(), Divisions);
+        }
+
+        /// <summary>The measure's elements other than notes, backups and forwards, in order, each at the cursor where it stands.</summary>
+        public List<(XElement Element, long Onset)> Placed()
+        {
+            var placed = new List<(XElement Element, long Onset)>();
+            long cursor = 0;
+            int index = 0;
+            foreach (XElement element in Measure.Elements())
+            {
+                switch (element.Name.LocalName)
+                {
+                    case "note":
+                        Sound sound = Sounds[index];
+                        cursor = sound.IsChord || sound.IsGrace ? cursor : Onsets[index] + sound.Duration;
+                        index++;
+                        break;
+                    case "backup":
+                        cursor = Math.Max(0, cursor - (Number(element.Element("duration")) ?? 0));
+                        break;
+                    case "forward":
+                        cursor += Number(element.Element("duration")) ?? 0;
+                        break;
+                    default:
+                        placed.Add((element, cursor));
+                        break;
+                }
+            }
+
+            return placed;
         }
 
         /// <summary>The backup or forward that takes the cursor from <paramref name="cursor"/> to <paramref name="onset"/>.</summary>

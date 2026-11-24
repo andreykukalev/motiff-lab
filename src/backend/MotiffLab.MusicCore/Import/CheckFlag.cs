@@ -258,8 +258,14 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>The reason as the Check layer says it, in the language.</summary>
     public string Describe(Words words) => Describe(Reason, words);
 
-    public static string Describe(CheckReason reason, Words words) => ScanFlagOf(reason) is { } flag ? ScanBar.Describe(flag, words) : reason switch
+    public static string Describe(CheckReason reason, Words words) => reason switch
     {
+        CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
+        CheckReason.BarTooShort => ScanBar.Describe(ScanFlag.BarTooShort, words),
+        CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
+        CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
+        CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
+        CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
         CheckReason.PartSeam => words.T(
             "Two parts of the recording were joined here, so a note may be missing or doubled.",
             "Здесь склеены две части записи: нота могла потеряться или удвоиться."),
@@ -278,6 +284,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         CheckReason.RecordingBarLength => words.T(
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
+        CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
@@ -306,13 +313,14 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>What the reason means for the bar, in plain words for the player: what probably went wrong and what to look at.</summary>
     public static string Explain(CheckReason reason, Words words)
     {
-        if (ScanFlagOf(reason) is { } flag)
-        {
-            return ScanBar.Describe(flag, words);
-        }
-
         return reason switch
         {
+            CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
+            CheckReason.BarTooShort => ScanBar.Describe(ScanFlag.BarTooShort, words),
+            CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
+            CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
+            CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
+            CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
             CheckReason.PartSeam => words.T(
                 "Two parts of the recording were heard separately and joined in this bar: a note may be doubled or lost.",
                 "Две части записи распознавались отдельно и стыкуются в этом такте: нота может удвоиться или потеряться."),
@@ -331,13 +339,10 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.RecordingBarLength => words.T(
                 "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
+            CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }
-
-    /// <summary>The scan flag a scan reason comes from (<see cref="Of"/>); null for a reason of a transcription or a performance.</summary>
-    private static ScanFlag? ScanFlagOf(CheckReason reason) =>
-        Enum.GetValues<ScanFlag>().Select(static flag => (ScanFlag?)flag).FirstOrDefault(flag => Of(flag!.Value) == reason);
 
     private static CheckReason Of(ScanFlag flag) => flag switch
     {

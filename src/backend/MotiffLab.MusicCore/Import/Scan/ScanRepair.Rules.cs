@@ -114,7 +114,7 @@ public static partial class ScanRepair
             notes[i].Element("duration")!.Value = end.ToString(CultureInfo.InvariantCulture);
         }
 
-        bar.Rewrite([.. bar.Onsets]);
+        bar.WriteOnsets([.. bar.Onsets]);
         return true;
     }
 
@@ -174,7 +174,7 @@ public static partial class ScanRepair
             return false;
         }
 
-        bar.Rewrite(onsets);
+        bar.WriteOnsets(onsets);
         return true;
     }
 

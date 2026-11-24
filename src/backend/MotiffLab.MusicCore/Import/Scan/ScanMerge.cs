@@ -70,17 +70,20 @@ public static partial class ScanMerge
     /// <summary>The cost of a bar left unpaired when the readings are aligned; a pair costs one less its notes' likeness.</summary>
     private const double UnpairedBar = 0.6;
 
-    /// <summary>The readings of one page merged staff by staff.</summary>
-    /// <exception cref="ArgumentException">No reading, or a reading that is not partwise MusicXML with music.</exception>
+    /// <summary>
+    /// The readings of one page merged staff by staff. A reading that is not partwise MusicXML with bars is left out, as an
+    /// engine that did not read the page (spec 2а): the page merges on the rest.
+    /// </summary>
+    /// <exception cref="ArgumentException">No reading of the page is partwise MusicXML with bars.</exception>
     public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings)
     {
         ArgumentNullException.ThrowIfNull(readings);
-        if (readings.Count == 0)
+        List<Reading> ordered = [.. readings.Select((reading, index) => Reading.Of(reading, index)).OfType<Reading>().OrderBy(reading => reading.Rank)];
+        if (ordered.Count == 0)
         {
-            throw new ArgumentException("The page has no reading.", nameof(readings));
+            throw new ArgumentException(readings.Count == 0 ? "The page has no reading." : "No engine's reading of the page is MusicXML with bars.", nameof(readings));
         }
 
-        List<Reading> ordered = [.. readings.Select((reading, index) => Reading.Of(reading, index)).OrderBy(reading => reading.Rank)];
         Reading backbone = Backbone(ordered);
         List<(Reading Reading, int?[] Pairs)> compared = [.. ordered
             .Where(reading => reading.Import.Parts.Count == backbone.Import.Parts.Count)
@@ -235,17 +238,15 @@ public static partial class ScanMerge
 
         public int Measures => Import.Measures.Count;
 
-        /// <summary>The engine's MusicXML repaired by the rules for a reading, read as XML and as notes.</summary>
-        public static Reading Of(ScanReading reading, int given)
+        /// <summary>The engine's MusicXML repaired by the rules for a reading, read as XML and as notes; null when it is not partwise MusicXML with bars.</summary>
+        public static Reading? Of(ScanReading reading, int given)
         {
             ArgumentNullException.ThrowIfNull(reading);
             int rank = RankOf(reading.Engine, given);
             byte[] repaired = ScanRepair.RepairReading(reading.MusicXml, printedMeters: rank != 0);
-            XElement root = ScanRepair.Parse(repaired) ?? throw new ArgumentException($"The music {reading.Engine} read is not a partwise MusicXML score.");
-            MusicXmlImport import = PieceImporter.Import("scan.musicxml", repaired).Piece?.MusicXml is { Measures.Count: > 0 } read
-                ? read
-                : throw new ArgumentException($"The music {reading.Engine} read has no bars.");
-            return new Reading(reading.Engine, rank, root, import);
+            return ScanRepair.Parse(repaired) is { } root && PieceImporter.Import("scan.musicxml", repaired).Piece?.MusicXml is { Measures.Count: > 0 } import
+                ? new Reading(reading.Engine, rank, root, import)
+                : null;
         }
 
         /// <summary>Each part's staves, (part from 0, staff from 1): those its part list declares, at least one.</summary>

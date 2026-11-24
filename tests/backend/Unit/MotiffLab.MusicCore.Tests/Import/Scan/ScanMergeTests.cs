@@ -156,6 +156,51 @@ public class ScanMergeTests
     }
 
     [Fact]
+    public void A_clef_change_and_a_dynamic_inside_a_rewritten_bar_stay_at_their_own_onsets()
+    {
+        // Bar 2 of homr, the backbone: a wrong right hand, and a left hand of C3, then a treble clef and an f, then E4.
+        string left = Note("C", 3, 4, 2) + "<attributes><clef number=\"2\"><sign>G</sign><line>2</line></clef></attributes>"
+            + "<direction><direction-type><dynamics><f/></dynamics></direction-type><staff>2</staff></direction>" + Note("E", 4, 4, 2);
+        static string Hand(string[] steps) => string.Concat(steps.Select(step => Note(step, 5, 2, 1))) + Backup(8);
+        ScanReading homr = new("homr", Score(2, "4", Bar(First), Hand(["G", "A", "B", "D"]) + left));
+        ScanReading copisteria = new("copisteria", Score(4, "4", Bar(First, 4), string.Concat(Second.Select(step => Note(step, 5, 4, 1))) + Backup(16) + Note("C", 3, 8, 2) + Note("E", 4, 8, 2)));
+        ScanReading audiveris = new("audiveris", Score(2, "4", Bar(First), Hand(Second) + Note("C", 3, 4, 2) + Note("E", 4, 4, 2)));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, copisteria, audiveris]);
+
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+        ScanRepair.Bar bar = ScanRepair.Bars(ScanRepair.Parse(page.MusicXml)!.Element("part")!)[1];
+        Assert.Equal(4, bar.Divisions);
+        Assert.Equal([("divisions", 0L), ("clef", 8L), ("dynamics", 8L)], bar.Placed().Select(other => (other.Element.Descendants().First(child => child.Name.LocalName is "divisions" or "clef" or "dynamics").Name.LocalName, other.Onset)));
+    }
+
+    [Fact]
+    public void A_tie_into_a_bar_taken_from_another_engine_ends_where_its_note_does()
+    {
+        string tied = "<note><pitch><step>F</step><octave>5</octave></pitch><duration>2</duration><tie type=\"start\"/><voice>1</voice><staff>1</staff><notations><tied type=\"start\"/></notations></note>";
+        string stop = "<note><pitch><step>F</step><octave>5</octave></pitch><duration>2</duration><tie type=\"stop\"/><voice>1</voice><staff>1</staff><notations><tied type=\"stop\"/></notations></note>";
+        string first = Note("C", 5, 2, 1) + Note("D", 5, 2, 1) + Note("E", 5, 2, 1) + tied + Backup(8) + Note("C", 3, 8, 2);
+        ScanReading homr = new("homr", Score(2, "4", first, stop + Note("A", 5, 2, 1) + Note("B", 5, 2, 1) + Note("C", 5, 2, 1) + Backup(8) + Note("C", 3, 8, 2)));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, Reading("copisteria", First, Second), Reading("audiveris", First, Second)]);
+
+        ImportedPiece piece = Import(page.MusicXml);
+        Assert.Equal([79, 81, 83, 72], Right(page, 2));
+        Assert.Equal(480, piece.Notes.Single(note => note.Pitch.MidiNumber == 77).Span.Duration);
+        Assert.Equal(10, piece.Notes.Count);
+    }
+
+    [Fact]
+    public void A_reading_that_is_not_music_is_left_out_and_the_page_merges_on_the_rest()
+    {
+        ScanMergedPage page = ScanMerge.Merge([new ScanReading("homr", "<score"u8.ToArray()), Reading("copisteria", First, Second), Reading("audiveris", First, Second), new ScanReading("transcoda", "<score-partwise/>"u8.ToArray())]);
+
+        Assert.Equal(["copisteria", "audiveris"], page.Engines);
+        Assert.All(page.Bars, bar => Assert.Equal(ScanLevel.Probable, bar.Level));
+        Assert.Throws<ArgumentException>(() => ScanMerge.Merge([new ScanReading("homr", "<score"u8.ToArray()), new ScanReading("copisteria", "<score-partwise/>"u8.ToArray())]));
+    }
+
+    [Fact]
     public void The_merge_is_deterministic_and_said_in_the_score_s_encoding()
     {
         ScanReading[] readings = [Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, Second), Reading("audiveris", First, Second)];
@@ -198,6 +243,8 @@ public class ScanMergeTests
         Assert.False(pages[1].TryGetProperty("merge", out _));
         Assert.Equal(3, Import(Encoding.UTF8.GetBytes(answer.RootElement.GetProperty("score").GetString()!)).MusicXml!.Measures.Count);
 
+        using JsonDocument unread = JsonDocument.Parse(facade.Call(0, "scan.join", """{"pages": [[{"engine": "homr", "musicxml": "<score"}]]}"""));
+        Assert.Equal("badRequest", unread.RootElement.GetProperty("error").GetString());
         using JsonDocument empty = JsonDocument.Parse(facade.Call(0, "scan.join", """{"pages": [[]]}"""));
         Assert.Equal("badRequest", empty.RootElement.GetProperty("error").GetString());
         using JsonDocument wrong = JsonDocument.Parse(facade.Call(0, "scan.join", """{"pages": [1]}"""));
