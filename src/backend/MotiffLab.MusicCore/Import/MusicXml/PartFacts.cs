@@ -38,5 +38,8 @@ internal sealed record PartBarline(int MeasureIndex, bool IsAtEnd, string Style,
 /// <summary>The text of a <c>&lt;words&gt;</c> or <c>&lt;rehearsal&gt;</c> direction, at the cursor.</summary>
 internal sealed record PartText(int MeasureIndex, QuarterFraction Offset, string Text, bool IsRehearsal, bool IsBold);
 
-/// <summary>A measure of a part: its number as written, whether it is implicit (a pickup), and how long its content lasts.</summary>
-internal sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length);
+/// <summary>
+/// A measure of a part: its number as written, whether it is implicit (a pickup), how long its content lasts, and whether a
+/// scan merge marked it as one the engines disagree on (<see cref="Pieces.MusicXmlImport.EnginesDisagreeMark"/>).
+/// </summary>
+internal sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length, bool EnginesDisagree);

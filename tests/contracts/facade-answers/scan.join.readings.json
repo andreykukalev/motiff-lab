@@ -1,0 +1,742 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "scan.join",
+   "request": {
+    "pages": [
+     [
+      {
+       "engine": "homr 0.7.0",
+       "musicxml": "<homrPage>"
+      },
+      {
+       "engine": "copisteria",
+       "musicxml": "<copisteriaPage>"
+      }
+     ]
+    ]
+   },
+   "answer": {
+    "score": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n<score-partwise version=\"4.0\">\n  <work>\n    <work-title>Poco moto</work-title>\n  </work>\n  <identification>\n    <encoding>\n      <software>homr</software>\n    <encoding-description>Motiff Lab scan repair: 1 bars re-timed where the engine wrote notes that sound together one after the other.</encoding-description><encoding-description>Motiff Lab scan merge: each staff of each bar from the reading most of homr 0.7.0, copisteria agree on; 4 of 32 bars to check.</encoding-description></encoding>\n  </identification>\n  <defaults />\n  <part-list>\n    <score-part id=\"P1\">\n      <part-name>Piano</part-name>\n      <score-instrument id=\"P1-I1\">\n        <instrument-name>Piano</instrument-name>\n        <instrument-sound>keyboard.piano</instrument-sound>\n      </score-instrument>\n      <midi-instrument id=\"P1-I1\">\n        <midi-channel>1</midi-channel>\n        <midi-program>1</midi-program>\n        <volume>100</volume>\n        <pan>0</pan>\n      </midi-instrument>\n    </score-part>\n  </part-list>\n  <part id=\"P1\">\n    <measure number=\"1\">\n      <attributes>\n        <divisions>8</divisions>\n        <staves>2</staves>\n        <part-symbol>brace</part-symbol>\n      </attributes>\n      <attributes>\n        <key>\n          <fifths>0</fifths>\n        </key>\n        <time>\n          <beats>3</beats>\n          <beat-type>8</beat-type>\n        </time>\n        <clef number=\"1\">\n          <sign>G</sign>\n          <line>2</line>\n        </clef>\n        <clef number=\"2\">\n          <sign>F</sign>\n          <line>4</line>\n        </clef>\n      </attributes>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"2\">\n      <note>\n        <rest />\n        <duration>12</duration>\n        <voice>5</voice>\n        <type>quarter</type>\n        <dot />\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>12</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"3\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"4\">\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"5\">\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"6\">\n      <note>\n        <rest />\n        <duration>12</duration>\n        <voice>5</voice>\n        <type>quarter</type>\n        <dot />\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>12</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"7\">\n      <print new-system=\"yes\" />\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"8\">\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"9\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>8</duration>\n        <voice>1</voice>\n        <type>quarter</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>8</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <barline location=\"right\">\n        <repeat direction=\"backward\" />\n      </barline>\n    </measure>\n    <measure number=\"10\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"11\">\n      <barline location=\"right\">\n        <repeat direction=\"forward\" />\n      </barline>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>6</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <dot />\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>6</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"12\">\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>6</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <dot />\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>6</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"13\">\n      <print new-system=\"yes\" />\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>6</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <dot />\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>6</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"14\"><direction><direction-type><other-direction print-object=\"no\">Motiff Lab scan: engines disagree</other-direction></direction-type></direction>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <attributes>\n        <clef number=\"2\">\n          <sign>G</sign>\n          <line>2</line>\n        </clef>\n      </attributes>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations>\n          <slur type=\"start\" number=\"2\" />\n        </notations>\n      </note>\n    </measure>\n    <measure number=\"15\">\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations>\n          <slur type=\"stop\" number=\"2\" />\n        </notations>\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>6</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"16\">\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"17\">\n      <note>\n        <rest />\n        <duration>16</duration>\n        <voice>5</voice>\n        <type>half</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>16</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <attributes>\n        <clef number=\"2\">\n          <sign>F</sign>\n          <line>4</line>\n        </clef>\n      </attributes>\n    </measure>\n    <measure number=\"18\">\n      <print new-system=\"yes\" />\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"19\">\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"20\">\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"21\">\n      <note>\n        <rest />\n        <duration>16</duration>\n        <voice>5</voice>\n        <type>half</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>16</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"22\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"23\">\n      <print new-system=\"yes\" />\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <alter>1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"24\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>4</duration>\n        <voice>5</voice>\n        <type>eighth</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <barline location=\"right\">\n        <repeat direction=\"backward\" />\n      </barline>\n    </measure>\n    <measure number=\"25\">\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>4</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>2</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <rest />\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"26\"><direction><direction-type><other-direction print-object=\"no\">Motiff Lab scan: engines disagree</other-direction></direction-type></direction><note>\n        <grace />\n        <pitch>\n          <step>F</step>\n          <octave>4</octave>\n        </pitch>\n        <voice>1</voice>\n        <type>16th</type>\n        <stem>up</stem>\n        <staff>1</staff>\n      </note><note>\n        <grace />\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <voice>1</voice>\n        <type>16th</type>\n        <stem>up</stem>\n        <staff>1</staff>\n      </note><note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>8</duration>\n        <voice>1</voice>\n        <type>quarter</type>\n        <stem>down</stem>\n        <staff>1</staff>\n      </note><note>\n        <pitch>\n          <step>F</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>3</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <dot />\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">begin</beam>\n        <beam number=\"2\">begin</beam>\n      </note><note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">end</beam>\n        <beam number=\"2\">end</beam>\n        <beam number=\"3\">backward hook</beam>\n      </note><backup><duration>12</duration></backup><note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note></measure>\n    <measure number=\"27\"><direction><direction-type><other-direction print-object=\"no\">Motiff Lab scan: engines disagree</other-direction></direction-type></direction><note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">begin</beam>\n        <notations>\n          <slur type=\"start\" number=\"1\" />\n        </notations>\n      </note><note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">end</beam>\n        <notations>\n          <slur type=\"stop\" number=\"1\" />\n        </notations>\n      </note><note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>3</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <dot />\n        <accidental>flat</accidental>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">begin</beam>\n        <beam number=\"2\">begin</beam>\n      </note><note>\n        <pitch>\n          <step>A</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">end</beam>\n        <beam number=\"2\">end</beam>\n        <beam number=\"3\">backward hook</beam>\n      </note><backup><duration>12</duration></backup><note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>D</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>D</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note></measure>\n    <measure number=\"28\">\n      <print new-system=\"yes\" />\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations>\n          <slur type=\"start\" number=\"1\" />\n        </notations>\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations>\n          <slur type=\"stop\" number=\"1\" />\n        </notations>\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"29\">\n      <note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup><duration>4</duration></backup><note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>4</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      \n      <backup><duration>4</duration></backup><note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <grace />\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>4</octave>\n        </pitch>\n        <voice>1</voice>\n        <type>32nd</type>\n        <staff>1</staff>\n        <notations>\n          <slur type=\"start\" number=\"1\" />\n        </notations>\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <staff>1</staff>\n        <notations>\n          <slur type=\"stop\" number=\"1\" />\n        </notations>\n      </note>\n      \n      <backup><duration>1</duration></backup><note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      \n      <backup><duration>1</duration></backup><note>\n        <pitch>\n          <step>G</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      \n      <backup><duration>1</duration></backup><note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      \n      <backup><duration>1</duration></backup><note>\n        <pitch>\n          <step>B</step>\n          <alter>-1</alter>\n          <octave>4</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"30\">\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>8</duration>\n        <voice>1</voice>\n        <type>quarter</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>8</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>D</step>\n          <alter>1</alter>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"31\">\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>6</duration>\n        <voice>1</voice>\n        <type>eighth</type>\n        <dot />\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>6</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>C</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>E</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>D</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <chord />\n        <pitch>\n          <step>D</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n      <note>\n        <pitch>\n          <step>A</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <staff>1</staff>\n        <notations />\n      </note>\n      <backup>\n        <duration>2</duration>\n      </backup>\n      <note>\n        <pitch>\n          <step>F</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note>\n    </measure>\n    <measure number=\"32\"><direction><direction-type><other-direction print-object=\"no\">Motiff Lab scan: engines disagree</other-direction></direction-type></direction><note>\n        <pitch>\n          <step>C</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>8</duration>\n        <voice>1</voice>\n        <type>quarter</type>\n        <stem>down</stem>\n        <staff>1</staff>\n      </note><note>\n        <pitch>\n          <step>D</step>\n          <octave>5</octave>\n        </pitch>\n        <duration>3</duration>\n        <voice>1</voice>\n        <type>16th</type>\n        <dot />\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">begin</beam>\n        <beam number=\"2\">begin</beam>\n      </note><note>\n        <pitch>\n          <step>B</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>1</duration>\n        <voice>1</voice>\n        <type>32nd</type>\n        <stem>down</stem>\n        <staff>1</staff>\n        <beam number=\"1\">end</beam>\n        <beam number=\"2\">end</beam>\n        <beam number=\"3\">backward hook</beam>\n      </note><backup><duration>12</duration></backup><note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>E</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>G</step>\n          <octave>3</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note><note>\n        <pitch>\n          <step>F</step>\n          <octave>4</octave>\n        </pitch>\n        <duration>2</duration>\n        <voice>5</voice>\n        <type>16th</type>\n        <staff>2</staff>\n        <notations />\n      </note></measure>\n  </part>\n</score-partwise>",
+    "pages": [
+     {
+      "page": 1,
+      "bars": 32,
+      "doubtful": 8,
+      "quality": null,
+      "merge": {
+       "engines": [
+        "homr 0.7.0",
+        "copisteria"
+       ],
+       "bars": [
+        {
+         "bar": 0,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 1,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 2,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 3,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 4,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 5,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 6,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 7,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 8,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 9,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 10,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 11,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 12,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 13,
+         "level": "check",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 14,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 15,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 16,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 18,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 19,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 20,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 21,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 23,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 24,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 25,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 26,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 27,
+         "level": "check",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 28,
+         "level": "check",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 29,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 30,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 31,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 32,
+         "level": "probable",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        },
+        {
+         "bar": 33,
+         "level": "check",
+         "staves": [
+          {
+           "part": 1,
+           "staff": 1,
+           "engines": [
+            "copisteria"
+           ]
+          },
+          {
+           "part": 1,
+           "staff": 2,
+           "engines": [
+            "homr 0.7.0",
+            "copisteria"
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

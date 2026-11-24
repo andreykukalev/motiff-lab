@@ -58,6 +58,9 @@ public enum CheckReason
 
     /// <summary>The bar is on a page the scan server's report calls poor (scan, version 0.4, within version 15).</summary>
     PageQuality,
+
+    /// <summary>No two of the engines that read the page agree on some staff of the bar (scan, version 1.3, within version 17; ADR 0035).</summary>
+    EnginesDisagree,
 }
 
 /// <summary>
@@ -74,7 +77,8 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// The flags of a scan's check, one per flagged bar and reason, resolved where the player confirmed the bar. A bar on a
     /// poor page (<see cref="ScanFlag.PageQuality"/>, from the page reports the check was given) raises
     /// <see cref="CheckReason.PageQuality"/>, a value of the project file since version 0.4 that a build before it keeps
-    /// whole as an unknown flag (S6).
+    /// whole as an unknown flag (S6); a bar a scan merge marked (<see cref="ScanFlag.EnginesDisagree"/>) raises
+    /// <see cref="CheckReason.EnginesDisagree"/>, a value since version 1.3 (Andrei, 2026-11-24), kept so by a build before it.
     /// </summary>
     public static IReadOnlyList<CheckFlag> FromScan(ScanCheck check, IReadOnlyCollection<int> confirmedBars)
     {
@@ -254,14 +258,8 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>The reason as the Check layer says it, in the language.</summary>
     public string Describe(Words words) => Describe(Reason, words);
 
-    public static string Describe(CheckReason reason, Words words) => reason switch
+    public static string Describe(CheckReason reason, Words words) => ScanFlagOf(reason) is { } flag ? ScanBar.Describe(flag, words) : reason switch
     {
-        CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
-        CheckReason.BarTooShort => ScanBar.Describe(ScanFlag.BarTooShort, words),
-        CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
-        CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
-        CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
-        CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
         CheckReason.PartSeam => words.T(
             "Two parts of the recording were joined here, so a note may be missing or doubled.",
             "Здесь склеены две части записи: нота могла потеряться или удвоиться."),
@@ -294,6 +292,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.OutOfPianoRange => words.T("Note beyond the piano", "Нота вне диапазона фортепиано"),
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
+            CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -307,14 +306,13 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>What the reason means for the bar, in plain words for the player: what probably went wrong and what to look at.</summary>
     public static string Explain(CheckReason reason, Words words)
     {
+        if (ScanFlagOf(reason) is { } flag)
+        {
+            return ScanBar.Describe(flag, words);
+        }
+
         return reason switch
         {
-            CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
-            CheckReason.BarTooShort => ScanBar.Describe(ScanFlag.BarTooShort, words),
-            CheckReason.StavesDiffer => ScanBar.Describe(ScanFlag.StavesDiffer, words),
-            CheckReason.OutOfPianoRange => ScanBar.Describe(ScanFlag.OutOfPianoRange, words),
-            CheckReason.GraceNotes => ScanBar.Describe(ScanFlag.GraceNotes, words),
-            CheckReason.PageQuality => ScanBar.Describe(ScanFlag.PageQuality, words),
             CheckReason.PartSeam => words.T(
                 "Two parts of the recording were heard separately and joined in this bar: a note may be doubled or lost.",
                 "Две части записи распознавались отдельно и стыкуются в этом такте: нота может удвоиться или потеряться."),
@@ -337,6 +335,10 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         };
     }
 
+    /// <summary>The scan flag a scan reason comes from (<see cref="Of"/>); null for a reason of a transcription or a performance.</summary>
+    private static ScanFlag? ScanFlagOf(CheckReason reason) =>
+        Enum.GetValues<ScanFlag>().Select(static flag => (ScanFlag?)flag).FirstOrDefault(flag => Of(flag!.Value) == reason);
+
     private static CheckReason Of(ScanFlag flag) => flag switch
     {
         ScanFlag.BarTooLong => CheckReason.BarTooLong,
@@ -345,6 +347,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         ScanFlag.OutOfPianoRange => CheckReason.OutOfPianoRange,
         ScanFlag.GraceNotes => CheckReason.GraceNotes,
         ScanFlag.PageQuality => CheckReason.PageQuality,
+        ScanFlag.EnginesDisagree => CheckReason.EnginesDisagree,
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }

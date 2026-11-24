@@ -16,15 +16,15 @@ public class ScanRepairTests
 {
     private const long Eighth = 240;
 
-    private static string Note(string step, int octave, int duration, int staff, bool chord = false) =>
+    internal static string Note(string step, int octave, int duration, int staff, bool chord = false) =>
         $"<note>{(chord ? "<chord/>" : "")}<pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>{duration}</duration><voice>{(staff == 1 ? 1 : 5)}</voice><staff>{staff}</staff></note>";
 
     private static string Grace(string step, int octave) =>
         $"<note><grace slash=\"yes\"/><pitch><step>{step}</step><octave>{octave}</octave></pitch><voice>1</voice><staff>1</staff></note>";
 
-    private static string Rest(int duration, int staff) => $"<note><rest/><duration>{duration}</duration><voice>{(staff == 1 ? 1 : 5)}</voice><staff>{staff}</staff></note>";
+    internal static string Rest(int duration, int staff) => $"<note><rest/><duration>{duration}</duration><voice>{(staff == 1 ? 1 : 5)}</voice><staff>{staff}</staff></note>";
 
-    private static string Backup(int duration) => $"<backup><duration>{duration}</duration></backup>";
+    internal static string Backup(int duration) => $"<backup><duration>{duration}</duration></backup>";
 
     /// <summary>
     /// A 4/4 bar as the engine splits it: a grace note and the right hand's first eighth, then the left hand's half note
@@ -47,7 +47,10 @@ public class ScanRepairTests
     private static string Turns() =>
         string.Concat(Enumerable.Repeat(Note("C", 5, 1, 1) + Note("C", 3, 1, 2), 4));
 
-    private static byte[] Score(string? beats, params string[] bars)
+    private static byte[] Score(string? beats, params string[] bars) => Score(2, beats, bars);
+
+    /// <summary>A score in the engine's shape, in <paramref name="beats"/>/4 when given, with <paramref name="divisions"/> to the quarter.</summary>
+    internal static byte[] Score(int divisions, string? beats, params string[] bars)
     {
         var xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><score-partwise version=\"4.0\">")
             .Append("<identification><encoding><software>homr</software></encoding></identification>")
@@ -56,7 +59,7 @@ public class ScanRepairTests
         {
             string time = i == 0 && beats is not null ? $"<time><beats>{beats}</beats><beat-type>4</beat-type></time>" : "";
             string attributes = i == 0
-                ? $"<attributes><divisions>2</divisions><key><fifths>1</fifths></key>{time}<staves>2</staves><clef number=\"1\"><sign>G</sign><line>2</line></clef><clef number=\"2\"><sign>F</sign><line>4</line></clef></attributes>"
+                ? $"<attributes><divisions>{divisions}</divisions><key><fifths>1</fifths></key>{time}<staves>2</staves><clef number=\"1\"><sign>G</sign><line>2</line></clef><clef number=\"2\"><sign>F</sign><line>4</line></clef></attributes>"
                 : "";
             xml.Append($"<measure number=\"{i + 1}\">{attributes}{bars[i]}</measure>");
         }
