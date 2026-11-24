@@ -85,19 +85,30 @@ enum ScanCrops {
         ScanReviewStore.save(ScanReview(fingerprint: fingerprint, bars: bars), crops: crops, in: root)
     }
 
-    /// The PDF page as the PDF shows it (its turn applied), drawn `size` pixels wide and high at scale 1, as the server's image.
-    private static func drawn(_ page: PDFPage, size: CGSize) -> UIImage {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let box = page.bounds(for: .cropBox)
-        let shown = page.rotation % 180 == 0 ? box.size : CGSize(width: box.height, height: box.width)
-        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+    /// The PDF page as the PDF shows it (its own turn applied), drawn `size` pixels wide and high at scale 1 in 8-bit
+    /// colour, white under it, as the server's image: by Quartz, which maps the page's crop box and turn into the page as shown.
+    static func drawn(_ page: PDFPage, size: CGSize) -> UIImage? {
+        guard let source = page.pageRef else { return nil }
+        let box = source.getBoxRect(.cropBox)
+        let shown = source.rotationAngle % 180 == 0 ? box.size : CGSize(width: box.height, height: box.width)
+        guard shown.width > 0, shown.height > 0 else { return nil }
+        return UIGraphicsImageRenderer(size: size, format: plain()).image { context in
             UIColor.white.setFill()
             context.fill(CGRect(origin: .zero, size: size))
-            context.cgContext.translateBy(x: 0, y: size.height)
-            context.cgContext.scaleBy(x: size.width / shown.width, y: -size.height / shown.height)
-            page.draw(with: .cropBox, to: context.cgContext)
+            let quartz = context.cgContext
+            quartz.translateBy(x: 0, y: size.height)
+            quartz.scaleBy(x: size.width / shown.width, y: -size.height / shown.height)
+            quartz.concatenate(source.getDrawingTransform(.cropBox, rect: CGRect(origin: .zero, size: shown), rotate: 0, preserveAspectRatio: true))
+            quartz.drawPDFPage(source)
         }
+    }
+
+    /// Scale 1 and 8-bit colour, so a crop is as many pixels as the server's image and its PNG small.
+    private static func plain() -> UIGraphicsImageRendererFormat {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.preferredRange = .standard
+        return format
     }
 
     /// The crop's part of the page image, turned as on the server's image, as PNG.
@@ -107,8 +118,6 @@ enum ScanCrops {
         let pixels = CGRect(x: rect.minX * CGFloat(source.width), y: rect.minY * CGFloat(source.height), width: rect.width * CGFloat(source.width), height: rect.height * CGFloat(source.height)).integral
         guard !pixels.isEmpty, let part = source.cropping(to: pixels) else { return nil }
         let turned = UIImage(cgImage: part, scale: 1, orientation: crop.orientation)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        return UIGraphicsImageRenderer(size: turned.size, format: format).pngData { _ in turned.draw(at: .zero) }
+        return UIGraphicsImageRenderer(size: turned.size, format: plain()).pngData { _ in turned.draw(at: .zero) }
     }
 }
