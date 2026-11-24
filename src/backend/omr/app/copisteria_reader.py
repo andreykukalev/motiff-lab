@@ -4,24 +4,23 @@ copisteria (KobiMusic, Apache-2.0, code and the copista-28m weights) is called a
 `python -m copisteria.pipeline`, as published at its pinned commit (Dockerfile). It writes, in a folder of its own
 next to the page, `<page>.musicxml`, `<page>.reading.json` (each symbol's reading with its probability, and the
 readings the context changed) and a viewer page; beside the page it caches its detections. Only the MusicXML is
-passed on; the reading and the detections are read for the page report's counts and never passed on, and the
-whole folder is deleted with the upload.
+passed on; the reading is read for the page report's counts and never passed on. The detections give the page
+report's staff space and, in a scan job, the symbols of the page's evidence (evidence.py), their classes and places
+only. The whole folder is deleted with the upload.
 """
 
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from importlib import metadata
 from pathlib import Path
+from typing import Any
 
+from app import evidence, recognise
 from app.recognise import Found, Reading, RecogniseError
 
 ENGINE = "copisteria"
-
-# 17 to 26 s a page on 4 CPU cores; a slow machine gets plenty of room before it is given up.
-PAGE_TIMEOUT_SECONDS = 300
 
 # The page report's spacePx is about one staff space in a working copy 1920 pixels wide, as homr's is.
 _REPORT_WIDTH = 1920
@@ -44,16 +43,7 @@ def is_installed() -> bool:
 
 def recognise_page(image: Path, page_number: int) -> Reading:
     out = image.parent / f"{image.stem}-copisteria"
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "copisteria.pipeline", str(image), "--out", str(out)],
-            cwd=image.parent,
-            capture_output=True,
-            timeout=PAGE_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise RecogniseError(f"Reading page {page_number} took too long and was stopped.") from error
+    result = recognise.run([sys.executable, "-m", "copisteria.pipeline", str(image), "--out", str(out)], image.parent, page_number)
 
     found = read_found(out / f"{image.stem}.reading.json", image)
     output = out / f"{image.stem}.musicxml"
@@ -64,7 +54,18 @@ def recognise_page(image: Path, page_number: int) -> Reading:
         raise RecogniseError(
             f"No music staves were found on page {page_number}. Check that the page is sharp and fills the photo.", found
         )
-    return Reading(output.read_bytes(), found)
+    detector = {"name": ENGINE, "version": engine_version()}
+    return Reading(output.read_bytes(), found, evidence.of_page(image, detections(image), detector))
+
+
+def detections(image: Path) -> list[dict[str, Any]]:
+    """The symbols copisteria's detector found on the page, from the file it caches beside it; none without one."""
+    cached = sorted(image.parent.glob(f"{image.stem}.dets_*.json"))
+    try:
+        found = json.loads(cached[0].read_text(encoding="utf-8")) if cached else []
+    except (OSError, ValueError):
+        return []
+    return found if isinstance(found, list) else []
 
 
 def read_found(reading: Path, image: Path) -> Found:
@@ -94,10 +95,8 @@ def space_px(image: Path) -> float:
     try:
         with Image.open(image) as page:
             width = page.width
-        cached = sorted(image.parent.glob(f"{image.stem}.dets_*.json"))
-        detections = json.loads(cached[0].read_text(encoding="utf-8")) if cached else []
         heights = sorted(
-            box["xyxy"][3] - box["xyxy"][1] for box in detections if box.get("cls") == "measure" and box.get("conf", 0) >= 0.5
+            box["xyxy"][3] - box["xyxy"][1] for box in detections(image) if box.get("cls") == "measure" and box.get("conf", 0) >= 0.5
         )
     except (OSError, ValueError, KeyError, IndexError, TypeError):
         return 0.0

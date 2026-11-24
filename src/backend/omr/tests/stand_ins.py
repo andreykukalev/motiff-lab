@@ -25,6 +25,15 @@ def reads(log: Path, image: Path, number: int) -> Reading:
     return Reading(page(str(number)), Found(staves=2, noteheads=10, bar_lines=3, space_px=12.0))
 
 
+EVIDENCE = {"detector": {"name": "copisteria", "version": "1.3.4"}, "image": {"width": 2480, "height": 3508, "dpi": 300},
+            "systems": [], "symbols": []}
+
+
+def reads_with_evidence(log: Path, image: Path, number: int) -> Reading:
+    """Reads the page as copisteria does, with what its detector saw of it."""
+    return Reading(reads(log, image, number).musicxml, Found(staves=2), EVIDENCE)
+
+
 def fails(log: Path, image: Path, number: int) -> Reading:
     _note(log, number)
     raise RecogniseError(f"No music staves were found on page {number}.", Found(noteheads=4))

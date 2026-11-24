@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import pages
+from app import evidence, pages
 from app.auth import AuthError
 from app.engines import Engine
 from app.job_store import FolderStore
@@ -219,3 +219,23 @@ def test_the_app_may_delete_a_job_and_read_where_its_status_is(tmp_path: Path):
     assert "DELETE" in preflight.headers["access-control-allow-methods"]
     simple = client.get("/health", headers={"Origin": "https://motiff.example"})
     assert "Location" in simple.headers["access-control-expose-headers"]
+
+
+def test_the_result_gives_each_page_s_evidence_from_the_engine_that_saw_it(tmp_path: Path):
+    jobs, worker = service(tmp_path, engines(tmp_path, copisteria=stand_ins.reads_with_evidence), Clock())
+    job_id = submit(jobs, tmp_path, 2)
+    drain(worker)
+    result = jobs.fetch_result(jobs.find(job_id, None))
+    assert [page["evidence"] for page in result["pages"]] == [evidence.for_page(n, 0, stand_ins.EVIDENCE) for n in (1, 2)]
+    assert all("evidence" not in reading for page in result["pages"] for reading in page["engines"].values())
+
+
+def test_a_page_no_engine_gave_evidence_for_has_none(tmp_path: Path):
+    jobs, worker = service(tmp_path, engines(tmp_path, copisteria=stand_ins.fails), Clock(), retry_delays=())
+    job_id = submit(jobs, tmp_path, 1)
+    drain(worker)
+    assert "evidence" not in jobs.fetch_result(jobs.find(job_id, None))["pages"][0]
+
+
+def test_a_page_s_engines_read_it_in_parallel_by_default():
+    assert Settings.from_environment(4).workers == 4

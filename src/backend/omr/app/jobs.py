@@ -8,8 +8,8 @@ worker takes (job_worker.py). Everything lies in the store (job_store.py) under 
   was seen of each page before reading (its look);
 - `jobs/<id>/pages/<page>.png`: the page as the engines read it. The upload itself is not kept;
 - `jobs/<id>/units/<page>-<engine>.json`: the unit's state, written by the worker that holds its message;
-- `jobs/<id>/results/<page>-<engine>.json`: its reading, or what was seen when it could not be read. The name is the
-  unit's, so a repeat overwrites it.
+- `jobs/<id>/results/<page>-<engine>.json`: its reading, or what was seen when it could not be read, and the page's
+  evidence where the engine gives it (evidence.py, copisteria). The name is the unit's, so a repeat overwrites it.
 
 The progress and the estimate weigh each unit by its engine's seconds per page, measured on this server
 (`engines/<engine>.json`). The supervisor deletes a job once its result was fetched and a little time has passed, or a
@@ -30,7 +30,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
-from app import engines, pages, quality, recognise
+from app import engines, evidence, pages, quality, recognise
 from app.job_store import Store
 
 WAITING, READING, READ, RETRYING, NOT_READ = "waiting", "reading", "read", "retrying", "not_read"
@@ -42,7 +42,7 @@ _ID = re.compile(r"^[A-Za-z0-9_-]{24}$")
 
 @dataclass(frozen=True)
 class Settings:
-    workers: int = 1  # the engines use every core, so one unit is read at a time unless JOB_WORKERS says otherwise
+    workers: int = 1  # units read at once: by default as many as the engines, so a page's engines read it in parallel
     unit_seconds: float = 300.0  # a unit's time limit, as the engines' own (recognise.PAGE_TIMEOUT_SECONDS)
     lease_seconds: float = 60.0  # renewed every third of it while the unit is read
     retry_delays: tuple[float, ...] = (10.0, 20.0, 40.0)  # a unit is tried once and retried after each of these
@@ -58,8 +58,8 @@ class Settings:
         return len(self.retry_delays) + 1
 
     @classmethod
-    def from_environment(cls) -> Settings:
-        return cls(workers=max(1, int(os.environ.get("JOB_WORKERS", "1"))))
+    def from_environment(cls, engines: int = 1) -> Settings:
+        return cls(workers=max(1, int(os.environ.get("JOB_WORKERS", str(engines)))))
 
 
 @dataclass(frozen=True)
@@ -208,19 +208,25 @@ class Jobs:
         }
 
     def fetch_result(self, job: Job) -> dict[str, Any]:
-        """Each page's reading by each engine, with its report; marks the job fetched, so it is deleted soon after."""
+        """Each page's reading by each engine, with its report, and the page's evidence where an engine that read it
+        gave one (copisteria); marks the job fetched, so it is deleted soon after."""
         units = list(self.units(job))
         if any(unit.state not in FINAL for _, _, unit in units):
             raise NotFinished()
         if job.fetched is None:
             self.store.write(job_name(job.id), json.dumps(asdict(replace(job, fetched=self.clock()))).encode())
-        return {
-            "id": job.id,
-            "pages": [
-                {"page": page, "engines": {engine: self._reading(job, page, engine, unit) for p, engine, unit in units if p == page}}
-                for page in job.pages
-            ],
-        }
+        pages_ = []
+        for page in job.pages:
+            kept = {engine: self._kept(job, page, engine) for p, engine, _ in units if p == page}
+            entry: dict[str, Any] = {
+                "page": page,
+                "engines": {engine: self._reading(job, page, kept[engine], unit) for p, engine, unit in units if p == page},
+            }
+            found = next((result["evidence"] for result in kept.values() if result.get("evidence")), None)
+            if found is not None:
+                entry["evidence"] = evidence.for_page(page, job.looks[str(page)]["rotation"], found)
+            pages_.append(entry)
+        return {"id": job.id, "pages": pages_}
 
     def delete(self, job: Job) -> None:
         """Deletes the job's files and results. Its messages still in the queue are dropped when a worker takes them."""
@@ -229,9 +235,11 @@ class Jobs:
     def figures(self) -> dict[str, Any]:
         return {"queue": self.store.queue_length(), "workers": self.settings.workers}
 
-    def _reading(self, job: Job, page: int, engine: str, unit: Unit) -> dict[str, Any]:
+    def _kept(self, job: Job, page: int, engine: str) -> dict[str, Any]:
         data = self.store.read(result_name(job.id, page, engine))
-        kept = json.loads(data) if data is not None else {}
+        return json.loads(data) if data is not None else {}
+
+    def _reading(self, job: Job, page: int, kept: dict[str, Any], unit: Unit) -> dict[str, Any]:
         musicxml = kept.get("musicxml")
         found = kept.get("found") or {}
         look = quality.Look(**job.looks[str(page)])

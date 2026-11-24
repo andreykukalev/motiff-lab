@@ -5,8 +5,8 @@ A thread cannot be stopped from outside, and an engine that hangs would keep its
 in it too, and at the time limit the whole group is killed. The child is forked from multiprocessing's fork server,
 a clean process started once, never from the server's threads; so an engine's `read` must be picklable: a function of
 a module, or a functools.partial of one. While the child works, `tick` is called every `tick_seconds` (the worker
-renews its lease with it). The child sends back the reading, or the reason it could not read, and nothing else: an
-engine's own messages may quote the page's text, so none of them leave the child.
+renews its lease with it). The child sends back the reading (with copisteria's page evidence), or the reason it could
+not read, and nothing else: an engine's own messages may quote the page's text, so none of them leave the child.
 """
 
 from __future__ import annotations
@@ -46,14 +46,14 @@ def read_within(
                 raise RecogniseError(f"Page {number} could not be read.")
             tick()
         try:
-            kind, payload, found = receiver.recv()
+            kind, payload, found, evidence = receiver.recv()
         except EOFError as error:
             raise RecogniseError(f"Page {number} could not be read.") from error
     finally:
         _stop(child)
         receiver.close()
     if kind == "read":
-        return Reading(payload, Found(**found))
+        return Reading(payload, Found(**found), evidence)
     raise RecogniseError(payload, Found(**found) if found else None)
 
 
@@ -61,12 +61,12 @@ def _read_in_child(read: Callable[[Path, int], Reading], image: Path, number: in
     os.setsid()
     try:
         reading = read(image, number)
-        sender.send(("read", reading.musicxml, asdict(reading.found)))
+        sender.send(("read", reading.musicxml, asdict(reading.found), reading.evidence))
     except RecogniseError as error:
         # The engines' own messages to the player name the step that failed, never the music (recognise.py).
-        sender.send(("error", str(error), asdict(error.found)))
+        sender.send(("error", str(error), asdict(error.found), None))
     except Exception:  # noqa: BLE001 (anything else an engine raises is told as a page that could not be read)
-        sender.send(("error", f"Page {number} could not be read.", None))
+        sender.send(("error", f"Page {number} could not be read.", None, None))
     finally:
         sender.close()
 

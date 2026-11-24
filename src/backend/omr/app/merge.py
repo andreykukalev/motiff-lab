@@ -17,7 +17,9 @@ class MergeError(ValueError):
     """The pages cannot be joined. The message is plain words for the player."""
 
 
-def merge(pages: list[bytes]) -> bytes:
+def merge(pages: list[bytes], new_page: bool = True) -> bytes:
+    """The pages' scores as one; new_page=False for parts of one page (Audiveris's movements), which no page break
+    separates."""
     if not pages:
         raise MergeError("No page was read.")
 
@@ -40,7 +42,7 @@ def merge(pages: list[bytes]) -> bytes:
             measures = page_part.findall("measure")
             for offset, measure in enumerate(measures, 1):
                 measure.set("number", str(number + offset))
-                if offset == 1:
+                if offset == 1 and new_page:
                     _start_page(measure)
                 part.append(measure)
             added = max(added, len(measures))

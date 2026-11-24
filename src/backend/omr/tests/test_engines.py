@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app import copisteria_reader
+from app import audiveris_reader, copisteria_reader, engines, transcoda_reader
 from app.engines import Engine
 from app.main import create_app
 from app.recognise import Found, Reading
@@ -85,3 +85,14 @@ def test_a_reading_that_is_missing_gives_no_counts(tmp_path: Path):
     image = tmp_path / "page-01.png"
     Image.new("L", (100, 100), 255).save(image)
     assert copisteria_reader.read_found(tmp_path / "none.json", image) == Found()
+
+
+def test_the_engines_setting_switches_installed_engines_off(monkeypatch):
+    for reader in (copisteria_reader, audiveris_reader, transcoda_reader):
+        monkeypatch.setattr(reader, "is_installed", lambda: True)
+    assert [engine.name for engine in engines.others("")] == ["copisteria", "audiveris", "transcoda"]
+    assert [engine.name for engine in engines.others(" homr, Copisteria ,audiveris")] == ["copisteria", "audiveris"]
+    monkeypatch.setenv("ENGINES", "homr,transcoda")
+    assert [engine.name for engine in engines.others()] == ["transcoda"]
+    monkeypatch.setattr(transcoda_reader, "is_installed", lambda: False)
+    assert engines.others() == []
