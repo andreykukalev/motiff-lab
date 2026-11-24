@@ -27,7 +27,7 @@ final class ScanCheckBaselineTests: XCTestCase {
         for folder in folders + reviews { try? FileManager.default.removeItem(at: folder) }
         folders = []
         reviews = []
-        await ScanBaseline.restore(jobsBefore)
+        await ScanSupport.restore(jobsBefore)
         jobsBefore = nil
         StubAPI.reset()
     }
@@ -66,23 +66,24 @@ final class ScanCheckBaselineTests: XCTestCase {
         }
         let status: [String: Any] = ["id": "j1", "state": "done", "etaSeconds": 0, "pages": [["page": 1, "engines": ["homr": "read", "copisteria": "read", "audiveris": "read"]]]]
         return [
-            "http://scan.test/health": ScanBaseline.health, "POST http://scan.test/jobs": ScanBaseline.answer(202, #"{"id": "j1"}"#),
-            "http://scan.test/jobs/j1": ScanBaseline.json(status),
-            "http://scan.test/jobs/j1/result": ScanBaseline.json(["id": "j1", "pages": [["page": 1, "engines": engines, "evidence": evidence] as [String: Any]]]),
-            "DELETE http://scan.test/jobs/j1": ScanBaseline.answer(204, ""),
+            "http://scan.test/health": ScanSupport.health, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j1"}"#),
+            "http://scan.test/jobs/j1": ScanSupport.json(status),
+            "http://scan.test/jobs/j1/result": ScanSupport.json(["id": "j1", "pages": [["page": 1, "engines": engines, "evidence": evidence] as [String: Any]]]),
+            "DELETE http://scan.test/jobs/j1": ScanSupport.answer(204, ""),
         ]
     }
 
     /// The piece of one picture of a page, read by the job as the library reads it, and opened on its notes' screen.
     private func readAndOpen() async throws -> (WorkspaceSession, OpenPiece) {
         // The page dark where bar 2 stands, so its crop is cut there.
-        let url = try ScanBaseline.pdfPiece(pdf: ScanBaseline.scannedPdf(pages: 1), pages: 1)
-        let folder = url.deletingLastPathComponent()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("scan-check-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         folders.append(folder)
+        let url = try ScanSupport.pdfPiece(in: folder, pdf: ScanSupport.scannedPdf(pages: 1), pages: 1)
         StubAPI.reset(job)
         let follow = RecognitionJob(kept: nil, keep: { _ in }, hear: { _ in }, wanted: { true }, ready: { true })
         let read = await RecognitionQueue.recognise(
-            url, address: ScanBaseline.server, account: Account(options: nil), links: folder, folders: folder, job: follow, session: StubAPI.session(), isOpen: { false }
+            url, address: ScanSupport.server, account: Account(options: nil), links: folder, folders: folder, job: follow, session: StubAPI.session(), isOpen: { false }
         )
         guard case .success = read else {
             XCTFail("read: \(read)")
@@ -103,7 +104,7 @@ final class ScanCheckBaselineTests: XCTestCase {
     /// of the original page and the engines' other readings; one tap puts one in, on the staff they disagree on only, as the
     /// player's corrections, and «Отменить выбор» takes it back whole.
     func testSCAN06ABarTheEnginesDisagreeOnIsFlaggedATapShowsItsCropAndReadingsAndOneIsPutInAsThePlayersCorrection() async throws {
-        jobsBefore = await ScanBaseline.jobsOn()
+        jobsBefore = await ScanSupport.jobsOn()
         let (session, opened) = try await readAndOpen()
         let workspace = session.workspace
         let score = workspace.score
@@ -119,13 +120,13 @@ final class ScanCheckBaselineTests: XCTestCase {
             recording?(command, argument)
         }
         await session.step("the score drawn again") { score.show(opened, dark: true) }
-        try await ScanBaseline.wait("the flags drawn") { drawn != nil }
+        try await ScanSupport.wait("the flags drawn") { drawn != nil }
         let flag = try XCTUnwrap(drawn?.first { $0["bar"] as? Int == 2 }, "an amber flag over bar 2")
         XCTAssertEqual(flag["label"] as? String, russian.format("check.flagLabel", "2", CheckShelf.reasonNames(flagged.flags, russian)))
         XCTAssertNil(drawn?.first { $0["bar"] as? Int == 1 })
 
         await session.step("a tap on the flag") { score.handle(.checkFlag(2)) }
-        try await ScanBaseline.wait("the bar selected") { score.selectionModel.selection?.firstBar == 2 }
+        try await ScanSupport.wait("the bar selected") { score.selectionModel.selection?.firstBar == 2 }
         XCTAssertTrue(workspace.panels[.check], "Check opens on its bar")
         let kept = try XCTUnwrap(score.scanReview?.bar(2), "what this iPad kept of the bar")
         XCTAssertTrue(kept.cropped)
@@ -139,7 +140,7 @@ final class ScanCheckBaselineTests: XCTestCase {
 
         let copisteria = try XCTUnwrap(kept.variants.first)
         await session.step("copisteria's reading chosen") { score.chooseVariant(copisteria, bar: 2) }
-        try await ScanBaseline.wait("put in") { score.variantChoice.engines(in: 2) == ["copisteria"] }
+        try await ScanSupport.wait("put in") { score.variantChoice.engines(in: 2) == ["copisteria"] }
         let chosen = try XCTUnwrap(score.corrections)
         XCTAssertEqual(chosen.bar, 2)
         XCTAssertEqual(chosen.notes.map(\.pitch).sorted(), [48, 72, 79, 81, 83], "copisteria's right hand, the left hand as read")
@@ -148,7 +149,7 @@ final class ScanCheckBaselineTests: XCTestCase {
         XCTAssertEqual(russian["scanReview.undo"], "Отменить выбор")
 
         await session.step("«Отменить выбор»") { score.undoVariant() }
-        try await ScanBaseline.wait("taken back whole") { score.corrections?.count == 0 }
+        try await ScanSupport.wait("taken back whole") { score.corrections?.count == 0 }
         XCTAssertEqual(score.corrections?.notes.map(\.pitch).sorted(), [48, 74, 79, 81, 83], "the bar as merged")
         XCTAssertNil(score.variantChoice.bar)
         XCTAssertEqual(russian["scanReview.missing"], "Вырезка страницы и прочтения движков для этого такта есть только на iPad, который распознавал скан.")

@@ -8,14 +8,12 @@ import XCTest
 final class ScanJobsTests: XCTestCase {
     private let english = UIText(language: "en")
     private let russian = UIText(language: "ru")
+    /// The experiment as it was before a test turned it on (`ScanSupport.jobsOn`).
+    private var jobsBefore: String?
 
-    /// A page of one bar with one note, as an engine would read it.
-    private func page(_ step: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>\
-        <part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>\
-        <clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>\(step)</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>
-        """
+    override func tearDown() async throws {
+        await ScanSupport.restore(jobsBefore)
+        jobsBefore = nil
     }
 
     /// A JSON object as the server writes it.
@@ -120,9 +118,9 @@ final class ScanJobsTests: XCTestCase {
     }
 
     func testMusicCoreMergesAJobsReadingsWithThePageReadOnTheDevice() async throws {
-        let reading: [String: Any] = ["state": "read", "musicxml": page("E")]
+        let reading: [String: Any] = ["state": "read", "musicxml": ScanSupport.page("E")]
         let engines: [String: Any] = ["homr": reading, "copisteria": reading]
-        let joined = ScanJobs.joined(device: [1: page("C")], server: [["page": 2, "engines": engines]])
+        let joined = ScanJobs.joined(device: [1: ScanSupport.page("C")], server: [["page": 2, "engines": engines]])
         let json = facadeRequest(["pages": joined.pages])
 
         let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
@@ -170,36 +168,30 @@ final class ScanJobsTests: XCTestCase {
 
     // MARK: - The requests, against a stub server
 
-    private let server = URL(string: "http://scan.test/")!
+    private let server = ScanSupport.server
     private let notAPdf = Data("not a pdf".utf8)
 
     private var target: ScanTarget { ScanTarget(address: server, account: Account(options: nil), session: StubAPI.session()) }
 
-    private func answer(_ status: Int, _ body: String) -> StubAPI.Answer { StubAPI.Answer(status: status, body: Data(body.utf8)) }
-
     private var jobServer: StubAPI.Answer {
-        answer(200, #"{"engine": "homr", "version": "0.7.0", "engines": [{"engine": "homr", "secondsPerPage": 75}], "jobs": {"queue": 0, "workers": 1}}"#)
+        ScanSupport.answer(200, #"{"engine": "homr", "version": "0.7.0", "engines": [{"engine": "homr", "secondsPerPage": 75}], "jobs": {"queue": 0, "workers": 1}}"#)
     }
 
     private func status(_ state: String) -> StubAPI.Answer {
         let engine = state == "done" ? "read" : "reading"
-        return answer(200, #"{"id": "j1", "state": "\#(state)", "etaSeconds": 30, "pages": [{"page": 1, "engines": {"homr": "\#(engine)"}}, {"page": 2, "engines": {"homr": "\#(engine)"}}]}"#)
+        return ScanSupport.answer(200, #"{"id": "j1", "state": "\#(state)", "etaSeconds": 30, "pages": [{"page": 1, "engines": {"homr": "\#(engine)"}}, {"page": 2, "engines": {"homr": "\#(engine)"}}]}"#)
     }
 
     /// The job's result: page 1 read by homr with its report, page 2 read by none.
     private var result: StubAPI.Answer {
-        let reading: [String: Any] = ["state": "read", "version": "0.7.0", "musicxml": page("C"), "report": ["page": 1, "measures": 1]]
+        let reading: [String: Any] = ["state": "read", "version": "0.7.0", "musicxml": ScanSupport.page("C"), "report": ["page": 1, "measures": 1]]
         let pages: [[String: Any]] = [["page": 1, "engines": ["homr": reading]], ["page": 2, "engines": ["homr": ["state": "not_read"] as [String: Any]]]]
         let body = try? JSONSerialization.data(withJSONObject: ["id": "j1", "pages": pages] as [String: Any])
         return StubAPI.Answer(status: 200, body: body ?? Data())
     }
 
-    private func sent(_ method: String, _ path: String) -> Int {
-        StubAPI.requests.filter { ($0.httpMethod ?? "GET") == method && $0.url?.absoluteString == "http://scan.test/" + path }.count
-    }
-
     func testAJobIsSentAskedUntilDoneAndItsReadingsMergedWithTheJobLeftForTheCallerToDelete() async throws {
-        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j1", "status": "/jobs/j1"}"#), "http://scan.test/jobs/j1": status("running")])
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j1", "status": "/jobs/j1"}"#), "http://scan.test/jobs/j1": status("running")])
         var kept: [ScanJobRecord] = []
         var heard: [String] = []
         var pauses: [Double] = []
@@ -222,7 +214,7 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(read.result.partReports?.count, 1, "page 1's report goes on to document.read")
         let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
         XCTAssertTrue(form.contains("name=\"pages\"\r\n\r\n1,2\r\n"), "the pages the device did not read")
-        XCTAssertEqual(sent("DELETE", "jobs/j1"), 0, "deleted by the caller once the notes are saved")
+        XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j1"), 0, "deleted by the caller once the notes are saved")
     }
 
     func testAJobKeptFromBeforeIsAskedAgainWithoutSendingThePdf() async {
@@ -231,17 +223,17 @@ final class ScanJobsTests: XCTestCase {
         let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]))
 
         guard case .success? = outcome else { return XCTFail("read: \(String(describing: outcome))") }
-        XCTAssertEqual(sent("POST", "jobs"), 0)
-        XCTAssertEqual(sent("GET", "health"), 0)
+        XCTAssertEqual(ScanSupport.sent("POST", "jobs"), 0)
+        XCTAssertEqual(ScanSupport.sent("GET", "health"), 0)
     }
 
     func testAServerWithoutJobsLeavesThePdfToRecogniseAsBefore() async {
-        StubAPI.reset(["http://scan.test/health": answer(200, #"{"engine": "homr", "version": "0.7.0"}"#)])
+        StubAPI.reset(["http://scan.test/health": ScanSupport.answer(200, #"{"engine": "homr", "version": "0.7.0"}"#)])
 
         let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target)
 
         XCTAssertNil(outcome)
-        XCTAssertEqual(sent("POST", "jobs"), 0)
+        XCTAssertEqual(ScanSupport.sent("POST", "jobs"), 0)
     }
 
     func testNoAnswerAndA503WhilePollingAreMissesThatDoubleThePauseNotFailures() async {
@@ -252,7 +244,7 @@ final class ScanJobsTests: XCTestCase {
             fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]),
             pause: { seconds in
                 pauses.append(seconds)
-                StubAPI.answer(["http://scan.test/jobs/j1": pauses.count == 1 ? self.answer(503, "{}") : self.status("done")])
+                StubAPI.answer(["http://scan.test/jobs/j1": pauses.count == 1 ? ScanSupport.answer(503, "{}") : self.status("done")])
             }
         )
 
@@ -261,7 +253,7 @@ final class ScanJobsTests: XCTestCase {
     }
 
     func testAJobTheServerNoLongerHasIsAFailureWithItsWords() async {
-        StubAPI.reset(["http://scan.test/jobs/j1": answer(404, #"{"code": "job", "message": "There is no such scan job."}"#)])
+        StubAPI.reset(["http://scan.test/jobs/j1": ScanSupport.answer(404, #"{"code": "job", "message": "There is no such scan job."}"#)])
 
         let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target, job: ScanJobRecord(id: "j1", pages: [1, 2]))
 
@@ -278,66 +270,32 @@ final class ScanJobsTests: XCTestCase {
         )
 
         guard case .failure(.stopped)? = outcome else { return XCTFail("stopped: \(String(describing: outcome))") }
-        XCTAssertEqual(sent("DELETE", "jobs/j1"), 0, "kept, to be asked again on «Продолжить»")
-        XCTAssertEqual(sent("GET", "jobs/j1/result"), 0)
+        XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j1"), 0, "kept, to be asked again on «Продолжить»")
+        XCTAssertEqual(ScanSupport.sent("GET", "jobs/j1/result"), 0)
     }
 
     func testDeletingAJobIsOneDeleteOfIt() async {
-        StubAPI.reset(["DELETE http://scan.test/jobs/j1": answer(204, "")])
+        StubAPI.reset(["DELETE http://scan.test/jobs/j1": ScanSupport.answer(204, "")])
 
         await ScanServer.deleteJob("j1", to: target)
 
-        XCTAssertEqual(sent("DELETE", "jobs/j1"), 1)
+        XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j1"), 1)
     }
 
     // MARK: - The queue's pieces end to end (the reviewer's gap of i-1; v1.3 i-1b)
 
-    /// A PDF piece of two pages with no notes yet, saved as the library keeps it.
-    private func pdfPieceFile(in folder: URL) throws -> URL {
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: "Pages.pdf", data: Data("%PDF-1.4\n%%EOF\n".utf8), request: #"{"id": "p_pages", "photos": 2, "now": "2026-11-24T18:00:00Z"}"#)))
-        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
-        defer { MusicCore.close(piece: piece) }
-        let url = folder.appendingPathComponent("Pages.motiff.json")
-        try Data(MusicCore.call(piece: piece, "project.save", "{}").utf8).write(to: url)
-        return url
-    }
-
-    private func job(_ id: String, page number: Int, step: String?) -> StubAPI.Answer {
-        let engines: [String: Any] = ["homr": step.map { ["state": "read", "version": "0.7.0", "musicxml": page($0)] as [String: Any] } ?? ["state": "not_read"]]
-        let body = try? JSONSerialization.data(withJSONObject: ["id": id, "pages": [["page": number, "engines": engines] as [String: Any]]] as [String: Any])
-        return StubAPI.Answer(status: 200, body: body ?? Data())
-    }
-
     private func follow(_ kept: ScanJobRecord? = nil, ready: @escaping () async -> Bool = { true }) -> RecognitionJob {
         RecognitionJob(kept: kept, keep: { _ in }, hear: { _ in }, wanted: { true }, ready: ready)
-    }
-
-    /// The piece's file with its first note a semitone higher, saved as the score screen saves a correction.
-    private func correctFirstNote(_ url: URL) throws {
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
-        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
-        defer { MusicCore.close(piece: piece) }
-        XCTAssertNil(facadeObject(MusicCore.call(piece: piece, "corrections.change", #"{"bar": 1, "id": "n_0001", "pitch": 1}"#))?["error"])
-        try Data(MusicCore.call(piece: piece, "project.save", "{}").utf8).write(to: url, options: .atomic)
-    }
-
-    /// The pitches the piece of the file at `url` plays in `bar`, its corrections on.
-    private func pitches(_ url: URL, bar: Int) throws -> [Int] {
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
-        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
-        defer { MusicCore.close(piece: piece) }
-        let notes = facadeObject(MusicCore.call(piece: piece, "corrections", #"{"bar": \#(bar)}"#))?["notes"] as? [[String: Any]]
-        return (notes ?? []).compactMap { $0["pitch"] as? Int }
     }
 
     func testAPieceReadByAJobIsWrittenThenItsJobDeletedAndAPageNoEngineReadIsReadAgainIntoTheSameNotes() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("queue-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let url = try pdfPieceFile(in: folder)
-        let done = answer(200, #"{"id": "j", "state": "done", "etaSeconds": 0, "pages": []}"#)
-        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j1"}"#), "http://scan.test/jobs/j1": done,
-                       "http://scan.test/jobs/j1/result": result, "DELETE http://scan.test/jobs/j1": answer(204, "")])
+        let url = try ScanSupport.pdfPiece(in: folder)
+        let done = ScanSupport.answer(200, #"{"id": "j", "state": "done", "etaSeconds": 0, "pages": []}"#)
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j1"}"#), "http://scan.test/jobs/j1": done,
+                       "http://scan.test/jobs/j1/result": result, "DELETE http://scan.test/jobs/j1": ScanSupport.answer(204, "")])
 
         let first = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(), session: StubAPI.session(), isOpen: { false })
 
@@ -346,14 +304,14 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(read.read, [1], "the PDF pages the notes have, kept for a page read again")
         let summary = await PieceSummary.read(url)
         XCTAssertEqual(summary?.hasNotes, true, "the notes are written into the piece's file")
-        XCTAssertEqual(sent("DELETE", "jobs/j1"), 1, "then the job is deleted on the server")
+        XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j1"), 1, "then the job is deleted on the server")
 
         // «Повторить»: only page 2 goes, as a new job, and its bar goes in after page 1's into the same notes.
-        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j2"}"#), "http://scan.test/jobs/j2": done,
-                       "http://scan.test/jobs/j2/result": job("j2", page: 2, step: "E"), "DELETE http://scan.test/jobs/j2": answer(204, "")])
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j2"}"#), "http://scan.test/jobs/j2": done,
+                       "http://scan.test/jobs/j2/result": ScanSupport.result("j2", [(2, "E")]), "DELETE http://scan.test/jobs/j2": ScanSupport.answer(204, "")])
 
         // While the job runs the player corrects a note and the screen saves the file: that correction stays.
-        let again = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(ready: { (try? self.correctFirstNote(url)) != nil }), again: [2], read: read.read, session: StubAPI.session(), isOpen: { false })
+        let again = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(ready: { (try? ScanSupport.change(url, "corrections.change", #"{"bar": 1, "id": "n_0001", "pitch": 1}"#)) != nil }), again: [2], read: read.read, session: StubAPI.session(), isOpen: { false })
 
         guard case .success(let inserted) = again else { return XCTFail("again: \(again)") }
         XCTAssertEqual(inserted.unread, [], "page 2 is read now")
@@ -361,17 +319,17 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertNil(inserted.why)
         let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
         XCTAssertTrue(form.contains("name=\"pages\"\r\n\r\n2\r\n"), "only the page no engine read")
-        XCTAssertEqual(sent("DELETE", "jobs/j2"), 1)
-        XCTAssertEqual(try pitches(url, bar: 1), [61], "the correction saved during the wait is in the notes")
-        XCTAssertEqual(try pitches(url, bar: 2), [64], "bar 2 is page 2's E4")
+        XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j2"), 1)
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 1), [61], "the correction saved during the wait is in the notes")
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [64], "bar 2 is page 2's E4")
     }
 
     func testAPageReadAgainThatNoEngineReadStaysUnreadAndThePieceKeepsItsNotes() async throws {
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("again-\(UUID().uuidString).motiff.json")
         try Data("{}".utf8).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j3"}"#),
-                       "http://scan.test/jobs/j3": answer(200, #"{"id": "j3", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j3/result": job("j3", page: 2, step: nil)])
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j3"}"#),
+                       "http://scan.test/jobs/j3": ScanSupport.answer(200, #"{"id": "j3", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j3/result": ScanSupport.result("j3", [(2, nil)])])
         let outcome = await ScanPageAgain.read([2], read: [1], pages: 2, file: file, pdf: notAPdf, to: target, job: follow(), text: english)
 
         guard case .success(let read) = outcome else { return XCTFail("again: \(outcome)") }
@@ -392,14 +350,16 @@ final class ScanJobsTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("queue-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let url = try pdfPieceFile(in: folder)
-        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": answer(202, #"{"id": "j1"}"#),
-                       "http://scan.test/jobs/j1": answer(200, #"{"id": "j1", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j1/result": result])
+        let url = try ScanSupport.pdfPiece(in: folder)
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j1"}"#),
+                       "http://scan.test/jobs/j1": ScanSupport.answer(200, #"{"id": "j1", "state": "done", "etaSeconds": 0, "pages": []}"#), "http://scan.test/jobs/j1/result": result])
         guard case .success(let first) = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: follow(), session: StubAPI.session(), isOpen: { false }) else {
             return XCTFail("the first read")
         }
-        // The server is gone now: the page read again does not work.
-        StubAPI.reset([:])
+        // «Повторить» with the experiment on: the page goes as a new job, and the server no longer has it when asked.
+        jobsBefore = await ScanSupport.jobsOn()
+        StubAPI.reset(["http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "j2"}"#),
+                       "http://scan.test/jobs/j2": ScanSupport.answer(404, #"{"code": "job", "message": "There is no such scan job."}"#)])
         let queue = RecognitionQueue()
         queue.root = folder
         queue.projects = { folder }
@@ -410,11 +370,13 @@ final class ScanJobsTests: XCTestCase {
         item.read = first.read
         queue.start([item], address: server, hosted: false)
 
-        for _ in 0..<100 where queue.batch?.finished != true || queue.running { try await Task.sleep(nanoseconds: 50_000_000) }
+        try await ScanSupport.wait("the page read again") { queue.batch?.finished == true && !queue.running }
 
+        XCTAssertEqual(ScanSupport.sent("POST", "jobs"), 1, "the page was sent as a job")
         let after = try XCTUnwrap(queue.batch?.items.first)
         XCTAssertEqual(after.state, .done, "the piece keeps its notes, not «не вышло»")
         XCTAssertEqual(after.unread, [2], "the line keeps «Повторить»")
-        XCTAssertFalse((after.reason ?? "").isEmpty, "and says why")
+        XCTAssertEqual(after.reason, "There is no such scan job.", "and says why, in the server's words")
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 1), [60], "the notes as they were")
     }
 }
