@@ -1,4 +1,5 @@
 import os
+import shutil
 import threading
 import time
 from functools import partial
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from app import job_worker
 from app.engines import Engine
 from app.job_store import FolderStore, LeaseLost
 from app.jobs import Jobs, Settings, message_body
@@ -89,6 +91,33 @@ def test_a_unit_whose_worker_died_goes_back_to_the_queue_when_its_lease_runs_out
         jobs.store.delete_message(dead)
 
 
+class WorkerDied(BaseException):
+    """The worker's process ends while the engine reads: no except clause of the worker sees it."""
+
+
+def test_a_page_whose_worker_dies_on_every_try_is_given_up_after_the_last(tmp_path: Path, monkeypatch):
+    clock = Clock()
+    jobs, worker = service(tmp_path, engines(tmp_path), clock, lease_seconds=60)
+    job_id = submit(jobs, tmp_path, 1, chosen=["homr"])
+    read_within = job_worker.unit_process.read_within
+
+    def read_and_die(*args, **kwargs):
+        read_within(*args, **kwargs)
+        raise WorkerDied()
+
+    monkeypatch.setattr(job_worker.unit_process, "read_within", read_and_die)
+    for _ in range(4):
+        with pytest.raises(WorkerDied):
+            worker.step()
+        assert states(jobs, job_id, "homr") == ["reading"]
+        assert not worker.step()  # its lease still holds
+        clock.advance(60)
+    assert worker.step()
+    assert states(jobs, job_id, "homr") == ["not_read"]
+    assert stand_ins.calls(tmp_path / "homr") == ["1"] * 4
+    assert jobs.store.queue_length() == 0
+
+
 def test_a_worker_renews_its_lease_while_it_reads(tmp_path: Path):
     readers = {"homr": Engine("homr", lambda: "0.7.0", partial(stand_ins.reads_slowly, tmp_path / "homr", 1.5))}
     jobs = Jobs(FolderStore(tmp_path / "store"), readers, Settings(lease_seconds=0.6))
@@ -150,6 +179,45 @@ def test_the_supervisor_gives_a_unit_that_lost_its_message_a_new_one(tmp_path: P
     jobs.supervise()
     assert jobs.store.queue_length() == 2
     drain(worker)
+    assert jobs.status(jobs.find(job_id, None))["state"] == "done"
+
+
+def test_a_unit_retried_later_that_lost_its_message_keeps_its_pause(tmp_path: Path):
+    clock = Clock()
+    jobs, worker = service(tmp_path, engines(tmp_path, homr=stand_ins.fails), clock)
+    job_id = submit(jobs, tmp_path, 1, chosen=["homr"])
+    assert worker.step()  # fails: retried after 10 s
+    shutil.rmtree(tmp_path / "store" / "queue")  # the server stopped before its message reached the disk
+    jobs, worker = service(tmp_path, engines(tmp_path, homr=stand_ins.fails), clock)
+    clock.advance(4)
+    jobs.supervise()
+    assert jobs.store.queue_length() == 1
+    clock.advance(5.5)
+    assert not worker.step()
+    clock.advance(0.5)
+    assert worker.step()
+    assert stand_ins.calls(tmp_path / "homr") == ["1", "1"]
+    assert jobs.unit(job_id, 1, "homr").tries == 2
+
+
+def test_the_supervisor_gives_no_second_message_to_a_unit_sent_one_during_its_pass(tmp_path: Path):
+    jobs, worker = service(tmp_path, engines(tmp_path), Clock())
+    job_id = submit(jobs, tmp_path, 1)
+    while (lost := jobs.store.receive(60)) is not None:
+        jobs.store.delete_message(lost)
+    unit, sent = jobs.unit, []
+
+    def a_worker_sends_copisteria_one_meanwhile(job: str, page: int, engine: str):
+        if engine == "copisteria" and not sent:
+            sent.append(engine)
+            jobs.enqueue(job, page, engine, unit(job, page, engine))
+        return unit(job, page, engine)
+
+    jobs.unit = a_worker_sends_copisteria_one_meanwhile
+    jobs.supervise()
+    jobs.unit = unit
+    assert jobs.store.queue_length() == 2  # homr's new message and copisteria's own, no second one
+    assert drain(worker) == 2
     assert jobs.status(jobs.find(job_id, None))["state"] == "done"
 
 

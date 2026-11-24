@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 import os
 import secrets
-import shutil
 import threading
 import time
 from collections.abc import Callable
@@ -74,10 +73,9 @@ class _Queued:
 
 class FolderStore:
     def __init__(self, folder: Path, clock: Callable[[], float] = time.time) -> None:
+        # The folders are made with the first file written in them, so a server that makes no job leaves nothing.
         self._blobs = folder / "blobs"
         self._queue = folder / "queue"
-        self._blobs.mkdir(parents=True, exist_ok=True)
-        self._queue.mkdir(parents=True, exist_ok=True)
         self._clock = clock
         self._lock = threading.Lock()
         self._messages: dict[str, _Queued] = {}
@@ -150,10 +148,19 @@ class FolderStore:
     def delete(self, prefix: str) -> None:
         for name in self.names(prefix):
             self._path(name).unlink(missing_ok=True)
-        # Folders left empty go too, the job's own folder with them.
-        for folder in sorted((path for path in self._blobs.rglob("*") if path.is_dir()), reverse=True):
-            if not any(folder.iterdir()):
-                shutil.rmtree(folder, ignore_errors=True)
+        # The folders under the prefix that are left empty go too, deepest first; os.rmdir leaves one that a writer has
+        # just put a file in, and no folder outside the prefix is touched.
+        parent = prefix.rsplit("/", 1)[0] if "/" in prefix else ""
+        base = self._path(parent) if parent else self._blobs
+        if not base.is_dir():
+            return
+        under = [base, *(path for path in base.rglob("*") if path.is_dir())]
+        for folder in sorted(under, key=lambda path: len(path.parts), reverse=True):
+            if folder != self._blobs and f"{folder.relative_to(self._blobs).as_posix()}/".startswith(prefix):
+                try:
+                    os.rmdir(folder)
+                except OSError:
+                    pass
 
     def names(self, prefix: str) -> list[str]:
         found = (path.relative_to(self._blobs).as_posix() for path in self._blobs.rglob("*") if path.is_file())

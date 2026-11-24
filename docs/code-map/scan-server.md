@@ -27,9 +27,15 @@ Tests: `src/backend/omr/tests`, `python -m pytest` there, with stand-ins for eve
 ## State and rules
 
 - Blob names: `jobs/<id>/job.json`, `pages/<page>.png`, `units/<page>-<engine>.json`, `results/<page>-<engine>.json`,
-  and `engines/<engine>.json` (the measured time). A unit's state is written by the worker holding its message; the
-  supervisor and the breaker write only units nobody holds. A message carries the unit's token; another token is stale.
-- With no message in the queue, every unfinished unit has lost its own: the supervisor requeues it.
+  and `engines/<engine>.json` (the measured time). Writes are last-writer-wins, with no lock between writers.
+- A unit's state is written mostly by the worker holding its message. The supervisor (closing, requeueing) and the
+  breaker (switching an engine off) also write units without holding a message, so they can race with a worker that has
+  just received one (more likely with `JOB_WORKERS` > 1): a reading under way may then end as `read` or `not_read`, or a
+  unit be read twice. What keeps these races harmless is idempotence, not exclusion: a unit has one live message, named
+  by the token in the unit and in the message (a message with another token is dropped), and a repeat writes the same
+  result name. A unit is written `read` only after its result. s-3 can close the races with conditional writes (ETags).
+- The supervisor requeues a unit only while the queue holds no message but those it sent in that pass, and reads the
+  unit again after looking: such a unit has lost its message. It keeps what is left of a retry's pause.
 - A job is deleted 10 minutes after its result is first fetched, on `DELETE`, and 24 hours after it was made.
 - Nothing about the music or the player is logged; a job keeps a hash of the player's id.
 - `/recognise` and `/transcribe` keep nothing after the answer, and stay as they are until the iPad uses jobs.

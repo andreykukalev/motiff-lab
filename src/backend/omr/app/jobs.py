@@ -251,8 +251,7 @@ class Jobs:
         """Deletes the jobs whose time is up and folders left from deleted ones; gives each unit that lost its message
         a new one; closes the units whose engine this server no longer has, and the jobs past their deadline."""
         now = self.clock()
-        # Read first: with no message in the queue, a unit not yet read or given up belongs to none.
-        lost = self.store.queue_length() == 0
+        sent = 0  # messages this pass has sent
         for job_id in sorted({name.split("/")[1] for name in self.store.names("jobs/")}):
             job = self.job(job_id)
             # A job whose time is up before the next pass goes now, so none is kept past its time.
@@ -265,8 +264,14 @@ class Jobs:
                     continue
                 if late or engine not in self.readers:
                     self.write_unit(job_id, page, engine, replace(unit, state=NOT_READ, why="closed" if late else "engine"))
-                elif lost:
-                    self.enqueue(job_id, page, engine, replace(unit, state=WAITING if unit.state == READING else unit.state))
+                elif self.store.queue_length() == sent:
+                    # The queue holds no message but this pass's own, so a unit read unfinished after looking has
+                    # none: it gets one, after the rest of its retry pause.
+                    unit = self.unit(job_id, page, engine)
+                    if unit.state not in FINAL:
+                        pause = max(0.0, unit.retry_at - now) if unit.state == RETRYING and unit.retry_at else 0.0
+                        self.enqueue(job_id, page, engine, replace(unit, state=WAITING if unit.state == READING else unit.state), pause)
+                        sent += 1
 
     def _expired(self, job: Job, now: float) -> bool:
         return now - job.created >= self.settings.keep_seconds or (

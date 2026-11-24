@@ -67,3 +67,22 @@ def test_blobs_are_replaced_listed_and_deleted_by_prefix(tmp_path: Path):
 def test_a_blob_name_stays_inside_the_folder(tmp_path: Path, name: str):
     with pytest.raises(ValueError):
         FolderStore(tmp_path).write(name, b"x")
+
+
+def test_deleting_a_job_leaves_the_folders_of_others_alone(tmp_path: Path):
+    store = FolderStore(tmp_path)
+    store.write("jobs/y/units/001-homr.json", b"1")
+    store.write("jobs/x/job.json", b"{}")
+    # A worker has just made job x's folder for a result and not yet written it.
+    (tmp_path / "blobs" / "jobs" / "x" / "results").mkdir()
+    store.delete("jobs/y/")
+    assert not (tmp_path / "blobs" / "jobs" / "y").exists()
+    assert (tmp_path / "blobs" / "jobs" / "x" / "results").is_dir()
+    assert store.names("jobs/") == ["jobs/x/job.json"]
+
+
+def test_a_store_that_holds_nothing_makes_no_folder(tmp_path: Path):
+    store = FolderStore(tmp_path / "jobs")
+    assert store.queue_length() == 0 and store.names("jobs/") == [] and store.read("jobs/a/job.json") is None
+    store.delete("jobs/a/")
+    assert not (tmp_path / "jobs").exists()
