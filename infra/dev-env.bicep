@@ -1,5 +1,6 @@
 // The develop environment's own servers and data (rg-motifflab-dev): a Consumption-only Container Apps environment
-// for the API and the scan server of develop, a serverless Cosmos DB account with the same database and container as
+// for the API of develop, the scan server's base (scan-base.bicep: its environment, identity and job storage), a
+// serverless Cosmos DB account with the same database and container as
 // the main one, the API's identity with data access to that database only, and a CI identity that may change this
 // group only, signing in from the develop branch. Deployed once by infra/azure/dev-env.ps1; the API and Scan server
 // workflows then deploy api.bicep and scan.bicep here on every push to develop, without approval.
@@ -22,13 +23,22 @@ var contributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 var dataContributorRoleId = '00000000-0000-0000-0000-000000000002' // Cosmos DB Built-in Data Contributor
 var database = 'motifflab'
 
-// Same shape as scan.bicep's: no workloadProfiles (Consumption only), no Log Analytics.
+// Same shape as api.bicep's: no workloadProfiles (Consumption only), no Log Analytics.
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-motifflab-dev'
   location: location
   tags: tags
   properties: {
     zoneRedundant: false
+  }
+}
+
+// The scan server's own environment (4 vCPU and 8 GiB), identity and job storage, with the identity's roles on it.
+module scanBase 'scan-base.bicep' = {
+  name: 'scan-base'
+  params: {
+    location: location
+    branch: 'develop'
   }
 }
 
@@ -155,4 +165,4 @@ output ciClientId string = ci.properties.clientId
 output cosmosEndpoint string = cosmos.properties.documentEndpoint
 // Container Apps with external ingress get <app name>.<default domain>.
 output apiUrl string = 'https://ca-motifflab-api-dev.${environment.properties.defaultDomain}'
-output scanUrl string = 'https://ca-motifflab-scan-dev.${environment.properties.defaultDomain}'
+output scanUrl string = scanBase.outputs.scanUrl

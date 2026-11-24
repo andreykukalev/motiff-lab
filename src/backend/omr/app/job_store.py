@@ -7,8 +7,7 @@ names like `jobs/<id>/units/01-homr.json`; writing a name again replaces it, so 
 
 FolderStore is the player's own computer: the queue in memory, mirrored with the blobs into a folder on disk, so a
 restarted server goes on with the jobs it had. It serves one process. The hosted server puts the same interface on an
-Azure Storage queue and blob container (item s-3): `receive` is Get Messages with a visibility timeout, `renew` is
-Update Message, `delete_message` is Delete Message with its pop receipt, `queue_length` the approximate message count.
+Azure Storage queue and blob container (azure_store.AzureStore), shared by every copy of the server.
 """
 
 from __future__ import annotations
@@ -40,7 +39,8 @@ class Store(Protocol):
         """Puts a message in the queue, to be received no earlier than `delay` seconds from now."""
 
     def receive(self, lease: float) -> Message | None:
-        """The oldest message that may be received now, leased for `lease` seconds; None when there is none."""
+        """A message that may be received now, leased for `lease` seconds; None when there is none. The oldest first in a
+        folder; an Azure queue keeps no strict order."""
 
     def renew(self, message: Message, lease: float) -> Message:
         """Leases the message for `lease` seconds from now; raises LeaseLost when the worker no longer holds it."""
@@ -62,6 +62,9 @@ class Store(Protocol):
 
     def names(self, prefix: str) -> list[str]:
         """The names of the blobs that start with the prefix, in order."""
+
+    def folders(self, prefix: str) -> list[str]:
+        """The folders right under the prefix, each named with its trailing slash ("jobs/<id>/"), in order."""
 
 
 @dataclass(frozen=True)
@@ -165,6 +168,14 @@ class FolderStore:
     def names(self, prefix: str) -> list[str]:
         found = (path.relative_to(self._blobs).as_posix() for path in self._blobs.rglob("*") if path.is_file())
         return sorted(name for name in found if name.startswith(prefix) and not name.endswith(".part"))
+
+    def folders(self, prefix: str) -> list[str]:
+        parent = prefix.rpartition("/")[0]
+        base = self._path(parent) if parent else self._blobs
+        if not base.is_dir():
+            return []
+        named = (f"{parent}/{path.name}/" if parent else f"{path.name}/" for path in base.iterdir() if path.is_dir())
+        return sorted(name for name in named if name.startswith(prefix))
 
     def _path(self, name: str) -> Path:
         parts = name.split("/")

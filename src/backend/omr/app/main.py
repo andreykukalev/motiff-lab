@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, engines, job_store, job_worker, jobs, merge, pages, recognise, transcribe
+from app import auth, azure_store, engines, job_store, job_worker, jobs, merge, pages, recognise, transcribe
 
 # A scanned PDF or photo; the app allows the same 50 MB (Andrei, 2026-10-30).
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
@@ -55,6 +55,17 @@ MIDI_TYPE = "audio/midi"
 JOBS_FOLDER = Path(os.environ.get("JOBS_FOLDER") or Path(tempfile.gettempdir()) / "motiff-scan-jobs")
 
 
+def jobs_store_from_environment() -> job_store.Store:
+    """Hosted, with JOBS_STORAGE_ACCOUNT set, the jobs lie in that Azure Storage account's queue (JOBS_QUEUE) and blob
+    container (JOBS_CONTAINER), signed in as the server's managed identity; otherwise in JOBS_FOLDER."""
+    account = os.environ.get("JOBS_STORAGE_ACCOUNT")
+    if not account:
+        return job_store.FolderStore(JOBS_FOLDER)
+    return azure_store.AzureStore.for_account(
+        account, os.environ.get("JOBS_QUEUE") or "scan-units", os.environ.get("JOBS_CONTAINER") or "scan-jobs"
+    )
+
+
 def _verifier_from_environment() -> Callable[[str | None, str | None], str] | None:
     """Hosted (0014), a page is read only for a signed-in Pro player; on the player's own computer, for anyone."""
     authority, audience = os.environ.get("AUTH_AUTHORITY"), os.environ.get("AUTH_AUDIENCE")
@@ -72,7 +83,8 @@ def create_app(
     job_settings: jobs.Settings | None = None,
 ) -> FastAPI:
     """other_engines: the engines besides homr (recognise_page), by default those installed (engines.others).
-    jobs_store and job_settings: where scan jobs lie and how they are worked, by default a folder (JOBS_FOLDER)."""
+    jobs_store and job_settings: where scan jobs lie and how they are worked, by default as the environment says
+    (jobs_store_from_environment)."""
     readers = {
         engine.name: engine
         for engine in [
@@ -81,7 +93,7 @@ def create_app(
         ]
     }
     settings = job_settings or jobs.Settings.from_environment(len(readers))
-    work = jobs.Jobs(jobs_store or job_store.FolderStore(JOBS_FOLDER), readers, settings)
+    work = jobs.Jobs(jobs_store or jobs_store_from_environment(), readers, settings)
     runner = job_worker.Runner(work)
 
     @asynccontextmanager

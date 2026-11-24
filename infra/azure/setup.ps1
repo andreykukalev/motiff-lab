@@ -11,7 +11,8 @@
     2. the resource group rg-motifflab (Poland Central) with the CI identity id-motifflab-github (infra/bootstrap.bicep,
        Contributor on that group only), the API's identity id-motifflab-api (data access to the motifflab database only)
        and the web app's Static Web App swa-motifflab (infra/main.bicep, Free plan, East US 2), so everything Motiff Lab
-       runs is in one group and CI deploys all of it as one identity;
+       runs is in one group and CI deploys all of it as one identity; and the scan server's base (infra/scan-base.bicep:
+       its environment, identity and job storage, with the identity's roles on that storage);
     3. the sign-in tenant, Microsoft Entra External ID (free up to 50,000 monthly users), linked to rg-motifflab, with the
        app registrations Motiff Lab API (scopes Projects.ReadWrite and Scan) and Motiff Lab (the web app, and the iPad app
        on its iOS redirect), and a sign-up and sign-in flow by email code. Google and Apple are added later, by hand (infra/README.md);
@@ -228,6 +229,11 @@ if ($assigned.Count -eq 0) {
     '--role-definition-id', $DataContributor, '--principal-id', $principal, '--scope', "/dbs/$Database", '-o', 'none') + $ArmArgs) | Out-Null
 }
 Write-MotiffInfo "$ApiIdentity may read and write the database $Database, and nothing else in $CosmosAccount."
+# The scan server's environment, identity and job storage, with the identity's roles on it: roles the CI identity,
+# a Contributor, may not give (infra/scan-base.bicep, decision record 0035).
+Invoke-MotiffAz (@('deployment', 'group', 'create', '--resource-group', $ResourceGroup, '--name', 'scan-base',
+  '--template-file', (Join-Path (Join-Path (Get-MotiffRepoRoot) 'infra') 'scan-base.bicep'), '-o', 'none') + $ArmArgs) | Out-Null
+Write-MotiffInfo 'Scan server base: cae-motifflab-scan, id-motifflab-scan and its job storage'
 Set-RepoVariable 'AZURE_SERVICES_CLIENT_ID' $ciClientId
 Set-RepoVariable 'AZURE_SERVICES_TENANT_ID' $homeTenant
 Set-RepoVariable 'AZURE_SERVICES_SUBSCRIPTION_ID' $subscriptionId

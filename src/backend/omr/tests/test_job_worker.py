@@ -221,6 +221,17 @@ def test_the_supervisor_gives_no_second_message_to_a_unit_sent_one_during_its_pa
     assert jobs.status(jobs.find(job_id, None))["state"] == "done"
 
 
+def test_the_supervisor_asks_a_busy_queue_its_length_once_a_job(tmp_path: Path):
+    jobs, _ = service(tmp_path, engines(tmp_path), Clock())
+    submit(jobs, tmp_path, 2)
+    submit(jobs, tmp_path, 1)
+    length, asked = jobs.store.queue_length, []
+    jobs.store.queue_length = lambda: asked.append(1) or length()
+    jobs.supervise()
+    assert len(asked) == 2  # two jobs of four and two waiting units, their messages in the queue
+    assert length() == 6
+
+
 def test_the_supervisor_closes_a_job_past_its_deadline_with_what_was_read(tmp_path: Path):
     clock = Clock()
     jobs, worker = service(tmp_path, engines(tmp_path), clock, deadline_seconds=3600)
