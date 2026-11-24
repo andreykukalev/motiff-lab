@@ -134,6 +134,7 @@
     { "name": "resume.rename", "on": ["piece"] },
     { "name": "resume.save", "on": ["piece"] },
     { "name": "roll", "on": ["piece"] },
+    { "name": "scan.insert", "on": ["piece0"] },
     { "name": "scan.join", "on": ["piece0"] },
     { "name": "scan.vector", "on": ["piece0"] },
     { "name": "select", "on": ["piece"] },

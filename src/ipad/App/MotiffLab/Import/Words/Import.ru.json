@@ -269,6 +269,7 @@
   "recognition.unreadPage": "стр. {0} не распознана",
   "recognition.unreadPages": "стр. {0} не распознаны",
   "recognition.retry": "Повторить",
+  "recognition.retryPagesHint": "Отправит снова только эти страницы и вставит их в эти же ноты",
   "scanJob.page": "Страница {0}",
   "scanJob.engine": "{0}: {1}",
   "scanJob.state.waiting": "ждёт",

@@ -259,6 +259,7 @@
   "recognition.unreadPage": "page {0} not recognised",
   "recognition.unreadPages": "pages {0} not recognised",
   "recognition.retry": "Try again",
+  "recognition.retryPagesHint": "Sends only these pages again and puts them into these notes",
   "scanJob.page": "Page {0}",
   "scanJob.engine": "{0}: {1}",
   "scanJob.state.waiting": "waiting",

@@ -34,7 +34,9 @@ public sealed partial class MusicCoreFacade
     /// Also within 14 (v1.3 i-2, ADR 0035 section 6): scan.join answers "fingerprint" (the score as its Notes keep it) and a
     /// merged bar to check its "variants" (the engines' other readings of its staves to check) and "crop" (its box on the page
     /// image); check answers "fingerprint", the working notes' music; corrections.variant puts a variant in that bar as the
-    /// player's corrections, one group undone whole by corrections.undoDraft; fields and a call added.
+    /// player's corrections, one group undone whole by corrections.undoDraft; fields and a call added. Also within 14 (v1.3
+    /// i-1b, Andrei 2026-11-24): scan.insert puts a page no engine read, read again by itself, into the same Notes of a project
+    /// file, the player's corrections carried over and the bars after it numbered on; a call added.
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
     /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
     /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they
@@ -194,6 +196,7 @@ public sealed partial class MusicCoreFacade
                     "recording.parts" => RecordingPartsOf(fields),
                     _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
                     "scan.join" => ScanRequest.Join(fields),
+                    "scan.insert" => ScanRequest.Insert(fields),
                     "scan.vector" => ScanRequest.Vector(fields),
                     "assistant.tools" => AssistantRequest.Tools(),
                     "parts.split" => PartsRequest.Split(fields),
