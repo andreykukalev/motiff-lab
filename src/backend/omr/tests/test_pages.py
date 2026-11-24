@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from app import pages
@@ -52,3 +53,17 @@ def test_only_text_and_lines_make_a_page_drawn():
     drawn = pdfium.PdfDocument(pdf_of(score_page(), drawn=True))
     assert not pages.drawn(scanned[0])
     assert pages.drawn(drawn[0])
+
+
+def test_the_pages_chosen_are_written_with_their_own_numbers(tmp_path: Path):
+    from tests.test_app import pdf, png
+
+    written = pages.write_pages(pages.sniff(pdf(3)), tmp_path, 1, [2])
+    assert [page.path.name for page in written] == ["page-02.png"]
+    for upload, numbers, reason in [
+        (pdf(3), [4], "only pages 1 to 3"),
+        (pdf(3), [1, 2], "Scanning reads up to 1 pages"),
+        (png(), [2], "A photo has one page"),
+    ]:
+        with pytest.raises(pages.PageError, match=reason):
+            pages.write_pages(pages.sniff(upload), tmp_path, 1, numbers)

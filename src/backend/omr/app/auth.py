@@ -5,7 +5,7 @@ Microsoft Entra External ID tenant and the Motiff Lab API, and a page is read on
 whose access token carries the Scan scope and whose plan is Pro (decision record 0018, section 12): the
 API's app role Pro, or a tester's choice in the Motiff-Plan header. The rule and its names are the same as
 MotiffLab.MusicCore.Accounts.Plans. The token is checked against the tenant's published keys; nothing
-about the player is kept or logged.
+about the player is logged. A scan job keeps only a hash of the player's id, to answer that player alone (jobs.py).
 """
 
 from __future__ import annotations
@@ -74,7 +74,8 @@ class TokenVerifier:
                 raise AuthError("The sign-in is not valid. Sign in again.")
             return self._keys[kid]
 
-    def verify(self, authorization: str | None, choice: str | None = None) -> None:
+    def verify(self, authorization: str | None, choice: str | None = None) -> str:
+        """The signed-in player's id (the token's oid), when the token may scan; otherwise AuthError or NotProError."""
         if not authorization or not authorization.startswith("Bearer "):
             raise AuthError("Sign in to have Motiff Lab's server read your music.")
         token = authorization.removeprefix("Bearer ").strip()
@@ -94,3 +95,4 @@ class TokenVerifier:
             raise AuthError("This sign-in does not allow reading music on this server.")
         if not is_pro(claims, choice):
             raise NotProError("Reading music on Motiff Lab's server is part of Pro.")
+        return str(claims["oid"])

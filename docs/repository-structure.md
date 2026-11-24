@@ -53,7 +53,7 @@ motiff-lab/
 | --- | --- |
 | Analysis, notes, rules, a facade function | `src/backend/MotiffLab.MusicCore` (`docs/code-map/core.md`), its tests in `tests/backend/Unit` |
 | An API endpoint | `src/backend/MotiffLab.Api`, its tests in `tests/backend/Integration` |
-| The scan server's code | `src/backend/omr`, its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
+| The scan server's code | `src/backend/omr` (`docs/code-map/scan-server.md`), its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
 | An iPad screen or controller | its feature folder in `src/ipad/App/MotiffLab` (`docs/code-map/ipad.md`), its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |
 | Score, roll, layout, storage or playback behaviour the score page runs | `src/shared/Scripts`, its tests in `tests/shared` |
 | What a player does on the score or roll page, pressed as on the iPad | A scenario in `tests/contracts/page-scenarios` (its README), replayed by `tests/pages` in Chromium and by `tests/ipad` in WebKit |
