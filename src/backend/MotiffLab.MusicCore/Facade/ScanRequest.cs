@@ -14,7 +14,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// doubtful once the scan server's page reports count (<see cref="ScanCheck.Of(ImportedPiece, IReadOnlyList{PageReport})"/>).
 /// Nothing is kept: the app opens the score as any scan, and the reports are not saved. Within contract 14 (version 1.3,
 /// ADR 0035 section 5), a page of "pages" may be its readings by several engines, merged staff by staff (<see cref="ScanMerge"/>),
-/// and such a page answers "merge"; a form and a field added.
+/// and such a page answers "merge"; a form and a field added. Also within 14 (c-1b): such a page may come with the page's
+/// evidence, {"readings", "evidence"}; a form added, the answer as before.
 /// </summary>
 internal static class ScanRequest
 {
@@ -23,9 +24,10 @@ internal static class ScanRequest
     /// again, and "reports" (optional): one per page in order, each the X-Page-Report header as text, its list or one of
     /// its objects → {"score": the joined MusicXML, "pages": [{"page", "bars", "doubtful", "quality": "good", "weak",
     /// "poor" or null without reports}]}. "doubtful" counts the bars below the 0.6 a hint needs: flagged, or on a weak page.
-    /// A page of "pages" may instead be a list of its readings, [{"engine", "musicxml"}]: they are merged (<see cref="ScanMerge"/>)
-    /// and the page answers "merge": {"engines": [as sent, in the merge's order], "bars": [{"bar", "level": "sure", "probable"
-    /// or "check", "staves": [{"part", "staff", "engines"}]}]}, one per bar of the page in order.
+    /// A page of "pages" may instead be a list of its readings, [{"engine", "musicxml"}], or {"readings": that list, "evidence":
+    /// the page's evidence from the scan server}: they are merged (<see cref="ScanMerge"/>, the evidence settling the staves
+    /// no two engines agree on) and the page answers "merge": {"engines": [as sent, in the merge's order], "bars": [{"bar",
+    /// "level": "sure", "probable" or "check", "staves": [{"part", "staff", "engines"}]}]}, one per bar of the page in order.
     /// </summary>
     public static string Join(Request fields)
     {
@@ -206,7 +208,10 @@ internal static class ScanRequest
         }
     }
 
-    /// <summary>One page of "pages": its MusicXML, or its readings [{"engine", "musicxml"}] merged.</summary>
+    /// <summary>
+    /// One page of "pages": its MusicXML, or its readings [{"engine", "musicxml"}] merged, or {"readings": those, "evidence":
+    /// the page's evidence as the scan server gives it (optional)} merged with the evidence (<see cref="ScanEvidence"/>).
+    /// </summary>
     private static byte[] Page(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged)
     {
         if (page.ValueKind == JsonValueKind.String)
@@ -214,14 +219,19 @@ internal static class ScanRequest
             return Encoding.UTF8.GetBytes(page.GetString()!);
         }
 
-        if (page.ValueKind != JsonValueKind.Array)
+        Request? sent = page.ValueKind == JsonValueKind.Object ? Request.Of(page) : null;
+        JsonElement? evidence = sent?.Element("evidence");
+        JsonElement listed = sent?.Element("readings") ?? page;
+        if (listed.ValueKind != JsonValueKind.Array)
         {
-            throw FacadeException.BadRequest("Each of \"pages\" is a page's MusicXML or a list of its readings, {\"engine\", \"musicxml\"}.");
+            throw FacadeException.BadRequest("Each of \"pages\" is a page's MusicXML, a list of its readings, {\"engine\", \"musicxml\"}, or {\"readings\", \"evidence\"}.");
         }
 
-        List<ScanReading> readings = [.. page.EnumerateArray().Select(Request.Of)
+        List<ScanReading> readings = [.. listed.EnumerateArray().Select(Request.Of)
             .Select(reading => new ScanReading(reading.Required("engine"), Encoding.UTF8.GetBytes(reading.Required("musicxml"))))];
-        ScanMergedPage merge = ScanMerge.Merge(readings.Count > 0 ? readings : throw FacadeException.BadRequest($"Page {number} has no reading."));
+        ScanMergedPage merge = ScanMerge.Merge(
+            readings.Count > 0 ? readings : throw FacadeException.BadRequest($"Page {number} has no reading."),
+            evidence is { } found ? ScanEvidence.Parse(found.GetRawText()) : null);
         merged[number] = merge;
         return merge.MusicXml;
     }

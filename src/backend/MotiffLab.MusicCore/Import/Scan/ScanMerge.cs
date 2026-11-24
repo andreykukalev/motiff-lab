@@ -39,8 +39,11 @@ public sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engin
 /// is repaired first (<see cref="ScanRepair"/> with the rules for a reading). The bars of the readings are paired by
 /// alignment on their notes, so an engine that lost or split a bar still pairs the rest. For each staff of each bar, the
 /// reading two or more engines agree on is taken (the notes: onset in the bar, pitch and length; rests and grace notes are
-/// not compared); without one, or with two such readings, the one that adds up, then the first engine in
-/// <see cref="EngineOrder"/>. No bar is ever taken from another bar of the piece.
+/// not compared). Without one, or with two such readings, the page's evidence settles it when it is sent (c-1b): the
+/// reading that agrees with music-core's own assembly of that staff from the detected symbols (<see cref="ScanAssembly"/>),
+/// else, among those that add up, the one whose heads agree best with the heads found on the page; without evidence, or
+/// where neither tells, the one that adds up, then the first engine in <see cref="EngineOrder"/>. The assembly only
+/// referees: it is never written in place of a reading. No bar is ever taken from another bar of the piece.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -71,11 +74,12 @@ public static partial class ScanMerge
     private const double UnpairedBar = 0.6;
 
     /// <summary>
-    /// The readings of one page merged staff by staff. A reading that is not partwise MusicXML with bars is left out, as an
-    /// engine that did not read the page (spec 2а): the page merges on the rest.
+    /// The readings of one page merged staff by staff, with the page's evidence when the scan server gave one. A reading
+    /// that is not partwise MusicXML with bars is left out, as an engine that did not read the page (spec 2а): the page
+    /// merges on the rest.
     /// </summary>
     /// <exception cref="ArgumentException">No reading of the page is partwise MusicXML with bars.</exception>
-    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings)
+    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence = null)
     {
         ArgumentNullException.ThrowIfNull(readings);
         List<Reading> ordered = [.. readings.Select((reading, index) => Reading.Of(reading, index)).OfType<Reading>().OrderBy(reading => reading.Rank)];
@@ -89,6 +93,7 @@ public static partial class ScanMerge
             .Where(reading => reading.Import.Parts.Count == backbone.Import.Parts.Count)
             .Select(reading => (reading, reading == backbone ? [.. Enumerable.Range(0, backbone.Measures).Select(i => (int?)i)] : Align(backbone, reading)))];
 
+        Page? page = Page.Of(evidence, backbone);
         var bars = new List<ScanMergedBar>(backbone.Measures);
         var taken = new List<Choice>();
         for (int measure = 0; measure < backbone.Measures; measure++)
@@ -100,7 +105,7 @@ public static partial class ScanMerge
             int fewest = int.MaxValue;
             foreach ((int part, int staff) in backbone.Staves())
             {
-                Choice choice = Vote(candidates, measure, part, staff, backbone);
+                Choice choice = Vote(candidates, measure, part, staff, backbone, page);
                 taken.Add(choice);
                 staves.Add(new ScanStaffSource(part + 1, staff, [.. choice.Agreeing.Select(reading => reading.Engine)]));
                 fewest = Math.Min(fewest, choice.Agreeing.Count);
@@ -111,6 +116,7 @@ public static partial class ScanMerge
 
         XElement root = Written(backbone, taken, bars);
         ScanRepair.Say(root, $"Motiff Lab scan merge: each staff of each bar from the reading most of {string.Join(", ", ordered.Select(reading => reading.Engine))} agree on; "
+            + (page is null ? "" : "without agreement, the reading the page's symbols agree with; ")
             + $"{bars.Count(bar => bar.Level == ScanLevel.Check)} of {bars.Count} bars to check.");
         byte[] bytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n" + root.ToString(SaveOptions.DisableFormatting));
         return new ScanMergedPage(bytes, [.. ordered.Select(reading => reading.Engine)], bars);
@@ -134,16 +140,16 @@ public static partial class ScanMerge
 
     /// <summary>
     /// The staff of the bar from the candidates (in the merge's order): the notes the most of them read, when two or more
-    /// do and no other notes as many; else, among those read most often, the first that adds up, then the first.
+    /// do and no other notes as many; else, among those read most often, the one the page settles (<see cref="Settled"/>).
     /// </summary>
-    private static Choice Vote(List<(Reading Reading, int Measure)> candidates, int backboneMeasure, int part, int staff, Reading backbone)
+    private static Choice Vote(List<(Reading Reading, int Measure)> candidates, int backboneMeasure, int part, int staff, Reading backbone, Page? page)
     {
         List<List<(Reading Reading, int Measure)>> groups = [.. candidates.GroupBy(candidate => candidate.Reading.Content(candidate.Measure, part, staff), StringComparer.Ordinal).Select(group => group.ToList())];
         int most = groups.Max(group => group.Count);
         List<List<(Reading Reading, int Measure)>> best = [.. groups.Where(group => group.Count == most)];
         List<(Reading Reading, int Measure)> chosen = best.Count == 1 && most >= AgreeingEngines
             ? best[0]
-            : best.FirstOrDefault(group => group.Any(candidate => candidate.Reading.AddsUp(candidate.Measure, part, staff))) ?? best[0];
+            : Settled(best, backboneMeasure, part, staff, page);
         (Reading Reading, int Measure)[] own = [.. chosen.Where(candidate => candidate.Reading == backbone)];
         (Reading Reading, int Measure) source = own.Length > 0 ? own[0] : chosen.FirstOrDefault(candidate => candidate.Reading.AddsUp(candidate.Measure, part, staff), chosen[0]);
         return new Choice(backboneMeasure, part, staff, source.Reading, source.Measure, [.. chosen.Select(candidate => candidate.Reading)]);
@@ -153,9 +159,15 @@ public static partial class ScanMerge
     /// The bars of <paramref name="other"/> paired with the backbone's, by global alignment on the notes of each bar (part,
     /// staff, onset in the bar, pitch): null where a backbone bar has no pair.
     /// </summary>
-    private static int?[] Align(Reading backbone, Reading other)
+    private static int?[] Align(Reading backbone, Reading other) =>
+        Align(backbone.Measures, other.Measures, (i, j) => Likeness(backbone.Heads(i), other.Heads(j)));
+
+    /// <summary>
+    /// <paramref name="n"/> bars paired with <paramref name="m"/> others by global alignment: a pair costs one less the bars'
+    /// <paramref name="likeness"/>, a bar left unpaired <see cref="UnpairedBar"/>; null where a bar of the first has no pair.
+    /// </summary>
+    private static int?[] Align(int n, int m, Func<int, int, double> likeness)
     {
-        int n = backbone.Measures, m = other.Measures;
         var cost = new double[n + 1, m + 1];
         var step = new int[n + 1, m + 1];
         for (int i = 1; i <= n; i++)
@@ -174,7 +186,7 @@ public static partial class ScanMerge
             {
                 (double Cost, int Step)[] ways =
                 [
-                    (cost[i - 1, j - 1] + 1 - Likeness(backbone.Heads(i - 1), other.Heads(j - 1)), 0),
+                    (cost[i - 1, j - 1] + 1 - likeness(i - 1, j - 1), 0),
                     (cost[i - 1, j] + UnpairedBar, 1),
                     (cost[i, j - 1] + UnpairedBar, 2),
                 ];
@@ -202,6 +214,10 @@ public static partial class ScanMerge
         return pairs;
     }
 
+    /// <summary>Notes as the merge compares them: (onset in the bar, pitch, length within the bar) in ticks, in order, as text.</summary>
+    private static string ContentOf(IEnumerable<(long Onset, int Pitch, long Length)> notes) =>
+        string.Join(";", notes.Order().Select(note => string.Create(CultureInfo.InvariantCulture, $"{note.Onset}:{note.Pitch}:{note.Length}")));
+
     /// <summary>How alike two bars' notes are: those in common over the more of them; two empty bars are alike.</summary>
     private static double Likeness(Dictionary<string, int> a, Dictionary<string, int> b)
     {
@@ -213,7 +229,7 @@ public static partial class ScanMerge
     private sealed record Choice(int Measure, int Part, int Staff, Reading Source, int SourceMeasure, IReadOnlyList<Reading> Agreeing);
 
     /// <summary>One engine's reading, repaired, as XML (each part's bars) and as imported notes.</summary>
-    private sealed class Reading
+    internal sealed partial class Reading
     {
         private readonly ILookup<(int Measure, int Track, int Staff), MusicXmlNote> _notes;
         private readonly Dictionary<string, int>[] _heads;
@@ -257,10 +273,8 @@ public static partial class ScanMerge
         public string Content(int measure, int part, int staff)
         {
             TickSpan bar = Import.Measures[measure].Span;
-            return string.Join(";", _notes[(measure, part, staff)]
-                .Select(note => (Onset: note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Length: Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value))
-                .Order()
-                .Select(note => string.Create(CultureInfo.InvariantCulture, $"{note.Onset}:{note.Pitch}:{note.Length}")));
+            return ContentOf(_notes[(measure, part, staff)]
+                .Select(note => (note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value)));
         }
 
         /// <summary>Whether one staff of a bar adds up to the meter in force there (<see cref="ScanRepair.AddsUp"/>).</summary>
@@ -272,9 +286,11 @@ public static partial class ScanMerge
             }
 
             ScanRepair.Bar bar = Parts[part][measure];
-            long ticks = Import.Meter.SignatureAt(Import.Measures[measure].Span.Onset).BarTicks;
-            return ScanRepair.AddsUp(bar, new QuarterFraction(ticks, CanonicalTime.TicksPerQuarter), bar.Onsets, staff);
+            return ScanRepair.AddsUp(bar, new QuarterFraction(BarTicks(measure), CanonicalTime.TicksPerQuarter), bar.Onsets, staff);
         }
+
+        /// <summary>How long a bar is by the meter in force there, in ticks.</summary>
+        public long BarTicks(int measure) => Import.Meter.SignatureAt(Import.Measures[measure].Span.Onset).BarTicks;
 
         /// <summary>The notes of a bar as counted for alignment: how many of each part, staff, onset in the bar and pitch.</summary>
         public Dictionary<string, int> Heads(int measure) => _heads[measure];
