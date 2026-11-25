@@ -72,17 +72,11 @@ final class StubAPI: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
         }
-        let client = client
-        let deliver = {
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: answer.body)
-            client?.urlProtocolDidFinishLoading(self)
-        }
-        if answer.delay > 0 {
-            DispatchQueue.global().asyncAfter(deadline: .now() + answer.delay, execute: deliver)
-        } else {
-            deliver()
-        }
+        // Waited on the loading thread, which the answer must come from.
+        if answer.delay > 0 { Thread.sleep(forTimeInterval: answer.delay) }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: answer.body)
+        client?.urlProtocolDidFinishLoading(self)
     }
 
     override func stopLoading() {}
