@@ -7,7 +7,6 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 
 namespace MotiffLab.MusicCore.Projects.File;
 
@@ -52,9 +51,9 @@ internal static class OriginCodec
             json.WriteNumber("origin", bars.Origin.Value);
             json.WriteNumber("sixteenthMicroseconds", bars.SixteenthMicroseconds);
             json.WriteString("signature", bars.Signature.ToString());
-            WriteNumbers(json, "barStarts", bars.BarStarts.Select(static start => (long)start));
+            JsonWrite.Numbers(json, "barStarts", bars.BarStarts);
             json.WriteNumber("stepsPerBeat", bars.StepsPerBeat);
-            WriteNumbers(json, "beats", bars.Beats);
+            JsonWrite.Numbers(json, "beats", bars.Beats);
             WriteMeters(json, bars);
             json.WriteEndObject();
         }
@@ -65,7 +64,7 @@ internal static class OriginCodec
 
         if (heard.Seams.Count > 0)
         {
-            WriteNumbers(json, "seams", heard.Seams);
+            JsonWrite.Numbers(json, "seams", heard.Seams);
         }
 
         WriteSentFrom(json, heard);

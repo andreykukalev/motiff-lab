@@ -304,7 +304,7 @@ internal static class DraftRequest
 
         if (DraftBridges.KindOf(variant) is { } bridge)
         {
-            json.WriteString("bridge", Answer.Camel(bridge));
+            json.WriteString("bridge", JsonWrite.Name(bridge));
             json.WriteString("explanation", DraftBridges.Explanation(variant, words));
         }
     }
@@ -358,7 +358,7 @@ internal static class DraftRequest
             json =>
             {
                 Added(json, draft.Id, place, variant);
-                Answer.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
+                JsonWrite.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
                 more?.Invoke(json);
             });
         owner.KeepDraftBefore(draft);

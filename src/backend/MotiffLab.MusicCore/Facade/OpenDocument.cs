@@ -30,7 +30,7 @@ internal sealed class OpenDocument
     {
         if (PdfDocument.CheckSize(pdf.Length) is { } rejection)
         {
-            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
+            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = JsonWrite.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
         if (photos is < 1)
@@ -175,24 +175,7 @@ internal sealed class OpenDocument
         json.WriteStartArray("ink");
         foreach (InkStroke stroke in marks.Ink)
         {
-            json.WriteStartObject();
-            json.WriteString("id", stroke.Id);
-            json.WriteString("tool", Answer.Name(stroke.Tool));
-            json.WriteString("colour", Answer.Name(stroke.Colour));
-            json.WriteNumber("size", stroke.Size);
-            json.WriteNumber("page", stroke.Bar.Value);
-            json.WriteNumber("u", stroke.U);
-            json.WriteNumber("v", stroke.V);
-            json.WriteStartArray("points");
-            foreach (double value in stroke.Points)
-            {
-                json.WriteNumberValue(value);
-            }
-
-            json.WriteEndArray();
-            json.WriteNumber("pressure", stroke.Pressure);
-            Answer.Margin(json, stroke.Margin);
-            json.WriteEndObject();
+            ProjectFile.WriteStroke(json, stroke, static (writer, ink) => writer.WriteNumber("page", ink.Bar.Value));
         }
 
         json.WriteEndArray();

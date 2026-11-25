@@ -120,7 +120,7 @@ internal static partial class ReferenceRequest
             Choices(json, "textures", texture, "texture");
             Choices(json, "spacings", spacing, "spacing");
             json.WriteNumber("tempo", tempo);
-            Answer.Numbers(json, "tempoChoices", HarmonyExplorer.Tempos);
+            JsonWrite.Numbers(json, "tempoChoices", HarmonyExplorer.Tempos);
         });
     }
 
@@ -162,11 +162,11 @@ internal static partial class ReferenceRequest
         json.WriteStartArray(offered);
         foreach (T value in Enum.GetValues<T>())
         {
-            json.WriteStringValue(Answer.Name(value));
+            json.WriteStringValue(JsonWrite.Name(value));
         }
 
         json.WriteEndArray();
-        json.WriteString(name, Answer.Name(chosen));
+        json.WriteString(name, JsonWrite.Name(chosen));
     }
 
     private static void ExplorerKey(Utf8JsonWriter json, string? name, MusicalKey key, Words words)
@@ -227,7 +227,7 @@ internal static partial class ReferenceRequest
             json.WriteNumber("inversion", bar.Inversion);
             json.WriteString("figure", bar.Figure);
             json.WriteString("symbol", bar.Symbol);
-            Answer.Numbers(json, "pitches", sounding[index].Distinct().Order());
+            JsonWrite.Numbers(json, "pitches", sounding[index].Distinct().Order());
             json.WriteEndObject();
         }
 

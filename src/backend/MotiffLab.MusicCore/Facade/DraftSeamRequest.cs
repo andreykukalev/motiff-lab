@@ -163,7 +163,7 @@ internal static class DraftSeamRequest
         json.WriteString("place", side.Place);
         json.WriteNumber("number", side.Index + 1);
         json.WriteString("variant", side.Base.Id);
-        json.WriteString("source", Answer.Camel(DraftLabels.Kind(side.Base)));
+        json.WriteString("source", JsonWrite.Name(DraftLabels.Kind(side.Base)));
         if (side.Key is { } key)
         {
             json.WriteStartObject("key");

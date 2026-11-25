@@ -42,10 +42,12 @@ through the facade; the API references it.
 - `Assistant` (its tools; the digest `FactsDigest`, `.Piece`, `.Draft`; the template's `NearestFacts`; `.Drafts`, in a
   draft: `DraftScope`, `DraftTools`, `DraftProposal`), `Analytics`
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
-  `Words.cs`: the sentences in both languages.
+  `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); phrases: `OpenPiece.Phrases`,
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
+  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
+  stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
   `Draft*Request`, `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
   `DraftAssistantRequest`), `ShownView`.
@@ -72,6 +74,8 @@ type as text). Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`, `Playb
 `Notation`…), `Projects`, `Assistant`, `Facade`; kept by `dependencies` (`CORE_LAYERS`), which counts a sub-namespace
 as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFact`, `ReadKey`; `MotifAnalyzer`,
 `FormAnalyzer`, `PieceDna`).
+The root's classes (`Words`, `JsonWrite`) are called by their name, never through `using static`, which the check
+reads as a namespace.
 
 ## Rules not to break
 

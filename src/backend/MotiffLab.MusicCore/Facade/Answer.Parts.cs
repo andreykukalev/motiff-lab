@@ -67,15 +67,6 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    /// <summary>"margin": "left" or "right" on a stroke begun in a line's margin; left out for a stroke in its bar, as the file does.</summary>
-    public static void Margin(Utf8JsonWriter json, StrokeMargin? margin)
-    {
-        if (margin is { } side)
-        {
-            json.WriteString("margin", Name(side));
-        }
-    }
-
     /// <summary>
     /// "pages": the pages of a scan the server reported on (<see cref="ScanCheck.Pages"/>), each {"page" (from 1, in the
     /// notes' order), "quality" ("good", "weak" or "poor"), "rotation" (degrees the server turned it), "bars" (how many were
@@ -89,7 +80,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteNumber("page", page.Page);
-            json.WriteString("quality", Name(page.Quality));
+            json.WriteString("quality", JsonWrite.Name(page.Quality));
             json.WriteNumber("rotation", page.Report.Rotation);
             json.WriteNumber("bars", page.Bars.Count);
             json.WriteNumber("doubtful", page.DoubtfulOf(confirmedBars));

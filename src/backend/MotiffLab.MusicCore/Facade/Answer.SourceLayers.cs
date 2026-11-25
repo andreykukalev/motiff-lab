@@ -51,7 +51,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteString("id", view.Id);
-            json.WriteString("kind", Camel(view.Kind));
+            json.WriteString("kind", JsonWrite.Name(view.Kind));
             OptionalText(json, "group", view.Group);
             json.WriteBoolean("working", view.Working);
             json.WriteBoolean("hidden", view.Hidden);
@@ -102,7 +102,7 @@ internal static partial class Answer
         json.WriteString("shown", original.Shown);
         json.WriteString("fileName", original.FileName);
         OptionalText(json, "name", original.Name);
-        json.WriteString("state", Camel(source.State));
+        json.WriteString("state", JsonWrite.Name(source.State));
         OptionalText(json, "removedAt", source.RemovedAt?.ToString("O", CultureInfo.InvariantCulture));
         json.WriteString("kept", original.Kept.ToString().ToLowerInvariant());
         OptionalNumber(json, "pages", original.Pages);
@@ -123,24 +123,16 @@ internal static partial class Answer
     {
         json.WriteStartObject();
         json.WriteString("id", notes.Id);
-        json.WriteString("role", Camel(notes.Role));
+        json.WriteString("role", JsonWrite.Name(notes.Role));
         OptionalText(json, "name", notes.Name);
         json.WriteString("op", notes.Provenance.Op);
         OptionalText(json, "engine", notes.Provenance.Engine);
         OptionalText(json, "at", notes.Provenance.At?.ToString("O", CultureInfo.InvariantCulture));
         OptionalText(json, "original", notes.Original);
-        OptionalText(json, "state", notes.State is { } state ? Camel(state) : null);
+        OptionalText(json, "state", notes.State is { } state ? JsonWrite.Name(state) : null);
         json.WriteNumber("edits", notes.Edits);
         json.WriteNumber("taken", notes.Taken);
         json.WriteBoolean("hidden", notes.Hidden);
         json.WriteEndObject();
-    }
-
-    /// <summary>An enum's name in lower camel case, as the facade's answers name values.</summary>
-    internal static string Camel<T>(T value)
-        where T : struct, Enum
-    {
-        string name = value.ToString();
-        return string.Concat(char.ToLowerInvariant(name[0]).ToString(), name.AsSpan(1));
     }
 }

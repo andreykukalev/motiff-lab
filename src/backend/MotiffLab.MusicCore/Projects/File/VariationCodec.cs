@@ -30,7 +30,7 @@ internal static class VariationCodec
             json.WriteString("kind", motif.Kind.ToString());
             json.WriteString("mode", motif.Mode.ToString());
             WriteRange(json, motif.Span, motif.Filter);
-            WriteNoteIds(json, motif.NoteIds);
+            JsonWrite.Texts(json, "noteIds", motif.NoteIds);
             if (motif.Notes is { } notes)
             {
                 json.WriteString("notes", notes);

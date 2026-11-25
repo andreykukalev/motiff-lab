@@ -4,7 +4,6 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Pieces;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
 namespace MotiffLab.MusicCore.Projects.File;
@@ -69,12 +68,12 @@ internal static class ProvenanceCodec
 
         if (source.Pages is var (first, last))
         {
-            WriteNumbers(json, "pages", [first, last]);
+            JsonWrite.Numbers(json, "pages", [first, last]);
         }
 
         if (source.Milliseconds is var (from, to))
         {
-            WriteNumbers(json, "ms", [from, to]);
+            JsonWrite.Numbers(json, "ms", [from, to]);
         }
 
         if (source.Project is { } project)

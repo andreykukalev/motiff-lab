@@ -103,7 +103,7 @@ internal static class LibraryRequest
                 json.WriteStartObject();
                 json.WriteString("project", original.Original.ProjectId);
                 json.WriteString("original", original.Original.OriginalId);
-                json.WriteString("status", Answer.Name(original.Status));
+                json.WriteString("status", JsonWrite.Name(original.Status));
                 json.WriteString("path", original.Path);
                 json.WriteStartArray("candidates");
                 foreach (RelinkCandidate candidate in original.Candidates)
@@ -222,7 +222,7 @@ internal static class LibraryRequest
     {
         json.WriteStartObject();
         json.WriteString("path", file.File.Path);
-        json.WriteString("status", Answer.Name(file.Status));
+        json.WriteString("status", JsonWrite.Name(file.Status));
         json.WriteString("sameAs", file.SameAs);
         json.WriteString("project", file.Project);
         json.WriteBoolean("provisional", file.Provisional);
@@ -248,7 +248,7 @@ internal static class LibraryRequest
 
         json.WriteStartObject(name);
         json.WriteString("value", suggestion.Value);
-        json.WriteString("from", Answer.Name(suggestion.Source));
+        json.WriteString("from", JsonWrite.Name(suggestion.Source));
         Answer.Attribution(json, suggestion.Attribution);
         json.WriteEndObject();
     }
