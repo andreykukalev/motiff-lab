@@ -1,18 +1,27 @@
 # Code map: the piano roll (`src/shared/Scripts/roll`, the iPad's drawer)
 
-**Status (2026-11-16):** the web app is archived (`docs/architecture/adr/0032-ipad-first-web-archived.md`); `src/shared/Scripts/roll` stays live because the iPad's drawer runs it, and iPad work owns it. The Blazor side is frozen in `archive/web`.
+**Status (2026-11-26):** live in the iPad's drawer; the web's Blazor host is archived (ADR 0032).
 
 One roll for the web and the iPad: `piano-roll.ts` on canvas, driven by Blazor on the web and by `src/ipad/App/Web/roll.js`
-(`window.roll`, messages to Swift) on the iPad. Tests: `tests/shared/roll-*.test.mjs` (node, on the compiled modules).
+(`window.roll`, messages to Swift) on the iPad. Tests: `tests/shared/roll-*.test.mjs` (node, on the compiled modules);
+`roll-paint.test.mjs` (audit C6) drives `PianoRoll` over a fake page as roll.js does and compares what it draws and posts
+with `roll-paint.kept.json` (`ROLL_PAINT_WRITE=1` writes it again, for a deliberate change).
 What protects the page as a whole: the page scenarios `tests/contracts/page-scenarios/roll-*.json` (SEL-01, SEL-02, SEL-03,
 PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/run.mjs`) and in the app's WKWebView
 (`PageScenarioTests.swift`). The roll's selection handles are drawn on its canvas, so the scenarios check what it posts.
 
 ## Modules
 
-- `piano-roll.ts`: `PianoRoll` (the view, ~4000 lines, baselined): `load`/`show`, `setMotif`, `drawRoll` (grid, band,
-  notes), `onPointerDown` (pinch, the Pen's stylus, then `roll-press.ts` and one `begin*` per gesture); `onPointerMove`,
-  `pointerUp` (chain of `end*`), `cancelPresses`.
+- `piano-roll.ts`: `PianoRoll` (~3100 lines, baselined): the API roll.js calls, the state shown, `draw` (a `NotesScene`
+  and a `NotesFrame` to the painter, then the gestures' layers and the playhead), the legend, the floating zoom, the
+  editor and the input (`onPointerDown` › `roll-press.ts` › one `begin*` per gesture; `onPointerMove`, `pointerUp`,
+  `cancelPresses`). Editor, legend and input router leave in W3.12 part 2.
+- `roll-viewport.ts`: `RollViewport` owns the zoom, the view, glide, following and Expand's passage; `xOf`, `tickAtX`,
+  `yOf`, `pitchAt`, `pitchRange`, limits, `zoom*`, `axisZoom` (OnRollZoom), `follow`, `byHand`, `bind`. Reads the roll
+  through `ViewportHost`; its rules are `roll-view.ts`'s and `roll-zoom.ts`'s.
+- `roll-painter.ts` (`RollPainter.paint`: grid, layers, notes, tags, Check flags with `checkPlaces`; `drawPlayheadLine`),
+  `roll-keys-draw.ts` (the keys down the left, the keyboard, `keyAt`), `roll-palette.ts` (the tokens read once per theme:
+  `palette`, `measures`, written only by `readPalette`).
 - `roll-press.ts` (S2, the input router): `rollPressFor`, the press table: gutter (keys) › an edge by the place rule ›
   a playhead (R7) › Select by place › touch-reading pan › the old edge › strips or the loop lane › the editor › the modes
   (R8) › a note. Facts with a hit test are asked lazily, in that order. Test: `tests/shared/roll-press.test.mjs`.
@@ -20,15 +29,12 @@ PLAY-02, ROLL-01), replayed on `roll.html` in Chromium by CI (`node tests/pages/
 - `roll-modes.ts`: what a press begins under the bar's tool (`gestureFor`, `selectsOnRoll`, `navigatesOnRoll`), the
   Edit notes box (`notesInBox`, overlap rule), the one playhead.
 - `roll-strip-gesture.ts`: the strips' hold-based selection gesture of 0.6.1 (`RollStripGesture`, `rangeBars`).
-- `roll-place.ts`, `roll-place-gesture.ts`, `roll-place-draw.ts` (#601, `experimental.placeSelection`): selection by
-  where you touch in Select. Pure hit tests (box and lasso by note centre, `pickedSpan` out to beats, `narrowedPicks`,
-  move steps of a sixteenth and a semitone), the press state (`RollPlaceGesture` over the score's rule
-  `score/selection-places.ts`: edge, inside = add, outside = new, taps, double tap = Fit, drag of picked notes = move)
-  and its drawing (`HANDLE`: the score's hollow handles at the edges' middles, the dashed rectangle, lasso, old span dashed).
-  v0.6.4: a drag is a span of time on the grid (`score/selection-grid.ts`, tuplets from the score), notes or none; only the
-  lasso picks notes; a span let go is held (`placed`) until Swift's selection comes back; only an edge's handle beats a
-  playhead (0.9, `onPlaceHandle`).
-- `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view, zoom, playhead, lanes.
+- `roll-place.ts`, `roll-place-gesture.ts`, `roll-place-draw.ts` (#601): selection by where you touch in Select. Hit
+  tests (box and lasso by note centre, `pickedSpan`, move steps), the press state (`RollPlaceGesture` over the score's
+  `score/selection-places.ts`: edge, inside = add, outside = new, taps, double tap = Fit, drag of picked notes = move) and
+  its drawing (`HANDLE`, rectangle, lasso). v0.6.4: a drag is a span on the grid (`score/selection-grid.ts`); only the lasso
+  picks notes; a span let go is held (`placed`) until Swift's selection comes back; only an edge's handle beats a playhead.
+- `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view and zoom rules, playhead, lanes.
 
 ## Not reached by the iPad's roll (W0.6, measured 2026-11-16; written down, not cut)
 
