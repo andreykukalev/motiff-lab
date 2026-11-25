@@ -227,6 +227,44 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(ScanSupport.sent("GET", "health"), 0)
     }
 
+    func testTheServerIsGivenTwoMinutesToWakeAndOneThatDoesNotAnswerIsNotSentThePdf() async {
+        StubAPI.reset(["http://scan.test/health": jobServer])
+        _ = await ScanServer.health(server, session: StubAPI.session())
+        XCTAssertEqual(StubAPI.requests.first?.timeoutInterval, 120, "Motiff Lab's server took 80 s to wake from zero (2026-11-25)")
+
+        StubAPI.reset()
+        let outcome = await ScanServer.readByJob(fileName: "a.pdf", data: notAPdf, pages: 2, to: target)
+
+        guard case .failure(let problem)? = outcome else { return XCTFail("no answer: \(String(describing: outcome))") }
+        XCTAssertEqual(problem, .unreachable(server), "said at once, not tried again by /recognise")
+        XCTAssertEqual(ScanSupport.sent("GET", "health"), 1)
+        XCTAssertEqual(StubAPI.requests.count, 1, "nothing else is sent")
+    }
+
+    func testAServerSlowToAnswerIsSaidToBeWakingAndAQuickOneIsNot() async {
+        var waking = jobServer
+        waking.delay = ScanJobs.wakingAfter + 0.5
+        StubAPI.reset(["http://scan.test/health": waking])
+        var heard: [ScanJobStatus] = []
+
+        let slow = await ScanServer.takesJobs(target, pages: [1, 2], hear: { heard.append($0) })
+
+        XCTAssertEqual(slow, .success(true))
+        XCTAssertEqual(heard.map(\.state), ["waking"])
+        let line = heard.first?.progress
+        XCTAssertEqual(line.map { RecognitionTop.jobLine($0, russian) }, "Сервер распознавания просыпается…")
+        XCTAssertEqual(line?.caption(english), "The scan server is waking up…", "the panel's bar")
+        XCTAssertEqual(line?.pages, 2)
+        XCTAssertNil(line?.minutesLeft)
+
+        StubAPI.reset(["http://scan.test/health": jobServer])
+        heard = []
+        let quick = await ScanServer.takesJobs(target, pages: [1], hear: { heard.append($0) })
+
+        XCTAssertEqual(quick, .success(true))
+        XCTAssertTrue(heard.isEmpty, "an awake server answers before the line would change")
+    }
+
     func testAServerWithoutJobsLeavesThePdfToRecogniseAsBefore() async {
         StubAPI.reset(["http://scan.test/health": ScanSupport.answer(200, #"{"engine": "homr", "version": "0.7.0"}"#)])
 

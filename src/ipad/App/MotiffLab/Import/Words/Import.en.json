@@ -17,6 +17,7 @@
   "scan.pageFailed": "Page {0}: {1}",
   "scan.pageOf": "Page {0} of {1}",
   "scan.allRead": "All {0} pages read",
+  "scan.waking": "The scan server is waking up…",
   "scan.progressLabel": "Recognising the notes",
   "transcribe.needsPro": "Transcribing on Motiff Lab's server is part of Pro.",
   "transcribe.proPrompt": "Transcription runs on Motiff Lab's server and is part of Pro. Opening a MusicXML or MIDI file stays free.",

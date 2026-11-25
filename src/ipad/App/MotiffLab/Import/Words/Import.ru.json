@@ -17,6 +17,7 @@
   "scan.pageFailed": "Страница {0}: {1}",
   "scan.pageOf": "Страница {0} из {1}",
   "scan.allRead": "Прочитаны все страницы: {0}",
+  "scan.waking": "Сервер распознавания просыпается…",
   "scan.progressLabel": "Распознавание нот",
   "transcribe.needsPro": "Распознавание записей на сервере Motiff Lab входит в Pro.",
   "transcribe.proPrompt": "Ноты из записи получаются на сервере Motiff Lab, это входит в Pro. Открыть файл MusicXML или MIDI можно бесплатно.",

@@ -8,6 +8,8 @@ final class StubAPI: URLProtocol {
         var status: Int
         var body: Data
         var headers: [String: String] = [:]
+        /// Seconds before it comes, as from a server waking up.
+        var delay: TimeInterval = 0
     }
 
     private static let lock = NSLock()
@@ -70,9 +72,17 @@ final class StubAPI: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
         }
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: answer.body)
-        client?.urlProtocolDidFinishLoading(self)
+        let client = client
+        let deliver = {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: answer.body)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+        if answer.delay > 0 {
+            DispatchQueue.global().asyncAfter(deadline: .now() + answer.delay, execute: deliver)
+        } else {
+            deliver()
+        }
     }
 
     override func stopLoading() {}

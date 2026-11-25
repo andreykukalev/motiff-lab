@@ -81,12 +81,20 @@ struct ScanJobStatus: Equatable, Sendable {
         etaSeconds = (object["etaSeconds"] as? NSNumber)?.intValue ?? 0
     }
 
+    /// Before a job is sent, while the server has not answered `/health` yet: it is waking up (it scales to zero). Its
+    /// state is the app's own, "waking", never the server's.
+    static func waking(pages: [Int]) -> ScanJobStatus {
+        ScanJobStatus(state: "waking", pages: pages.map { Page(page: $0, engines: [:]) }, etaSeconds: 0)
+    }
+
     /// Every unit has finished: the readings can be fetched.
     var finished: Bool { state == "done" || state == "failed" }
 
-    /// As the bars and lines of a score being read show it: the pages finished, and the server's minutes left.
+    /// As the bars and lines of a score being read show it: the pages finished, and the server's minutes left; while the
+    /// server wakes, only that.
     var progress: ScanProgress {
-        ScanProgress(pages: pages.count, done: pages.filter(\.finished).count, minutesLeft: finished ? nil : max(1, (etaSeconds + 59) / 60))
+        if state == "waking" { return ScanProgress.waking(pages: pages.count) }
+        return ScanProgress(pages: pages.count, done: pages.filter(\.finished).count, minutesLeft: finished ? nil : max(1, (etaSeconds + 59) / 60))
     }
 }
 
@@ -146,6 +154,9 @@ enum ScanJobs {
         let last = engineOrder.count
         return names.sorted { (engineOrder.firstIndex(of: $0) ?? last, $0) < (engineOrder.firstIndex(of: $1) ?? last, $1) }
     }
+
+    /// After this many seconds without an answer from `/health`, a job's line says the server is waking up.
+    static let wakingAfter: TimeInterval = 2
 
     /// A status a job's state is asked again after: the server busy (429) or failing (5xx).
     static func isMiss(_ status: Int) -> Bool {
@@ -207,12 +218,44 @@ extension ScanServer {
         return plan.line(text, minutes: server.minutes(pages: plan.server.count))
     }
 
+    /// Whether the server takes scan jobs, asked on `/health` before one is sent (0035 section 6): false when it answers as a
+    /// server before 1.3 or as no scan server, which `/recognise` then tells; its problem when it does not answer within
+    /// `wakeSeconds`. Asleep, it wakes meanwhile: once `ScanJobs.wakingAfter` seconds pass without an answer, `hear` hears
+    /// `ScanJobStatus.waking` for `pages`.
+    static func takesJobs(_ target: ScanTarget, pages: [Int], hear: (ScanJobStatus) -> Void) async -> Result<Bool, ScanProblem> {
+        let address = target.address
+        let session = target.session
+        let asked = await withTaskGroup(of: HealthAsked.self, returning: Result<ScanHealth, ScanProblem>.self) { group in
+            group.addTask { .answer(await ScanServer.health(address, session: session)) }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(ScanJobs.wakingAfter * 1_000_000_000))
+                return .slow
+            }
+            while let next = await group.next() {
+                switch next {
+                case .answer(let answer):
+                    group.cancelAll()
+                    return answer
+                case .slow:
+                    hear(.waking(pages: pages))
+                }
+            }
+            return .failure(.unreachable(address))
+        }
+        switch asked {
+        case .success(let server): return .success(server.takesJobs)
+        case .failure(.notAScanServer): return .success(false)
+        case .failure(let problem): return .failure(problem)
+        }
+    }
+
     /// A PDF read by a scan job (0035 section 6): the pages the vector reader reads here stay here; the others go as one
     /// job (`kept` resumes one sent before, `keep` hears a new one's id to keep on the device), whose state is asked until
     /// it is done (`hear` hears each), its readings fetched once `ready` says so, and merged with the device's pages by
     /// music-core (`scan.join`); the merge's bars to check are kept on this iPad with their variants and crops
     /// (`ScanCrops.keepReview`, v1.3 i-2). The job (`readJob`) stays on the server: the caller deletes it once the notes are saved. Nil, before
-    /// anything is sent, when the server takes no jobs: the caller sends the PDF to `/recognise` as before.
+    /// anything is sent, when the server takes no jobs: the caller sends the PDF to `/recognise` as before; the problem when
+    /// it does not answer while it may still be waking (`takesJobs`).
     static func readByJob(
         fileName: String, data: Data, pages: Int, to target: ScanTarget, job kept: ScanJobRecord? = nil,
         keep: (ScanJobRecord) -> Void = { _ in }, hear: (ScanJobStatus) -> Void = { _ in },
@@ -220,7 +263,11 @@ extension ScanServer {
         pause: (Double) async -> Void = { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) async -> Result<(result: ScanResult, job: ScanJobRecord?), ScanProblem>? {
         if kept == nil {
-            guard case .success(let server) = await health(target.address, session: target.session), server.takesJobs else { return nil }
+            switch await takesJobs(target, pages: Array(1...max(1, pages)), hear: hear) {
+            case .failure(let problem): return .failure(problem)
+            case .success(false): return nil
+            case .success(true): break
+            }
         }
         let plan = await ScanJobPlan.of(data, pages: pages)
         var read: [[String: Any]] = []
@@ -356,6 +403,12 @@ extension ScanServer {
             return (200..<300).contains(status) ? .success(body) : .failure(problem(status, body, hosted: target.hosted, engine: nil))
         }
     }
+}
+
+/// What came first of `/health` asked before a job and the pause after which its line says the server is waking.
+private enum HealthAsked: Sendable {
+    case answer(Result<ScanHealth, ScanProblem>)
+    case slow
 }
 
 /// What a request on a scan job came to.
