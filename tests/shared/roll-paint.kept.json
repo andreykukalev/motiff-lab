@@ -4632,7 +4632,7 @@
   },
   {
    "step": "a selection partly in view",
-   "roll": "568 lines, sha1 27ddc087e1c85363",
+   "roll": "567 lines, sha1 d8e15ac19c9d4202",
    "posted": [],
    "frame": {
     "zoom": 46.44444444444445,
@@ -4656,7 +4656,7 @@
   },
   {
    "step": "Fit begins its glide",
-   "roll": "561 lines, sha1 14acf224219a7673",
+   "roll": "560 lines, sha1 0ee6bff7ac840eae",
    "posted": [
     [
      "OnRollZoom",
@@ -4693,7 +4693,7 @@
   },
   {
    "step": "Fit's glide half way",
-   "roll": "515 lines, sha1 83283f53856ab03f",
+   "roll": "514 lines, sha1 6fb78397dc684cf0",
    "posted": [
     [
      "OnRollZoom",
@@ -4804,7 +4804,7 @@
   },
   {
    "step": "a finger moves the roll",
-   "roll": "965 lines, sha1 49890c64c3e4b496",
+   "roll": "964 lines, sha1 3aaf82a03e82ec1d",
    "posted": [],
    "frame": {
     "zoom": 17.15555555555563,
@@ -4828,7 +4828,7 @@
   },
   {
    "step": "two fingers spread across: the time zooms in",
-   "roll": "727 lines, sha1 305c9c22f109eed5",
+   "roll": "726 lines, sha1 41fae41ff6ad06e6",
    "posted": [
     [
      "OnRollZoom",
@@ -4889,7 +4889,7 @@
   },
   {
    "step": "the wheel with Ctrl zooms in round the pointer",
-   "roll": "750 lines, sha1 f0110fb7761679da",
+   "roll": "749 lines, sha1 5e3e85297e8de0a9",
    "posted": [
     [
      "OnRollZoom",
@@ -4926,7 +4926,7 @@
   },
   {
    "step": "the wheel sideways moves through the time",
-   "roll": "748 lines, sha1 e0394dd374311f4c",
+   "roll": "747 lines, sha1 166323f836001c90",
    "posted": [],
    "frame": {
     "zoom": 38.600000000000165,
@@ -5711,7 +5711,7 @@
   },
   {
    "step": "the last two bars selected, the playhead in them",
-   "roll": "196 lines, sha1 8807522733fe1a75",
+   "roll": "195 lines, sha1 06faa9866cb69f28",
    "posted": [],
    "frame": {
     "zoom": 48,

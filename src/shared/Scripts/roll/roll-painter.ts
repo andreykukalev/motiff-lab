@@ -348,12 +348,14 @@ function clipped(frame: NotesFrame, span: Span): { left: number; right: number }
 }
 
 /**
- * The selected range, or the range being dragged, shaded and marked on the bar numbers, its edges in the accent; grips on
- * the bar numbers show that the edges can be dragged (under the place rule the handles at the edges' middles do, v0.6.4).
+ * The selected range, or the range being dragged, shaded and marked on the bar numbers, its edges in the accent where they
+ * are in view (a band running out of view has no edge at the side it runs past, as the place rule's handles have none);
+ * grips on the bar numbers show that the edges can be dragged (under the place rule the handles at the edges' middles do,
+ * v0.6.4).
  */
 function drawBand(context: CanvasRenderingContext2D, frame: NotesFrame, band: Span | null, grips: boolean): void {
     const edges = band === null ? null : clipped(frame, band);
-    if (edges === null) {
+    if (band === null || edges === null) {
         return;
     }
     const { left, right } = edges;
@@ -363,8 +365,12 @@ function drawBand(context: CanvasRenderingContext2D, frame: NotesFrame, band: Sp
     context.fillStyle = palette.selectionHeader;
     context.fillRect(left, BAR_ROW - 4, right - left, 4);
     context.fillStyle = palette.accent;
-    context.fillRect(Math.round(left), 0, 1, height);
-    context.fillRect(Math.round(right) - 1, 0, 1, height);
+    if (frame.xOf(band.start) >= GUTTER) {
+        context.fillRect(Math.round(left), 0, 1, height);
+    }
+    if (frame.xOf(band.end) <= width) {
+        context.fillRect(Math.round(right) - 1, 0, 1, height);
+    }
     if (grips && left > GUTTER) {
         context.fillRect(Math.round(left), 0, 4, BAR_ROW);
     }
