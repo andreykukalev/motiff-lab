@@ -119,10 +119,14 @@ final class ScanServer: ObservableObject {
         await health(address, session: session).map(\.engine)
     }
 
-    /// What the server says of itself on `/health`, or why it cannot be reached.
+    /// How long `/health` is waited for: Motiff Lab's server scales to zero, and waking it took 80 s when its image was
+    /// pulled onto a new machine (2026-11-25), 12 s when it was there already.
+    nonisolated static let wakeSeconds: TimeInterval = 120
+
+    /// What the server says of itself on `/health`, or why it cannot be reached within `wakeSeconds`.
     nonisolated static func health(_ address: URL, session: URLSession = .shared) async -> Result<ScanHealth, ScanProblem> {
         var request = URLRequest(url: address.appendingPathComponent("health"))
-        request.timeoutInterval = 10
+        request.timeoutInterval = wakeSeconds
         do {
             let (body, response) = try await session.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200,

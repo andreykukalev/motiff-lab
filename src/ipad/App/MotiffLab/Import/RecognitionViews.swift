@@ -229,8 +229,9 @@ struct RecognitionTop: View {
     }
 
     /// A piece read by a scan job (spec part 5): «распознаётся · 2 из 5 страниц · ещё около 2 мин.», the pages every engine is
-    /// done with and the server's estimate.
+    /// done with and the server's estimate; «Сервер распознавания просыпается…» before the job is sent to a server that is waking up.
     static func jobLine(_ progress: ScanProgress, _ text: UIText) -> String {
+        if progress.waking { return progress.line(text) }
         let pages = text.format("recognition.jobPages." + UIText.pluralForm(text.language, progress.pages), String(progress.done), String(progress.pages))
         return progress.minutesLeft.map { pages + " · " + text.format("recognition.left", String($0)) } ?? pages
     }

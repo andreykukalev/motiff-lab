@@ -10,7 +10,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 - `ScanJobs.swift` (v1.3, the experiment `experimental.scanJobs`, decision record 0035 section 6): `ScanHealth` (`/health`'s
   seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
-  the line before sending), `ScanJobStatus`, `ScanJobRecord`; `ScanServer.readByJob` (submit, ask every 2.5 s with a
+  the line before sending), `ScanJobStatus`, `ScanJobRecord`; `ScanServer.takesJobs` (`/health` before a job, waited for up
+  to `wakeSeconds`, 120 s, as the hosted server wakes from zero; `ScanJobStatus.waking`, «Сервер распознавания просыпается…»,
+  after `ScanJobs.wakingAfter`; no answer is the problem, not a fall back to `/recognise`); `ScanServer.readByJob` (submit, ask every 2.5 s with a
   pause doubling to a minute after a miss: no answer, a 5xx or a 429; a 404 is a job gone; fetch once `ready`, merge by
   `scan.join` with readings and evidence, engines in `ScanJobs.engineOrder`, each page's report passed on), `submitJob`,
   `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which signs for Motiff Lab's server and carries the

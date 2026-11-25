@@ -51,6 +51,8 @@ struct ScanProgress: Equatable, Sendable {
     private(set) var milliseconds: [Int] = []
     /// The minutes left as a scan job's server tells them (decision record 0035), in place of the pages timed here.
     private(set) var told: Int?
+    /// The scan job's server has not answered yet: it is waking up (`ScanJobStatus.waking`).
+    private(set) var waking = false
 
     /// Who hears the progress of a score read in this task: Recognise notes' panel sets it around its send.
     @TaskLocal static var listener: ScanProgressListener? = nil
@@ -64,6 +66,13 @@ struct ScanProgress: Equatable, Sendable {
         self.pages = max(1, pages)
         self.done = min(self.pages, max(0, done))
         told = minutesLeft
+    }
+
+    /// `pages` about to go to a scan job's server that is waking up.
+    static func waking(pages: Int) -> ScanProgress {
+        var progress = ScanProgress(pages: pages)
+        progress.waking = true
+        return progress
     }
 
     /// The page being read, from 1; nil once every page is back.
@@ -95,9 +104,10 @@ struct ScanProgress: Equatable, Sendable {
         return max(1, (left + 59_999) / 60_000)
     }
 
-    /// «Страница 3 из 8», or that all are read.
+    /// «Страница 3 из 8», or that all are read; «Сервер распознавания просыпается…» while a job's server wakes.
     func line(_ text: UIText) -> String {
-        current.map { text.format("scan.pageOf", String($0), String(pages)) } ?? text.format("scan.allRead", String(pages))
+        if waking { return text["scan.waking"] }
+        return current.map { text.format("scan.pageOf", String($0), String(pages)) } ?? text.format("scan.allRead", String(pages))
     }
 
     /// The line, and about how long is left once a page has been timed.

@@ -32,8 +32,10 @@ enum ScanPageAgain {
         _ unread: [Int], read: [Int], pages: Int, file url: URL, pdf data: Data, to target: ScanTarget, job: RecognitionJob, text: UIText
     ) async -> Result<Outcome, ScanProblem> {
         if job.kept == nil {
-            guard case .success(let server) = await ScanServer.health(target.address, session: target.session), server.takesJobs else {
-                return .failure(.server(text["pdf.readNone"]))
+            switch await ScanServer.takesJobs(target, pages: unread, hear: job.hear) {
+            case .failure(let problem): return .failure(problem)
+            case .success(false): return .failure(.server(text["pdf.readNone"]))
+            case .success(true): break
             }
         }
         let sent: (pages: [[String: Any]], job: ScanJobRecord)
