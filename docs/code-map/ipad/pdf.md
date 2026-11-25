@@ -12,6 +12,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Pdf`.
   only (`SourceLayers.views(showing:)`; `pickView` takes only a recording there, heard in `PerformanceCapsule`), else the
   PDF tag; a recording added there is recognised;
   the piece's first notes open it again as notes (`reopenHere`, `PdfScreen.reopening`), anything else at the page.
+  With «Четыре движка», «Распознать ноты» hands the piece to the library's recognition, read as
+  `Platform/BackgroundReading` from the environment: its line under the bar, «Открыть ноты» (1.3 hotfix).
+- `PdfPagesView.swift`: where pages rest under the bar (`PageRest`) and a bookmarked page's tab (`BookmarkTab`, moved
+  out of `Pdf.swift` in the 1.3 hotfix).
 - `PdfContents.swift`: the Contents' bookmarked pages (`PdfContents`, `PdfBookmarkRow`), moved out of `Pdf.swift` in v1.1.
 
 ## The contract others may rely on

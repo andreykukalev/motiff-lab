@@ -202,39 +202,6 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     }
 }
 
-/// A bookmarked page's tab: a carmine strip on the page's right edge at 6% from the top, drawn by PDFKit with the page and
-/// kept only in memory (the PDF is never written back; the bookmarks live in the project).
-final class BookmarkTab: PDFAnnotation {
-    private var fill = UIColor.systemRed.cgColor
-    private var radius: CGFloat = 2
-
-    init(on page: PDFPage) {
-        let box = page.bounds(for: .cropBox)
-        let width = max(6, box.width * 0.016)
-        let height = width * 3.2
-        let bounds = CGRect(x: box.maxX - width, y: box.maxY - box.height * 0.06 - height, width: width, height: height)
-        super.init(bounds: bounds, forType: .square, withProperties: nil)
-        // The page is paper in both appearances, so the tab takes the daylight carmine.
-        fill = DesignTokens.dynamicColor("ink-carmine").resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).cgColor
-        radius = min(width / 2, DesignTokens.length("r-xs"))
-        shouldDisplay = true
-        shouldPrint = false
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
-
-    override func draw(with box: PDFDisplayBox, in context: CGContext) {
-        context.saveGState()
-        let path = UIBezierPath(roundedRect: bounds, byRoundingCorners: [.topLeft, .bottomLeft], cornerRadii: CGSize(width: radius, height: radius))
-        context.addPath(path.cgPath)
-        context.setFillColor(fill)
-        context.fillPath()
-        context.restoreGState()
-    }
-}
-
 /// The pages in one continuously scrolling document (0018 section 2): one column in portrait, two to a row in landscape,
 /// on the desk, each at its own proportions; PDFKit draws pages as they come near and lets go of them when far.
 struct PdfPages: UIViewRepresentable {
@@ -530,9 +497,10 @@ struct PdfScreen: View {
     }
 
     /// Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found):
-    /// with its word where the bar has room, else its icon alone.
+    /// with its word where the bar has room, else its icon alone; not while the piece is recognised in the background,
+    /// whose line under the bar stands in its place.
     @ViewBuilder private func readNotesButton(compact: Bool) -> some View {
-        if let readNotesAction, pdf.pageCount > 0, !inBackground {
+        if let readNotesAction, pdf.pageCount > 0, !background.reading {
             Button(action: readNotesAction) {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Icon(name: "roll", size: CGFloat.ds("icon-l"))
@@ -667,9 +635,6 @@ struct PdfScreen: View {
     private var background: BackgroundReading {
         linked || backgroundReading.file != piece.file ? BackgroundReading() : backgroundReading
     }
-
-    /// This piece is being recognised in the background: its line under the bar says how far, in place of the button.
-    private var inBackground: Bool { background.reading }
 
     /// «Открыть ноты» once the notes are back (Andrei, 2026-11-25): this screen saves the piece and writes it no more, the
     /// library's recognition writes the notes into it, and the piece opens on its notes where the page under the bar starts.
