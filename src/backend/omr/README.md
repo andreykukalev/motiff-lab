@@ -19,7 +19,7 @@ The build takes several minutes and downloads about 4 GB once, including the eng
 
 To keep it running in the background, start it with `docker run -d --restart unless-stopped -p 8765:8000 --name motiff-omr motiff-omr`, and stop it with `docker stop motiff-omr`.
 
-A page takes 20 to 60 seconds, depending on the computer. A PDF can have up to 8 pages (`-e MAX_PAGES=12` raises that).
+A page takes 20 to 60 seconds, depending on the computer. A PDF sent to `/recognise` can have up to 8 pages (`-e MAX_PAGES=12` raises that); a scan job up to 100 (`MAX_JOB_PAGES`), since it is read in the background.
 
 ### Scan jobs
 
