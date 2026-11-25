@@ -743,13 +743,11 @@ export class PianoRoll {
             return;
         }
         this.drag = null;
-        if (span === null) {
-            this.setZoomOut(this.zoomOutShown);
-            return;
-        }
-        this.strip.cancel();
         this.setZoomOut(this.zoomOutShown);
-        this.fit();
+        if (span !== null) {
+            this.strip.cancel();
+            this.fit();
+        }
     }
 
     /**
