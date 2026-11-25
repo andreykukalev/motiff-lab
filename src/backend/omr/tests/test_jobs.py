@@ -142,7 +142,7 @@ def test_a_job_may_have_more_pages_than_one_request_and_no_more_than_its_own_lim
     monkeypatch.setattr("app.main.MAX_JOB_PAGES", 6)
     client = app_client(tmp_path)
     assert client.post("/recognise", files={"file": ("score.pdf", pdf(6), "application/pdf")}).status_code == 422
-    made = client.post("/jobs", files={"file": ("score.pdf", pdf(6), "application/pdf")}, data={"engines": "homr"})
+    made = client.post("/jobs", files={"file": ("score.pdf", pdf(6), "application/pdf")}, data={"pages": "1,2,3,4,5,6", "engines": "homr"})
     assert made.status_code == 202
     assert len(client.get(made.headers["location"]).json()["pages"]) == 6
     refused = client.post("/jobs", files={"file": ("score.pdf", pdf(7), "application/pdf")})
