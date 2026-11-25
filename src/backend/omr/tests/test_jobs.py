@@ -136,6 +136,19 @@ def test_a_job_reads_the_pages_and_engines_it_names(tmp_path: Path):
     assert client.post("/jobs", files={"file": ("photo.png", b"", "image/png")}).status_code == 400
 
 
+def test_a_job_may_have_more_pages_than_one_request_and_no_more_than_its_own_limit(tmp_path: Path, monkeypatch):
+    # The hosted server reads a request of at most 4 pages (infra/scan.bicep); a job is read in the background.
+    monkeypatch.setattr("app.main.MAX_PAGES", 4)
+    monkeypatch.setattr("app.main.MAX_JOB_PAGES", 6)
+    client = app_client(tmp_path)
+    assert client.post("/recognise", files={"file": ("score.pdf", pdf(6), "application/pdf")}).status_code == 422
+    made = client.post("/jobs", files={"file": ("score.pdf", pdf(6), "application/pdf")}, data={"pages": "1,2,3,4,5,6", "engines": "homr"})
+    assert made.status_code == 202
+    assert len(client.get(made.headers["location"]).json()["pages"]) == 6
+    refused = client.post("/jobs", files={"file": ("score.pdf", pdf(7), "application/pdf")})
+    assert (refused.status_code, refused.json()["message"]) == (422, "This PDF has 7 pages. Scanning reads up to 6 pages at a time.")
+
+
 def test_an_id_that_was_not_given_finds_nothing(tmp_path: Path):
     client = app_client(tmp_path)
     first, second = (client.post("/jobs", files={"file": ("photo.png", png(), "image/png")}).json()["id"] for _ in range(2))

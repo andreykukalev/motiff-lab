@@ -34,7 +34,7 @@ param webHost string = 'nice-smoke-0169fb403.6.azurestaticapps.net'
 @description('Other addresses allowed to call the server from a browser, besides the web app and its previews.')
 param extraOrigins array = []
 
-@description('Pages a PDF may have. Container Apps ends a request after 240 s, and a page takes up to 40 s.')
+@description('Pages a PDF sent to /recognise may have. Container Apps ends a request after 240 s, and a page takes up to 40 s. A scan job is read in the background and has its own limit (MAX_JOB_PAGES, 100 in the server).')
 param maxPages int = 4
 
 // Each copy still reads one request at a time (concurrentRequests 1); up to 4 copies let the app send the parts of a

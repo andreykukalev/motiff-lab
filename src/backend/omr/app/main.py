@@ -35,6 +35,10 @@ from app import auth, azure_store, engines, job_store, job_worker, jobs, merge, 
 # A scanned PDF or photo; the app allows the same 50 MB (Andrei, 2026-10-30).
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "8"))
+# A scan job is read in the background, so the request limit above does not apply to it: a job may have as many pages
+# as the app sends a score (the iPad's ScanParts.mostPages, Andrei 2026-11-13), on the hosted server too (Andrei,
+# 2026-11-25, 1.3 hotfix: with MAX_PAGES 4 there, a longer PDF was refused).
+MAX_JOB_PAGES = int(os.environ.get("MAX_JOB_PAGES", "100"))
 
 # A recording may be a video, so it is allowed to be larger; only its first minutes are heard. Two and
 # a half minutes take Transkun about as long on two cores, well inside the four minutes Azure Container
@@ -279,7 +283,7 @@ def _add_job_routes(
 
         def submit() -> str:
             with tempfile.TemporaryDirectory(prefix="motiff-job-") as folder:
-                written = pages.write_pages(upload, Path(folder), MAX_PAGES, numbers)
+                written = pages.write_pages(upload, Path(folder), MAX_JOB_PAGES, numbers)
                 return work.submit(list(zip(numbers or range(1, len(written) + 1), written)), chosen, player)
 
         try:
