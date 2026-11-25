@@ -4949,6 +4949,44 @@
    ]
   },
   {
+   "step": "a fact's place far away, brought into view",
+   "roll": "736 lines, sha1 aef482b44a1b7bb8",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 7,
+      "octaves": 4,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": true,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 38.600000000000165,
+    "rowScale": 0.3181818181818183,
+    "scroll": 29220,
+    "pitchTop": 80
+   },
+   "scroller": "29220 of 73001.03626943006",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "Blue box and underline: the places of the fact chosen on Understand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "4559",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
    "step": "Expand bound to bars 2 to 4",
    "roll": "522 lines, sha1 8a47edfa6d25dea2",
    "posted": [
@@ -4968,7 +5006,7 @@
    "frame": {
     "zoom": 38.600000000000165,
     "rowScale": 0.3181818181818183,
-    "scroll": 4097,
+    "scroll": 29220,
     "pitchTop": 80
    },
    "scroller": "870 of 870",
@@ -4992,7 +5030,7 @@
    "frame": {
     "zoom": 38.600000000000165,
     "rowScale": 0.3181818181818183,
-    "scroll": 4097,
+    "scroll": 29220,
     "pitchTop": 80
    },
    "scroller": "903 of 903",
@@ -5011,7 +5049,7 @@
   },
   {
    "step": "Expand let go: the zoom and the view before it",
-   "roll": "934 lines, sha1 8633271958e3b5c1",
+   "roll": "936 lines, sha1 2d39280114ae4d5c",
    "posted": [
     [
      "OnRollZoom",
@@ -5029,10 +5067,10 @@
    "frame": {
     "zoom": 38.600000000000165,
     "rowScale": 0.3181818181818183,
-    "scroll": 4097,
+    "scroll": 29220,
     "pitchTop": 80
    },
-   "scroller": "4097 of 71633.16062176168",
+   "scroller": "29220 of 71633.16062176168",
    "legend": [
     "Right hand",
     "Left hand"

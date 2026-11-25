@@ -205,6 +205,9 @@ const scenarios = {
         take("the wheel with Ctrl zooms in round the pointer");
         notes.dispatch("wheel", { ctrlKey: false, shiftKey: false, deltaX: 120, deltaY: 0, clientX: 200, clientY: 100, preventDefault() {} });
         take("the wheel sideways moves through the time");
+        roll.setHighlight([30000, 30720], []);
+        take("a fact's place far away, brought into view");
+        roll.setHighlight([], []);
         roll.setPassage({ start: 960, end: 3120 });
         take("Expand bound to bars 2 to 4");
         page.resize(700);
