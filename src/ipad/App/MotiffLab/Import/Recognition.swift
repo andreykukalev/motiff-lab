@@ -294,7 +294,11 @@ final class RecognitionQueue: ObservableObject {
             let file = item.file
             let outcome = await Self.recognise(
                 projects().appendingPathComponent(file), address: address, account: account, links: links, folders: root,
-                progress: { [weak self] in self?.progress = (file, $0) },
+                // Heard only on the way without a job (a job's `hear` sets both), so no job's line stays.
+                progress: { [weak self] in
+                    self?.job = nil
+                    self?.progress = (file, $0)
+                },
                 job: follow(item, index: index, batch: current.id),
                 again: item.unread, read: item.read, session: session,
                 isOpen: { self.open == file }

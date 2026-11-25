@@ -81,19 +81,20 @@ struct ScanJobStatus: Equatable, Sendable {
         etaSeconds = (object["etaSeconds"] as? NSNumber)?.intValue ?? 0
     }
 
-    /// Before a job is sent, while the server has not answered `/health` yet: it is waking up (it scales to zero). Its
-    /// state is the app's own, "waking", never the server's.
-    static func waking(pages: [Int]) -> ScanJobStatus {
-        ScanJobStatus(state: "waking", pages: pages.map { Page(page: $0, engines: [:]) }, etaSeconds: 0)
+    /// Before a job is sent: "waking" while the server has not answered `/health` yet (it scales to zero), "sending" once it
+    /// has. These states are the app's own, never the server's.
+    static func beforeSending(pages: [Int], waking: Bool) -> ScanJobStatus {
+        ScanJobStatus(state: waking ? "waking" : "sending", pages: pages.map { Page(page: $0, engines: [:]) }, etaSeconds: 0)
     }
 
     /// Every unit has finished: the readings can be fetched.
     var finished: Bool { state == "done" || state == "failed" }
 
     /// As the bars and lines of a score being read show it: the pages finished, and the server's minutes left; while the
-    /// server wakes, only that.
+    /// server wakes, only that; while the job is sent, its pages with nothing read yet.
     var progress: ScanProgress {
         if state == "waking" { return ScanProgress.waking(pages: pages.count) }
+        if state == "sending" { return ScanProgress(pages: pages.count) }
         return ScanProgress(pages: pages.count, done: pages.filter(\.finished).count, minutesLeft: finished ? nil : max(1, (etaSeconds + 59) / 60))
     }
 }
@@ -220,8 +221,9 @@ extension ScanServer {
 
     /// Whether the server takes scan jobs, asked on `/health` before one is sent (0035 section 6): false when it answers as a
     /// server before 1.3 or as no scan server, which `/recognise` then tells; its problem when it does not answer within
-    /// `wakeSeconds`. Asleep, it wakes meanwhile: once `ScanJobs.wakingAfter` seconds pass without an answer, `hear` hears
-    /// `ScanJobStatus.waking` for `pages`.
+    /// `wakeSeconds`; `.stopped` when the caller's task was cancelled. Asleep, it wakes meanwhile: once `ScanJobs.wakingAfter`
+    /// seconds pass without an answer, `hear` hears `pages` waking (`ScanJobStatus.beforeSending`), and once it answers,
+    /// being sent, so no line keeps saying it wakes.
     static func takesJobs(_ target: ScanTarget, pages: [Int], hear: (ScanJobStatus) -> Void) async -> Result<Bool, ScanProblem> {
         let address = target.address
         let session = target.session
@@ -231,17 +233,23 @@ extension ScanServer {
                 try? await Task.sleep(nanoseconds: UInt64(ScanJobs.wakingAfter * 1_000_000_000))
                 return .slow
             }
+            var told = false
             while let next = await group.next() {
                 switch next {
                 case .answer(let answer):
                     group.cancelAll()
+                    if told { hear(.beforeSending(pages: pages, waking: false)) }
                     return answer
+                case .slow where !Task.isCancelled:
+                    told = true
+                    hear(.beforeSending(pages: pages, waking: true))
                 case .slow:
-                    hear(.waking(pages: pages))
+                    break
                 }
             }
             return .failure(.unreachable(address))
         }
+        if Task.isCancelled { return .failure(.stopped) }
         switch asked {
         case .success(let server): return .success(server.takesJobs)
         case .failure(.notAScanServer): return .success(false)

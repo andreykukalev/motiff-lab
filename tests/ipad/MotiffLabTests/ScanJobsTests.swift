@@ -250,7 +250,8 @@ final class ScanJobsTests: XCTestCase {
         let slow = await ScanServer.takesJobs(target, pages: [1, 2], hear: { heard.append($0) })
 
         XCTAssertEqual(slow, .success(true))
-        XCTAssertEqual(heard.map(\.state), ["waking"])
+        XCTAssertEqual(heard.map(\.state), ["waking", "sending"], "once it answers, no line says it still wakes")
+        XCTAssertEqual(heard.last.map { RecognitionTop.jobLine($0.progress, russian) }, "распознаётся · 0 из 2 страниц")
         let line = heard.first?.progress
         XCTAssertEqual(line.map { RecognitionTop.jobLine($0, russian) }, "Сервер распознавания просыпается…")
         XCTAssertEqual(line?.caption(english), "The scan server is waking up…", "the panel's bar")
