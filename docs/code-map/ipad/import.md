@@ -8,7 +8,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 `ImportFolders`, `ImportJob`, `PartHearing`, `PhotoCapture`, `PhotoPages`, `PhotoReading`, `PhotoReadings`, `PhotoReview`,
 `Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanCrops`, `ScanJobs`, `ScanPageAgain`, `ScanParts`, `VectorPages` (`.swift`).
 
-- `ScanJobs.swift` (v1.3, the experiment `experimental.scanJobs`, decision record 0035 section 6): `ScanHealth` (`/health`'s
+- `ScanJobs.swift` (v1.3, the engine choice «Четыре движка», `ScanServer.allEngines`, the default since the 1.3 hotfix; decision record 0035 section 6): `ScanHealth` (`/health`'s
   seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
   the line before sending), `ScanJobStatus`, `ScanJobRecord`; `ScanServer.takesJobs` (`/health` before a job, waited for up
   to `wakeSeconds`, 120 s, as the hosted server wakes from zero; «Сервер распознавания просыпается…»
@@ -16,13 +16,22 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   pause doubling to a minute after a miss: no answer, a 5xx or a 429; a 404 is a job gone; fetch once `ready`, merge by
   `scan.join` with readings and evidence, engines in `ScanJobs.engineOrder`, each page's report passed on), `submitJob`,
   `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which signs for Motiff Lab's server and carries the
-  `URLSession` (a stub's in `ScanJobsTests`). `ScanServer.recognise` uses a job when the switch is on and the server takes jobs, else
-  `/recognise` as before. The batch (`Recognition.swift`) keeps a piece's job in `recognition.json` (`RecognitionItem.job`,
+  `URLSession` (a stub's in `ScanJobsTests`). `ScanServer.recognise` uses a job with «Четыре движка» when the server takes jobs, else
+  «Авто»'s way (`choseAuto`). The batch (`Recognition.swift`) keeps a piece's job in `recognition.json` (`RecognitionItem.job`,
   device state, not the project file), asks again after a relaunch for those pieces only (`restoreAndFollowJobs`; the
   others wait for «Продолжить»), fetches only once the piece is not open on screen,
   deletes the job once the notes are written, and keeps the pages no engine read (`unread`); the banner shows the job's
   pages and engines on a tap (`ScanJobDetail`) and «Повторить» for pieces that did not work.
 
+- One recognition at a time and the open PDF in the background (1.3 hotfix, Andrei 2026-11-25): `RecognitionQueue.busy`
+  (the unfinished batch's piece; while there is one, the PDF's `ReadNotesPanel(busy:)`, Sources' panel and the library's
+  picking start none); «Распознать ноты» on an open PDF with «Четыре движка» saves the piece and hands it to the queue
+  (`append`), which may send the open piece (`next(jobs:)`) and waits for the screen only before fetching
+  (`RecognitionJob.ready`), then writes the notes into the file as it is then (the piece opened again when the screen
+  saved it meanwhile). `BackgroundRecognitionLine` (`RecognitionViews.swift`) under the PDF's bar says how far it is and,
+  once the job is done, «Ноты готовы» with «Открыть ноты»: the screen saves, `released(_:)` lets the queue write,
+  `finished(_:)` waits for it, and the piece opens on its notes. The banner names a batch of one piece. The PDF and
+  Sources read all this as `Platform/BackgroundReading`, which `Workspace/PieceScreen` builds from the queue.
 - `ScanPageAgain.swift` (v1.3 i-1b): «Повторить» on a piece's «стр. N не распознана» (`RecognitionTag`,
   `RecognitionQueue.retryUnread`): only those pages go as a new job (`ScanServer.readJob`, followed and resumed as any
   job), each read page put into the same notes at its place by `scan.insert` (`place(of:read:)`: after the PDF pages the

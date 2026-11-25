@@ -279,5 +279,11 @@
   "scanJob.state.read": "прочитал",
   "scanJob.state.retrying": "повторяет",
   "scanJob.state.not_read": "не прочитал",
-  "scanJob.detailHint": "Показывает каждую страницу и её движки"
+  "scanJob.detailHint": "Показывает каждую страницу и её движки",
+  "recognition.busy": "Идёт распознавание «{0}». Новое начнётся, когда оно закончится или вы его остановите в библиотеке.",
+  "recognition.background": "В фоне",
+  "recognition.notesReady": "Ноты готовы",
+  "recognition.openNotes": "Открыть ноты",
+  "recognition.backgroundFailed": "Ноты не распознаны: {0}",
+  "recognition.runningOne": "Распознаю ноты «{0}»"
 }

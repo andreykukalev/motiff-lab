@@ -11,7 +11,7 @@
     "Default": "main",
     "Test": {
       "Api": "https://ca-motifflab-api-dev.wonderfuldesert-8895dc81.polandcentral.azurecontainerapps.io",
-      "Scan": "https://ca-motifflab-scan-dev.wonderfuldesert-8895dc81.polandcentral.azurecontainerapps.io"
+      "Scan": "https://ca-motifflab-scan-dev.mangoriver-63cd885f.polandcentral.azurecontainerapps.io"
     }
   }
 }

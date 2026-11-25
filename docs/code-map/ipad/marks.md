@@ -22,7 +22,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 - `Check.swift`: `CheckShelf` (`check`), the Check drawer, and Fix notes: `NoteCorrections`, a bar's notes built from
   `CorrectionsAnswer` (`PieceCore.corrections`), listed by `CorrectionsList`.
-- `ScanReviewBlock.swift` (v1.3 i-2, experiment `experimental.scanJobs`): in the Check entry of the bar selected, an
+- `ScanReviewBlock.swift` (v1.3 i-2, with «Четыре движка», `ScanServer.jobs`): in the Check entry of the bar selected, an
   EnginesDisagree bar's crop of the page and the engines' other readings, one tap each (`ScoreController.chooseVariant`,
   `corrections.variant`; `undoVariant`, `corrections.undoDraft`, held by `ScanVariantChoice`), from `ScoreController.scanReview` and `scanCrops` (read once, off the main thread); without them a short line.
 - `EditsLayer.swift` (v0.6.5, «Мои правки»): `EditsLayerState`, built from `EditsLayerAnswer` (every corrections

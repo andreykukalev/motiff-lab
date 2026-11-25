@@ -76,22 +76,24 @@ final class ScanJobsBaselineTests: XCTestCase {
         return queue
     }
 
-    // MARK: - SCAN-02: the switch
+    // MARK: - SCAN-02: the engine's choice
 
-    /// SCAN-02: «Распознавание в фоне четырьмя движками (эксперимент)» is a setting of this iPad, off until turned on; its hint
-    /// says what goes on after a relaunch and that off, recognition works as before. Where a PDF goes says, with it on, that
-    /// the server keeps it until the iPad has fetched what was read, at most 24 hours. A server before 1.3 takes no jobs.
-    func testSCAN02TheExperimentIsASettingOfThisIPadOffUntilTurnedOnAndItsTextsSayHowLongTheServerKeepsThePdf() async throws {
+    /// SCAN-02: Settings · «Движок» offers «Четыре движка», «Авто», homr and copisteria, a setting of this iPad, «Четыре
+    /// движка» until another is chosen; its hint says what each does, that recognition goes on after a relaunch and what an
+    /// older server does. There is no experiment switch. Where a PDF goes says, with four engines, that the server keeps it
+    /// until the iPad has fetched what was read, at most 24 hours. A server before 1.3 takes no jobs.
+    func testSCAN02FourEnginesAreTheEngineChoiceOfThisIPadByDefaultAndItsTextsSayHowLongTheServerKeepsThePdf() async throws {
         let settings = DeviceSettings(store: try XCTUnwrap(UserDefaults(suiteName: "ScanJobsBaseline-\(UUID().uuidString)")))
         await settings.load()
-        XCTAssertEqual(settings.catalogue[ScanServer.jobsKey]?.scope, "device", "a setting of this iPad")
-        XCTAssertFalse(ScanServer.jobsOn(settings), "off on a new iPad: scans go to the server as in 1.2")
-        XCTAssertEqual(russian["settings.scanJobs"], "Распознавание в фоне четырьмя движками (эксперимент)")
-        let hint = russian["settings.scanJobsHint"]
-        XCTAssertTrue(hint.contains("продолжают распознаваться после закрытия и нового открытия приложения, ход виден на пьесе"))
-        XCTAssertTrue(hint.contains("«Распознать ноты» на открытом PDF и в Источниках ждёт в своей панели"))
-        XCTAssertTrue(hint.contains("если выключено, распознавание работает как раньше"))
-        XCTAssertNotEqual(english["settings.scanJobs"], "settings.scanJobs")
+        XCTAssertEqual(settings.catalogue[ScanServer.engineChoice]?.scope, "device", "a setting of this iPad")
+        XCTAssertEqual(settings.catalogue[ScanServer.engineChoice]?.choices, ["all", "auto", "homr", "copisteria"])
+        XCTAssertTrue(ScanServer.jobsOn(settings), "«Четыре движка» on a new iPad (Andrei, 2026-11-25)")
+        XCTAssertNil(settings.catalogue["experimental.scanJobs"], "no experiment switch (Andrei, 2026-11-25)")
+        XCTAssertEqual(russian["settings.scanEngineAll"], "Четыре движка")
+        let hint = russian["settings.scanEngineHint"]
+        XCTAssertTrue(hint.contains("продолжается после закрытия и нового открытия приложения"))
+        XCTAssertTrue(hint.contains("со старым всё идёт как при «Авто»"))
+        XCTAssertNotEqual(english["settings.scanEngineAll"], "settings.scanEngineAll")
 
         for words in [russian["recognition.whereHostedJob"], russian["pdf.readLineHostedJob"], SourceLayers.counted("sources.sheet.readHostedJob", 2, text: russian)] {
             XCTAssertTrue(words.contains("пока iPad не заберёт прочитанное, но не дольше 24 часов"), words)
@@ -183,6 +185,53 @@ final class ScanJobsBaselineTests: XCTestCase {
         let summary = await PieceSummary.read(url)
         XCTAssertEqual(summary?.hasNotes, true, "the piece opens on its notes")
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [64])
+    }
+
+    // MARK: - SCAN-04: one recognition at a time, the open PDF in the background
+
+    /// SCAN-04 (Andrei, 2026-11-25): with «Четыре движка», «Распознать ноты» on the open PDF goes to the library's
+    /// recognition; while one goes on none starts, and the banner and the PDF's line say whose it is and how far.
+    func testSCAN04WithFourEnginesThePieceOpenOnScreenIsSentAndOnlyItsReadingsWait() {
+        var batch = RecognitionBatch(address: "https://scan.example.org/", hosted: false, items: [
+            RecognitionItem(file: "a.motiff.json", title: "Arabesque", pages: 5), RecognitionItem(file: "b.motiff.json", title: "Ballade", pages: 12),
+        ])
+
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json", jobs: true), 0, "«Распознать ноты» on the open PDF goes on in the background (Andrei, 2026-11-25)")
+        batch.items[0].job = ScanJobRecord(id: "j1", pages: [1])
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json"), 0, "a job kept: followed while the piece is open, its readings wait for the screen")
+    }
+
+    func testSCAN04OneRecognitionAtATimeTheBannerNamesItsPieceAndStoppingEndsIt() throws {
+        let queue = self.queue(in: try piece(pages: 1).deletingLastPathComponent())
+        XCTAssertNil(queue.busy)
+
+        queue.start([RecognitionItem(file: "a.motiff.json", title: "Arabesque", pages: 5)], address: URL(string: "https://scan.example.org/")!, hosted: false)
+
+        XCTAssertEqual(queue.busy?.title, "Arabesque", "while it goes on, none starts (Andrei, 2026-11-25)")
+        queue.pause()
+        XCTAssertEqual(queue.busy?.title, "Arabesque", "paused, it still goes on")
+        XCTAssertEqual(russian.format("recognition.busy", "Arabesque"), "Идёт распознавание «Arabesque». Новое начнётся, когда оно закончится или вы его остановите в библиотеке.")
+        XCTAssertEqual(russian.format("recognition.runningOne", "Arabesque"), "Распознаю ноты «Arabesque»")
+        queue.stop()
+        XCTAssertNil(queue.busy, "stopped: a new one may start")
+    }
+
+    func testSCAN04ThePdfsLineSaysHowFarAndWhenTheNotesAreReadyInBothLanguages() {
+        let queue = RecognitionQueue()
+        var item = RecognitionItem(file: "a.motiff.json", title: "Arabesque", pages: 2)
+        XCTAssertEqual(BackgroundRecognitionLine.words(item, queue: queue, text: russian), russian["import.scanBusy"], "sent, nothing told yet")
+        XCTAssertFalse(BackgroundRecognitionLine.ready(item, queue: queue))
+        item.state = .failed
+        item.reason = "Сервер не ответил."
+        XCTAssertEqual(BackgroundRecognitionLine.words(item, queue: queue, text: russian), "Ноты не распознаны: Сервер не ответил.")
+        item.state = .done
+        XCTAssertNil(BackgroundRecognitionLine.words(item, queue: queue, text: russian), "the notes are in: no line")
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            for key in ["recognition.busy", "recognition.background", "recognition.notesReady", "recognition.openNotes", "recognition.backgroundFailed", "recognition.runningOne"] {
+                XCTAssertNotEqual(text[key], key, "\(language): \(key)")
+            }
+        }
     }
 
     // MARK: - SCAN-05: a page no engine read, «Повторить»

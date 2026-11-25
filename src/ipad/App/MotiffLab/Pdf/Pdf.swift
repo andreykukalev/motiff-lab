@@ -334,6 +334,8 @@ struct PdfScreen: View {
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
     @ObservedObject private var settings = DeviceSettings.shared
+    /// The library's recognition, where «Распознать ноты» with four engines sends this PDF (Andrei, 2026-11-25).
+    @Environment(\.backgroundReading) private var backgroundReading
     @State private var readingOpen = false
     @State private var settingsOpen = false
     @State private var settingsNext = false
@@ -390,6 +392,9 @@ struct PdfScreen: View {
                 }
                 VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
                     bar(width: screen.size.width - 2 * CGFloat.ds("s-4"))
+                    if let file = background.file, let line = background.line {
+                        line(handingOver) { Task { await openBackgroundNotes(file) } }
+                    }
                     if pdf.penOn {
                         PdfPenPalette(pdf: pdf, text: text)
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -527,7 +532,7 @@ struct PdfScreen: View {
     /// Recognise notes, in the bar while the PDF has pages and no notes yet (Andrei, 2026-11-11: in More it was not found):
     /// with its word where the bar has room, else its icon alone.
     @ViewBuilder private func readNotesButton(compact: Bool) -> some View {
-        if let readNotesAction, pdf.pageCount > 0 {
+        if let readNotesAction, pdf.pageCount > 0, !inBackground {
             Button(action: readNotesAction) {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Icon(name: "roll", size: CGFloat.ds("icon-l"))
@@ -658,6 +663,27 @@ struct PdfScreen: View {
         }
     }
 
+    /// The library's recognition as this piece sees it; none for the PDF linked in Files, which is not recognised here.
+    private var background: BackgroundReading {
+        linked || backgroundReading.file != piece.file ? BackgroundReading() : backgroundReading
+    }
+
+    /// This piece is being recognised in the background: its line under the bar says how far, in place of the button.
+    private var inBackground: Bool { background.reading }
+
+    /// «Открыть ноты» once the notes are back (Andrei, 2026-11-25): this screen saves the piece and writes it no more, the
+    /// library's recognition writes the notes into it, and the piece opens on its notes where the page under the bar starts.
+    private func openBackgroundNotes(_ file: URL) async {
+        guard let openRead, !handingOver else { return }
+        handingOver = true
+        defer { handingOver = false }
+        pdf.keepView()
+        try? await ProjectFiles.save(piece: piece.id, to: file)
+        guard await background.release(file) else { return }
+        let starts = await PieceSummary.read(file)?.documentPages ?? []
+        await openRead(file, .tick(PageMap(starts: starts).start(of: max(1, pdf.page))))
+    }
+
     /// Whether recognising the notes goes to Motiff Lab's server, which is Pro.
     private var hosted: Bool { scanAddress != nil && scanAddress == ScanServer.hosted(account) }
 
@@ -670,6 +696,14 @@ struct PdfScreen: View {
     /// reads at once goes in parts, with the panel's bar (issue #479).
     private func readNotes() async -> String? {
         guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
+        // With four engines the piece is read in the background by the library's recognition (Andrei, 2026-11-25): its job
+        // is kept on this iPad, so it goes on after the app is closed, and the line under the bar says how far it is.
+        if ScanServer.jobs, let file = piece.file {
+            try? await ProjectFiles.save(piece: piece.id, to: file)
+            guard await background.send(file, address, hosted) else { return text["pdf.readNone"] }
+            readingOpen = false
+            return nil
+        }
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
         case .success(let read):
@@ -693,7 +727,7 @@ struct PdfScreen: View {
                 settingsNext = true
                 readingOpen = false
             },
-            read: read, pdf: pdf
+            read: read, pdf: pdf, busy: background.busy
         )
     }
 

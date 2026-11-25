@@ -163,6 +163,14 @@ final class RecognitionQueue: ObservableObject {
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
 
+    /// The piece being recognised while the batch is unfinished, paused or stopped too: the one being read, else the next
+    /// waiting; nil when none is. One recognition at a time (Andrei, 2026-11-25): while there is one, «Распознать ноты» on a
+    /// PDF, in Sources and in the library starts none; «Остановить» ends it.
+    var busy: RecognitionItem? {
+        guard let batch, !batch.finished else { return nil }
+        return batch.items.first { $0.state == .reading } ?? batch.items.first { $0.state == .queued }
+    }
+
     /// Reads the batch kept on the device, once, and starts following at once the pieces whose scan job goes on on the
     /// server (spec part 5: after a relaunch the app asks again); every other piece waits for «Продолжить», as before.
     func restoreAndFollowJobs() {
@@ -252,6 +260,24 @@ final class RecognitionQueue: ObservableObject {
         revision += 1
     }
 
+    /// The piece open on screen, `file`, has been saved and its screen writes it no more (its «Открыть ноты», Andrei
+    /// 2026-11-25): its notes may be written now. The screen then opens it again, which tells the queue as any opening does.
+    func released(_ file: URL) {
+        guard open == file.lastPathComponent else { return }
+        opened(nil)
+    }
+
+    /// The piece's item once the batch is done with it (its notes written, or why not), waiting for the queue `seconds` at
+    /// most; nil when it is not in the batch or still not done.
+    func finished(_ file: URL, within seconds: Int = 120) async -> RecognitionItem? {
+        for _ in 0..<(seconds * 4) {
+            guard let item = status(of: file) else { return nil }
+            if item.state == .done || item.state == .failed { return item }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        return nil
+    }
+
     /// The piece now open on screen (nil when none); a piece left for it is read once another is open or none.
     func opened(_ url: URL?) {
         let now = url?.lastPathComponent
@@ -263,9 +289,11 @@ final class RecognitionQueue: ObservableObject {
         }
     }
 
-    /// The next piece to read: the first queued, except the one open on screen; with `jobsOnly`, the first with a scan job.
-    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false) -> Int? {
-        batch.items.firstIndex { $0.state == .queued && $0.file != open && (!jobsOnly || $0.job != nil) }
+    /// The next piece to read: the first queued, except the one open on screen unless it is read by a scan job (`jobs`, or
+    /// its job kept), whose readings wait until the screen lets it go (`RecognitionJob.ready`, Andrei 2026-11-25: «Распознать
+    /// ноты» on an open PDF goes on in the background); with `jobsOnly`, the first with a scan job.
+    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false, jobs: Bool = false) -> Int? {
+        batch.items.firstIndex { $0.state == .queued && ($0.file != open || jobs || $0.job != nil) && (!jobsOnly || $0.job != nil) }
     }
 
     /// What is happening to the piece's notes in the batch, if it is in it.
@@ -281,7 +309,7 @@ final class RecognitionQueue: ObservableObject {
             waiting = batch.map { !$0.paused && $0.items.contains { $0.state == .queued } } ?? false
             revision += 1
         }
-        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly) {
+        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly, jobs: ScanServer.jobs) {
             guard let address = URL(string: current.address) else { return stop() }
             let item = current.items[index]
             if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {
@@ -316,7 +344,10 @@ final class RecognitionQueue: ObservableObject {
                 batch?.items[index].reason = read.why
                 if current.hosted, let player = account.player { DailyPages.add(read.pages, player: player, defaults: defaults) }
             case .failure(let failure) where failure.open:
+                // Read again once the screen closes or lets it go (`opened`), not at once: the loop would pick it again.
                 batch?.items[index].state = .queued
+                RecognitionStore.save(batch, in: root)
+                return
             case .failure(let failure):
                 // Pages read again that did not work leave the piece with its notes and the line with «Повторить» (v1.3 i-1b).
                 let again = item.unread != nil
@@ -390,12 +421,21 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, isOpen: isOpen)
+        let away = pdf
+        // The file as it is once the notes are back: a piece open on screen while its job was read was saved there since.
+        let current: () async -> Int32? = {
+            guard let now = try? Data(contentsOf: url), now != project else { return piece }
+            guard case .success(let again) = await OpenPiece.open(fileName: url.lastPathComponent, data: now, language: text.language, pdf: away), again.isDocument else { return nil }
+            return again.id
+        }
+        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, current: current, isOpen: isOpen)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+    /// `current` gives the piece as its file is when the notes are back: `piece` itself, or the file opened again when it
+    /// was saved meanwhile, closed here once the notes are written into it.
+    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, current: () async -> Int32?, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
@@ -417,8 +457,10 @@ final class RecognitionQueue: ObservableObject {
         case .failure(let problem):
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let scanned):
+            guard let into = await current() else { return .failure(RecognitionFailure(reason: text["pdf.unreadable"])) }
             let request = DocumentRead.request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: nil, language: text.language, now: Date())
-            let answer = await DocumentRead.call(piece: piece, request)
+            let answer = await DocumentRead.call(piece: into, request)
+            if into != piece { _ = await MusicCore.run { MusicCore.close(piece: into) } }
             guard let read = facadeObject(answer), read["error"] == nil, let file = read["file"] as? String else {
                 return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
             }

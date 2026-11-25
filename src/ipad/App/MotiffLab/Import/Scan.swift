@@ -37,29 +37,34 @@ final class ScanServer: ObservableObject {
     /// The largest file the scan server reads (src/backend/omr `MAX_UPLOAD_MB`, 50 there and on Motiff Lab's server): a larger
     /// one is not sent, so it is not refused after the whole upload (the web app's `ScanService.MaxUploadBytes`).
     static let maxUploadBytes = 50 * 1024 * 1024
-    /// «Движок распознавания» (v0.5.8; a setting since v0.6.5, homr by default as before): each scan names the engine
-    /// chosen in `engineChoice` (homr or copisteria) to the server, so the two can be compared on the player's own pages.
+    /// «Движок» (v0.5.8; a setting since v0.6.5): «Четыре движка» (`allEngines`, the default since the 1.3 hotfix), «Авто»,
+    /// homr or copisteria; a scan names homr or copisteria to the server, so engines can be compared on the player's own pages.
     static let engineChoice = "scan.engine"
 
-    /// The engine to name to the server: the one chosen; «Авто» is never named: the pages it sends go to the server's own
-    /// engine (`VectorPages.swift`), nor nothing, before the settings are read.
+    /// The choice «Четыре движка» (version 1.3, decision record 0035; a choice of the engine, not an experiment, since the
+    /// 1.3 hotfix, Andrei 2026-11-25): a PDF's pages a notation program drew are read on the device, the others go as a job to
+    /// the server's four engines (`ScanJobs.swift`). It is never named to the server.
+    static let allEngines = "all"
+
+    /// The engine to name to the server: homr or copisteria when chosen; «Авто» and «Четыре движка» are never named, as the
+    /// pages they send go to the server's own engine (`VectorPages.swift`, a photo of a page), nor nothing, before the
+    /// settings are read.
     static func chosenEngine(_ settings: DeviceSettings) -> String? {
         let chosen = settings[engineChoice]
-        return chosen.isEmpty || chosen == auto ? nil : chosen
+        return chosen.isEmpty || chosen == auto || chosen == allEngines ? nil : chosen
     }
 
-    /// The experiment «Распознавание в фоне» (version 1.3, spec part 5): scans go as jobs to the server's four engines
-    /// (`ScanJobs.swift`); off, to `/recognise` as before.
-    static let jobsKey = "experimental.scanJobs"
-
-    static func jobsOn(_ settings: DeviceSettings) -> Bool { settings.isOn(jobsKey) }
+    /// Whether scans go as jobs to the server's four engines (`ScanJobs.swift`): «Четыре движка» chosen; else to
+    /// `/recognise` as before.
+    static func jobsOn(_ settings: DeviceSettings) -> Bool { settings[engineChoice] == allEngines }
 
     /// Whether scan jobs are on, in the settings of this iPad.
     static var jobs: Bool { jobsOn(DeviceSettings.shared) }
 
-    /// True when the player chose «Авто»: the pages a notation program drew are read on the device.
+    /// True when the player chose «Авто», or «Четыре движка», which goes as «Авто» to a server that takes no jobs: the pages
+    /// a notation program drew are read on the device.
     static func choseAuto(_ settings: DeviceSettings) -> Bool {
-        settings[engineChoice] == auto
+        settings[engineChoice] == auto || jobsOn(settings)
     }
 
     /// What the player chose: their own server's address, `off`, or nil for the hosted server where there is one.
@@ -380,6 +385,9 @@ struct ReadNotesPanel: View {
     /// The PDF to be sent: with scan jobs on (decision record 0035 section 6), the panel says before sending which pages the
     /// iPad read itself, which go to the server and about how long they take (`ScanServer.jobPlanLine`).
     var pdf: Data? = nil
+    /// The title of the piece being recognised now (`RecognitionQueue.busy`): one recognition at a time (Andrei,
+    /// 2026-11-25), so the panel says so in place of Send.
+    var busy: String? = nil
     @State private var reading = false
     @State private var problem: String?
     @State private var planned: String?
@@ -388,7 +396,9 @@ struct ReadNotesPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
             Text(heading ?? text["pdf.readNotes"]).overline().accessibilityAddTraits(.isHeader)
-            if let address {
+            if let busy, !reading {
+                caption(text.format("recognition.busy", busy))
+            } else if let address {
                 if hosted && !signedIn {
                     caption(text["scan.signInPrompt"])
                     Button(text["settings.signIn"], action: settings).buttonStyle(DSButtonStyle(kind: .primary, compact: true))

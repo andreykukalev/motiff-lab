@@ -147,20 +147,26 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(again.unread, [2])
     }
 
-    func testTheExperimentIsOffUntilTurnedOnAndItsWordsAreInBothLanguages() async {
+    func testScanJobsAreTheEngineChoiceFourEnginesTheDefaultAndTheirWordsAreInBothLanguages() async {
         let settings = DeviceSettings(store: UserDefaults(suiteName: "ScanJobsTests-\(UUID().uuidString)")!)
         await settings.load()
-        XCTAssertEqual(ScanServer.jobsKey, "experimental.scanJobs")
-        XCTAssertFalse(ScanServer.jobsOn(settings), "off: scans go to /recognise as before")
-        XCTAssertEqual(settings.catalogue[ScanServer.jobsKey]?.scope, "device")
+        XCTAssertEqual(settings.catalogue[ScanServer.engineChoice]?.scope, "device")
+        XCTAssertEqual(settings.catalogue[ScanServer.engineChoice]?.choices, ["all", "auto", "homr", "copisteria"])
+        XCTAssertTrue(ScanServer.jobsOn(settings), "«Четыре движка» by default (Andrei, 2026-11-25)")
+        XCTAssertNil(ScanServer.chosenEngine(settings), "never named to the server")
+        XCTAssertNil(settings.catalogue["experimental.scanJobs"], "no experiment switch")
+        settings.set(ScanServer.engineChoice, "copisteria")
+        XCTAssertFalse(ScanServer.jobsOn(settings), "one engine: /recognise as before")
+        XCTAssertEqual(ScanServer.chosenEngine(settings), "copisteria")
 
         var keys = ["pdf.readLineJob", "pdf.readLineHereJob", "pdf.readLineHostedJob", "recognition.whereHostedJob", "folderImport.recogniseHostedJob",
-                    "recognition.retry", "scanJob.page", "scanJob.engine", "scanJob.detailHint", "settings.scanJobs", "settings.scanJobsHint"]
+                    "recognition.retry", "scanJob.page", "scanJob.engine", "scanJob.detailHint", "settings.scanEngineAll", "settings.scanEngineHint"]
         keys += ["waiting", "reading", "read", "retrying", "not_read"].map { "scanJob.state." + $0 }
         for language in ["en", "ru"] {
             let text = UIText(language: language)
             for key in keys { XCTAssertNotEqual(text[key], key, "\(language): \(key)") }
         }
+        XCTAssertEqual(russian["settings.scanEngineAll"], "Четыре движка")
         XCTAssertTrue(english["recognition.whereHostedJob"].contains("at most 24 hours"), "the job path's promise (0035 section 4)")
         XCTAssertTrue(russian["pdf.readLineHostedJob"].contains("не дольше 24 часов"))
         XCTAssertTrue(english["recognition.whereHosted"].hasSuffix("deletes them once read."), "/recognise keeps its own")

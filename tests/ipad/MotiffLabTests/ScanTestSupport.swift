@@ -106,18 +106,18 @@ enum ScanSupport {
         return (answer?["notes"] as? [[String: Any]] ?? []).compactMap { $0["pitch"] as? Int }.sorted()
     }
 
-    /// Turns «Распознавание в фоне» on in this iPad's settings, as its switch does; answers what it was, for `restore`.
+    /// Chooses «Четыре движка» in this iPad's settings, as Settings does; answers what was chosen, for `restore`.
     static func jobsOn() async -> String {
-        let before = ScanServer.jobs ? "on" : "off"
-        await DeviceSettings.shared.update(["set": ["id": ScanServer.jobsKey, "value": "on"]])
-        XCTAssertTrue(ScanServer.jobs, "the experiment on")
+        let before = DeviceSettings.shared[ScanServer.engineChoice]
+        await DeviceSettings.shared.update(["set": ["id": ScanServer.engineChoice, "value": ScanServer.allEngines]])
+        XCTAssertTrue(ScanServer.jobs, "scan jobs on")
         return before
     }
 
-    /// The experiment as it was before `jobsOn`; nothing when it was not turned on.
+    /// The engine chosen before `jobsOn`; nothing when it was not changed.
     static func restore(_ before: String?) async {
-        guard let before else { return }
-        await DeviceSettings.shared.update(["set": ["id": ScanServer.jobsKey, "value": before]])
+        guard let before, !before.isEmpty else { return }
+        await DeviceSettings.shared.update(["set": ["id": ScanServer.engineChoice, "value": before]])
     }
 
     /// Waits, `seconds` at most, for what the queue or a controller does in a task of its own.

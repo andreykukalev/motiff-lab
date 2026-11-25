@@ -74,15 +74,12 @@ public static class SettingsCatalogue
         Switch("account.saveOnline", SettingSection.Account, null, SettingScope.Device),
         Switch("account.analytics", SettingSection.Account, null, SettingScope.Device),
 
-        // The scan engine (v0.5.8, a setting since v0.6.5): a scan names the engine chosen here to the scan server, homr or
-        // copisteria, so the two can be compared on the player's own pages; "auto" (decision record 0029) reads a born-digital
-        // PDF's pages on the device (Import.Vector.VectorReader) and sends only the other pages, with the server's own engine.
-        Choice("scan.engine", SettingSection.Experimental, ["homr", "copisteria", "auto"], "homr", null, SettingScope.Device),
-
-        // Scan jobs (version 1.3, decision record 0035, an experiment): with it on, the iPad reads a born-digital PDF's pages on
-        // the device first and sends the others as a job to the scan server's four engines, whose readings music-core merges
-        // (scan.join); off, scans go to /recognise as before.
-        Switch("experimental.scanJobs", SettingSection.Experimental, null, SettingScope.Device),
+        // The scan engine (v0.5.8, a setting since v0.6.5): "all" (version 1.3, decision record 0035; the default and no longer
+        // an experiment since the 1.3 hotfix, Andrei 2026-11-25) reads a born-digital PDF's pages on the device first and sends
+        // the others as a job to the scan server's four engines, whose readings music-core merges (scan.join); "auto"
+        // (decision record 0029) reads a born-digital PDF's pages on the device and sends only the other pages, with the
+        // server's own engine; homr or copisteria names that one engine to the server, so engines can be compared.
+        Choice("scan.engine", SettingSection.Account, ["all", "auto", "homr", "copisteria"], "all", null, SettingScope.Device),
     ];
 
     private static readonly Dictionary<string, Setting> s_byId = All.ToDictionary(setting => setting.Id, StringComparer.Ordinal);
