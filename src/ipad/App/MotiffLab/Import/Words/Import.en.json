@@ -270,7 +270,6 @@
   "scanJob.state.retrying": "trying again",
   "scanJob.state.not_read": "not read",
   "scanJob.detailHint": "Shows each page and its engines",
-  "recognition.busy": "«{0}» is being recognised. A new recognition starts once it is done, or once you stop it in the library.",
   "recognition.background": "In the background",
   "recognition.notesReady": "Notes ready",
   "recognition.openNotes": "Open notes",
