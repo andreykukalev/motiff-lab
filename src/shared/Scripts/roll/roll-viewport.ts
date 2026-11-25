@@ -21,6 +21,8 @@ const MIN_ZOOM = 6;
 export const MAX_ZOOM = 480;
 /** How near the least zoom counts as at it, so a zoom laid there by Fit offers no further step out. */
 const ZOOM_SLACK = 1e-6;
+/** How near one bar in view counts as one, so a step of the time zoom that laid one bar there offers no further step in. */
+const SHARE_SLACK = 1e-6;
 /**
  * In touch reading Fit may make the rows this thin, so a selection's two hands fit the drawer (four octaves in the iPad
  * Pro 11" drawer, whose roll page shows no keyboard).
@@ -302,15 +304,20 @@ export class RollViewport {
         this.rowsAround(rowForOctaves(stepOctaves(octaves, direction), height, READING_MIN_ROW, MAX_ROW) / ROW_AT_100, this.host.header() + height / 2);
     }
 
-    /** The bars and the octaves in view and which steps are left (the zoom on each axis); Zoom Out as the roll shows it. */
+    /**
+     * The bars and the octaves in view and which steps are left (the zoom on each axis); Zoom Out as the roll shows it. A
+     * step of the time zoom is left only where zoomTime would take it: + while more than one bar is in view (it never shows
+     * fewer than one), and neither without a bar in view.
+     */
     axisZoom(model: RollModel, zoomOut: boolean): AxisZoom {
         const row = this.rowHeight();
         const octaves = octavesInView(Math.floor(this.host.height() / row));
+        const share = barShareInView(model.bars, this.scrollNow, this.scrollNow + this.visibleTicks());
         return {
             bars: barsInView(model.bars, this.scrollNow, this.scrollNow + this.visibleTicks()),
             octaves,
-            timeIn: !this.atGreatestZoom(),
-            timeOut: !this.atLeastZoom(),
+            timeIn: !this.atGreatestZoom() && share > 1 + SHARE_SLACK,
+            timeOut: !this.atLeastZoom() && share > 0,
             pitchIn: octaves > 1 && row < MAX_ROW,
             pitchOut: row > READING_MIN_ROW,
             zoomOut: zoomOut && this.bound === null,

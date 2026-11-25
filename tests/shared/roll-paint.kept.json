@@ -5230,7 +5230,7 @@
      {
       "bars": 1,
       "octaves": 1,
-      "timeIn": true,
+      "timeIn": false,
       "timeOut": true,
       "pitchIn": false,
       "pitchOut": true,
@@ -5424,8 +5424,8 @@
      {
       "bars": 0,
       "octaves": 1,
-      "timeIn": true,
-      "timeOut": true,
+      "timeIn": false,
+      "timeOut": false,
       "pitchIn": false,
       "pitchOut": true,
       "zoomOut": false
@@ -5644,7 +5644,7 @@
      {
       "bars": 1,
       "octaves": 1,
-      "timeIn": true,
+      "timeIn": false,
       "timeOut": true,
       "pitchIn": false,
       "pitchOut": true,
