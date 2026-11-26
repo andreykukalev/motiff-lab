@@ -109,6 +109,23 @@ extension ScoreController {
         }
     }
 
+    /// The mark whose card shows moved on the page (`point`, its bottom left now: a scroll, or the page laid out again on a
+    /// rotation or in Split View): the card goes with it, a version's marker's, a phrase's number's or a draft's (r-1). The
+    /// page follows the mark tapped last, and one card at a mark shows at a time. False when no card shows at a mark.
+    func moveCardAtMark(to point: CGPoint) -> Bool {
+        var moved = false
+        if let pick = sourcesModel.markerPick {
+            sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: pick.bar, left: point.x, bottom: point.y))
+            moved = true
+        }
+        if phraseMenu != nil {
+            phraseMenu?.at = point
+            moved = true
+        }
+        let draftCards = [draftModel.moveCard(to: point), seamsModel.moveCard(to: point), anchorsModel.moveCard(to: point)]
+        return moved || draftCards.contains(true)
+    }
+
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
     /// there, selected, with its card at its label (a bridge's candidates, v1.2; any other place's ▾ menu of its variants,
     /// v1.4, none while «Скрыть номера» leaves the draft to practise on: DRAFT-05), else a version's marker, whose card

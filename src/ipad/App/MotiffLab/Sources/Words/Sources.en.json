@@ -170,5 +170,6 @@
   "drafts.recordingNone": "The piece has no recording heard as notes.",
   "drafts.recordingSearching": "Searching the recordings…",
   "drafts.recordingNotFound": "No recording has this place's music.",
+  "drafts.recordingFailed": "The recordings could not be searched. Try again.",
   "drafts.recordingAlready": "Already a variant of this place: “{0}”"
 }

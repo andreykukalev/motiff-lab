@@ -53,6 +53,8 @@ final class PenModelTests: XCTestCase {
         /// The changes Undo and Redo sent back, and whether each was to be drawn.
         private(set) var recoloured: [Recolouring] = []
         private(set) var recolourDraws: [Bool] = []
+        /// Whether each colour the eraser took was to be drawn at once.
+        private(set) var uncolourDraws: [Bool] = []
         /// What the colour bars changed, as the score answers it: nothing when it is empty, else the span laid in its colour.
         var colourChanges = true
         var changed: (() -> Void)?
@@ -76,8 +78,9 @@ final class PenModelTests: XCTestCase {
             return colourChanges ? Recolouring(laid: [Recolouring.Highlight(onset: span.lowerBound, end: span.upperBound, colour: colour)]) : Recolouring()
         }
 
-        func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring {
+        func uncolourBars(_ spans: [Range<Double>], draws: Bool) async -> Recolouring {
             coloured.append("off " + spans.map { "\(Int($0.lowerBound))-\(Int($0.upperBound))" }.joined(separator: " "))
+            uncolourDraws.append(draws)
             changed?()
             return Recolouring(taken: spans.map { Recolouring.Highlight(onset: $0.lowerBound, end: $0.upperBound, colour: "amber") })
         }
@@ -114,6 +117,7 @@ final class PenModelTests: XCTestCase {
     private func coloured(_ score: FakeScore, _ count: Int) async {
         guard score.coloured.count < count else { return }
         let done = expectation(description: "\(count) colourings")
+        done.assertForOverFulfill = false
         score.changed = { if score.coloured.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -123,6 +127,7 @@ final class PenModelTests: XCTestCase {
     private func recoloured(_ score: FakeScore, _ count: Int) async {
         guard score.recoloured.count < count else { return }
         let done = expectation(description: "\(count) changes sent back")
+        done.assertForOverFulfill = false
         score.changed = { if score.recoloured.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -132,6 +137,7 @@ final class PenModelTests: XCTestCase {
     private func changes(_ score: FakeScore, _ count: Int) async {
         guard score.changes.count < count else { return }
         let done = expectation(description: "\(count) changes")
+        done.assertForOverFulfill = false
         score.changed = { if score.changes.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -267,7 +273,22 @@ final class PenModelTests: XCTestCase {
         await coloured(score, 1)
         XCTAssertEqual(score.coloured, ["off 240-360 600-720"], "a stretch of no length is left out")
         XCTAssertEqual(score.changes, [], "no ink was cut")
+        XCTAssertEqual(score.uncolourDraws, [true], "with no ink cut, the colour taken draws its own answer")
         XCTAssertTrue(model.canUndo, "the colour it took is a step (v1.4 i-5)")
+    }
+
+    /// r-1: the press itself is drawn once, as its Undo and Redo are: the colour it took first, not drawn, then the ink,
+    /// whose last call draws both (it drew twice: the stroke cut, then the colour).
+    func testAPressThatCutInkAndTookAColourIsDrawnOnce() async {
+        let (model, score) = made()
+        score.page.rubbed = ["removed": [["id": "a"]], "added": [["id": "b"]], "uncoloured": [["start": 0, "end": 480]]]
+        model.rub([["x": 1, "y": 2]], lifted: true, in: 7)
+        await changes(score, 2)
+        XCTAssertEqual(score.coloured, ["off 0-480"], "the colour went first")
+        XCTAssertEqual(score.uncolourDraws, [false], "and waited for the ink")
+        XCTAssertEqual(score.changes.map(\.call), ["ink.add", "ink.remove"])
+        XCTAssertEqual(score.changes.map(\.draws), [false, true], "the ink's last call draws the press once")
+        XCTAssertTrue(model.canUndo)
     }
 
     /// A press of the eraser that cut a stroke and took a colour is one step: Undo puts back both, Redo takes both again,
@@ -276,7 +297,7 @@ final class PenModelTests: XCTestCase {
         let (model, score) = made()
         score.page.rubbed = ["removed": [["id": "a"]], "uncoloured": [["start": 0, "end": 480]]]
         model.rub([["x": 1, "y": 2]], lifted: true, in: 7)
-        await coloured(score, 1)
+        await changes(score, 1) // the ink goes last, after the colour (r-1)
         let taken = Recolouring(taken: [Recolouring.Highlight(onset: 0, end: 480, colour: "amber")])
         model.undo()
         await changes(score, 2)

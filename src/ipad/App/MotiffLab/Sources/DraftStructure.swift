@@ -14,16 +14,23 @@ enum DraftRecordingOffer: Equatable, Sendable {
     case noRecording
     /// The search is on its way.
     case searching
-    /// No recording has the place's music, or music-core did not answer.
+    /// No recording has the place's music.
     case notFound
+    /// music-core did not search: its words, when it gave them (r-1: the line said no recording had the music).
+    case failed(String?)
     /// The stretch found most is no variant of the place yet: it is put in.
     case add(DraftRecordingAnswer.Found)
     /// The stretch found most is a variant of the place already: named, nothing added.
     case already(DraftRecordingAnswer.Found)
 
-    /// The offer of music-core's answer, from the stretch it found most only (the first).
-    init(_ answer: DraftRecordingAnswer?) {
-        guard let best = answer?.found.first else {
+    /// The offer of music-core's answer, from the stretch it found most only (the first); with no answer, `refused`, its
+    /// words, if any.
+    init(_ answer: DraftRecordingAnswer?, refused: String? = nil) {
+        guard let answer else {
+            self = .failed(refused)
+            return
+        }
+        guard let best = answer.found.first else {
             self = .notFound
             return
         }
@@ -48,6 +55,7 @@ enum DraftRecordingOffer: Equatable, Sendable {
         case .noRecording: text["drafts.recordingNone"]
         case .searching: text["drafts.recordingSearching"]
         case .notFound: text["drafts.recordingNotFound"]
+        case .failed(let refused): refused ?? text["drafts.recordingFailed"]
         case .already(let found): text.format("drafts.recordingAlready", found.label)
         }
     }

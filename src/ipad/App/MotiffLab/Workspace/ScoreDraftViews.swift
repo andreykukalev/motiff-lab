@@ -241,9 +241,11 @@ struct DraftStepToast: View {
 
 /// A draft's view on its screen over the piece (v1.1): after each step it opens again in its place (`reopen`, the
 /// `ScoreScreen`'s), at the place asked, as music-core rebuilt it, its map and the assistant as they were; each number it
-/// was open under is closed once the next shows or the screen goes.
+/// was open under is closed once the next shows or the screen goes, also one that opens after it has gone
+/// (`DraftVisitPieces`, r-1).
 struct ShownDraftScreen: View {
     @State private var piece: OpenPiece
+    @State private var visit: DraftVisitPieces
     /// The draft's map, open or not, as the view opens again after each step.
     @State private var map: DraftMapOpen?
     /// The assistant of the draft's visit (v1.4): each screen the view opens again on is handed it, so a conversation in a
@@ -254,6 +256,7 @@ struct ShownDraftScreen: View {
 
     init(piece: OpenPiece, owner: SourcesController, viewing: String) {
         _piece = State(initialValue: piece)
+        _visit = State(initialValue: DraftVisitPieces(showing: piece.id))
         self.owner = owner
         self.viewing = viewing
     }
@@ -261,13 +264,17 @@ struct ShownDraftScreen: View {
     var body: some View {
         ScoreScreen(piece: piece, viewing: viewing, reopen: reopen, assistant: assistant)
             .environment(\.draftMap, $map)
-            .onDisappear { [id = piece.id] in ScoreScreenContent.ShownView.close(id) }
             .id(piece.id)
+            // Outside the view's identity, so only the whole screen going leaves the visit, not the view opened again.
+            .background { Color.clear.onDisappear { visit.leave() } }
     }
 
-    /// The draft opened again by `drafts.open`, at `landing`'s tick, else at its start; as it was when it cannot be.
+    /// The draft opened again by `drafts.open`, at `landing`'s tick, else at its start; as it was when it cannot be, and
+    /// nothing once the screen has gone meanwhile (`visit` closes it).
     private func reopen(_ landing: Landing) async {
-        guard let id = piece.draft?.id, let draft = owner.layers.draft(id), let next = await owner.openDraft(draft, at: landing.tick) else { return }
-        piece = next
+        guard let id = piece.draft?.id, let draft = owner.layers.draft(id), let next = await owner.openDraft(draft, at: landing.tick),
+              let shown = visit.shown(next)
+        else { return }
+        piece = shown
     }
 }

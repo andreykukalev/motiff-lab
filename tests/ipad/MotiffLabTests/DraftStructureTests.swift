@@ -71,7 +71,7 @@ final class DraftStructureTests: XCTestCase {
 
     /// «Найти на записи» puts in the stretch found most, unless the place has it already: then it is named and nothing is
     /// added, not another recording's in its stead (c-3); none found, or no answer, puts nothing in, and the line says why,
-    /// in both languages.
+    /// in both languages: no answer is no search, never «no recording has the music» (r-1).
     func testFindOnRecordingPutsInOnlyTheStretchFoundMost() throws {
         let recording = try FacadeAnswerFixturesTests.answers("drafts.recording")
         let first = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, recording[0].text, of: "drafts.findOnRecording"))
@@ -95,7 +95,10 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertNil(DraftRecordingOffer(both).adds, "another recording's stretch is not taken in its stead")
         let none = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, #"{"draft": "d_1", "place": "pl_1", "found": []}"#, of: "drafts.findOnRecording"))
         XCTAssertEqual(DraftRecordingOffer(none), .notFound)
-        XCTAssertEqual(DraftRecordingOffer(nil), .notFound)
+        XCTAssertEqual(DraftRecordingOffer(nil), .failed(nil), "no answer: nothing was searched")
+        XCTAssertEqual(DraftRecordingOffer(nil, refused: "The draft is gone.").line(UIText(language: "en")), "The draft is gone.", "music-core's words")
+        XCTAssertNotEqual(DraftRecordingOffer(nil).line(UIText(language: "en")), DraftRecordingOffer.notFound.line(UIText(language: "en")))
+        XCTAssertTrue(DraftRecordingOffer.failed(nil).searchable, "tried again on a tap")
         XCTAssertTrue(DraftRecordingOffer.ready.searchable)
         XCTAssertTrue(DraftRecordingOffer.notFound.searchable, "searched again on a tap")
         XCTAssertFalse(DraftRecordingOffer.noRecording.searchable, "nothing to search")
@@ -103,7 +106,7 @@ final class DraftStructureTests: XCTestCase {
         for language in ["en", "ru"] {
             let text = UIText(language: language)
             XCTAssertNil(DraftRecordingOffer.ready.line(text), "before a tap")
-            for offer in [DraftRecordingOffer.noRecording, .searching, .notFound, .already(both.found[0])] {
+            for offer in [DraftRecordingOffer.noRecording, .searching, .notFound, .failed(nil), .already(both.found[0])] {
                 let line = try XCTUnwrap(offer.line(text), "\(language): \(offer)")
                 XCTAssertFalse(line.hasPrefix("drafts."), "\(language): \(offer)")
             }

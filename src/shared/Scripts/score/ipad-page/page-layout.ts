@@ -16,6 +16,7 @@ import { markPicked, keepTuplets, selection } from "./page-selection.js";
 import { drawHeads, reportPlace } from "./page-playheads.js";
 import { forgetSounding, heard } from "./page-sounding.js";
 import { drawCardHeads, layoutCard, placeOssias, reportCardWidth } from "./page-card.js";
+import { forgetMark, tellMarkMoved } from "./page-mark-place.js";
 
 /** What each engraved page holds, read when it is shown. */
 let engraved: PageGeometry[] = [];
@@ -28,6 +29,8 @@ export function show({ pages, timemap, dark }: Parameters<PageCommands["show"]>[
     }
     reported = "";
     forgetRings();
+    // Other pages: no card shows at a mark of the ones before (r-1).
+    forgetMark();
     forgetSounding("page");
     const host = document.getElementById("pages") as HTMLElement;
     host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");
@@ -122,7 +125,7 @@ export function inset({ bottom }: Parameters<PageCommands["inset"]>[0]): LaidOut
     return layout();
 }
 
-/** Listens to the page's scroll: the pages in view go to Swift, and the selection's menu follows its band. */
+/** Listens to the page's scroll: the pages in view go to Swift, the selection's menu follows its band and a card its mark. */
 export function listenScroll(): void {
     let scrolling = 0;
     window.addEventListener("scroll", () => {
@@ -130,11 +133,12 @@ export function listenScroll(): void {
         scrolling = requestAnimationFrame(() => {
             reportPages();
             selection.placeMenu();
+            tellMarkMoved();
         });
     }, { passive: true });
 }
 
-/** Listens to the window's size: the pages, the card in focus and its marks are laid out again. */
+/** Listens to the window's size: the pages, the card in focus and its marks are laid out again, and a card follows its mark. */
 export function listenResize(): void {
     let resizing = 0;
     window.addEventListener("resize", () => {
@@ -145,6 +149,7 @@ export function listenResize(): void {
             layoutCard();
             drawCardHeads();
             reportCardWidth();
+            tellMarkMoved();
         });
     });
 }

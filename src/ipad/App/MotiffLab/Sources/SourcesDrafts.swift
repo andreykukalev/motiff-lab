@@ -208,7 +208,7 @@ extension SourcesController {
     func findOnRecording(_ place: String, of draft: String) async -> DraftRecordingOffer {
         guard hasHeardNotes else { return .noRecording }
         let found = await PieceCore(piece: piece).draftRecording(draft: draft, place: place)
-        return DraftRecordingOffer(found.value)
+        return DraftRecordingOffer(found.value, refused: found.message)
     }
 
     /// How long `place` of `draft` is in the bars of its source and whether that can change (`drafts.length`, read only).
