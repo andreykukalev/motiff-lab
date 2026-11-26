@@ -46,7 +46,8 @@ What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»)
    literals, Russian and English, no note content leaving the device.
 7. Platform focus and scope: the change stays in its track's area (`roles/common.md`).
 8. Robustness (`roles/developer.md`, step 6): a pull request on a user-facing feature has its «Robustness» list; each
-   fix in it stays inside defined behaviour and has its test; a fix that changes defined behaviour is a blocking
+   fix in it stays inside defined behaviour and has its test; a decision taken by a common pattern names its source
+   and covers a case no spec, mockup or baseline entry defines; a fix that changes defined behaviour is a blocking
    finding (it moves to «Needs from Andrei»).
 
 ## Output
