@@ -135,8 +135,9 @@ export function nearestBar(frames: readonly BarFrame[], x: number, y: number): B
 }
 
 /**
- * The bar a stroke starting at a point is kept against: the one nearest, or, when the point is in the margin left or right
- * of that bar's line, the line's first or last bar, so the stroke stays at the edge of the line in another layout.
+ * The bar a stroke starting at a point is kept against: on the nearest line, the bar the point is over (the nearest bar
+ * where it is over none), or, when the point is in the margin left or right of that line, the line's first or last bar,
+ * so the stroke stays at the edge of the line in another layout.
  */
 export function anchorBar(frames: readonly BarFrame[], x: number, y: number): BarFrame | undefined {
     return anchorAt(frames, x, y)?.frame;
@@ -166,8 +167,8 @@ function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: B
 }
 
 /**
- * Keeps a stroke drawn in content pixels against the bar its first point is nearest, or, begun in a line's margin, against
- * the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
+ * Keeps a stroke drawn in content pixels against the bar its first point is over on the nearest line, or, begun in a
+ * line's margin, against the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
  */
 export function anchorMark(
     frames: readonly BarFrame[],
