@@ -70,10 +70,10 @@ internal sealed class SelectionSession
     }
 
     /// <summary>Every saved motif is hidden: the passage picked from now on is saved beside them, never over one.</summary>
-    public void SaveBeside(IReadOnlyList<SavedMotif> motifs)
+    public void SaveBeside(SessionPiece piece)
     {
         int number = 1;
-        while (motifs.Any(motif => motif.Id == $"m_{number:D4}"))
+        while (piece.Project.Motifs.Any(motif => motif.Id == $"m_{number:D4}"))
         {
             number++;
         }
@@ -82,8 +82,8 @@ internal sealed class SelectionSession
     }
 
     /// <summary>The working motif's variation left out when the piece opened (<paramref name="hidden"/>), kept for saving while no chain is shown.</summary>
-    public void HideLeftOut(IReadOnlyList<SavedVariation> variations, IReadOnlyList<string> hidden) =>
-        HiddenVariation = Chain is null ? variations.FirstOrDefault(variation => variation.MotifId == MotifId && hidden.Contains(variation.Id)) : null;
+    public void HideLeftOut(SessionPiece piece, IReadOnlyList<string> hidden) =>
+        HiddenVariation = Chain is null ? piece.Project.Variations.FirstOrDefault(variation => variation.MotifId == MotifId && hidden.Contains(variation.Id)) : null;
 
     /// <summary>The selection is now <paramref name="selection"/>: what was understood, the chip, the chain and the hidden variation go.</summary>
     public void Select(MotifSelection selection, MotifSelectionKind kind)
@@ -123,15 +123,20 @@ internal sealed class SelectionSession
         Chip = null;
     }
 
-    /// <summary>The working variation <paramref name="working"/> made again over the selection on the notes as they are now; hidden when it no longer fits.</summary>
-    public void Remake(SavedVariation? working, IReadOnlyList<Note> notes)
+    /// <summary>
+    /// The corrections' layer was switched: the selection follows the notes as <see cref="FollowNotes"/> says, and the
+    /// working variation <paramref name="working"/> (<see cref="WorkingVariation"/> before the switch) is made again over it,
+    /// kept hidden when it no longer fits.
+    /// </summary>
+    public void FollowLayer(SessionPiece piece, SavedVariation? working)
     {
+        FollowNotes(piece);
         HiddenVariation = null;
         if (working is not null && Current is { } selection)
         {
             try
             {
-                Chain = OpenedProject.Restore(working, selection, notes);
+                Chain = OpenedProject.Restore(working, selection, piece.Notes);
             }
             catch (ProjectFileException)
             {
@@ -233,8 +238,9 @@ internal sealed class SelectionSession
     /// the selection is over notes they would change. A pick of one note, or of more than a motif of single notes holds (the
     /// iPad, v0.6.2), is saved as no selection is.
     /// </summary>
-    public (IReadOnlyList<SavedMotif> Motifs, IReadOnlyList<SavedVariation> Variations) Saved(Project project, IReadOnlyList<Note> notes, bool layerOff)
+    public (IReadOnlyList<SavedMotif> Motifs, IReadOnlyList<SavedVariation> Variations) Saved(SessionPiece piece, bool layerOff)
     {
+        Project project = piece.Project;
         if (layerOff)
         {
             return ([.. project.Motifs], [.. project.Variations]);
@@ -244,7 +250,7 @@ internal sealed class SelectionSession
         var variations = project.Variations.Where(variation => variation.MotifId != MotifId).ToList();
         if (NotedSelection is { } selection && Motif.Holds(selection, Kind))
         {
-            motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, Kind, MotifMode.Discovery, notes)));
+            motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, Kind, MotifMode.Discovery, piece.Notes)));
             if (WorkingVariation is { } working)
             {
                 variations.Insert(0, working);

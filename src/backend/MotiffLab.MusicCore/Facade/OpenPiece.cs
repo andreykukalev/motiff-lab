@@ -444,7 +444,7 @@ internal sealed partial class OpenPiece
         DateTimeOffset? now = request.Text("now") is { } text
             ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
             : null;
-        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(Project, Notes, layerOff: _layer == EditsLayer.Off);
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: _layer == EditsLayer.Off);
         Project = Project.WithPhraseLevels(Levels.Edits) with
         {
             Motifs = motifs,

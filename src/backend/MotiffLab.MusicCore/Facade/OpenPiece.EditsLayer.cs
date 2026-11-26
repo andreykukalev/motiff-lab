@@ -95,10 +95,10 @@ internal sealed partial class OpenPiece
 
         if (opened.Motifs.Count == 0 && Project.Motifs.Count > 0)
         {
-            Selection.SaveBeside(Project.Motifs);
+            Selection.SaveBeside(State);
         }
 
-        Selection.HideLeftOut(Project.Variations, _hidden);
+        Selection.HideLeftOut(State, _hidden);
     }
 
     /// <summary>"on": true lays the corrections one by one, false leaves them out; the answer is the corrections of "bar" (else the first bar).</summary>
@@ -118,8 +118,7 @@ internal sealed partial class OpenPiece
             // The piece remembers it in its file (version 0.5), so it opens so again on any device.
             Project = Project with { EditsOff = layer == EditsLayer.Off };
             RefreshNotes();
-            Selection.FollowNotes(State);
-            Selection.Remake(working, Notes);
+            Selection.FollowLayer(State, working);
         }
 
         return CorrectionsAnswer(LayerBar(request));
