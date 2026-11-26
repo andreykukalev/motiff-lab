@@ -181,7 +181,7 @@ internal sealed partial class OpenPiece
         long onset = bar.Span.Onset.Value + (note.Long("onset") ?? throw FacadeException.BadRequest("Each note needs \"onset\", in ticks in the bar."));
         int pitch = note.Int("pitch") ?? throw FacadeException.BadRequest("Each note needs \"pitch\".");
         long length = note.Long("length") ?? throw FacadeException.BadRequest("Each note needs \"length\", in ticks.");
-        return bar.Span.Contains(new Tick(onset)) && pitch is >= 0 and <= Pitch.MaxMidiNumber && length > 0
+        return bar.Span.Contains(new Tick(onset)) && pitch is >= 0 and <= Pitch.MaxMidiNumber && length > 0 && length <= long.MaxValue - onset
             ? new NoteValues(new Pitch(pitch), new TickSpan(new Tick(onset), length), Note.MinVelocity)
             : throw FacadeException.BadRequest("A note of the variant starts outside its bar, or its pitch or length is out of range.");
     }
