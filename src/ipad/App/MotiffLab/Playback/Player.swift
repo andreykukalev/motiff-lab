@@ -85,7 +85,7 @@ final class Player: ObservableObject {
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
             // An interruption pauses the music where it is; the engine starts again after it, and after a route change.
-            keeper = EngineKeeper(audio) { [weak self] in self?.send(.pause) }
+            keeper = EngineKeeper(audio) { [weak self] in self?.interrupted() }
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
             let answer = await PieceCore(piece: piece).playback()
@@ -402,7 +402,10 @@ final class Player: ObservableObject {
         }
     }
 
+    /// A message to the engine; Play also starts the audio engine again if the system stopped it and never said it may
+    /// start (an interruption need not end: another app's music the player left playing), so Play is never silent.
     private func send(_ message: EngineMessage) {
+        if case .play = message { keeper?.restart() }
         renderer?.send(message)
     }
 
@@ -424,27 +427,47 @@ final class Player: ObservableObject {
             }
         }
         guard let last, case .position(let position) = last.report else { return }
-        if state != position.state {
-            let started = state != .stopped
-            state = position.state
-            Metronome.shared.playbackChanged(self)
-            // Notes heard alone that came to their end give way to the piece.
-            if hearingAlone && started && state == .stopped { setLoop(nil) }
-        }
-        var now = position.tick
-        if position.state == .playing && position.ticksPerSecond > 0 {
-            let heard = CACurrentMediaTime() - last.at - audio.outputNode.presentationLatency
-            now += max(0, heard) * position.ticksPerSecond
-            if position.loopEnd > position.loopStart && position.tick >= position.loopStart && position.tick < position.loopEnd {
-                let length = position.loopEnd - position.loopStart
-                now = position.loopStart + (now - position.loopStart).truncatingRemainder(dividingBy: length)
-            }
-        }
+        if state != position.state { show(position.state) }
+        let now = Self.heard(position, after: CACurrentMediaTime() - last.at - audio.outputNode.presentationLatency)
         if abs(now - tick) >= 1 {
             tick = now
         }
         // The lead-in ends once the position reaches the selection (T4–T6).
         if leadIn { leadIn = PlaybackModel.next(model, .report(tick: tick, transport: state)).state.leadIn }
+    }
+
+    /// The transport as the views show it, and what follows it: the metronome, and notes heard alone that came to their
+    /// end giving way to the piece.
+    private func show(_ transport: TransportState) {
+        let started = state != .stopped
+        state = transport
+        Metronome.shared.playbackChanged(self)
+        if hearingAlone && started && state == .stopped { setLoop(nil) }
+    }
+
+    /// A call, Siri or another app's sound took the audio (EngineKeeper): the engine pauses as it starts again, and the
+    /// views show it paused now, where it was heard, not playing on from the last report until then.
+    private func interrupted() {
+        send(.pause)
+        last = nil
+        if state != .stopped { show(.stopped) }
+    }
+
+    /// The longest the playhead runs on from the engine's last report (v1.4 r-1b): reports come about 30 times a second, so an
+    /// older one means the audio stopped (the app in the background, the screen locked, an interruption, a route
+    /// change), and the playhead waits there for the next report rather than running on past the loop or the end.
+    nonisolated static let heardAhead = 0.25
+
+    /// The tick heard `seconds` after a report was rendered: the report's tick, moved on at its speed while it plays, at
+    /// most `heardAhead`, and wrapped inside the loop it plays in.
+    nonisolated static func heard(_ position: PositionReport, after seconds: Double) -> Double {
+        guard position.state == .playing && position.ticksPerSecond > 0 else { return position.tick }
+        var now = position.tick + min(max(0, seconds), heardAhead) * position.ticksPerSecond
+        if position.loopEnd > position.loopStart && position.tick >= position.loopStart && position.tick < position.loopEnd {
+            let length = position.loopEnd - position.loopStart
+            now = position.loopStart + (now - position.loopStart).truncatingRemainder(dividingBy: length)
+        }
+        return now
     }
 
     /// The engine on the audio thread: messages from the main thread wait in an inbox until the next block, and the
