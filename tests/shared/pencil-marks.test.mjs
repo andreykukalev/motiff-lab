@@ -135,6 +135,41 @@ test("laid out again, a stroke in a margin stays at the edge of its bar's line, 
     assert.deepEqual(placeMark(oldRight, wider), placeMark(right, wider));
 });
 
+/**
+ * A line whose first bar's notes reach lower than the second's: under the line, just right of the bar line between them,
+ * the first bar is the nearer.
+ */
+const lowFirst = () => {
+    const frames = line(0, [0, 1920, 3840], 100, 100, 50);
+    frames[1] = { ...frames[1], bottom: 140 };
+    return frames;
+};
+
+test("a stroke begun beside the nearest bar's notes, within its line, is kept against the bar it is over and drawn where it was written", () => {
+    const frames = lowFirst();
+    assert.equal(nearestBar(frames, 203, 148).tick, 0);
+    const mark = anchorMark(frames, [{ x: 203, y: 148, pressure: 0.5 }, { x: 210, y: 170, pressure: 0.5 }], style);
+    // Kept against bar 0 its u was 1.03 with no margin, which placeMark reads as a stroke of before 0.4 in the line's right
+    // margin: it was drawn 200 px off, at the line's end (the walk's INK-01 run of 2026-11-26).
+    assert.deepEqual([mark.bar, mark.u, "margin" in mark], [1920, 0.03, false]);
+    assert.deepEqual(placeMark(mark, framesByTick(frames)).points[0], { x: 203, y: 148, pressure: 0.5 });
+});
+
+test("the eraser drawn along a stroke begun there takes all of it, the pieces it leaves as it moves kept where they are (INK-01)", () => {
+    const frames = lowFirst();
+    let next = 0;
+    const layout = { frames, byTick: framesByTick(frames), reach: 5, newId: () => `p${++next}` };
+    const points = Array.from({ length: 9 }, (_, i) => ({ x: 203 + i * 1.5, y: 148 + i * 6, pressure: 0.5 }));
+    const marks = [anchorMark(frames, points, style)];
+    // The moves as the iPad reports them: the point pressed, then a point or two at a time (InkInput, PenModel.rub).
+    let rubbing = rubAlong(NO_RUBBING, marks, points.slice(0, 1), layout).rubbing;
+    for (let i = 1; i < points.length; i += 2) {
+        rubbing = rubAlong(rubbing, marks, points.slice(i, i + 2), layout).rubbing;
+    }
+    assert.deepEqual(rubbing.removed.map((mark) => mark.id), ["m1"]);
+    assert.deepEqual(rubbing.pieces, [], "no piece is left of the stroke");
+});
+
 test("a stroke that says its margin is counted from that edge of its line, even begun right at the line's end", () => {
     // Begun a hair past the last bar's right edge, u rounds to 1: only the margin says it is outside the bar.
     const mark = { id: "m9", tool: "pen", colour: "graphite", size: 0.16, bar: 3840, u: 1, v: 1, points: [], pressure: 0.5, margin: "right" };
