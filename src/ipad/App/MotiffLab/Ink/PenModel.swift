@@ -21,8 +21,9 @@ protocol PenScore: AnyObject {
     /// Colours a passage in a colour of the bars (finding 31): the highlights there become that colour, or, where it was
     /// all that colour already, the colour goes. Answers the change made, for the Pen's history (v1.4 i-5).
     func colourBars(_ span: Range<Double>, in colour: String) async -> Recolouring
-    /// Takes the colour from these stretches, whatever it is (the eraser over highlights); answers the change made.
-    func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring
+    /// Takes the colour from these stretches, whatever it is (the eraser over highlights); answers the change made, drawn
+    /// unless `draws` is false, when the press's ink calls come after it and the last of them draws.
+    func uncolourBars(_ spans: [Range<Double>], draws: Bool) async -> Recolouring
     /// Makes a change of the highlights: a step's, reversed for the Pen's Undo and as it was for its Redo (v1.4 i-5). The
     /// answer is drawn unless `draws` is false, when the step's ink calls come after it and the last of them draws.
     func recolour(_ change: Recolouring, draws: Bool) async
@@ -168,24 +169,27 @@ final class PenModel: ObservableObject, PenHolder {
     }
 
     /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
-    /// marks it cut, drawn once both are done), and so is the colour it passed over (finding 31: the page's `uncoloured`,
-    /// in ticks), in the same step (v1.4 i-5): Undo puts it back whole.
+    /// marks it cut), and so is the colour it passed over (finding 31: the page's `uncoloured`, in ticks), in the same step
+    /// (v1.4 i-5): Undo puts it back whole. The colour goes first, then the ink, whose last call draws both: the press is
+    /// drawn once, as its Undo and Redo are.
     private func endRub(_ piece: Int32?) async {
         // The page's press ends even with no piece to save it in.
         guard let score, let cut = try? await score.scorePage.call(.rubEnd) as? [String: Any], let piece else { return }
-        var step = await saveRub(cut, in: piece)
+        let removed = cut["removed"] as? [[String: Any]] ?? []
         let uncoloured = (cut["uncoloured"] as? [[String: Any]] ?? []).compactMap { span -> Range<Double>? in
             guard let start = (span["start"] as? NSNumber)?.doubleValue, let end = (span["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
             return start..<end
         }
-        if !uncoloured.isEmpty { step.colouring = await score.uncolourBars(uncoloured) }
+        let colouring = uncoloured.isEmpty ? Recolouring() : await score.uncolourBars(uncoloured, draws: removed.isEmpty)
+        var step = await saveRub(removed, cut["added"] as? [[String: Any]] ?? [], in: piece)
+        step.colouring = colouring
         record(step)
     }
 
-    /// The marks a press of the eraser cut and the pieces it left, saved; answers them as the press's step.
-    private func saveRub(_ cut: [String: Any], in piece: Int32) async -> InkStep {
-        guard let score, let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty else { return InkStep() }
-        let pieces = cut["added"] as? [[String: Any]] ?? []
+    /// The marks a press of the eraser cut and the pieces it left, saved and drawn once both are done; answers them as the
+    /// press's step.
+    private func saveRub(_ removed: [[String: Any]], _ pieces: [[String: Any]], in piece: Int32) async -> InkStep {
+        guard let score, !removed.isEmpty else { return InkStep() }
         if !pieces.isEmpty {
             await score.changeMarks(piece, "ink.add", ["strokes": pieces], draws: false)
         }

@@ -14,8 +14,8 @@ extension ScoreController {
         await paint(HighlightPaint.colouring(span, colour, over: marksModel.marks.highlights))
     }
 
-    func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring {
-        await paint(HighlightPaint.uncolouring(spans, over: marksModel.marks.highlights))
+    func uncolourBars(_ spans: [Range<Double>], draws: Bool) async -> Recolouring {
+        await paint(HighlightPaint.uncolouring(spans, over: marksModel.marks.highlights), draws: draws)
     }
 
     func recolour(_ change: Recolouring, draws: Bool) async {
