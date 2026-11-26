@@ -14,7 +14,8 @@ public sealed class ReferenceExplorerFacadeTests
     public void The_explorer_starts_a_key_on_I_IV_V_I_in_Alberti_at_72()
     {
         var facade = new MusicCoreFacade();
-        using JsonDocument answer = JsonDocument.Parse(facade.Call(0, "reference.explorer", """{"fifths": 0, "mode": "major", "language": "en"}"""));
+        // Read strictly: a name twice in one object (the chosen tempo and the playback's "tempo", until v1.4) is refused.
+        using JsonDocument answer = JsonDocument.Parse(facade.Call(0, "reference.explorer", """{"fifths": 0, "mode": "major", "language": "en"}"""), new JsonDocumentOptions { AllowDuplicateProperties = false });
         JsonElement root = answer.RootElement;
 
         Assert.Equal(30, root.GetProperty("keys").GetArrayLength());
@@ -25,7 +26,8 @@ public sealed class ReferenceExplorerFacadeTests
         Assert.Equal("alberti", root.GetProperty("texture").GetString());
         Assert.Equal(["together", "arpeggio", "broken", "alberti"], root.GetProperty("textures").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal("close", root.GetProperty("spacing").GetString());
-        Assert.Equal(72, root.GetProperty("tempo").GetInt32());
+        Assert.Equal(72, root.GetProperty("chosenTempo").GetInt32());
+        Assert.Equal(72, root.GetProperty("tempo").GetProperty("perMinute").GetInt32());
         Assert.Equal([60, 72, 90, 108, 120], root.GetProperty("tempoChoices").EnumerateArray().Select(value => value.GetInt32()));
         Assert.Equal(8, root.GetProperty("maxBars").GetInt32());
         Assert.Equal(60_000_000 / 72, Tempo(root));
