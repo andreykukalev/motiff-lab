@@ -152,9 +152,11 @@ extension SourcesController {
     /// «Принять» on the assistant's proposal in a draft (v1.2, ADR 0034 section 6, the plan's answer 7): music-core makes its
     /// call (`fields`: the place, the tool, its parameters and the role) again on the draft as it is now and keeps what it
     /// proposes, its steps marked as the assistant's (`drafts.accept`), saved at once and undone from the toast as any step
-    /// (`words` say what was taken). Nil once kept; else why not, in music-core's words (the draft changed under it).
-    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> String? {
-        await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? nil : status ?? ""
+    /// (`words` say what was taken). Kept; else why not, in music-core's words (the draft changed under it); held, not sent,
+    /// while another step is on its way (`stepping`).
+    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> DraftAcceptance {
+        guard !stepping else { return .held }
+        return await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? .kept : .refused(status ?? "")
     }
 
     /// Whether a step that answered `taken` was refused by music-core: not when it was taken, nor when it was not sent as

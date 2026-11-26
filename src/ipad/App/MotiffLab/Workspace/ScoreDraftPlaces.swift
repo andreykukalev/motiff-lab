@@ -148,10 +148,14 @@ extension ScoreController {
         showOccurrence(spot)
     }
 
-    /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back.
+    /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back; hidden, an
+    /// anchor's menu and a place's ▾ menu go (DRAFT-05), a bridge's card stays, as its label still opens it.
     func hideTechniqueNumbers(_ hidden: Bool) {
         draftModel.hideNumbers(hidden)
-        if hidden { anchorsModel.close() }
+        if hidden {
+            anchorsModel.close()
+            if let open = seamsModel.label, piece?.draft?.places.first(where: { $0.id == open.place })?.bridge != true { seamsModel.close() }
+        }
         Task { await drawVersions() }
     }
 

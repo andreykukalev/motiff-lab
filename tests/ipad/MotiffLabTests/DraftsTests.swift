@@ -169,8 +169,11 @@ final class DraftsTests: XCTestCase {
         XCTAssertNil(draftView.score.seamsModel.label)
         draftView.score.pickLabel(99, left: 0, bottom: 0)
         XCTAssertNil(draftView.score.seamsModel.label, "no place starts at bar 99: no card")
-        // DRAFT-05: with «Скрыть номера» the label's tap only selects the place, as before; no card opens.
+        // DRAFT-05: «Скрыть номера» puts an open ▾ menu away, and the label's tap then only selects the place; no card opens.
+        draftView.score.pickMarker(.performanceBar(0, left: 12, bottom: 34))
+        XCTAssertNotNil(draftView.score.seamsModel.label)
         draftView.score.hideTechniqueNumbers(true)
+        XCTAssertNil(draftView.score.seamsModel.label, "the ▾ menu goes with the numbers")
         draftView.score.selectionModel.answered(nil)
         draftView.score.pickMarker(.performanceBar(0, left: 12, bottom: 34))
         XCTAssertNil(draftView.score.seamsModel.label, "numbers hidden: no ▾ menu")

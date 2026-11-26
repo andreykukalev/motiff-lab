@@ -13,7 +13,7 @@ struct DraftAssistantSection: View {
     @ObservedObject var score: ScoreController
     let place: DraftViewAnswer.Place
     let draft: DraftViewAnswer.Draft
-    let owner: SourcesController
+    @ObservedObject var owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
     @State private var flow = AskFlow(surface: .contextual)
@@ -49,7 +49,8 @@ struct DraftAssistantSection: View {
                 } else if let exchange = assistant.inDraft?.exchange {
                     AssistantExchangeView(exchange: exchange, text: text, enabled: canAsk, signIn: signIn, retry: { ask(exchange.question) })
                     ForEach(exchange.proposals ?? []) { proposal in
-                        DraftProposalCard(proposal: proposal, score: score, place: place, text: text, busy: assistant.busy) {
+                        // «Принять» waits while a step of the draft is on its way (`SourcesController.stepping`).
+                        DraftProposalCard(proposal: proposal, score: score, place: place, text: text, busy: assistant.busy || owner.stepping) {
                             accept(proposal)
                         } refuse: {
                             assistant.refuse(proposal)
