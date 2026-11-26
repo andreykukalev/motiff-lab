@@ -21,9 +21,8 @@ extension EnvironmentValues {
 /// A draft's map over its view (v1.1, ADR 0034 sections 2 and 9 step 7; spec «Коллаж», «Экран (iPad)»): the places in
 /// order, each with a small roll of its notes and its card (`DraftPlaceContent`, as at its label: the variants, the base
 /// marked, «Сделать основой» and a variant moved to another place, a new place or the shelf; «Взять всё уверенное») and,
-/// since v1.2, «С ассистентом · Pro»
-/// (`DraftAssistantSection`) for each place; a bridge place's candidates (v1.2,
-/// `DraftBridgeContent`); the diamond of each seam that shows between two places, which opens the seam's card there; and
+/// since v1.2, «С ассистентом · Pro» (`DraftAssistantSection`) for each place with a variant besides its base; a bridge
+/// place's candidates (v1.2, `DraftBridgeContent`), with the assistant to choose among them (v1.4); the diamond of each seam that shows between two places, which opens the seam's card there; and
 /// the shelf, each variant on it put («Поставить…») into a place or as a new place. Each step is music-core's
 /// (`drafts.base`, `drafts.place`, `drafts.takeSure`, `drafts.leaveBridge`), undone from its toast, and the view opens
 /// again in its place with the map open. Places are not reordered: music-core has no call for it. In the sheet's place
@@ -71,6 +70,9 @@ struct DraftMap: View {
             .onAppear { reader.scrollTo(open, anchor: .top) }
             .onChange(of: open) { _, now in withAnimation { reader.scrollTo(now, anchor: .top) } }
         }
+        // The assistant's conversation goes with a place the draft no longer offers it in, as it was (v1.4).
+        .onAppear { closeAssistantIfGone() }
+        .onChange(of: draft) { _, _ in closeAssistantIfGone() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["drafts.mapTitle"])
     }
@@ -106,16 +108,22 @@ struct DraftMap: View {
             } else {
                 // Its variants and steps, as in its ▾ menu at its label on the page (v1.4).
                 DraftPlaceContent(score: score, techniques: techniques, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
-                // The assistant assembles a place from a variant (v1.2 step 8): none in a place of the base alone.
-                if place.variants.contains(where: { !$0.base }) {
-                    DraftAssistantSection(assistant: assistant, score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
-                }
+            }
+            // The assistant (v1.2 step 8): it assembles a place from a variant or explains them, and in a bridge place
+            // chooses a candidate (v1.4, F5); none in a place of the base alone.
+            if DraftAssistantSection.offered(place) {
+                DraftAssistantSection(assistant: assistant, score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
             }
         }
         .padding(CGFloat.ds("s-3"))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+    }
+
+    /// The assistant in a draft's place closed when the draft as it is now no longer offers it there (`offered`).
+    private func closeAssistantIfGone() {
+        assistant.closeInDraft(unlessOffered: draft.places.filter(DraftAssistantSection.offered).map { DraftAssistantSection.named($0, of: draft) })
     }
 
     // MARK: - Seams

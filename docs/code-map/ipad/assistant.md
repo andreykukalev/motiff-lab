@@ -31,10 +31,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   `MenuDrag`), so its answer scrolls by finger and Pencil.
 - `AssistantPractice.swift` (v1.2): `AssistantPracticeOffer`, a `practice.suggest` result; `AssistantPracticeChip`, the
   answer's action chip, whose tap the screen routes to Workspace's `ScoreController.practiseSuggestion` (`ScorePractice.swift`).
-- `AssistantDraftPlace.swift` (v1.2 step 8, ADR 0034 section 6): `AssistantDraftPlace` (a draft's place; `AssistantAsk.place`
-  sends `drafts.context` and runs tools by `drafts.call`, role `placeAssembler`), `AssistantInDraft` (one question there,
-  `AssistantController.inDraft`, `askInDraft`), `AssistantPlaceProposal` (a step proposed, never applied; a too-dense turn says `mentor.placeTooLarge`, a context refused `placeTooLong` or `placeUnread`; `accept` with
-  the screen's step, `refuse`). Its own consent: `draftConsentKey`, `AssistantConsent.Wording.draft`. The view: Workspace's
+- `AssistantDraftPlace.swift` (v1.2 step 8, ADR 0034 section 6): `AssistantDraftPlace` (a draft's place and its `basis`;
+  `AssistantAsk.place` sends `drafts.context` and runs tools by `drafts.call`; `roles`: `placeAssembler`, `explainer`, a
+  bridge place's `seamChooser`, v1.4), `AssistantInDraft` (v1.4: the place's conversation, an `AssistantChat` in one role,
+  `AssistantController.inDraft`, `openInDraft`, `startInDraft`, `askInDraft`, `closeInDraft(unlessOffered:)`),
+  `AssistantPlaceProposal` (a step proposed, never applied; `proposedAgain` before «Принять»; a too-dense turn says
+  `mentor.placeTooLarge`, a context refused `placeTooLong` or `placeUnread`; `accept` with the screen's step, `refuse`).
+  A turn leaves out the oldest exchanges beyond `maxBytes` too (`AssistantChat.request`, v1.4). Its own consent: `draftConsentKey`, `AssistantConsent.Wording.draft`. The view: Workspace's
   `DraftAssistant.swift`.
 - `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts a question's tools made, Accept by
   `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).

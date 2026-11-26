@@ -43,7 +43,7 @@ final class AssistantController: ObservableObject {
     @Published private(set) var here: AssistantHere?
     /// Whether the player agreed to what a question in a draft sends (`draftConsentKey`).
     @Published private(set) var draftConsentGiven: Bool
-    /// The assistant in a draft's place (v1.2 step 8): one question and its answer, never kept; nil while closed.
+    /// The assistant in a draft's place (v1.2 step 8): its conversation there (v1.4), never kept; nil while closed.
     @Published private(set) var inDraft: AssistantInDraft?
 
     private let store: AssistantStore
@@ -51,6 +51,10 @@ final class AssistantController: ObservableObject {
     private var piece: String?
     /// The score whose notes a draft is accepted on (`corrections.acceptDraft`).
     private weak var score: ScoreController?
+    /// Whether it has served a screen yet (`load` with a score), and how many it has left: a draft's visit hands one
+    /// controller to each screen its view opens again on (v1.4), and what belonged to the screen before goes.
+    private var served = false
+    private var screens = 0
 
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
         self.store = store
@@ -66,15 +70,32 @@ final class AssistantController: ObservableObject {
     var current: AssistantChat? { chats.first { $0.id == currentId } }
 
     /// The piece's conversations from the iPad; the newest is the one open until an Ask opens the panel empty (`open`).
-    /// `score` is the screen's, where a draft is accepted.
+    /// `score` is the screen's, where a draft is accepted; another screen's score on the same visit drops what belonged to
+    /// the screen before (`leaveScreen`, v1.4).
     func load(piece key: String, score: ScoreController? = nil) {
-        if let score { self.score = score }
+        if let score {
+            // Another screen's score, or the one before already freed (nil), is another screen; the visit's first is none.
+            if served, self.score !== score { leaveScreen() }
+            served = true
+            self.score = score
+        }
         guard key != piece else { return }
         piece = key
         here = nil
         inDraft = nil
         chats = store.chats(of: key)
         currentId = chats.first?.id
+        listShown = false
+    }
+
+    /// The same visit on a screen made again (a draft's view opened again after a step, v1.4): what belonged to the screen
+    /// before goes (the assistant at its selection, what the next question looks at, the list shown), and a panel question
+    /// still on its way, asked on that screen's piece, is dropped; the conversation in a draft's place, the piece's
+    /// conversations and whether the panel is open stay.
+    private func leaveScreen() {
+        screens += 1
+        here = nil
+        scope = .selection
         listShown = false
     }
 
@@ -157,17 +178,26 @@ final class AssistantController: ObservableObject {
             phase = .idle
         }
         let chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
+        let asked = screens
         let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
-        var kept = answered ?? chat
-        kept.exchanges.append(exchange)
-        kept.updated = Date()
+        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped.
+        guard screens == asked else { return }
+        var kept = chat
+        kept.join(exchange, answered: answered)
         keep(kept)
     }
 
-    /// Try again (the lead's decision 3): the question that got no answer leaves the open conversation, to be asked again;
-    /// its question, or nil when it had an answer or one is on its way.
+    /// Try again (the lead's decision 3): the question that got no answer leaves the open conversation (the panel's, or
+    /// since v1.4 the one in a draft's place), to be asked again; its question, or nil when it had an answer or one is on
+    /// its way.
     func forget(_ failed: AssistantExchange) -> String? {
-        guard !busy, failed.note != nil, var chat = current, chat.exchanges.contains(where: { $0.id == failed.id }) else { return nil }
+        guard !busy, failed.note != nil else { return nil }
+        if var open = inDraft, open.chat.exchanges.contains(where: { $0.id == failed.id }) {
+            open.chat.exchanges.removeAll { $0.id == failed.id }
+            inDraft = open
+            return failed.question
+        }
+        guard var chat = current, chat.exchanges.contains(where: { $0.id == failed.id }) else { return nil }
         chat.exchanges.removeAll { $0.id == failed.id }
         keep(chat)
         return failed.question
@@ -225,8 +255,7 @@ final class AssistantController: ObservableObject {
         here?.answer = asked.text
     }
 
-    /// One question with no conversation before it, in `role` (at the selection, or in a draft's place): its exchange and
-    /// the answer's text.
+    /// One question with no conversation before it, in `role` (at the selection): its exchange and the answer's text.
     private func askOnce(_ question: String, role: String, about ask: AssistantAsk) async -> (exchange: AssistantExchange, text: String) {
         busy = true
         defer {
@@ -238,28 +267,53 @@ final class AssistantController: ObservableObject {
         return (exchange, text)
     }
 
-    // MARK: - In a draft's place (v1.2, ADR 0034 section 6, the plan's answer 7)
+    // MARK: - In a draft's place (v1.2, ADR 0034 section 6, the plan's answer 7; a conversation since v1.4, answer 8)
 
-    /// «С ассистентом · Pro» on a place of the draft: the assistant opens there, empty; whatever was open in another place goes.
-    func openInDraft(_ place: AssistantDraftPlace) {
+    /// «С ассистентом · Pro» on a place of the draft: the assistant opens there, empty, in `role` (the place assembler's
+    /// unless said); whatever was open in another place goes.
+    func openInDraft(_ place: AssistantDraftPlace, role: String = AssistantDraftPlace.role) {
         guard inDraft?.place != place else { return }
-        inDraft = AssistantInDraft(place: place)
+        inDraft = AssistantInDraft(place: place, chat: Self.chat(role))
+    }
+
+    /// A new conversation in the place the assistant is open on, in `role` (a role chosen, or «Новый разговор»): the one
+    /// before goes, as it is never kept. Nothing while a question is on its way.
+    func startInDraft(role: String) {
+        guard !busy, inDraft?.asking == nil, inDraft != nil else { return }
+        inDraft?.chat = Self.chat(role)
     }
 
     func closeInDraft() {
         inDraft = nil
     }
 
-    /// A question about the place the assistant is open on (`ask.place`): one at a time, in the place assembler's role;
-    /// its answer, with the steps it proposes, replaces the last one.
+    /// The assistant in a draft's place closed when the draft no longer offers it there (`offered`: the places of the
+    /// draft as it is now where it is offered, each as the view names it): the place gone, or changed so that its label or
+    /// what it offers is another (a new base, a variant moved out), so no conversation or proposal of a place as it was stays.
+    func closeInDraft(unlessOffered offered: [AssistantDraftPlace]) {
+        guard let open = inDraft?.place, !offered.contains(open) else { return }
+        inDraft = nil
+    }
+
+    /// A question about the place the assistant is open on (`ask.place`), in its conversation's role, with the questions
+    /// before it; its answer, with the steps it proposes, joins the conversation. One at a time.
     func askInDraft(_ question: String, about ask: AssistantAsk) async {
-        guard !busy, let open = inDraft?.place else { return }
+        guard !busy, let open = inDraft, open.asking == nil else { return }
+        busy = true
         inDraft?.asking = question
-        defer { inDraft?.asking = nil }
-        let asked = await askOnce(question, role: AssistantDraftPlace.role, about: ask)
-        // Closed, or opened on another place meanwhile: the answer is not that place's.
-        guard inDraft?.place == open else { return }
-        inDraft?.exchange = asked.exchange
+        defer {
+            busy = false
+            phase = .idle
+            if inDraft?.chat.id == open.chat.id { inDraft?.asking = nil }
+        }
+        let (exchange, answered, _) = await self.exchange(question, in: open.chat, about: ask)
+        // Closed, opened on another place or started anew meanwhile: the answer is not that conversation's.
+        guard inDraft?.place == open.place, inDraft?.chat.id == open.chat.id else { return }
+        inDraft?.chat.join(exchange, answered: answered)
+    }
+
+    private static func chat(_ role: String) -> AssistantChat {
+        AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: role)
     }
 
     /// «Принять» on a step proposed in the place: `take` keeps it (the screen's step on the draft, music-core's
@@ -279,7 +333,8 @@ final class AssistantController: ObservableObject {
         case .kept:
             break
         }
-        for other in inDraft?.exchange?.proposals ?? [] where other.id != proposal.id && other.state == .proposed {
+        let question = inDraft?.chat.exchanges.first { shown in shown.proposals?.contains { $0.id == proposal.id } ?? false }
+        for other in question?.proposals ?? [] where other.id != proposal.id && other.state == .proposed {
             mark(other.id, .cancelled)
         }
         mark(proposal.id, .accepted)
@@ -292,9 +347,11 @@ final class AssistantController: ObservableObject {
     }
 
     private func mark(_ proposal: String, _ state: AssistantDraftOffer.Decision, problem: String? = nil) {
-        guard let index = inDraft?.exchange?.proposals?.firstIndex(where: { $0.id == proposal }) else { return }
-        inDraft?.exchange?.proposals?[index].state = state
-        inDraft?.exchange?.proposals?[index].problem = problem
+        guard let exchanges = inDraft?.chat.exchanges,
+              let shown = exchanges.firstIndex(where: { exchange in exchange.proposals?.contains { $0.id == proposal } ?? false }),
+              let index = exchanges[shown].proposals?.firstIndex(where: { $0.id == proposal }) else { return }
+        inDraft?.chat.exchanges[shown].proposals?[index].state = state
+        inDraft?.chat.exchanges[shown].proposals?[index].problem = problem
     }
 
     /// «Продолжить в чате» at the selection (Andrei, 2026-11-18): its question and answer start a new conversation of
@@ -401,12 +458,7 @@ final class AssistantController: ObservableObject {
             },
             run: { [weak self] call in
                 self?.step(.lookingUp)
-                // With the turn's role, music-core checks the call as the relay does before it runs it; in a draft, on its place.
-                let fields: [String: JSONValue] = ["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]
-                let request = JSONValue.object(fields.merging(place?.fields ?? [:]) { $1 }).text
-                let name = place == nil ? "assistant.call" : "drafts.call"
-                let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
-                return AssistantTurns.content(ofFacade: answer, tool: call.name)
+                return await Self.run(call, role: role, place: place, piece: piece)
             }
         )
         switch await turns.ask(question, in: chat, context: context, language: ask.language) {
@@ -416,6 +468,17 @@ final class AssistantController: ObservableObject {
             // Too large for one turn (its size, or the API's 413): in a draft no fewer bars can be selected.
             return .unanswered(place != nil && note == "mentor.tooLarge" ? "mentor.placeTooLarge" : note)
         }
+    }
+
+    /// A tool call run on the iPad in music-core, with the turn's role, which music-core checks it against as the relay
+    /// does before it runs it: on the piece (`assistant.call`), or in a draft's `place` on that place (`drafts.call`); what
+    /// the tool answered, or a refusal the model reads.
+    static func run(_ call: AssistantToolCall, role: String, place: AssistantDraftPlace?, piece: Int32) async -> JSONValue {
+        let fields: [String: JSONValue] = ["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]
+        let request = JSONValue.object(fields.merging(place?.fields ?? [:]) { $1 }).text
+        let name = place == nil ? "assistant.call" : "drafts.call"
+        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        return AssistantTurns.content(ofFacade: answer, tool: call.name)
     }
 
     /// Why a turn has no context (`context` answered nil): the selection is longer than a question takes; in a draft's

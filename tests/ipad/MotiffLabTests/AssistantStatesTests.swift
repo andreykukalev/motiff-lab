@@ -229,12 +229,21 @@ final class AssistantStub: URLProtocol {
     static var asked: [String] = []
     /// Turns answered one after another before `answers["turn"]`, each 200: a question's tool calls, then its answer.
     static var turns: [Data] = []
+    /// While true, a turn waits (`inTurn`) until `release` lets it go: a question kept on its way.
+    static var holdTurn = false
+    static var inTurn = false
+    static let release = DispatchSemaphore(value: 0)
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let path = request.url?.lastPathComponent ?? ""
+        if path == "turn", Self.holdTurn {
+            Self.inTurn = true
+            Self.release.wait()
+            Self.inTurn = false
+        }
         Self.asked.append(path)
         let queued: (Int, Data)? = path == "turn" && !Self.turns.isEmpty ? (200, Self.turns.removeFirst()) : nil
         guard let (status, body) = queued ?? Self.answers[path], let url = request.url,
