@@ -4,18 +4,10 @@ import XCTest
 @testable import MotiffLab
 
 /// The player through what the system does to the iPad's audio (v1.4 r-1b): an interruption shows the music paused at
-/// once and keeps it so, the loop and the place kept, and Play goes on from there; the keeper says whether it could start
-/// the engine, so a Play it cannot honour is not left waiting to sound by itself; a sound that cannot load says so.
+/// once and keeps it so, the loop and the place kept, and Play goes on from there; the keeper says whether its engine runs,
+/// so a Play it cannot honour is not left waiting to sound by itself; a sound that cannot load says so.
 @MainActor
 final class PlayerInterruptionTests: XCTestCase {
-    /// Waits for `done`, at most `seconds`.
-    private func until(_ seconds: Double = 5, _ done: () -> Bool) async {
-        let end = Date().addingTimeInterval(seconds)
-        while !done() && Date() < end {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-    }
-
     private func interruptionBegins() {
         NotificationCenter.default.post(
             name: AVAudioSession.interruptionNotification, object: nil,
@@ -53,7 +45,7 @@ final class PlayerInterruptionTests: XCTestCase {
         let later = player.state
         let waited = player.tick
         let kept = player.loop
-        XCTAssertEqual(later, .stopped, "no report rendered before the pause shows it playing again")
+        XCTAssertEqual(later, .stopped, "still paused a few polls later")
         XCTAssertEqual(waited, heard, accuracy: Player.heardAhead * 960, "the playhead waits where the music was heard")
         XCTAssertEqual(kept, loop, "the loop set before is kept")
 
@@ -65,27 +57,31 @@ final class PlayerInterruptionTests: XCTestCase {
         XCTAssertEqual(from, waited, accuracy: Player.heardAhead * 960, "Play goes on from where it paused, not from the loop's start")
     }
 
+    /// A node that renders silence, made outside the main actor: its block runs on the audio thread (as Player.sourceNode).
+    nonisolated private static func silentNode(format: AVAudioFormat) -> AVAudioSourceNode {
+        AVAudioSourceNode(format: format) { _, _, _, _ in noErr }
+    }
+
     func testTheKeeperSaysWhetherTheEngineRuns() throws {
         let engine = AVAudioEngine()
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))
-        let node = AVAudioSourceNode(format: format) { _, _, _, _ in noErr }
+        let node = Self.silentNode(format: format)
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         defer { engine.stop() }
 
         let unwanted = EngineKeeper(engine, wanted: { false }) {}
-        let refused = unwanted.restart()
-        let stillStopped = !engine.isRunning
+        unwanted.restart()
+        let refused = unwanted.running
         XCTAssertFalse(refused, "an engine its owner does not want now stays stopped")
-        XCTAssertTrue(stillStopped)
 
         let keeper = EngineKeeper(engine) {}
-        let started = keeper.restart()
-        let running = engine.isRunning
-        let again = keeper.restart()
+        keeper.restart()
+        let started = keeper.running
+        keeper.restart()
+        let again = keeper.running
         XCTAssertTrue(started, "a stopped engine started again")
-        XCTAssertTrue(running)
-        XCTAssertTrue(again, "a running engine runs")
+        XCTAssertTrue(again, "a running engine runs on")
     }
 
     /// A sound that cannot load says so in the interface's language (v1.4 r-1b), not in music-core's English.

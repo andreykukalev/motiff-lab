@@ -408,7 +408,10 @@ final class Player: ObservableObject {
     /// stopped it and never said it may start (an interruption need not end: another app's music the player left
     /// playing); while it cannot (a call goes on), Play is dropped, so the music never starts by itself when the call ends.
     private func send(_ message: EngineMessage) {
-        if case .play = message, keeper?.restart() == false { return }
+        if case .play = message, let keeper {
+            keeper.restart()
+            guard keeper.running else { return }
+        }
         renderer?.send(message)
     }
 

@@ -196,13 +196,6 @@ final class RollLoadTests: XCTestCase {
         try await super.tearDown()
     }
 
-    /// Waits for `done`, at most five seconds.
-    private func until(_ done: () -> Bool) async {
-        for _ in 0..<100 where !done() {
-            try? await Task.sleep(for: .milliseconds(50))
-        }
-    }
-
     func testAFailedLoadSaysSoAndALoadThatShowsNotesTakesItAway() async throws {
         let roll = RollController()
         let shown = UIWindow(frame: CGRect(x: 0, y: 0, width: 1024, height: 400))
