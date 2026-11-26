@@ -28,10 +28,10 @@ public sealed partial class SentenceMap
     public const double CloseConfidence = 0.6;
 
     /// <summary>Phrases that pair up by a return or by their closes often make a sentence, but other groupings are possible.</summary>
-    public const double GroupConfidence = 0.6;
+    internal const double GroupConfidence = 0.6;
 
     /// <summary>A sentence whose edges are the piece's or repeat signs is read with little doubt.</summary>
-    public const double MarkedConfidence = 0.9;
+    internal const double MarkedConfidence = 0.9;
 
     private readonly Dictionary<int, Sentence> _ofPhrase;
     private readonly Dictionary<int, PhraseClose> _closes;

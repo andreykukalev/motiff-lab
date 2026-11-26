@@ -32,13 +32,13 @@ public readonly record struct Anchor(Tick Score, long Microseconds);
 public sealed class PerformanceAlignment
 {
     /// <summary>Played notes that start within this many microseconds of a group's first note join the group: 70 ms.</summary>
-    public const long GroupWindowMicroseconds = 70_000;
+    internal const long GroupWindowMicroseconds = 70_000;
 
     /// <summary>The cost of leaving a group of either side unmatched, against 1000 for groups with nothing in common.</summary>
-    public const int GapCost = 350;
+    internal const int GapCost = 350;
 
     /// <summary>The least similarity, in thousandths, at which matched groups become an anchor.</summary>
-    public const int AnchorSimilarity = 500;
+    internal const int AnchorSimilarity = 500;
 
     /// <summary>The tempo assumed outside the anchors when there is only one: a quarter at 120 a minute.</summary>
     public const long DefaultMicrosecondsPerQuarter = 500_000;

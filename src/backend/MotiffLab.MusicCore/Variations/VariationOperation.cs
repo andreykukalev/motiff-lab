@@ -86,7 +86,7 @@ public interface IVariationOperation
 /// note; a new id is an added note and must be derived from the input deterministically; an input
 /// id that is missing is a removed note. Notes the operation changes are marked user-edited.
 /// </remarks>
-public abstract class VariationOperation<TParameters> : IVariationOperation
+internal abstract class VariationOperation<TParameters> : IVariationOperation
     where TParameters : OperationParameters
 {
     public abstract string Id { get; }
@@ -198,7 +198,7 @@ public abstract class VariationOperation<TParameters> : IVariationOperation
 }
 
 /// <summary>The operations this version offers, by catalogue id. New operations register here.</summary>
-public static class VariationOperations
+internal static class VariationOperations
 {
     public static IReadOnlyList<IVariationOperation> All { get; } = [RhythmReshape.Instance, Articulation.Instance, DensityAndRests.Instance, AccentShift.Instance, MelodicSequence.Instance, AccompanimentPattern.Instance, BassPattern.Instance, VoicingAndRegister.Instance, Simplify.Instance, IntervalReshape.Instance, ChangeDirection.Instance, PassingNotes.Instance, Ornament.Instance, Reharmonise.Instance];
 

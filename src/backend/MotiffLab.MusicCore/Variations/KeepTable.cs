@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// A property that cannot be kept together with this cell's property for this operation; the
 /// operation is off while both are on (footnote 1). Null when there is none.
 /// </param>
-public sealed record KeepFootnote(int Number, string Text, KeepProperty? ConflictsWith = null)
+internal sealed record KeepFootnote(int Number, string Text, KeepProperty? ConflictsWith = null)
 {
     /// <summary>The footnote in Russian (#134).</summary>
     public string RussianText { get; init; } = Text;
@@ -22,7 +22,7 @@ public sealed record KeepFootnote(int Number, string Text, KeepProperty? Conflic
 /// <param name="WhatItChanges">"changes the size of the melody's intervals", completing "&lt;Name&gt; …, so it is off while Keep x is on".</param>
 /// <param name="Compatible">The properties the operation can run with kept: the row's ✓ cells.</param>
 /// <param name="Footnotes">The row's footnoted cells, each a compatible property.</param>
-public sealed record KeepRow(
+internal sealed record KeepRow(
     string OperationId,
     string Name,
     string WhatItChanges,
@@ -47,7 +47,7 @@ public sealed record KeepRow(
 /// <param name="Label">The preset as the player reads it, for example "Keep the pitch order, change the rhythm".</param>
 /// <param name="Keep">The Keep choices the preset turns on; every other one is turned off.</param>
 /// <param name="Operations">The catalogue ids it suggests, in the spec's order. Each runs with <paramref name="Keep"/>.</param>
-public sealed record KeepPreset(string Id, string Label, IReadOnlySet<KeepProperty> Keep, IReadOnlyList<string> Operations)
+internal sealed record KeepPreset(string Id, string Label, IReadOnlySet<KeepProperty> Keep, IReadOnlyList<string> Operations)
 {
     /// <summary>The preset in Russian (#134).</summary>
     public string RussianLabel { get; init; } = Label;
@@ -69,7 +69,7 @@ public sealed record KeepPreset(string Id, string Label, IReadOnlySet<KeepProper
 /// accepts the melody's pitch classes with their octaves changed. ⁴ <see cref="AllowsInversions"/>
 /// is false while Keep bass is on. The musicality check in milestone 3 may adjust the table.
 /// </remarks>
-public static class KeepTable
+internal static class KeepTable
 {
     public static KeepFootnote MelodyPitchesOnly { get; } = new(1, "Melody pitches stay; its rhythm changes, so Keep melody and Keep rhythm cannot both be on.", KeepProperty.Rhythm)
     {

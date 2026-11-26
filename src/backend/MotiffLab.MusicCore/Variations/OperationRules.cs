@@ -5,14 +5,14 @@ namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>What the operation rules found: a violation that blocks the step, and flags shown without blocking.</summary>
 /// <param name="Violation">Completes "&lt;operation&gt; …, so it is not available", for example "would put a note off the grid"; null when none.</param>
-public sealed record RuleReport(string? Violation, IReadOnlyList<string> Flags);
+internal sealed record RuleReport(string? Violation, IReadOnlyList<string> Flags);
 
 /// <summary>
 /// The PRD's operation rules, checked on every step against the notes it was made from: results
 /// stay on the grid and in the piano's range, voices do not cross unless the source already crosses,
 /// and hand spans over a 10th are flagged, not changed.
 /// </summary>
-public static class OperationRules
+internal static class OperationRules
 {
     /// <summary>A0, the lowest key of the piano.</summary>
     public const int LowestPitch = 21;

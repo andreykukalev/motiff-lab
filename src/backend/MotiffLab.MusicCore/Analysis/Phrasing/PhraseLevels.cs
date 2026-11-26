@@ -131,7 +131,7 @@ public sealed class PhraseLevels
     /// the unit that is exactly the selection, else the unit that encloses it, else, when the selection spans
     /// several units of the finer level, the one it starts in.
     /// </summary>
-    public PhraseUnit Map(TickSpan span, PhraseLevel to) => Matching(to, span) ?? Containing(to, span) ?? At(to, span.Onset);
+    internal PhraseUnit Map(TickSpan span, PhraseLevel to) => Matching(to, span) ?? Containing(to, span) ?? At(to, span.Onset);
 
     /// <summary>
     /// The edits that make <paramref name="span"/> one unit at <paramref name="level"/> (Make phrase, moving a

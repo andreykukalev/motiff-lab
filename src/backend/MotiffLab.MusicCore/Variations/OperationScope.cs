@@ -25,7 +25,7 @@ public enum OperationScope
 }
 
 /// <summary>Splits notes by <see cref="OperationScope"/>. Pure: the same notes and scope give the same split.</summary>
-public static class OperationScopes
+internal static class OperationScopes
 {
     /// <summary>The notes the scope covers, and the others, each in the order of <paramref name="notes"/>.</summary>
     public static (Note[] Inside, Note[] Outside) Split(IReadOnlyList<Note> notes, OperationScope scope)

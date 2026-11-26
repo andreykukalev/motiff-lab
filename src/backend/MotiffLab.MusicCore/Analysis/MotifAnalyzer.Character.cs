@@ -16,7 +16,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// from dynamics marks or a default, not from playing.
 /// </param>
 /// <param name="TempoEstimated">True when the tempo was worked out from the notes of a transcription with its bars (decision record 0016), not read from a file.</param>
-public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool TempoAssumed, bool FromNotation, bool TempoEstimated = false)
+internal sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool TempoAssumed, bool FromNotation, bool TempoEstimated = false)
 {
     public static CharacterContext FromPiece(ImportedPiece piece)
     {
@@ -39,7 +39,7 @@ public sealed record CharacterContext(IReadOnlyList<PlaybackTempo> Tempos, bool 
 /// Tempo is shown as quarter notes per minute, computed in decimal and rounded to a tenth for
 /// display only; positions stay canonical ticks.
 /// </remarks>
-public static partial class MotifAnalyzer
+internal static partial class MotifAnalyzer
 {
     /// <summary>A note sounding less than this share of the time to the next onset counts as detached.</summary>
     public const int DetachedPercent = 50;

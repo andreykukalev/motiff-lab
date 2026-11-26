@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>Which onsets V8 accents.</summary>
-public enum AccentPattern
+internal enum AccentPattern
 {
     /// <summary>Notes that start on a beat (a dotted quarter in compound meters).</summary>
     OnBeat,
@@ -24,7 +24,7 @@ public enum AccentPattern
 
 /// <summary>The parameters of V8 Accent shift.</summary>
 /// <param name="Onsets">For <see cref="AccentPattern.Custom"/> only: the onsets to accent, counted from 0 in time order.</param>
-public sealed record AccentShiftParameters(AccentPattern Pattern, IntervalSet? Onsets = null) : OperationParameters
+internal sealed record AccentShiftParameters(AccentPattern Pattern, IntervalSet? Onsets = null) : OperationParameters
 {
     /// <summary>How much louder than the passage's usual velocity an accented note plays.</summary>
     public const int Lift = 20;
@@ -44,7 +44,7 @@ public sealed record AccentShiftParameters(AccentPattern Pattern, IntervalSet? O
 /// step is not available when the pattern accents no onset or every onset, since no note would stand out, or when the
 /// notes already play these velocities.
 /// </remarks>
-public sealed class AccentShift : VariationOperation<AccentShiftParameters>
+internal sealed class AccentShift : VariationOperation<AccentShiftParameters>
 {
     public const string OperationId = "V8";
 

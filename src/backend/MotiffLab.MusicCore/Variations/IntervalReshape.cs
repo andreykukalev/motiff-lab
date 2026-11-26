@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// <summary>The parameters of V9 Interval reshape.</summary>
 /// <param name="Steps">Scale steps added to each changed melody interval: 1 or 2 widens, −1 or −2 narrows.</param>
 /// <param name="Intervals">The melody intervals to reshape; null reshapes them all.</param>
-public sealed record IntervalReshapeParameters(int Steps, IntervalSet? Intervals = null) : OperationParameters
+internal sealed record IntervalReshapeParameters(int Steps, IntervalSet? Intervals = null) : OperationParameters
 {
     public const int MaxSteps = 2;
 }
@@ -16,7 +16,7 @@ public sealed record IntervalReshapeParameters(int Steps, IntervalSet? Intervals
 /// narrowing stops at a 2nd so no step turns into a repeat. Intervals left out keep their size in
 /// scale steps. Rhythm and the other voices stay. Pure and deterministic.
 /// </summary>
-public sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
+internal sealed class IntervalReshape : MelodyOperation<IntervalReshapeParameters>
 {
     public const string OperationId = "V9";
 

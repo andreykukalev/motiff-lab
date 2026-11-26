@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Performance;
 
 /// <summary>What a bar's differences between the print and the performance amount to (decision record 0022, section 3). Inferred.</summary>
-public enum BarDifference
+internal enum BarDifference
 {
     /// <summary>The bar is played as printed, give or take one note.</summary>
     None,
@@ -33,10 +33,10 @@ public enum BarDifference
 
 /// <summary>A printed note and the played note that matches it.</summary>
 /// <param name="Offset">The played note's place in score time minus the printed note's onset, in ticks: late positive.</param>
-public sealed record NoteMatch(string PrintedId, string PlayedId, long Offset);
+internal sealed record NoteMatch(string PrintedId, string PlayedId, long Offset);
 
 /// <summary>A played note placed in score time through the alignment.</summary>
-public sealed record PlacedNote(string Id, Pitch Pitch, Tick At, int Velocity);
+internal sealed record PlacedNote(string Id, Pitch Pitch, Tick At, int Velocity);
 
 /// <summary>
 /// One bar of the comparison: which printed notes were heard, which were not, what was played that is
@@ -53,7 +53,7 @@ public sealed record PlacedNote(string Id, Pitch Pitch, Tick At, int Velocity);
 /// </param>
 /// <param name="ProbablyNotHeard">Printed notes not heard that lie below <see cref="PerformanceComparison.ReliableLowestPitch"/>, which transcription often misses.</param>
 /// <param name="LikelyArtefacts">Played notes not printed that are probably a hearing error: very quiet, or an octave, twelfth or double octave above a louder note struck with them.</param>
-public sealed record BarComparison(
+internal sealed record BarComparison(
     int Bar,
     bool Aligned,
     BarDifference Difference,

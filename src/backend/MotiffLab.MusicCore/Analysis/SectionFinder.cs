@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// bar lines, texts, keys, time signatures and tempo; a recording (<see cref="Heard"/>) brings only its notes, bars and
 /// tempo, so its boundaries are found from silences.
 /// </summary>
-public sealed record SectionEvidence(IReadOnlyList<Note> Notes, MeterMap Meter, Tick End)
+internal sealed record SectionEvidence(IReadOnlyList<Note> Notes, MeterMap Meter, Tick End)
 {
     public IReadOnlyList<KeySignature> Keys { get; init; } = [];
 
@@ -49,7 +49,7 @@ public sealed record SectionEvidence(IReadOnlyList<Note> Notes, MeterMap Meter, 
 /// Pure and deterministic: the same evidence gives the same sections. Every position is a bar start in exact ticks;
 /// seconds come from the tempo map in integer microseconds. The result is an inference, never a fact of the file.
 /// </remarks>
-public static class SectionFinder
+internal static class SectionFinder
 {
     /// <summary>The confidence the facts at a bar must reach together for a boundary to be proposed there.</summary>
     public const double MinConfidence = 0.35;

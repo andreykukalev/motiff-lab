@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// names, repeated notes, melody notes that sound with lower notes, and the phrase boundaries the
 /// source marks or the player set.
 /// </summary>
-public static partial class MotifAnalyzer
+internal static partial class MotifAnalyzer
 {
     /// <summary>A list of intervals names at most this many, then says how many more there are.</summary>
     private const int MaxNamedIntervals = 12;

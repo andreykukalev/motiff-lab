@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// or long bass notes, or nothing), whether the two parts take turns or sound together, and what that gives. Read from
 /// the hands when every note has one, otherwise from the top line and the notes below it.
 /// </summary>
-public static partial class MotifAnalyzer
+internal static partial class MotifAnalyzer
 {
     private enum Accompaniment
     {

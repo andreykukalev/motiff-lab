@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>What a boundary between pieces, movements or large sections was found by (<see cref="SectionFinder"/>).</summary>
-public enum SectionCueKind
+internal enum SectionCueKind
 {
     /// <summary>The start of the piece or the recording: the first section's own start.</summary>
     Opening,
@@ -59,7 +59,7 @@ public enum SectionCueKind
 /// </summary>
 /// <param name="Weight">From 0 to 1: how strongly this fact alone says a new section starts.</param>
 /// <param name="Label">For a heading, the heading as written; null for any other cue.</param>
-public sealed record SectionCue(SectionCueKind Kind, double Weight, string English, string Russian, string? Label = null)
+internal sealed record SectionCue(SectionCueKind Kind, double Weight, string English, string Russian, string? Label = null)
 {
     /// <summary>For a silence, how long it lasts in microseconds; null for any other cue.</summary>
     public long? Microseconds { get; init; }
@@ -74,7 +74,7 @@ public sealed record SectionCue(SectionCueKind Kind, double Weight, string Engli
 /// </summary>
 /// <param name="Number">The section's place among the proposals, from 1.</param>
 /// <param name="Cues">What its boundary was found by, strongest first; the first section has the opening cue.</param>
-public sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int LastBar, double Confidence, IReadOnlyList<SectionCue> Cues)
+internal sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int LastBar, double Confidence, IReadOnlyList<SectionCue> Cues)
 {
     /// <summary>The bar the boundary was found at, when the player moved it; null when it is where it was found.</summary>
     public int? MovedFrom { get; init; }
@@ -135,7 +135,7 @@ public sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int L
 /// Immutable: every change gives new proposals. Nothing here is saved; a confirmed section is saved as an ordinary bookmark
 /// by the caller, and <see cref="Pending"/> leaves out every section a bookmark already starts at.
 /// </summary>
-public sealed class FoundSections
+internal sealed class FoundSections
 {
     private readonly MeterMap _meter;
 

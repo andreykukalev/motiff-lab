@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Motifs;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>What V3 changes in how the chords are voiced or where the notes sit.</summary>
-public enum VoicingKind
+internal enum VoicingKind
 {
     /// <summary>Each chord with its root in the bass.</summary>
     RootPosition,
@@ -33,7 +33,7 @@ public enum VoicingKind
 }
 
 /// <summary>The parameters of V3 Voicing and register.</summary>
-public sealed record VoicingParameters(VoicingKind Kind) : OperationParameters
+internal sealed record VoicingParameters(VoicingKind Kind) : OperationParameters
 {
     /// <summary>Whether the kind moves whole notes by an octave rather than revoicing the chords.</summary>
     public bool IsOctave => Kind is VoicingKind.OctaveUp or VoicingKind.OctaveDown;
@@ -58,7 +58,7 @@ public sealed record VoicingParameters(VoicingKind Kind) : OperationParameters
 /// melody is on, only an octave shift may move the melody, keeping its pitch classes (footnote 3).
 /// </para>
 /// </remarks>
-public sealed class VoicingAndRegister : VariationOperation<VoicingParameters>
+internal sealed class VoicingAndRegister : VariationOperation<VoicingParameters>
 {
     public const string OperationId = "V3";
 

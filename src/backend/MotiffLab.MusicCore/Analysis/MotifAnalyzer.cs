@@ -42,7 +42,7 @@ public sealed record MotifAnalysis(
 /// Interval names go by size in semitones, not by spelling, so three semitones is a minor 3rd
 /// even where the score writes an augmented 2nd.
 /// </remarks>
-public static partial class MotifAnalyzer
+internal static partial class MotifAnalyzer
 {
     /// <summary>A key read from fewer notes or pitch classes than this is uncertain.</summary>
     public const int MinNotesForKey = 6;

@@ -13,7 +13,7 @@ public enum HarmonicFunction
 }
 
 /// <summary>How a passage's harmony ends, read from its last two chords.</summary>
-public enum Cadence
+internal enum Cadence
 {
     /// <summary>One chord throughout: the harmony stands still.</summary>
     Static,
@@ -42,7 +42,7 @@ public enum Cadence
 /// subdominant, dominant) and what the motion gives, read from how it ends. A rule over the chords the finder read,
 /// so it is inferred, and uncertain where a chord is.
 /// </summary>
-public static partial class HarmonyAnalyzer
+internal static partial class HarmonyAnalyzer
 {
     /// <summary>The steps of a progression a fact names, then "…".</summary>
     private const int MaxNamedSteps = 8;

@@ -44,7 +44,7 @@ namespace MotiffLab.MusicCore.Analysis.Phrasing;
 /// The result is pure: the same notes, meter and marks give the same boundaries.
 /// </para>
 /// </remarks>
-public static class PhraseBoundaryFinder
+internal static class PhraseBoundaryFinder
 {
     /// <summary>A beat of rest often ends a phrase, but not always, so a boundary from a rest alone is not certain.</summary>
     public const double RestConfidence = 0.7;

@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Variations;
 
-public static partial class OperationTemplates
+internal static partial class OperationTemplates
 {
     /// <summary>
     /// "3 notes that started on a beat now start 1 eighth ahead of it: beats 2, 3 and 4 of bar 1.",

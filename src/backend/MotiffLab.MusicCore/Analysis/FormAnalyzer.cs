@@ -26,7 +26,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// repeat. A phrase repeats another as a section brings an earlier one back: at least half its bars repeat the other's.
 /// Pure: the same notes, meter and sentences give the same sections.
 /// </remarks>
-public static class FormAnalyzer
+internal static class FormAnalyzer
 {
     /// <summary>The share of a section's bars that must repeat bars of an earlier section for it to bring that one back.</summary>
     public const double SameMaterial = 0.5;

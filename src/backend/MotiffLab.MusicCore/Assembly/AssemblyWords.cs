@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Assembly;
 
 /// <summary>The names of an assembly's sources as its sentences use them: «Кавер», «из Кавера», and the source of each step.</summary>
-public sealed class AssemblyNames
+internal sealed class AssemblyNames
 {
     private readonly IReadOnlyDictionary<string, string> _names;
     private readonly IReadOnlyDictionary<int, string> _steps;
@@ -32,7 +32,7 @@ public sealed class AssemblyNames
 }
 
 /// <summary>Small pieces of the assembly's sentences: lengths in bars, intervals, keys after «в», names after «из».</summary>
-public static class AssemblyWords
+internal static class AssemblyWords
 {
     /// <summary>A length as part of a bar: «½ такта», «2 такта», «1½ такта», or beats when it is not a simple part: «2 доли».</summary>
     public static string Length(long ticks, TimeSignature signature, Words words)

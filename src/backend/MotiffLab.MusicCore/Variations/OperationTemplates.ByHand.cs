@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Variations;
 
-public static partial class OperationTemplates
+internal static partial class OperationTemplates
 {
     /// <summary>
     /// "By hand, E5 at beat 2 of bar 1 is removed.", "By hand, F5 is added at beat 3 of bar 1, lasting

@@ -16,7 +16,7 @@ namespace MotiffLab.MusicCore.Experiments;
 /// <param name="KeepPresetId">The Keep preset the step runs with (<see cref="KeepTable.Presets"/>).</param>
 /// <param name="Label">The chip as the player reads it, for example "Long–short".</param>
 /// <param name="RussianLabel">The chip in Russian (#134).</param>
-public sealed record TryChip(string Id, string OperationId, OperationParameters? Parameters, string KeepPresetId, string Label, string RussianLabel)
+internal sealed record TryChip(string Id, string OperationId, OperationParameters? Parameters, string KeepPresetId, string Label, string RussianLabel)
 {
     /// <summary>Whether this version has the operation, so the chip can be shown at all (preparation item 8).</summary>
     public bool IsBuilt => Parameters is not null && VariationOperations.Find(OperationId) is not null;
@@ -27,7 +27,7 @@ public sealed record TryChip(string Id, string OperationId, OperationParameters?
 
 /// <summary>One row of the fact-to-chips table: which chips a kind of fact offers, surest fit first.</summary>
 /// <param name="FactKind">A fact id without its trailing number, for example "rhythm.durations" or "sentence.close".</param>
-public sealed record TryChipRow(string FactKind, IReadOnlyList<string> ChipIds);
+internal sealed record TryChipRow(string FactKind, IReadOnlyList<string> ChipIds);
 
 /// <summary>
 /// The table from fact kind to Try chips (decision record 0018, section 7; preparation item 8), as data: every chip
@@ -42,7 +42,7 @@ public sealed record TryChipRow(string FactKind, IReadOnlyList<string> ChipIds);
 /// selection with the preset's Keep choices, so what the player hears is a variation like any other.
 /// </para>
 /// </remarks>
-public static class TryChips
+internal static class TryChips
 {
     private const string PitchOrder = "keep-pitch-order";
     private const string Rhythm = "keep-rhythm";

@@ -115,7 +115,7 @@ public sealed record KeyCircleView(
 }
 
 /// <summary>Builds the circle of fifths for a selection from music-core's key reading and chords (<see cref="KeyCircleView"/>).</summary>
-public static class KeyCircle
+internal static class KeyCircle
 {
     public const int Places = 12;
 

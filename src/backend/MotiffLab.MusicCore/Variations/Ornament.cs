@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>The ornament V14 adds to a long melody note.</summary>
-public enum OrnamentKind
+internal enum OrnamentKind
 {
     /// <summary>The note, the step above, the note again, then held.</summary>
     Mordent,
@@ -28,7 +28,7 @@ public enum OrnamentKind
 }
 
 /// <summary>The parameters of V14 Ornament.</summary>
-public sealed record OrnamentParameters(OrnamentKind Kind) : OperationParameters;
+internal sealed record OrnamentParameters(OrnamentKind Kind) : OperationParameters;
 
 /// <summary>
 /// V14 Ornament (decision record 0018, section 7): adds an ornament in 32nds to each melody note a quarter or longer,
@@ -43,7 +43,7 @@ public sealed record OrnamentParameters(OrnamentKind Kind) : OperationParameters
 /// note a quarter or longer that starts on the 32nd grid, or when a neighbour note would sound at or below a note
 /// of the accompaniment sounding with it.
 /// </remarks>
-public sealed class Ornament : VariationOperation<OrnamentParameters>
+internal sealed class Ornament : VariationOperation<OrnamentParameters>
 {
     public const string OperationId = "V14";
 

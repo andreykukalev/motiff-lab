@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <summary>A note name spelled by its letter, as theory writes it: F♯ major has E♯, not F; D♯ minor's leading note is C𝄪.</summary>
 /// <param name="Step">0 for C up to 6 for B.</param>
 /// <param name="Alter">Semitones from the natural letter, −2 to 2.</param>
-public readonly record struct SpelledName(int Step, int Alter)
+internal readonly record struct SpelledName(int Step, int Alter)
 {
     private static readonly int[] s_natural = [0, 2, 4, 5, 7, 9, 11];
     private static readonly string[] s_letters = ["C", "D", "E", "F", "G", "A", "B"];
@@ -49,7 +49,7 @@ public readonly record struct SpelledName(int Step, int Alter)
 /// <param name="Together">A chord, struck at once; else one note after another, <see cref="Step"/> apart.</param>
 /// <param name="KeyboardLow">The C at or below the lowest note, where a small keyboard that shows them starts.</param>
 /// <param name="KeyboardHigh">The B at or above the highest note, where it ends.</param>
-public sealed record ReferenceSound(string Id, IReadOnlyList<int> Pitches, bool Together, int KeyboardLow, int KeyboardHigh)
+internal sealed record ReferenceSound(string Id, IReadOnlyList<int> Pitches, bool Together, int KeyboardLow, int KeyboardHigh)
 {
     /// <summary>Ticks from one note to the next when they are not struck at once: a beat unless set.</summary>
     public long Step { get; init; } = CanonicalTime.TicksPerQuarter;
@@ -70,7 +70,7 @@ public sealed record ReferenceSound(string Id, IReadOnlyList<int> Pitches, bool 
 /// <summary>A scale of a key: its name, its notes spelled by letter from the tonic, and the notes to hear.</summary>
 /// <param name="Title">"Major scale", "natural minor", "harmonic minor"; in Russian «мажорная гамма», «натуральный минор», «гармонический минор».</param>
 /// <param name="Notes">The seven notes from the tonic, spelled for the naming.</param>
-public sealed record ReferenceScale(ScaleForm Form, string Title, IReadOnlyList<string> Notes, ReferenceSound Sound)
+internal sealed record ReferenceScale(ScaleForm Form, string Title, IReadOnlyList<string> Notes, ReferenceSound Sound)
 {
     /// <summary>The key's tonic, where the scale's own card (<see cref="ScaleReference"/>) starts.</summary>
     public SpelledName Tonic { get; init; }
@@ -81,7 +81,7 @@ public sealed record ReferenceScale(ScaleForm Form, string Title, IReadOnlyList<
 /// <param name="FunctionName">"tonic", "subdominant", "dominant"; «тоника», «субдоминанта», «доминанта».</param>
 /// <param name="Symbol">The chord symbol, in letters as chord symbols are written in both languages: "F♯", "G♯m".</param>
 /// <param name="Notes">Its notes from the root, spelled for the naming: "F♯ A♯ C♯".</param>
-public sealed record ReferenceChord(string Numeral, HarmonicFunction Function, string FunctionName, string Symbol, IReadOnlyList<string> Notes, ReferenceSound Sound)
+internal sealed record ReferenceChord(string Numeral, HarmonicFunction Function, string FunctionName, string Symbol, IReadOnlyList<string> Notes, ReferenceSound Sound)
 {
     /// <summary>The chord's root, where its own card (<see cref="ChordReference"/>) starts.</summary>
     public SpelledName Root { get; init; }
@@ -94,7 +94,7 @@ public sealed record ReferenceChord(string Numeral, HarmonicFunction Function, s
 /// <param name="Count">"5 sharps", "1 flat", "no sharps or flats"; «5 диезов», «1 бемоль», «без знаков».</param>
 /// <param name="Accidentals">The notes the signature alters, in the order they are written: "F♯", "C♯", "G♯"…</param>
 /// <param name="TrebleSteps">Each accidental's place on the treble staff, in diatonic steps above its bottom line (E4 is 0, F5 on the top line is 8).</param>
-public sealed record SignatureCard(int Fifths, string Label, string Count, IReadOnlyList<string> Accidentals, IReadOnlyList<int> TrebleSteps)
+internal sealed record SignatureCard(int Fifths, string Label, string Count, IReadOnlyList<string> Accidentals, IReadOnlyList<int> TrebleSteps)
 {
     /// <summary>Sharps rather than flats; neither when <see cref="Fifths"/> is 0.</summary>
     public bool Sharps => Fifths > 0;
@@ -103,7 +103,7 @@ public sealed record SignatureCard(int Fifths, string Label, string Count, IRead
 /// <summary>A choice of the reverse lookup: a number of sharps or flats, with its short and its spoken label.</summary>
 /// <param name="Label">"0", "5♯", "2♭".</param>
 /// <param name="Spoken">"5 sharps"; «5 диезов».</param>
-public sealed record SignatureChoice(int Fifths, string Label, string Spoken);
+internal sealed record SignatureChoice(int Fifths, string Label, string Spoken);
 
 /// <summary>
 /// The reference card of a key (the Reference experiment, Andrei, 2026-11-11): the key signature, the key with its relative,
@@ -113,7 +113,7 @@ public sealed record SignatureChoice(int Fifths, string Label, string Spoken);
 /// <param name="Position">The key's place on the circle of fifths (<see cref="KeyCircle.PositionOf"/>), shared with its relative and its enharmonic key.</param>
 /// <param name="Enharmonic">The key that sounds the same with another signature (B major and C♭ major), for five to seven sharps or flats; else null.</param>
 /// <param name="Parallel">The same tonic in the other mode; when that would need more than seven sharps or flats, its enharmonic key (A♯ minor's is B♭ major).</param>
-public sealed record KeyCard(
+internal sealed record KeyCard(
     MusicalKey Key,
     string Name,
     int Position,
@@ -133,7 +133,7 @@ public sealed record KeyCard(
 }
 
 /// <summary>Builds the key cards of the Reference (<see cref="KeyCard"/>) and the notes to hear from them.</summary>
-public static class KeyReference
+internal static class KeyReference
 {
     /// <summary>The tempo the reference plays at: a quarter at 100 beats a minute.</summary>
     public const int MicrosecondsPerQuarter = 600_000;

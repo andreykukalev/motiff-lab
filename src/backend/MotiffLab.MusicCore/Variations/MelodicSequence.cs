@@ -14,7 +14,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// the semitones that take the first melody note <paramref name="Steps"/> scale steps, so each copy
 /// keeps every interval exactly.
 /// </param>
-public sealed record MelodicSequenceParameters(int Steps = 1, int Repeats = 1, bool Diatonic = true) : OperationParameters
+internal sealed record MelodicSequenceParameters(int Steps = 1, int Repeats = 1, bool Diatonic = true) : OperationParameters
 {
     public const int MaxSteps = 4;
 
@@ -34,7 +34,7 @@ public sealed record MelodicSequenceParameters(int Steps = 1, int Repeats = 1, b
 /// Added notes take the id of the note they copy, a "~" and the copy's number ("n_0001~2"), with
 /// more of the suffix when that id is already taken, so ids stay unique when sequences are chained.
 /// </remarks>
-public sealed class MelodicSequence : VariationOperation<MelodicSequenceParameters>
+internal sealed class MelodicSequence : VariationOperation<MelodicSequenceParameters>
 {
     public const string OperationId = "V4";
 

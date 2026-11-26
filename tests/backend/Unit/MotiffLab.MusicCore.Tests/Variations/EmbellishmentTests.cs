@@ -86,12 +86,12 @@ public class EmbellishmentTests
     }
 
     [Theory]
-    [InlineData(AccentPattern.OffBeat, new[] { 70, 100, 70, 100, 70, 100, 70, 100 })]
-    [InlineData(AccentPattern.EveryThird, new[] { 100, 70, 70, 100, 70, 70, 100, 70 })]
-    [InlineData(AccentPattern.Downbeat, new[] { 100, 70, 70, 70, 70, 70, 70, 70 })]
-    public void Each_pattern_accents_its_onsets(AccentPattern pattern, int[] velocities)
+    [InlineData(nameof(AccentPattern.OffBeat), new[] { 70, 100, 70, 100, 70, 100, 70, 100 })]
+    [InlineData(nameof(AccentPattern.EveryThird), new[] { 100, 70, 70, 100, 70, 70, 100, 70 })]
+    [InlineData(nameof(AccentPattern.Downbeat), new[] { 100, 70, 70, 70, 70, 70, 70, 70 })]
+    public void Each_pattern_accents_its_onsets(string pattern, int[] velocities)
     {
-        Variation variation = AccentShift.Instance.Apply(Eighths(), Context(), new AccentShiftParameters(pattern));
+        Variation variation = AccentShift.Instance.Apply(Eighths(), Context(), new AccentShiftParameters(Enum.Parse<AccentPattern>(pattern)));
 
         Assert.Equal(velocities, variation.Notes.OrderBy(note => note.Span.Onset).Select(note => note.Velocity));
     }

@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Events;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>How the explorer's right hand plays each chord (version 0.5), a bar of quavers over the bass held in the left.</summary>
-public enum ExplorerTexture
+internal enum ExplorerTexture
 {
     /// <summary>The chord struck at once and held.</summary>
     Together,
@@ -22,22 +22,22 @@ public enum ExplorerTexture
 /// <param name="Id">Its numeral, which names it: "i", "ii°", "V7".</param>
 /// <param name="Numeral">The Roman numeral: upper case for major, lower for minor, ° for diminished, + for augmented.</param>
 /// <param name="Symbol">The chord symbol in letters: "Am", "Bdim", "E7".</param>
-public sealed record ExplorerChord(string Id, string Numeral, SpelledName Root, ChordType Type, string Symbol)
+internal sealed record ExplorerChord(string Id, string Numeral, SpelledName Root, ChordType Type, string Symbol)
 {
     /// <summary>How many positions it has: root position and an inversion for each tone above the root.</summary>
     public int Positions => ChordReference.Turning(Type);
 }
 
 /// <summary>One bar of a progression the player built: a chord of the key by its id, in a position.</summary>
-public sealed record ExplorerStep(string ChordId, int Inversion);
+internal sealed record ExplorerStep(string ChordId, int Inversion);
 
 /// <summary>A bar of the progression as the explorer shows it over the notes.</summary>
 /// <param name="Figure">The inversion's figures, written after the numeral ("6", "6/4", "6/5", "4/3", "2"); null in root position.</param>
 /// <param name="Symbol">The chord symbol with its bass when inverted: "Dm/F", "E7/G♯".</param>
-public sealed record ExplorerBar(ExplorerChord Chord, int Inversion, string? Figure, string Symbol);
+internal sealed record ExplorerBar(ExplorerChord Chord, int Inversion, string? Figure, string Symbol);
 
 /// <summary>The progression as it sounds: a bar for each step, the bass held in the left hand, the texture in the right.</summary>
-public sealed record ExplorerProgression(MusicalKey Key, IReadOnlyList<ExplorerBar> Bars, ReferenceMusic Music);
+internal sealed record ExplorerProgression(MusicalKey Key, IReadOnlyList<ExplorerBar> Bars, ReferenceMusic Music);
 
 /// <summary>
 /// The harmonic explorer (version 0.5, Andrei, 2026-11-12: inside the Reference, a tool to try harmony in isolation): a key,
@@ -45,7 +45,7 @@ public sealed record ExplorerProgression(MusicalKey Key, IReadOnlyList<ExplorerB
 /// sits in the left hand around the second octave; the right hand takes the chord's other three tones (all three of a
 /// triad), each chord placed as near the one before as it can be, so the hand moves as little as possible.
 /// </summary>
-public static class HarmonyExplorer
+internal static class HarmonyExplorer
 {
     /// <summary>The most bars a progression holds.</summary>
     public const int MaxBars = 8;

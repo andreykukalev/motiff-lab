@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Assembly;
 
 /// <summary>How a stretch of a source compares with the player's notes, in words (decision record 0024, section 6).</summary>
-public enum MatchKind
+internal enum MatchKind
 {
     /// <summary>«совпадает»: the same notes, maybe with a few corrections.</summary>
     Same,
@@ -26,19 +26,19 @@ public enum MatchKind
 /// <param name="Target">Where it lands in the player's notes; null when not found.</param>
 /// <param name="Identical">The same notes at the same places and lengths: nothing to take.</param>
 /// <param name="Clean">The bar lands on a whole bar of the notes, of the same length, so it can be taken bar for bar.</param>
-public sealed record MatchBar(int Index, TickSpan Span, MatchKind Kind, int Matched, int Total, TickSpan? Target, bool Identical, bool Clean);
+internal sealed record MatchBar(int Index, TickSpan Span, MatchKind Kind, int Matched, int Total, TickSpan? Target, bool Identical, bool Clean);
 
 /// <summary>A run of bars of the same kind: «такты 1–29 совпадают».</summary>
 /// <param name="First">The first source bar's number.</param>
 /// <param name="Last">The last source bar's number.</param>
-public sealed record MatchSegment(MatchKind Kind, int First, int Last, TickSpan Span);
+internal sealed record MatchSegment(MatchKind Kind, int First, int Last, TickSpan Span);
 
 /// <summary>
 /// A source compared with the player's notes as they are now, bar by bar of the source (decision record 0024,
 /// section 6): the alignment of 0022 between the two, then for each bar how many of its notes are found at their place.
 /// Stamped with the journal it was made for, so nothing is taken on a stale comparison.
 /// </summary>
-public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<MatchBar> Bars, IReadOnlyList<MatchSegment> Segments)
+internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<MatchBar> Bars, IReadOnlyList<MatchSegment> Segments)
 {
     /// <summary>At least this share of a bar's notes found in place, or all but one of at least half: «совпадает» (with a correction).</summary>
     public const double SameShare = 0.85;

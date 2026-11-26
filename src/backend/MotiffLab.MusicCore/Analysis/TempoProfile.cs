@@ -5,10 +5,10 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>One bar's tempo: how many tenths of a quarter note a minute it was played or written at.</summary>
-public readonly record struct BarTempo(int Number, TickSpan Span, int Tenths);
+internal readonly record struct BarTempo(int Number, TickSpan Span, int Tenths);
 
 /// <summary>A stretch of at least three bars that goes slower or faster than usual, with its mean tempo in tenths.</summary>
-public sealed record TempoChange(int FirstBar, int LastBar, TickSpan Span, bool Slower, int Tenths);
+internal sealed record TempoChange(int FirstBar, int LastBar, TickSpan Span, bool Slower, int Tenths);
 
 /// <summary>
 /// The tempo of a piece bar by bar (version 0.5, «Темп живого исполнения»): computed from the tempo map and the bars, never
@@ -17,7 +17,7 @@ public sealed record TempoChange(int FirstBar, int LastBar, TickSpan Span, bool 
 /// accel. by (decision record 0016). A recording's profile is inferred, as its beat is; a score's is read from its file.
 /// Everything is integer arithmetic: the same bars and tempos give the same profile.
 /// </summary>
-public sealed record TempoProfile(IReadOnlyList<BarTempo> Bars, int Usual, int Low, int High, IReadOnlyList<TempoChange> Changes, bool Inferred)
+internal sealed record TempoProfile(IReadOnlyList<BarTempo> Bars, int Usual, int Low, int High, IReadOnlyList<TempoChange> Changes, bool Inferred)
 {
     private const int ShortestChange = 3;
 

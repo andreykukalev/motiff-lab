@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// the idea is heard, how many exactly and how many higher or lower, and the sections it opens. Pure: the same notes,
 /// meter and sentences give the same ideas.
 /// </remarks>
-public static class IdeaFinder
+internal static class IdeaFinder
 {
     /// <summary>The most ideas the map shows.</summary>
     public const int MaxIdeas = 6;

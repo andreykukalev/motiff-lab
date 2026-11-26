@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Performance;
 /// <param name="NoteIds">The printed notes concerned: for an octave, the ones to move.</param>
 /// <param name="Semitones">For an octave, how far the recording has them: −12 or +12. Zero otherwise.</param>
 /// <param name="PlayedTicks">For a bar length, how long the recording plays the bar, in ticks at the neighbouring bars' tempo, to the nearest 16th. Zero otherwise.</param>
-public sealed record RecordingCorrection(CheckReason Reason, int FirstBar, int LastBar, IReadOnlyList<string> NoteIds, int Semitones, long PlayedTicks)
+internal sealed record RecordingCorrection(CheckReason Reason, int FirstBar, int LastBar, IReadOnlyList<string> NoteIds, int Semitones, long PlayedTicks)
 {
     /// <summary>One open Check flag per bar it covers.</summary>
     public IEnumerable<CheckFlag> Flags() =>
@@ -28,7 +28,7 @@ public sealed record RecordingCorrection(CheckReason Reason, int FirstBar, int L
 /// printed length disagrees with its meter while the recording plays it in the meter's length. Pure and
 /// deterministic.
 /// </summary>
-public static class RecordingCorrections
+internal static class RecordingCorrections
 {
     /// <summary>The fewest bars in a row a hand must sound an octave away before it is offered: one bar can be the performer's choice.</summary>
     public const int FewestOctaveBars = 2;
