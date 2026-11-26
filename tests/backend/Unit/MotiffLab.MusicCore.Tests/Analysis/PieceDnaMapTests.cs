@@ -84,6 +84,21 @@ public class PieceDnaMapTests
     }
 
     [Fact]
+    public void An_idea_names_each_letter_it_opens_once_with_how_many_sections_of_it()
+    {
+        // One-bar sections A B A A C from bar 1; the idea is heard at the start of the first four.
+        string[] labels = ["A", "B", "A", "A", "C"];
+        DnaSection[] sections = [.. labels.Select((label, i) => new DnaSection($"section_{i + 1}", label, MeterMap.Default.GetBar(i + 1).Span, i + 1, i + 1, []))];
+        IdeaOccurrence[] At(params int[] bars) => [.. bars.Select(bar => new IdeaOccurrence(
+            bar == bars[0] ? OccurrenceKind.Original : OccurrenceKind.Exact, MeterMap.Default.GetBar(bar).Span, bar, bar, 0, []))];
+
+        Assert.Equal("Heard 4 times, always exactly. Opens A 3 times and B.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 4 раза, всегда точно. Открывает A 3 раза и B.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.Russian));
+        Assert.Equal("Heard twice, always exactly. Opens A twice.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 2 раза, всегда точно. Открывает A дважды.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.Russian));
+    }
+
+    [Fact]
     public void A_transposed_idea_counts_its_places_higher_and_lower()
     {
         // Four bars of a figure, a beat of rest, the figure a tone higher, a beat of rest and the figure two tones higher:

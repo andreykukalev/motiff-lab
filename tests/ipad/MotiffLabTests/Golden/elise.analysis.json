@@ -2905,7 +2905,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Idea 1 · bars 0–1",
-       "summary": "Heard 10 times, always exactly. Opens 5 sections.",
+       "summary": "Heard 10 times, always exactly. Opens A and B 4 times.",
        "passage": {
         "onset": 0,
         "end": 960,
@@ -10153,7 +10153,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Идея 1 · такты 0–1",
-       "summary": "Звучит 10 раз, всегда точно. Открывает 5 разделов.",
+       "summary": "Звучит 10 раз, всегда точно. Открывает A и B 4 раза.",
        "passage": {
         "onset": 0,
         "end": 960,

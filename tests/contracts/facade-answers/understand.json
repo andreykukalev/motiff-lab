@@ -215,7 +215,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Idea 1 · bars 0–1",
-       "summary": "Heard 11 times, always exactly. Opens A and A.",
+       "summary": "Heard 11 times, always exactly. Opens A twice.",
        "passage": {
         "onset": 0,
         "end": 960,
