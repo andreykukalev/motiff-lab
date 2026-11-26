@@ -155,7 +155,7 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertTrue(ScanServer.jobsOn(settings), "«Четыре движка» by default (Andrei, 2026-11-25)")
         XCTAssertNil(ScanServer.chosenEngine(settings), "never named to the server")
         XCTAssertNil(settings.catalogue["experimental.scanJobs"], "no experiment switch")
-        settings.set(ScanServer.engineChoice, "copisteria")
+        await settings.update(["set": ["id": ScanServer.engineChoice, "value": "copisteria"]])
         XCTAssertFalse(ScanServer.jobsOn(settings), "one engine: /recognise as before")
         XCTAssertEqual(ScanServer.chosenEngine(settings), "copisteria")
 
