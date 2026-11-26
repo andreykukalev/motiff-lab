@@ -7,6 +7,9 @@ struct OpenPiece: Identifiable, Sendable {
     let pages: [String]
     /// Verovio's timemap for the pages, as JSON: where each bar starts, for the marks (the score page).
     let timemap: String
+    /// The bars the app wrote itself as the piece was engraved when it opened (`Engraving.appWrittenBars`); the score as
+    /// last engraved keeps its own (`SourcesModel.engraved`).
+    var appWrittenBars: Int?
     /// The project file in Documents that the piece is saved to (ProjectFiles).
     var file: URL?
     /// A PDF piece (0023): the pages as added and no notes, shown by PdfScreen; nothing is engraved.
@@ -63,7 +66,7 @@ struct OpenPiece: Identifiable, Sendable {
             switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
             case .success(let engraving):
                 ProbeCounts.shared.mark("engraved")
-                return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap, own: own, edits: edits))
+                return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap, appWrittenBars: engraving.appWrittenBars, own: own, edits: edits))
             case .failure(let error):
                 MusicCore.close(piece: piece)
                 return .failure(error)

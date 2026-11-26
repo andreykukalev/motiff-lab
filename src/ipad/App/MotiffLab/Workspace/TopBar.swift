@@ -4,13 +4,16 @@ import SwiftUI
 /// Contents, the title and the switch of views with Sources), then the pages in view, then each view's own actions at the
 /// right. The start never gives way: the title shows whole up to a share of the bar (BarFit), on the same width in both
 /// views, so switching views moves nothing there. What gives way where the bar is short is the rest, in this order: the
-/// pages in view go (whole, never cut to an ellipsis), then the actions take their compact form, then they scroll
-/// sideways. Before 0.6.1 the score's longer row of actions squeezed the title to nothing and cut the pages to a lone «…».
+/// view's note goes (whole, v1.4), then the pages in view (whole, never cut to an ellipsis), then the actions take their
+/// compact form, then they scroll sideways. Before 0.6.1 the score's longer row of actions squeezed the title to nothing
+/// and cut the pages to a lone «…».
 struct TopBar<Leading: View, Actions: View, Compact: View>: View {
     /// The bar's width: the screen's, less the margins the bar floats in.
     let width: CGFloat
     /// "p. 2 of 4", or nil before the pages are laid out.
     let pages: String?
+    /// The view's note after the start («По записи источника, 4 такта записаны приложением»); nil for none.
+    var note: String? = nil
     @ViewBuilder let leading: () -> Leading
     @ViewBuilder let actions: () -> Actions
     @ViewBuilder let compact: () -> Compact
@@ -21,6 +24,8 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
                 .environment(\.barTitleCap, BarFit.titleCap(barWidth: width))
                 .fixedSize()
             ViewThatFits(in: .horizontal) {
+                rest(note: note, pages: pages) { actions() }
+                rest(note: note, pages: nil) { actions() }
                 rest(pages: pages) { actions() }
                 rest(pages: nil) { actions() }
                 rest(pages: nil) { compact() }
@@ -36,8 +41,9 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
         .modifier(FloatingSurface())
     }
 
-    private func rest(pages: String?, @ViewBuilder _ actions: () -> some View) -> some View {
+    private func rest(note: String? = nil, pages: String?, @ViewBuilder _ actions: () -> some View) -> some View {
         HStack(spacing: CGFloat.ds("s-2")) {
+            if let note { Tag(text: note, kind: .assumed).lineLimit(1).fixedSize() }
             if let pages { BarPages(text: pages) }
             Spacer(minLength: CGFloat.ds("s-2"))
             actions()
