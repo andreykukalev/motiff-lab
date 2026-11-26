@@ -94,8 +94,9 @@ struct DraftTechniqueCard: View {
     private func act(_ step: @escaping () async -> Bool) {
         guard let spot = model.picked?.spot else { return }
         Task {
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             model.closeCard()

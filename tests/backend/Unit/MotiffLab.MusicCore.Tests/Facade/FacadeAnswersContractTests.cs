@@ -196,6 +196,24 @@ public class FacadeAnswersContractTests
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // A place moved on the draft's map (version 1.4, F1): bars 5–8 put first, the map with the new order, and that undone.
+        ["drafts.order"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.movePlace", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0002","index":0,"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // «Найти на записи» (version 1.4, F2): the stretch of the recording heard as Notes n_2 that is the music of the place
+        // of bars 1–4, put in as its variant, found again as that variant, and that undone.
+        ["drafts.recording"] =
+        [
+            ("drafts.findOnRecording", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.addFromRecording", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","now":"2026-11-20T10:50:00Z"}"""),
+            ("drafts.findOnRecording", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
         // The register at a seam (version 1.2, the plan's answer 3): bars 5–8 two octaves up after bars 1–4, the seam saying
         // «② на октаву выше» and offering «② на октаву ниже», a transposition by −12.
         ["drafts.register"] =
@@ -363,6 +381,7 @@ public class FacadeAnswersContractTests
         ["sources.layers.pdf"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
         ["document.marks"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
         ["drafts.techniques.heard"] = (Piece, WithAHeardVariant),
+        ["drafts.recording"] = (Piece, data => Saved(WithARecording(data))),
     };
 
     private static readonly JsonSerializerOptions s_written = new()
@@ -444,6 +463,15 @@ public class FacadeAnswersContractTests
     /// </summary>
     private static byte[] WithAHeardVariant(byte[] data)
     {
+        (MusicCoreFacade facade, int piece) = WithARecording(data);
+        int shown = FacadeCalls.Json(facade.Call(piece, "sources.notes.open", """{"id": "n_2"}""")).GetProperty("piece").GetInt32();
+        Assert.DoesNotContain("error", facade.Call(shown, "drafts.add", """{"bars": {"first": 1, "last": 4}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:40:00Z"}"""), StringComparison.Ordinal);
+        return Saved((facade, piece));
+    }
+
+    /// <summary>The example open with a recording heard as Notes n_2 and a draft whose place is bars 1–4 of the notes.</summary>
+    private static (MusicCoreFacade Facade, int Piece) WithARecording(byte[] data)
+    {
         var facade = new MusicCoreFacade();
         int piece = Opened(facade, Piece, data, """{"language":"en","id":"p_answers"}""");
         string[] calls =
@@ -457,10 +485,11 @@ public class FacadeAnswersContractTests
             Assert.DoesNotContain("error", facade.Call(piece, calls[index], calls[index + 1]), StringComparison.Ordinal);
         }
 
-        int shown = FacadeCalls.Json(facade.Call(piece, "sources.notes.open", """{"id": "n_2"}""")).GetProperty("piece").GetInt32();
-        Assert.DoesNotContain("error", facade.Call(shown, "drafts.add", """{"bars": {"first": 1, "last": 4}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:40:00Z"}"""), StringComparison.Ordinal);
-        return Encoding.UTF8.GetBytes(facade.Call(piece, "project.save"));
+        return (facade, piece);
     }
+
+    /// <summary>The project file of the piece open.</summary>
+    private static byte[] Saved((MusicCoreFacade Facade, int Piece) open) => Encoding.UTF8.GetBytes(open.Facade.Call(open.Piece, "project.save"));
 
     /// <summary>
     /// The example's project file with bar 2's second A changed a semitone and its C taken out, and with four corrections

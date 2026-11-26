@@ -27,8 +27,15 @@ public static class SameMusic
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(fragment);
-        return [.. draft.Places.Select(place =>
-            new PlaceMatch(place.Id, AssemblyMatch.Of("fragment", fragment, place.BaseVariant.Music, "").Bars.Sum(static bar => bar.Matched), fragment.Notes.Count))];
+        return [.. draft.Places.Select(place => In(place, fragment))];
+    }
+
+    /// <summary>The fragment against the base of <paramref name="place"/>: how many of its notes are found there.</summary>
+    public static PlaceMatch In(DraftPlace place, SourceMusic fragment)
+    {
+        ArgumentNullException.ThrowIfNull(place);
+        ArgumentNullException.ThrowIfNull(fragment);
+        return new PlaceMatch(place.Id, AssemblyMatch.Of("fragment", fragment, place.BaseVariant.Music, "").Bars.Sum(static bar => bar.Matched), fragment.Notes.Count);
     }
 
     /// <summary>The place offered first: the one where most of the fragment is found, when that is the same music; ties go to the earlier place.</summary>

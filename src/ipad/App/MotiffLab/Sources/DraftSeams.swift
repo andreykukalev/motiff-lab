@@ -5,6 +5,7 @@ import Foundation
 /// `drafts.seams`, a diamond where two places meet and something differs (key, meter, tempo, since v1.2 the register;
 /// none where nothing does, as the spec draws none), and the seam picked, whose card shows the two sides and what
 /// music-core offers; and since v1.2 (the plan's answer 2) the bridge place picked, whose card shows its candidates.
+/// Since v1.4 (F3) any place's label opens its card: a bridge's candidates, or the place's ▾ menu of its variants.
 /// Everything here is music-core's answer; nothing is changed by itself. Owned by the draft view's `ScoreController`, or
 /// by the draft's map; its state is set only through its methods.
 @MainActor
@@ -16,8 +17,9 @@ final class DraftSeamsModel: ObservableObject {
         var at: CGPoint?
     }
 
-    /// A bridge place picked by its label (v1.2): its card shows at the label (`at`, the label's bottom left).
-    struct BridgePick: Equatable {
+    /// A place picked by its label (a bridge's since v1.2, any place's since v1.4): its card shows at the label (`at`, the
+    /// label's bottom left).
+    struct LabelPick: Equatable {
         let place: String
         let at: CGPoint
     }
@@ -25,7 +27,7 @@ final class DraftSeamsModel: ObservableObject {
     /// The draft's seams, in order; empty on a view that is no draft's.
     @Published private(set) var seams: [DraftSeamsAnswer.Seam] = []
     @Published private(set) var picked: Pick?
-    @Published private(set) var bridge: BridgePick?
+    @Published private(set) var label: LabelPick?
 
     /// The seams of `draft`, asked on `piece` (its view or the piece it belongs to); none for a view that is no draft's.
     /// The seam picked stays picked when it is still there.
@@ -62,20 +64,20 @@ final class DraftSeamsModel: ObservableObject {
     func pick(_ key: String, at point: CGPoint?) -> DraftSeamsAnswer.Seam? {
         guard let seam = seam(key) else { return nil }
         picked = Pick(seam: seam, at: point)
-        bridge = nil
+        label = nil
         return seam
     }
 
-    /// A bridge place's label tapped (`at` its bottom left): its card opens there, and a seam's card goes.
-    func pickBridge(_ place: String, at point: CGPoint) {
-        bridge = BridgePick(place: place, at: point)
+    /// A place's label tapped (`at` its bottom left): its card opens there, and a seam's card goes.
+    func pickLabel(_ place: String, at point: CGPoint) {
+        label = LabelPick(place: place, at: point)
         picked = nil
     }
 
-    /// The card goes, a seam's or a bridge's.
+    /// The card goes, a seam's or a place's.
     func close() {
         picked = nil
-        bridge = nil
+        label = nil
     }
 
     /// The page's key of a seam's diamond: the place after it.

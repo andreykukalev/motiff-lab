@@ -140,6 +140,8 @@ final class DraftAssistantTests: XCTestCase {
         XCTAssertEqual(ScoreController.proposedSpan(of: place.id, in: after.draft, before: view.draft), Double(place.onset)..<Double(place.end))
         XCTAssertEqual(sources.layers.drafts.first?.taken, 0, "heard after, still nothing applied")
 
+        await acceptIsHeldWhileAStepIsOnItsWay(proposal, assistant, sources, place: place, draft: draft.id)
+
         assistant.refuse(proposal)
         XCTAssertEqual(assistant.inDraft?.exchange?.proposals?.first?.state, .cancelled, "«Отказаться» changes nothing but the card")
         let kept = await assistant.accept(proposal) {
@@ -171,5 +173,20 @@ final class DraftAssistantTests: XCTestCase {
                 XCTAssertNotEqual(UIText(language: language)[key], key, "\(key) in \(language)")
             }
         }
+    }
+
+    /// «Принять» while another step of the draft is on its way (v1.4, i-3): held, not sent, the proposal as it was and no
+    /// problem told; the other step undone after, so the proposal is taken as before.
+    private func acceptIsHeldWhileAStepIsOnItsWay(_ proposal: AssistantPlaceProposal, _ assistant: AssistantController, _ sources: SourcesController, place: DraftViewAnswer.Place, draft: String) async {
+        let other = Task { await sources.takeSure(place, of: draft) }
+        for _ in 0..<1000 where !sources.stepping { await Task.yield() }
+        XCTAssertTrue(sources.stepping, "a step on its way")
+        let held = await assistant.accept(proposal) {
+            await sources.acceptProposal(proposal.callFields, of: proposal.draft, words: proposal.words)
+        }
+        XCTAssertFalse(held)
+        XCTAssertEqual(assistant.inDraft?.exchange?.proposals?.first?.state, .proposed, "not sent: still proposed")
+        XCTAssertNil(assistant.inDraft?.exchange?.proposals?.first?.problem, "and no «уже не подходит»")
+        if await other.value { await sources.undo() }
     }
 }
