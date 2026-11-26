@@ -124,22 +124,57 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
         return place.Base == variantId ? this : Changed([.. Places.Select(each => each.Id == placeId ? place.With(variants, variantId) : each)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
     }
 
-    /// <summary>The draft with <paramref name="place"/> put just before the place <paramref name="beforeId"/>: a bridge at the seam before it (<see cref="DraftBridges"/>).</summary>
+    /// <summary>
+    /// The draft with <paramref name="place"/> put just before the place <paramref name="beforeId"/>: a bridge at the seam
+    /// before it (<see cref="DraftBridges"/>). That place has another place before it now (<see cref="Reshaped"/>).
+    /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     /// <exception cref="ArgumentException">An id the draft has already.</exception>
     public Draft WithPlaceBefore(DraftPlace place, string beforeId)
     {
         ArgumentNullException.ThrowIfNull(place);
         int index = Places.ToList().IndexOf(Place(beforeId));
-        return Changed([.. Places.Take(index), place, .. Places.Skip(index)], Shelf, Steps);
+        return Reshaped([.. Places.Take(index), place, .. Places.Skip(index)]);
     }
 
-    /// <summary>The draft without the place <paramref name="placeId"/>: its variants go with it, and the steps that name it.</summary>
+    /// <summary>
+    /// «Карта черновика: порядок мест»: the place <paramref name="placeId"/> moved to <paramref name="index"/> among the places
+    /// (from 0), the others in their order; its variants, marks and steps go with it. Where a place has other neighbours
+    /// now, what was made for its seams goes (<see cref="Reshaped"/>). A bridge itself is not moved.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No such place.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">An index outside the places.</exception>
+    /// <exception cref="ArgumentException">The place is at that index already.</exception>
+    /// <exception cref="InvalidOperationException">A bridge place, built for its seam (the lead's decision of 2026-11-26).</exception>
+    public Draft WithPlaceAt(string placeId, int index)
+    {
+        DraftPlace place = Place(placeId);
+        if (place.Bridge)
+        {
+            throw new InvalidOperationException($"The place {placeId} is a bridge, built for its seam: it is not moved.");
+        }
+
+        if (index < 0 || index >= Places.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"A place moves to a position from 0 to {Places.Count - 1}.");
+        }
+
+        if (Places[index].Id == placeId)
+        {
+            throw new ArgumentException($"The place {placeId} is there already.", nameof(index));
+        }
+
+        List<DraftPlace> places = [.. Places.Where(each => each.Id != placeId)];
+        places.Insert(index, place);
+        return Reshaped(places);
+    }
+
+    /// <summary>The draft without the place <paramref name="placeId"/>: its variants go with it, and the steps that name it, and what its neighbours' seams lose (<see cref="Reshaped"/>).</summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     public Draft WithoutPlace(string placeId)
     {
         _ = Place(placeId);
-        return Changed([.. Places.Where(place => place.Id != placeId)], Shelf, [.. Steps.Where(step => step.Place != placeId)]);
+        return Reshaped([.. Places.Where(place => place.Id != placeId)]);
     }
 
     /// <summary>
@@ -211,7 +246,36 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
 
     private DraftPlace Place(string? id) => (id is null ? null : FindPlace(id)) ?? throw new KeyNotFoundException($"The draft has no place {id}.");
 
-    private Draft WithPlace(DraftPlace place) => Changed([.. Places.Select(each => each.Id == place.Id ? place : each)], Shelf, Steps);
+    /// <summary>
+    /// The draft with its places in the order <paramref name="places"/>, some put in, taken out or moved, and what was made
+    /// for a seam that is another now gone with it: a bridge place (<see cref="DraftPlace.Bridge"/>) whose place before or
+    /// after it is another, with its steps, until no bridge left has; then each step that keeps the seam before a place as it
+    /// is («Оставить», a <see cref="DraftLeave"/> with <see cref="DraftLeave.Seam"/>), of a place with another place before
+    /// it now. The steps of a place taken out go with it.
+    /// </summary>
+    private Draft Reshaped(List<DraftPlace> places)
+    {
+        static (string?, string?) Neighbours(IReadOnlyList<DraftPlace> order, string id)
+        {
+            int index = order.ToList().FindIndex(place => place.Id == id);
+            return index < 0 ? (null, null) : (index > 0 ? order[index - 1].Id : null, index < order.Count - 1 ? order[index + 1].Id : null);
+        }
+
+        HashSet<string> were = [.. Places.Select(static place => place.Id)];
+        while (places.FirstOrDefault(place => place.Bridge && were.Contains(place.Id) && Neighbours(places, place.Id) != Neighbours(Places, place.Id)) is { } stale)
+        {
+            places.Remove(stale);
+        }
+
+        HashSet<string> kept = [.. places.Select(static place => place.Id)];
+        HashSet<string> reseamed = [.. places.Select(static place => place.Id).Where(id => Neighbours(places, id).Item1 != Neighbours(Places, id).Item1)];
+        return Changed(places, Shelf, [.. Steps.Where(step => kept.Contains(step.Place) && !(step is DraftLeave { Seam: true } && reseamed.Contains(step.Place)))]);
+    }
+
+    private Draft WithPlace(DraftPlace place) => WithPlace(place, Steps);
+
+    /// <summary>The draft with <paramref name="place"/> in place of the one of its id and <paramref name="steps"/> as its journal (<see cref="PlaceLength"/>), checked again as a new one is.</summary>
+    internal Draft WithPlace(DraftPlace place, IReadOnlyList<DraftStep> steps) => Changed([.. Places.Select(each => each.Id == place.Id ? place : each)], Shelf, steps);
 
     /// <summary>The draft with other places, shelf or steps, checked again as a new one is.</summary>
     private Draft Changed(IReadOnlyList<DraftPlace> places, IReadOnlyList<DraftVariant> shelf, IReadOnlyList<DraftStep> steps) => new(Id, Name, CreatedAt, places, shelf, steps, Next);

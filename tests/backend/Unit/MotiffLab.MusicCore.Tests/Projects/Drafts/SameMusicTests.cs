@@ -1,3 +1,8 @@
+using MotiffLab.MusicCore.Assembly;
+using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Time;
 using MotiffLab.MusicCore.Projects.Drafts;
 
 using static MotiffLab.MusicCore.Tests.Projects.Drafts.DraftFixtures;
@@ -21,6 +26,23 @@ public class SameMusicTests
         int[] notes = [72, 74, 76, 77];
         DraftVariant fragment = Variant("v_9", Score(4, bar => [.. Enumerable.Range(0, 4).Select(i => (bar * 4) + i < changed ? 90 + i : notes[i])], prefix: "f"), 1, 4);
         return SameMusic.Of(TwoPlaces(), fragment.Music).Single(match => match.Place == place);
+    }
+
+    [Theory]
+    [InlineData(29, 36)]
+    [InlineData(36, 43)]
+    public void A_passage_of_the_example_taken_twice_is_the_same_music_whole(int first, int last)
+    {
+        // v1.4 F6: the alignment's tick inside a bar is near, not exact, so a run of one pitch was paired a note late (92 %).
+        ImportedPiece piece = PieceImporter.Import("FurElise.musicxml", File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml"))).Piece!;
+        SourceMusic music = SourceMusic.OfPiece(piece, piece.Notes);
+        TickSpan span = MotifSelector.Bars(piece.Meter, first, last, piece.End);
+        Draft draft = Draft.Start("d_1", "Черновик 1", At, "pl_1", DraftFragment.Variant("v_1", At, music, span, DraftPart.All, "n_1", Read));
+
+        PlaceMatch match = Assert.Single(SameMusic.Of(draft, DraftFragment.Of(music, span, DraftPart.All)));
+
+        Assert.Equal(100, match.Percent);
+        Assert.Equal(100, SameMusic.In(draft.Places[0], draft.Places[0].BaseVariant.Music).Percent);
     }
 
     [Fact]

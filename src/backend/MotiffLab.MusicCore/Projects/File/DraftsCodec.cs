@@ -6,7 +6,6 @@ using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.AssemblyCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.ProvenanceCodec;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
@@ -160,15 +159,15 @@ internal static class DraftsCodec
         json.WriteEndObject();
         if (from.Bars is var (first, last))
         {
-            WriteNumbers(json, "bars", [first, last]);
+            JsonWrite.Numbers(json, "bars", [first, last]);
         }
 
         if (from.Milliseconds is var (start, end))
         {
-            WriteNumbers(json, "ms", [start, end]);
+            JsonWrite.Numbers(json, "ms", [start, end]);
         }
 
-        json.WriteString("part", Lower(from.Part));
+        json.WriteString("part", JsonWrite.Name(from.Part));
         json.WriteEndObject();
     }
 
@@ -186,11 +185,11 @@ internal static class DraftsCodec
                 WriteTechnique(json, take.Technique);
                 if (take.Part is { } part)
                 {
-                    json.WriteString("part", Lower(part));
+                    json.WriteString("part", JsonWrite.Name(part));
                 }
 
-                WriteIds(json, "removed", take.Removed);
-                WriteIds(json, "added", take.Added);
+                JsonWrite.TextsIfAny(json, "removed", take.Removed);
+                JsonWrite.TextsIfAny(json, "added", take.Added);
                 if (take.Insert is { } insert)
                 {
                     json.WriteStartObject("insert");
@@ -244,26 +243,9 @@ internal static class DraftsCodec
         }
 
         json.WriteStartObject("technique");
-        json.WriteString("kind", Lower(technique.Kind));
-        WriteNumbers(json, "bars", technique.Bars.Select(static bar => (long)bar));
+        json.WriteString("kind", JsonWrite.Name(technique.Kind));
+        JsonWrite.Numbers(json, "bars", technique.Bars);
         json.WriteEndObject();
-    }
-
-    /// <summary>A take's note ids, left out when there are none (a take that inserts bars).</summary>
-    private static void WriteIds(Utf8JsonWriter json, string name, IReadOnlyList<string> ids)
-    {
-        if (ids.Count == 0)
-        {
-            return;
-        }
-
-        json.WriteStartArray(name);
-        foreach (string id in ids)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
     }
 
     private static Draft ReadDraft(JsonElement draft)

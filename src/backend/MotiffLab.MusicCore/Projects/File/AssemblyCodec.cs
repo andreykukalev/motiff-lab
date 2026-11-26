@@ -7,7 +7,6 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 
 namespace MotiffLab.MusicCore.Projects.File;
@@ -205,7 +204,7 @@ internal static class AssemblyCodec
 
             if (note.Hand is { } hand)
             {
-                json.WriteString("hand", Lower(hand.Value));
+                json.WriteString("hand", JsonWrite.Name(hand.Value));
                 WriteAttribution(json, "handAttribution", hand.Attribution);
             }
 
@@ -234,7 +233,7 @@ internal static class AssemblyCodec
             json.WriteNumber("microsecondsPerQuarter", tempo.MicrosecondsPerQuarter);
             if (tempoSources && tempo.Source != TempoSource.Assumed)
             {
-                json.WriteString("source", Lower(tempo.Source));
+                json.WriteString("source", JsonWrite.Name(tempo.Source));
             }
 
             json.WriteEndObject();
@@ -244,18 +243,24 @@ internal static class AssemblyCodec
         json.WriteStartArray("keys");
         foreach (KeySignature key in music.Keys)
         {
-            json.WriteStartObject();
-            json.WriteNumber("at", key.At.Value);
-            json.WriteNumber("fifths", key.Fifths);
-            if (key.Mode is { } mode)
-            {
-                json.WriteString("mode", Lower(mode));
-            }
-
-            json.WriteEndObject();
+            WriteKeySignature(json, key);
         }
 
         json.WriteEndArray();
+    }
+
+    /// <summary>A key signature as an element of a list: {"at", "fifths", "mode"?}; the facade's answers write it so too.</summary>
+    internal static void WriteKeySignature(Utf8JsonWriter json, KeySignature key)
+    {
+        json.WriteStartObject();
+        json.WriteNumber("at", key.At.Value);
+        json.WriteNumber("fifths", key.Fifths);
+        if (key.Mode is { } mode)
+        {
+            json.WriteString("mode", JsonWrite.Name(mode));
+        }
+
+        json.WriteEndObject();
     }
 
     /// <summary>
@@ -309,7 +314,7 @@ internal static class AssemblyCodec
     private static void WriteAttribution(Utf8JsonWriter json, string name, Attribution attribution)
     {
         json.WriteStartObject(name);
-        json.WriteString("provenance", Lower(attribution.Provenance));
+        json.WriteString("provenance", JsonWrite.Name(attribution.Provenance));
         json.WriteNumber("confidence", attribution.Confidence);
         json.WriteEndObject();
     }

@@ -35,13 +35,17 @@ struct ScoreScreen: View {
     static let popoverWidth: CGFloat = 340
 
     /// The piece's screen, its originals known from the piece's opening (#495 BUG-02).
-    init(piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil, openFile: ((URL, Landing) async -> Void)? = nil) {
+    /// `assistant` is the one of a screen that outlasts this one (a draft's, `ShownDraftScreen`); nil, it is the screen's own.
+    init(
+        piece: OpenPiece, switchView: ((Landing) async -> Void)? = nil, viewing: String? = nil, reopen: ((Landing) async -> Void)? = nil,
+        openFile: ((URL, Landing) async -> Void)? = nil, assistant: AssistantController? = nil
+    ) {
         self.piece = piece
         self.switchView = switchView
         self.viewing = viewing
         self.reopen = reopen
         self.openFile = openFile
-        _workspace = StateObject(wrappedValue: ScoreWorkspace(piece: piece, viewing: viewing))
+        _workspace = StateObject(wrappedValue: ScoreWorkspace(piece: piece, viewing: viewing, assistant: assistant))
     }
 
     var body: some View {

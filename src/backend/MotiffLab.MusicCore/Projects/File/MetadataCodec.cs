@@ -28,25 +28,9 @@ internal static class MetadataCodec
             json.WriteString("composer", composer);
         }
 
-        WriteNames(json, "tags", metadata.Tags);
-        WriteNames(json, "playlists", metadata.Playlists);
+        JsonWrite.TextsIfAny(json, "tags", metadata.Tags);
+        JsonWrite.TextsIfAny(json, "playlists", metadata.Playlists);
         json.WriteEndObject();
-    }
-
-    private static void WriteNames(Utf8JsonWriter json, string name, IReadOnlyList<string> names)
-    {
-        if (names.Count == 0)
-        {
-            return;
-        }
-
-        json.WriteStartArray(name);
-        foreach (string each in names)
-        {
-            json.WriteStringValue(each);
-        }
-
-        json.WriteEndArray();
     }
 
     /// <summary>The metadata a file keeps; none when it has no "metadata", as every file written before it was kept.</summary>

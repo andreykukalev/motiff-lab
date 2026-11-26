@@ -19,12 +19,13 @@ struct DraftAnchorContent: View {
             Text(text.format("drafts.anchorLine", mark.variant.label)).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             Button {
                 Task {
-                    guard await owner.unanchor(mark, of: draft.id) else {
-                        refused = true
+                    let taken = await owner.unanchor(mark, of: draft.id)
+                    guard taken else {
+                        refused = owner.refused(taken)
                         return
                     }
                     score.anchorsModel.close()
-                    await reopen?(.tick(Double(mark.anchor.at)))
+                    await owner.reopening { await reopen?(.tick(Double(mark.anchor.at))) }
                 }
             } label: {
                 Label { Text(text["drafts.unpin"]) } icon: { Icon(name: "close", size: CGFloat.ds("icon-s")) }

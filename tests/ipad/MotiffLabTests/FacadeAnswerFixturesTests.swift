@@ -466,14 +466,14 @@ final class FacadeAnswerFixturesTests: XCTestCase {
 
         let model = DraftSeamsModel()
         model.keep(seams.seams)
-        model.pickBridge(bridge.id, at: CGPoint(x: 10, y: 20))
-        XCTAssertEqual(model.bridge?.place, "pl_0003")
+        model.pickLabel(bridge.id, at: CGPoint(x: 10, y: 20))
+        XCTAssertEqual(model.label?.place, "pl_0003")
         XCTAssertNotNil(model.pick(DraftSeamsModel.key(seam), at: nil))
-        XCTAssertNil(model.bridge, "one card at a time")
-        model.pickBridge(bridge.id, at: .zero)
+        XCTAssertNil(model.label, "one card at a time")
+        model.pickLabel(bridge.id, at: .zero)
         XCTAssertNil(model.picked)
         model.close()
-        XCTAssertNil(model.bridge)
+        XCTAssertNil(model.label)
         XCTAssertEqual(reported, [])
     }
 

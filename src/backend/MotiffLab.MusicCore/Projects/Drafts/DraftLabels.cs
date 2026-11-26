@@ -22,6 +22,9 @@ public enum DraftSourceKind
 
     /// <summary>A bridge candidate music-core made at a seam (<see cref="DraftBridges"/>).</summary>
     Bridge,
+
+    /// <summary>A place's base with a приём of another place carried into it by music-core (<see cref="TechniqueCarry"/>).</summary>
+    Carried,
 }
 
 /// <summary>
@@ -31,11 +34,12 @@ public enum DraftSourceKind
 /// </summary>
 public static class DraftLabels
 {
-    /// <summary>What the variant was copied from: a bridge music-core made, another piece's Notes, Notes heard in a recording, read from a PDF, or a file's.</summary>
+    /// <summary>What the variant was copied from: a bridge or a carried приём music-core made, another piece's Notes, Notes heard in a recording, read from a PDF, or a file's.</summary>
     public static DraftSourceKind Kind(DraftVariant variant)
     {
         ArgumentNullException.ThrowIfNull(variant);
         return DraftBridges.KindOf(variant) is not null ? DraftSourceKind.Bridge
+            : TechniqueCarry.KindOf(variant) is not null ? DraftSourceKind.Carried
             : variant.From.Project is not null ? DraftSourceKind.OtherPiece
             : variant.Provenance.Op == NotesProvenance.AudioRecognition || variant.From.Milliseconds is not null ? DraftSourceKind.Recording
             : variant.Provenance.Op == NotesProvenance.PdfRecognition ? DraftSourceKind.PdfNotes
@@ -59,7 +63,8 @@ public static class DraftLabels
 
     /// <summary>
     /// A variant on the draft's map: what it was copied from with the bars there, and the part taken when not all:
-    /// «Запись 9–12 · правая рука», "Recording 9–12 · right hand"; a bridge candidate by its kind, «Доминанта».
+    /// «Запись 9–12 · правая рука», "Recording 9–12 · right hand"; a bridge candidate by its kind, «Доминанта»; a carried
+    /// приём by its kind, «Перенесённый приём: октава», "Carried technique: octave".
     /// </summary>
     public static string Variant(DraftVariant variant, Words words)
     {
@@ -67,6 +72,11 @@ public static class DraftLabels
         if (DraftBridges.KindOf(variant) is { } bridge)
         {
             return DraftBridges.Label(bridge, words);
+        }
+
+        if (TechniqueCarry.KindOf(variant) is { } carried)
+        {
+            return words.T($"Carried technique: {Technique(carried, words)}", $"Перенесённый приём: {Technique(carried, words)}");
         }
 
         string label = $"{Name(Kind(variant), words)}{Bars(variant)}";
@@ -168,6 +178,7 @@ public static class DraftLabels
         DraftSourceKind.Recording => words.T("Recording", "Запись"),
         DraftSourceKind.OtherPiece => words.T("Another piece", "Другая пьеса"),
         DraftSourceKind.Bridge => words.T("Bridge", "Связка"),
+        DraftSourceKind.Carried => words.T("Technique", "Приём"),
         _ => words.T("Notes", "Ноты"),
     };
 
@@ -177,6 +188,7 @@ public static class DraftLabels
         DraftSourceKind.Recording => words.T("the recording", "записи"),
         DraftSourceKind.OtherPiece => words.T("another piece", "другой пьесы"),
         DraftSourceKind.Bridge => words.T("a bridge", "связки"),
+        DraftSourceKind.Carried => words.T("a carried technique", "перенесённого приёма"),
         _ => words.T("the file's notes", "нот из файла"),
     };
 }

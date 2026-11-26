@@ -21,36 +21,47 @@ public sealed partial class MusicCoreFacade
         }
 
         (int ownerNumber, OpenPiece owner) = Owner(number, open, fields);
-        return name switch
-        {
-            "drafts.sheet" => DraftRequest.Sheet(owner, Origin(open), fields),
-            "drafts.add" => DraftRequest.Add(owner, Origin(open), fields),
-            "drafts.open" => OpenDraft(ownerNumber, owner, fields),
-            "drafts.rename" => DraftRequest.Rename(owner, fields),
-            "drafts.remove" => DraftRequest.Remove(owner, fields),
-            "drafts.place" => DraftRequest.Place(owner, fields),
-            "drafts.base" => DraftRequest.Base(owner, fields),
-            "drafts.techniques" => DraftTakeRequest.Techniques(owner, fields, Working),
-            "drafts.take" => DraftTakeRequest.Take(owner, fields),
-            "drafts.leave" => DraftTakeRequest.Leave(owner, fields),
-            "drafts.takeSure" => DraftTakeRequest.TakeSure(owner, fields),
-            "drafts.takeFrom" => DraftTakeRequest.TakeFrom(owner, fields),
-            "drafts.undo" => DraftTakeRequest.Undo(owner, fields),
-            "drafts.seams" => DraftSeamRequest.Seams(owner, fields),
-            "drafts.transpose" => DraftSeamRequest.Transpose(owner, fields),
-            "drafts.tempo" => DraftSeamRequest.Tempo(owner, fields),
-            "drafts.leaveSeam" => DraftSeamRequest.Leave(owner, fields),
-            "drafts.bridge" => DraftBridgeRequest.Put(owner, fields),
-            "drafts.leaveBridge" => DraftBridgeRequest.Leave(owner, fields),
-            "drafts.anchor" => DraftAnchorRequest.Confirm(owner, fields, Working),
-            "drafts.unanchor" => DraftAnchorRequest.Remove(owner, fields),
-            "drafts.context" => DraftAssistantRequest.Context(owner, fields),
-            "drafts.call" => DraftAssistantRequest.Call(owner, fields),
-            "drafts.accept" => DraftAssistantRequest.Accept(owner, fields),
-            "drafts.proposal" => OpenProposal(ownerNumber, owner, fields),
-            _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-        };
+        return CallRegistry.OnDrafts.TryGetValue(name, out FacadeCall<DraftCall>? call)
+            ? call.Run(new DraftCall(this, open, ownerNumber, owner), fields)
+            : throw new FacadeException("unknownCall", $"There is no call \"{name}\".");
     }
+
+    /// <summary>The drafts' calls (<see cref="CallRegistry.OnDrafts"/>), each on the piece whose drafts they are.</summary>
+    internal static readonly FacadeCall<DraftCall>[] DraftCalls =
+    [
+        new("drafts.sheet", static (call, fields) => DraftRequest.Sheet(call.Owner, call.Facade.Origin(call.Open), fields)),
+        new("drafts.add", static (call, fields) => DraftRequest.Add(call.Owner, call.Facade.Origin(call.Open), fields)),
+        new("drafts.open", static (call, fields) => call.Facade.OpenDraft(call.OwnerNumber, call.Owner, fields)),
+        new("drafts.rename", static (call, fields) => DraftRequest.Rename(call.Owner, fields)),
+        new("drafts.remove", static (call, fields) => DraftRequest.Remove(call.Owner, fields)),
+        new("drafts.place", static (call, fields) => DraftRequest.Place(call.Owner, fields)),
+        new("drafts.base", static (call, fields) => DraftRequest.Base(call.Owner, fields)),
+        new("drafts.movePlace", static (call, fields) => DraftRequest.Move(call.Owner, fields)),
+        new("drafts.findOnRecording", static (call, fields) => DraftRecordingRequest.Find(call.Owner, fields)),
+        new("drafts.addFromRecording", static (call, fields) => DraftRecordingRequest.Add(call.Owner, fields)),
+        new("drafts.length", static (call, fields) => DraftLengthRequest.Length(call.Owner, fields, call.Facade.Working)),
+        new("drafts.resize", static (call, fields) => DraftLengthRequest.Resize(call.Owner, fields, call.Facade.Working)),
+        new("drafts.carryPlaces", static (call, fields) => DraftCarryRequest.Places(call.Owner, fields)),
+        new("drafts.carry", static (call, fields) => DraftCarryRequest.Carry(call.Owner, fields)),
+        new("drafts.techniques", static (call, fields) => DraftTakeRequest.Techniques(call.Owner, fields, call.Facade.Working)),
+        new("drafts.take", static (call, fields) => DraftTakeRequest.Take(call.Owner, fields)),
+        new("drafts.leave", static (call, fields) => DraftTakeRequest.Leave(call.Owner, fields)),
+        new("drafts.takeSure", static (call, fields) => DraftTakeRequest.TakeSure(call.Owner, fields)),
+        new("drafts.takeFrom", static (call, fields) => DraftTakeRequest.TakeFrom(call.Owner, fields)),
+        new("drafts.undo", static (call, fields) => DraftTakeRequest.Undo(call.Owner, fields)),
+        new("drafts.seams", static (call, fields) => DraftSeamRequest.Seams(call.Owner, fields)),
+        new("drafts.transpose", static (call, fields) => DraftSeamRequest.Transpose(call.Owner, fields)),
+        new("drafts.tempo", static (call, fields) => DraftSeamRequest.Tempo(call.Owner, fields)),
+        new("drafts.leaveSeam", static (call, fields) => DraftSeamRequest.Leave(call.Owner, fields)),
+        new("drafts.bridge", static (call, fields) => DraftBridgeRequest.Put(call.Owner, fields)),
+        new("drafts.leaveBridge", static (call, fields) => DraftBridgeRequest.Leave(call.Owner, fields)),
+        new("drafts.anchor", static (call, fields) => DraftAnchorRequest.Confirm(call.Owner, fields, call.Facade.Working)),
+        new("drafts.unanchor", static (call, fields) => DraftAnchorRequest.Remove(call.Owner, fields)),
+        new("drafts.context", static (call, fields) => DraftAssistantRequest.Context(call.Owner, fields)),
+        new("drafts.call", static (call, fields) => DraftAssistantRequest.Call(call.Owner, fields)),
+        new("drafts.accept", static (call, fields) => DraftAssistantRequest.Accept(call.Owner, fields)),
+        new("drafts.proposal", static (call, fields) => call.Facade.OpenProposal(call.OwnerNumber, call.Owner, fields)),
+    ];
 
     /// <summary>The piece whose drafts a call works on: "into", else the piece a view was opened from, else the piece itself; never one open only to be shown.</summary>
     private (int Number, OpenPiece Piece) Owner(int number, OpenPiece open, Request fields)

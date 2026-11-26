@@ -5,6 +5,8 @@
   "edit.edits.few": "{0} edits",
   "edit.edits.many": "{0} edits",
   "edit.hint": "Change, add or remove notes of the variation you hear; with no steps yet, this makes a variation by hand. Each edit is a step: Undo takes it back, and a Keep chip turns dashed when an edit changes what it keeps. The original notes are never changed.",
+  "roll.failed": "The piano roll could not be shown. Put it away and open it again to try once more.",
+  "roll.failedInFocus": "The piano roll could not be shown. Go back and open it again to try once more.",
   "roll.colourHint": "Colour the notes by the next grouping that tells them apart",
   "drawer.resize": "Drag to make the piano roll taller or shorter; tap to put it away",
   "roll.heading": "Piano roll",
@@ -43,7 +45,10 @@
   "rollZoom.pitchOut": "More octaves",
   "rollZoom.time": "Time zoom",
   "rollZoom.timeIn": "Fewer bars",
+  "rollZoom.timeInGreatest": "The roll is at its greatest zoom",
+  "rollZoom.timeInOneBar": "One bar already fills the roll",
   "rollZoom.timeOut": "More bars",
+  "rollZoom.timeOutLeast": "The roll is at its least zoom",
   "roll.collapse": "Collapse",
   "roll.collapseHint": "Puts the piano roll down; the roll button at the bottom brings it back."
 }

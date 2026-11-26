@@ -30,7 +30,7 @@ internal static class VariationCodec
             json.WriteString("kind", motif.Kind.ToString());
             json.WriteString("mode", motif.Mode.ToString());
             WriteRange(json, motif.Span, motif.Filter);
-            WriteNoteIds(json, motif.NoteIds);
+            JsonWrite.Texts(json, "noteIds", motif.NoteIds);
             if (motif.Notes is { } notes)
             {
                 json.WriteString("notes", notes);
@@ -107,13 +107,7 @@ internal static class VariationCodec
             json.WriteEndObject();
         }
 
-        json.WriteStartArray("keep");
-        foreach (KeepProperty property in keep)
-        {
-            json.WriteStringValue(property.ToString());
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "keep", keep.Select(static property => property.ToString()));
     }
 
     private static List<KeepProperty> ReadKeep(JsonElement parent) =>
@@ -230,13 +224,7 @@ internal static class VariationCodec
                 json.WriteString("pattern", accents.Pattern.ToString());
                 if (accents.Onsets is { } onsets)
                 {
-                    json.WriteStartArray("onsets");
-                    foreach (int index in onsets.Indices)
-                    {
-                        json.WriteNumberValue(index);
-                    }
-
-                    json.WriteEndArray();
+                    JsonWrite.Numbers(json, "onsets", onsets.Indices);
                 }
 
                 break;
@@ -285,13 +273,7 @@ internal static class VariationCodec
             return;
         }
 
-        json.WriteStartArray("intervals");
-        foreach (int index in intervals.Indices)
-        {
-            json.WriteNumberValue(index);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Numbers(json, "intervals", intervals.Indices);
     }
 
     /// <summary>One variation step as the file reads it: an object with "operation" and "parameters".</summary>

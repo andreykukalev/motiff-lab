@@ -6,7 +6,8 @@ import Foundation
 /// `place`, in the ink); a tap on one selects the place, so it plays and loops as any passage. Above the bars of each приём
 /// stands its plum number (`draftModel`); a tap on one selects that occurrence and opens its card there, and the pill's ‹ ›
 /// steps from one to the next. Since v1.2 a bridge place's label opens its card too, and each anchor the player
-/// confirmed stands as a small amber mark over its bar (`anchorsModel`), its menu «Открепить».
+/// confirmed stands as a small amber mark over its bar (`anchorsModel`), its menu «Открепить»; since v1.4 (F3) every
+/// label opens its place's card (`DraftPlaceContent`, the ▾ menu the page draws after the label).
 extension ScoreController {
     /// The labels of the draft's places for the page, in order, then the numbers of their приёмы, the diamonds of their
     /// seams and the marks of their anchors (with the numbers, hidden with them); none for any other piece.
@@ -108,13 +109,31 @@ extension ScoreController {
         }
     }
 
+    /// The mark whose card shows moved on the page (`point`, its bottom left now: a scroll, or the page laid out again on a
+    /// rotation or in Split View): the card goes with it, a version's marker's, a phrase's number's or a draft's (r-1). The
+    /// page follows the mark tapped last, and one card at a mark shows at a time. False when no card shows at a mark.
+    func moveCardAtMark(to point: CGPoint) -> Bool {
+        var moved = false
+        if let pick = sourcesModel.markerPick {
+            sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: pick.bar, left: point.x, bottom: point.y))
+            moved = true
+        }
+        if phraseMenu != nil {
+            phraseMenu?.at = point
+            moved = true
+        }
+        let draftCards = [draftModel.moveCard(to: point), seamsModel.moveCard(to: point), anchorsModel.moveCard(to: point)]
+        return moved || draftCards.contains(true)
+    }
+
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
-    /// there, with a bridge's card at its label (v1.2), else a version's marker, whose card opens there and whose bar is
-    /// selected.
+    /// there, selected, with its card at its label (a bridge's candidates, v1.2; any other place's ▾ menu of its variants,
+    /// v1.4, none while «Скрыть номера» leaves the draft to practise on: DRAFT-05), else a version's marker, whose card
+    /// opens there and whose bar is selected.
     func pickLabel(_ bar: Int, left: Double, bottom: Double) {
         guard !pickPlace(startingAt: bar) else {
-            if let bridge = piece?.draft?.places.first(where: { $0.firstBar == bar && $0.bridge }) {
-                seamsModel.pickBridge(bridge.id, at: CGPoint(x: left, y: bottom))
+            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }), place.bridge || !draftModel.numbersHidden {
+                seamsModel.pickLabel(place.id, at: CGPoint(x: left, y: bottom))
                 draftModel.closeCard()
                 anchorsModel.close()
             }
@@ -146,10 +165,14 @@ extension ScoreController {
         showOccurrence(spot)
     }
 
-    /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back.
+    /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back; hidden, an
+    /// anchor's menu and a place's ▾ menu go (DRAFT-05), a bridge's card stays, as its label still opens it.
     func hideTechniqueNumbers(_ hidden: Bool) {
         draftModel.hideNumbers(hidden)
-        if hidden { anchorsModel.close() }
+        if hidden {
+            anchorsModel.close()
+            if let open = seamsModel.label, piece?.draft?.places.first(where: { $0.id == open.place })?.bridge != true { seamsModel.close() }
+        }
         Task { await drawVersions() }
     }
 

@@ -57,12 +57,12 @@ internal static class DraftTakeRequest
                 json.WriteStartObject();
                 json.WriteNumber("number", technique.Number);
                 json.WriteString("variant", technique.Variant);
-                json.WriteString("kind", Answer.Camel(technique.Kind));
+                json.WriteString("kind", JsonWrite.Name(technique.Kind));
                 json.WriteString("label", DraftLabels.Technique(technique.Kind, owner.Words));
                 json.WriteBoolean("inferred", true);
                 json.WriteNumber("confidence", technique.Confidence);
                 json.WriteBoolean("sure", technique.IsSure);
-                json.WriteString("state", Answer.Camel(technique.State));
+                json.WriteString("state", JsonWrite.Name(technique.State));
                 json.WriteStartArray("occurrences");
                 foreach (TechniqueOccurrence occurrence in technique.Occurrences)
                 {
@@ -110,7 +110,7 @@ internal static class DraftTakeRequest
             json =>
             {
                 Ids(json, draft.Id, placeId);
-                Answer.Numbers(json, "taken", taken);
+                JsonWrite.Numbers(json, "taken", taken);
             });
     }
 
@@ -142,7 +142,7 @@ internal static class DraftTakeRequest
             json =>
             {
                 json.WriteString("draft", id);
-                Answer.Numbers(json, "undone", undone);
+                JsonWrite.Numbers(json, "undone", undone);
                 json.WriteBoolean("structure", structure);
             });
     }
@@ -164,7 +164,7 @@ internal static class DraftTakeRequest
         json.WriteNumber("confidence", occurrence.Confidence);
         json.WriteNumber("matched", occurrence.Matched);
         json.WriteNumber("total", occurrence.Total);
-        json.WriteString("state", Answer.Camel(occurrence.State));
+        json.WriteString("state", JsonWrite.Name(occurrence.State));
         json.WriteStartObject("inBase");
         json.WriteNumber("onset", occurrence.Span.Onset.Value);
         json.WriteNumber("end", occurrence.Insert is null ? occurrence.Span.End.Value : occurrence.Span.Onset.Value);
@@ -204,7 +204,7 @@ internal static class DraftTakeRequest
     }
 
     /// <summary>The draft "draft" of the piece and its place "place".</summary>
-    private static (Draft Draft, string Place) PlaceOf(OpenPiece owner, Request request)
+    internal static (Draft Draft, string Place) PlaceOf(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
         Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");

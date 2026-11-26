@@ -49,6 +49,9 @@ final class EngineKeeper {
         return AVAudioSession.InterruptionType(rawValue: raw) == .began
     }
 
+    /// Whether the engine runs now: after `restart`, false while a call holds the audio or the owner does not want it.
+    var running: Bool { engine.isRunning }
+
     /// The engine started again, when it stopped and its owner wants it; the session's category stays as it is (dictation
     /// may hold the microphone), only made active again.
     func restart() {

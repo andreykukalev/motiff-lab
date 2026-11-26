@@ -143,5 +143,6 @@
   "folderImport.offlineTitle": "A connection is needed to open it",
   "folderImport.recheck": "Check the folder",
   "rollMode.label": "Piano roll mode",
-  "padAssistant.accepted": "The draft is accepted. The correction is in My corrections."
+  "padAssistant.accepted": "The draft is accepted. The correction is in My corrections.",
+  "padAssistant.new": "New conversation"
 }

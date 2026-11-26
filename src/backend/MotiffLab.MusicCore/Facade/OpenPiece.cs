@@ -4,6 +4,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Analysis.Phrasing;
+using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Import;
@@ -91,7 +92,7 @@ internal sealed partial class OpenPiece
         if (result.Piece is not { } piece)
         {
             ImportRejection rejection = result.Rejection!;
-            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
+            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = JsonWrite.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
         return new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words);
@@ -180,27 +181,12 @@ internal sealed partial class OpenPiece
         return result;
     }
 
-    public string Call(string name, Request request) => name switch
-    {
-        "piece" => Answer.Write(json => Answer.Piece(json, Piece, Notes, withNotes: true, Words)),
-        "language" => Language(request),
-        "phrases" => Answer.Write(json => Answer.Phrases(json, Levels, Structure.Sections, LevelOf(request) ?? Level, Words, Piece.Meter)),
-        "phrases.edit" => EditPhrases(request),
-        "select" => Select(request),
-        "understand" => Answer.Write(json => Answer.Understanding(json, Understood(), SentenceFacts(), fact => TryChips.Offer(fact.Id, Understood()))),
-        "circle" => Answer.Write(json => Answer.Circle(json, Circle(Understood()), Understood().Selection.Span.Onset, Piece.End)),
-        "try" => TryChip(request),
-        "variation" => ChainAnswer(Chain ?? throw FacadeException.NoVariation()),
-        "variation.clear" => Clear(),
-        "notation" => Notation(request),
-        "playback" => Playback(request),
-        "tempo.set" => SetTempo(request),
-        "roll" => Roll(request),
-        "project.save" => Save(request),
-        "reference.key" => ReferenceRequest.Key(request, PieceDna.OpeningKey(Notes, Piece.Meter, Piece.Keys, Piece.End)),
-        "dna" => Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, NotedSelection, NotedSelection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter)),
-        _ => CallOnProject(name, request),
-    };
+    /// <summary>The dna call: Piece DNA of the notes and the selection, "ideas": "musical" for the musical ideas.</summary>
+    private string DnaAnswer(Request request) =>
+        Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, NotedSelection, NotedSelection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter));
+
+    /// <summary>What the assistant's tools read of the piece (<see cref="AssistantRequest.Calls"/>, corrections.acceptDraft).</summary>
+    internal AssistantPiece Assistant => new(Piece, Notes, Project.Check ?? [], Words, Structure);
 
     public void Summary(Utf8JsonWriter json)
     {

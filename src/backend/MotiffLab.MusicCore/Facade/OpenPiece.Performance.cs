@@ -17,19 +17,6 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private string CallOnPerformance(string name, Request request) => name switch
-    {
-        "performances" => Answer.Write(json => Answer.Performances(json, Project)),
-        "performance" => PerformanceAnswer(Performance(request)),
-        "performance.add" => AddPerformance(request),
-        "performance.rename" => ChangePerformance(request, performance => performance with { Name = request.Required("name") }),
-        "performance.dismiss" => ChangePerformance(request, performance => performance.Dismiss(BarOf(request), request.Bool("dismissed") ?? true)),
-        "performance.take" => TakeBars(request),
-        "performance.takeAll" => TakeAll(request),
-        "performance.restore" => ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-    };
-
     /// <summary>The printed notes with the player's corrections: what every performance is compared with.</summary>
     private IReadOnlyList<Note> Printed => Corrected();
 

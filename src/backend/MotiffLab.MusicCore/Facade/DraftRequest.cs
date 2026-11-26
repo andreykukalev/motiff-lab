@@ -48,13 +48,7 @@ internal static class DraftRequest
         PlaceMatch? best = SameMusic.Suggested([.. offered.Select(static each => each.Suggested).OfType<PlaceMatch>()]);
         return Answer.Write(json =>
         {
-            json.WriteStartArray("parts");
-            foreach (DraftPart each in parts)
-            {
-                json.WriteStringValue(Name(each));
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "parts", parts.Select(Name));
             json.WriteString("part", Name(part));
             json.WriteNumber("notes", fragment.Notes.Count);
             json.WriteString("newName", DraftLabels.NewName(owner.Project, words));
@@ -112,19 +106,10 @@ internal static class DraftRequest
     {
         _ = request.Required("draft");
         (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(into, from, request);
-        Project changed;
-        try
-        {
-            changed = into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place));
-        }
-        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
-
+        Project changed = Refused(() => into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place)));
         return Answer.Write(json =>
         {
-            Added(json, draft.Id, place, variant.Id);
+            Added(json, draft!.Id, place, variant.Id);
             Answer.Project(json, "project", changed);
             json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(changed)));
         });
@@ -211,8 +196,7 @@ internal static class DraftRequest
             DraftDrop.Place => draft.NextPlaceId(),
             _ => null,
         };
-        IReadOnlyList<DraftStep> dropped = draft.Places.Any(each => each.Find(variant) is not null) ? draft.StepsNaming(variant) : [];
-        return Restructured(owner, request, draft, place, variant, dropped, each => each.Placed(variant, drop, place));
+        return Restructured(owner, request, draft, place, variant, each => each.Placed(variant, drop, place));
     }
 
     /// <summary>
@@ -225,8 +209,31 @@ internal static class DraftRequest
     {
         (Draft draft, string variant) = VariantOf(owner, request);
         string place = request.Required("place");
-        IReadOnlyList<DraftStep> dropped = draft.FindPlace(place)?.Base == variant ? [] : draft.StepsOf(place);
-        return Restructured(owner, request, draft, place, variant, dropped, each => each.WithBase(place, variant));
+        return Restructured(owner, request, draft, place, variant, each => each.WithBase(place, variant));
+    }
+
+    /// <summary>
+    /// «Карта черновика: порядок мест» (version 1.4, F1): the place "place" of the draft "draft" moved to "index" among its
+    /// places, from 0, the others in their order (<see cref="Draft.WithPlaceAt"/>); a place moved where it is, or to an index
+    /// outside the places, is a bad request, and a bridge place itself, built for its seam, is unavailable (the lead's
+    /// decision, version 1.4 c-3b). A bridge place whose place before or after it is another now goes, made for a
+    /// seam that is no longer there (the lead's decision, version 1.4 c-3b), and so does each step that kept a seam as it
+    /// was («Оставить») where the place before it is another now. Answers the sources with "draft", "place" and "dropped",
+    /// the numbers of the steps that went: those «Оставить» and the steps of a bridge place that went. Undone as
+    /// <see cref="Place"/> is.
+    /// </summary>
+    public static string Move(OpenPiece owner, Request request)
+    {
+        string id = request.Required("draft");
+        Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
+        string place = request.Required("place");
+        int index = request.RequiredInt("index");
+        if (draft.FindPlace(place) is { Bridge: true })
+        {
+            throw FacadeException.Unavailable(owner.Words.T("A bridge can't be moved: it is built for its seam.", "Связку нельзя переставить: она построена для своего стыка."));
+        }
+
+        return Restructured(owner, request, draft, place, null, each => each.WithPlaceAt(place, index));
     }
 
     /// <summary>
@@ -304,7 +311,7 @@ internal static class DraftRequest
 
         if (DraftBridges.KindOf(variant) is { } bridge)
         {
-            json.WriteString("bridge", Answer.Camel(bridge));
+            json.WriteString("bridge", JsonWrite.Name(bridge));
             json.WriteString("explanation", DraftBridges.Explanation(variant, words));
         }
     }
@@ -337,29 +344,21 @@ internal static class DraftRequest
 
     /// <summary>
     /// The draft's structure changed by <paramref name="change"/>, the draft as it was kept for drafts.undo; one the draft
-    /// cannot make (no such variant or place, a base moved, a variant put where it is) is a bad request. Answers the sources
-    /// with the ids, "dropped", the numbers of <paramref name="dropped"/>, and what <paramref name="more"/> writes.
+    /// cannot make (no such variant or place, a base moved, a variant or a place put where it is) is a bad request. Answers
+    /// the sources with the ids (no "variant" when <paramref name="variant"/> is null), "dropped", the numbers of the steps
+    /// the change took out of the journal, and what <paramref name="more"/> writes of the draft changed.
     /// </summary>
-    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change, Action<Utf8JsonWriter>? more = null)
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, Func<Draft, Draft> change, Action<Utf8JsonWriter, Draft>? more = null)
     {
+        Draft changed = draft;
         string answer = owner.Changed(
             request,
-            piece => piece.ChangeDraft(draft.Id, each =>
-            {
-                try
-                {
-                    return change(each);
-                }
-                catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
-                {
-                    throw FacadeException.BadRequest(exception.Message);
-                }
-            }),
+            piece => piece.ChangeDraft(draft.Id, each => changed = Refused(() => change(each))),
             json =>
             {
                 Added(json, draft.Id, place, variant);
-                Answer.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
-                more?.Invoke(json);
+                JsonWrite.Numbers(json, "dropped", [.. draft.Steps.Select(static step => step.Number).Except(changed.Steps.Select(static step => step.Number))]);
+                more?.Invoke(json, changed);
             });
         owner.KeepDraftBefore(draft);
         return answer;
@@ -394,7 +393,20 @@ internal static class DraftRequest
         json.WriteEndObject();
     }
 
-    private static void Added(Utf8JsonWriter json, string draft, string? place, string variant)
+    /// <summary>What <paramref name="make"/> gives; what the draft cannot make (no such place or variant, one put where it is) is a bad request.</summary>
+    private static T Refused<T>(Func<T> make)
+    {
+        try
+        {
+            return make();
+        }
+        catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+    }
+
+    private static void Added(Utf8JsonWriter json, string draft, string? place, string? variant)
     {
         json.WriteString("draft", draft);
         if (place is null)
@@ -406,7 +418,10 @@ internal static class DraftRequest
             json.WriteString("place", place);
         }
 
-        json.WriteString("variant", variant);
+        if (variant is not null)
+        {
+            json.WriteString("variant", variant);
+        }
     }
 
     /// <summary>The music of the piece open and the span asked for: "span", "bars" {first, last} as select reads them, else the piece's selection.</summary>

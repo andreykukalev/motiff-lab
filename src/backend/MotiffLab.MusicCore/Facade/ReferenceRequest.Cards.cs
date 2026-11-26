@@ -126,8 +126,8 @@ internal static partial class ReferenceRequest
         json.WriteString("type", ChordReference.Id(card.Type));
         json.WriteString("symbol", card.Symbol);
         json.WriteString("name", card.Name);
-        Answer.Texts(json, "formula", card.Formula);
-        Answer.Texts(json, "notes", card.Notes);
+        JsonWrite.Texts(json, "formula", card.Formula);
+        JsonWrite.Texts(json, "notes", card.Notes);
         json.WriteStartArray("positions");
         foreach (ChordPosition position in card.Positions)
         {
@@ -135,7 +135,7 @@ internal static partial class ReferenceRequest
             json.WriteNumber("inversion", position.Inversion);
             json.WriteString("title", position.Title);
             json.WriteString("figure", position.Figure);
-            Answer.Texts(json, "notes", position.Notes);
+            JsonWrite.Texts(json, "notes", position.Notes);
             json.WriteStartObject("block");
             SoundOf(json, position.Block);
             json.WriteEndObject();
@@ -162,9 +162,9 @@ internal static partial class ReferenceRequest
         json.WriteString("form", ScaleReference.Id(card.Form));
         json.WriteString("name", card.Name);
         json.WriteString("title", card.Title);
-        Answer.Texts(json, "formula", card.Formula);
-        Answer.Texts(json, "notes", card.Notes);
-        Answer.Texts(json, "descending", card.Descending);
+        JsonWrite.Texts(json, "formula", card.Formula);
+        JsonWrite.Texts(json, "notes", card.Notes);
+        JsonWrite.Texts(json, "descending", card.Descending);
         json.WriteStartObject("sound");
         SoundOf(json, card.Sound);
         json.WriteEndObject();

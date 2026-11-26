@@ -1,8 +1,11 @@
 // The roll's input router (architecture blueprint S2, the audit's W3.12 first part): what a press on the roll begins, as one
-// press table. PianoRoll reads the facts under the press (the tool, the pointer, what is under it) and starts the gesture
-// this names; the order of the table is the order in which an approved gesture outranks the next (R7: a playhead taken
-// while playing; R8: a new selection over one that stands). Before, the order lived in a hand-ordered chain of calls in
-// PianoRoll.onPointerDown. Nothing here touches the DOM.
+// press table. The router (roll-input.ts) reads the facts under the press (the tool, the pointer, what is under it) and
+// starts the gesture this names; the order of the table is the order in which an approved gesture outranks the next (R7: a
+// playhead taken while playing; R8: a new selection over one that stands). Before, the order lived in a hand-ordered chain
+// of calls in PianoRoll.onPointerDown. Nothing here touches the DOM.
+
+/** A press that moves less than this many pixels is a click, not a drag. */
+export const CLICK_SLOP = 4;
 
 /** The gesture a press on the roll begins. */
 export type RollPress =

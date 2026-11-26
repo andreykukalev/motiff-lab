@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 
 @testable import MotiffLab
@@ -40,6 +41,13 @@ final class ScorePageContractTests: XCTestCase {
         let events = PageEvent.events(in: ["coloured": ["start": 480, "end": 1440]])
         guard case let .coloured(start, end)? = events.first else { return XCTFail("a passage coloured: \(events)") }
         XCTAssertEqual([start, end], [480, 1440])
+    }
+
+    /// r-1: the mark a card shows under moved on the page (a scroll, a new layout): where its bottom left is now.
+    func testAMarkMovedCarriesItsPlace() {
+        let events = PageEvent.events(in: ["markMoved": ["left": 40.5, "bottom": 320]])
+        guard case let .markMoved(point)? = events.first else { return XCTFail("a mark moved: \(events)") }
+        XCTAssertEqual(point, CGPoint(x: 40.5, y: 320))
     }
 
     func testAVersionMarkerCarriesItsPlace() {

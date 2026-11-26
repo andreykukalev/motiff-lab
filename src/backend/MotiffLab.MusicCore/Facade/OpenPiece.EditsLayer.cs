@@ -199,10 +199,13 @@ internal sealed partial class OpenPiece
     /// <summary>The bar a layer call answers for: "bar" when sent, else the first bar.</summary>
     private Bar LayerBar(Request request) => request.Has("bar") ? CorrectionBar(request) : Piece.Meter.GetBar(Piece.Meter.FirstBarNumber);
 
-    /// <summary>The corrections calls answer only "corrections", "corrections.layer" and "corrections.drop" while the layer is off.</summary>
-    private void RefuseWhileOff(string name)
+    /// <summary>
+    /// Refuses a correction while the layer is off: the facade asks it before every name starting "corrections" but those
+    /// flagged <see cref="CallFlags.WhileCorrectionsOff"/> ("corrections", "corrections.layer", "corrections.drop").
+    /// </summary>
+    internal void RefuseWhileOff()
     {
-        if (_layer == EditsLayer.Off && name is not ("corrections" or "corrections.layer" or "corrections.drop"))
+        if (_layer == EditsLayer.Off)
         {
             throw FacadeException.Unavailable(Words.T("Corrections are off.", "Правки выключены."));
         }
@@ -259,13 +262,7 @@ internal sealed partial class OpenPiece
         }
 
         json.WriteEndArray();
-        json.WriteStartArray("hidden");
-        foreach (string id in _hidden)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "hidden", _hidden);
     }
 
     private string MisfitText(EditMisfit reason) => reason switch

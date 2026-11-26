@@ -15,17 +15,16 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static partial class ReferenceRequest
 {
-    /// <summary>The Reference's calls on piece 0, by name.</summary>
-    public static string Call(string name, Request fields) => name switch
-    {
-        "reference.key" => Key(fields),
-        "reference.sound" => Sound(fields),
-        "reference.chord" => Chord(fields),
-        "reference.scale" => Scale(fields),
-        "reference.sounding" => Sounding(fields),
-        "reference.explorer" => Explorer(fields),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
-    };
+    /// <summary>The Reference's calls on piece 0 (<see cref="CallRegistry.WithoutPiece"/>).</summary>
+    public static readonly FacadeCall<MusicCoreFacade>[] Calls =
+    [
+        new("reference.key", static (_, fields) => Key(fields)),
+        new("reference.sound", static (_, fields) => Sound(fields)),
+        new("reference.chord", static (_, fields) => Chord(fields)),
+        new("reference.scale", static (_, fields) => Scale(fields)),
+        new("reference.sounding", static (_, fields) => Sounding(fields)),
+        new("reference.explorer", static (_, fields) => Explorer(fields)),
+    ];
 
     /// <summary>
     /// {"fifths"?, "mode"? ("major" or "minor"), "language", "naming"} → {"signatures": the fifteen choices of the lookup,
@@ -111,8 +110,8 @@ internal static partial class ReferenceRequest
         json.WriteNumber("fifths", card.Signature.Fifths);
         json.WriteString("label", card.Signature.Label);
         json.WriteString("count", card.Signature.Count);
-        Answer.Texts(json, "accidentals", card.Signature.Accidentals);
-        Answer.Numbers(json, "trebleSteps", card.Signature.TrebleSteps);
+        JsonWrite.Texts(json, "accidentals", card.Signature.Accidentals);
+        JsonWrite.Numbers(json, "trebleSteps", card.Signature.TrebleSteps);
         json.WriteEndObject();
         Related(json, "relative", card.Relative, card.RelativeName);
         Related(json, "parallel", card.Parallel, card.ParallelName);
@@ -132,7 +131,7 @@ internal static partial class ReferenceRequest
             json.WriteString("title", scale.Title);
             json.WriteString("form", ScaleReference.Id(scale.Form));
             Root(json, scale.Tonic);
-            Answer.Texts(json, "notes", scale.Notes);
+            JsonWrite.Texts(json, "notes", scale.Notes);
             SoundOf(json, scale.Sound);
             json.WriteEndObject();
         }
@@ -148,7 +147,7 @@ internal static partial class ReferenceRequest
             json.WriteString("symbol", chord.Symbol);
             json.WriteString("type", ChordReference.Id(chord.Type));
             Root(json, chord.Root);
-            Answer.Texts(json, "notes", chord.Notes);
+            JsonWrite.Texts(json, "notes", chord.Notes);
             SoundOf(json, chord.Sound);
             json.WriteEndObject();
         }
@@ -185,10 +184,10 @@ internal static partial class ReferenceRequest
     private static void SoundOf(Utf8JsonWriter json, ReferenceSound sound)
     {
         json.WriteString("id", sound.Id);
-        Answer.Numbers(json, "pitches", sound.Pitches);
+        JsonWrite.Numbers(json, "pitches", sound.Pitches);
         if (sound.Keys is { } keys)
         {
-            Answer.Numbers(json, "keys", keys);
+            JsonWrite.Numbers(json, "keys", keys);
         }
 
         json.WriteNumber("keyboardLow", sound.KeyboardLow);

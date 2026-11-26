@@ -38,16 +38,24 @@ through the facade; the API references it.
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
   `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
-  seam), `DraftAnchors` (anchors the player confirms).
+  seam), `DraftAnchors` (anchors the player confirms), `OnRecording` (the stretch of a recording that is a place's
+  music, «Найти на записи»), `PlaceLength` (a place's base cut again over other bars), `TechniqueCarry` (a приём carried
+  into another place as a variant); a place's order is `Draft.WithPlaceAt` (`Draft.Reshaped` drops what a seam lost).
 - `Assistant` (its tools; the digest `FactsDigest`, `.Piece`, `.Draft`; the template's `NearestFacts`; `.Drafts`, in a
   draft: `DraftScope`, `DraftTools`, `DraftProposal`), `Analytics`
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
-  `Words.cs`: the sentences in both languages.
+  `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
-  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT); phrases: `OpenPiece.Phrases`,
+  `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
+  gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Dispatch`, a nested
+  class that reaches its handlers; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
+  registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
+  `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
+  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
+  stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
-  `Draft*Request`, `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
+  `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
   `DraftAssistantRequest`), `ShownView`.
 
 ## The native build (`src/ipad/Core`)
@@ -61,7 +69,8 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
   `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `<Folder>/Golden/*.txt` for what real
   pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
-- The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
+- The wire contract: `tests/contracts/facade-calls.json` and the calls of `docs/facade-contract.md`, both checked
+  against the registry and the facade's answers (`FacadeCallsContractTests`; the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again as above).
 
@@ -72,12 +81,15 @@ type as text). Bottom up: `Time`, `Events`, `Motifs`, `Pieces`, `Import`, `Playb
 `Notation`…), `Projects`, `Assistant`, `Facade`; kept by `dependencies` (`CORE_LAYERS`), which counts a sub-namespace
 as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFact`, `ReadKey`; `MotifAnalyzer`,
 `FormAnalyzer`, `PieceDna`).
+The root's classes (`Words`, `JsonWrite`) are called by their name, never through `using static`, which the check
+reads as a namespace.
 
 ## Rules not to break
 
 - No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
   same notes and diff. A phrase edit keeps the player's boundaries as saved and never moves the selection or a bookmark.
-- A new call goes into `facade-calls.json`; a change to the project file or to an answer the app reads is Andrei's
+- A call is a registry entry in its feature's list, never a name compared elsewhere; a new one goes into
+  `facade-calls.json` and `docs/facade-contract.md` (written again as above, its history line by hand); a change to the project file or to an answer the app reads is Andrei's
   decision 3 (`ProjectFile.Version`, `Contract`).
 - Analytics events are built only from `AnalyticsCatalogue`; sentences come in both languages from `Words`.

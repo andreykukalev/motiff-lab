@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
 using static MotiffLab.MusicCore.Projects.File.Legacy.EarlierFile;
-using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.NotesCodec;
 using static MotiffLab.MusicCore.Projects.File.OriginalsCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
@@ -215,7 +216,7 @@ public static class ProjectFile
             json.WriteStartArray("marks");
             foreach (InkStroke stroke in ink)
             {
-                WriteStroke(json, stroke);
+                MarksCodec.WriteStroke(json, stroke);
             }
 
             json.WriteEndArray();
@@ -254,6 +255,15 @@ public static class ProjectFile
 
     /// <summary>One stroke in the pencil layer's shape (<see cref="MarksCodec.ReadStroke"/>): the facade (0020) reads a request's strokes with it.</summary>
     internal static InkStroke ReadStroke(JsonElement stroke) => MarksCodec.ReadStroke(stroke);
+
+    /// <summary>One stroke in the pencil layer's shape (<see cref="MarksCodec.WriteStroke"/>), its start written by <paramref name="place"/>: the facade's marks answers write it so.</summary>
+    internal static void WriteStroke(Utf8JsonWriter json, InkStroke stroke, Action<Utf8JsonWriter, InkStroke> place) => MarksCodec.WriteStroke(json, stroke, place);
+
+    /// <summary>A filter as the file writes a range's (<see cref="SpanCodec.WriteFilter"/>), the hand named by <paramref name="handName"/>: the facade's answers use the same shape.</summary>
+    internal static void WriteFilter(Utf8JsonWriter json, string name, SelectionFilter filter, Func<Hand, string> handName) => SpanCodec.WriteFilter(json, name, filter, handName);
+
+    /// <summary>A key signature as the file writes an assembly's (<see cref="AssemblyCodec.WriteKeySignature"/>): the facade's answers use the same shape.</summary>
+    internal static void WriteKeySignature(Utf8JsonWriter json, KeySignature key) => AssemblyCodec.WriteKeySignature(json, key);
 
     /// <summary>"fingering" as the file writes it (<see cref="MarksCodec.WriteFingering"/>): the facade's marks answer writes it too.</summary>
     internal static void WriteFingering(Utf8JsonWriter json, IEnumerable<Fingering> fingering) => MarksCodec.WriteFingering(json, fingering);

@@ -145,5 +145,6 @@
   "folderImport.offlineTitle": "Нужна сеть, чтобы открыть",
   "folderImport.recheck": "Проверить папку",
   "rollMode.label": "Режим пиано-ролла",
-  "padAssistant.accepted": "Черновик принят. Правка в «Моих правках»."
+  "padAssistant.accepted": "Черновик принят. Правка в «Моих правках».",
+  "padAssistant.new": "Новый разговор"
 }

@@ -57,7 +57,7 @@ public sealed partial class FactsDigest
         DraftLabels.Kind(variant) switch
         {
             DraftSourceKind.Recording => "detected",
-            DraftSourceKind.Bridge => "inferred",
+            DraftSourceKind.Bridge or DraftSourceKind.Carried => "inferred",
             _ => "imported",
         },
         DraftLabels.Variant(variant, w));

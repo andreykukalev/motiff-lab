@@ -81,6 +81,8 @@ final class SourcesController: ObservableObject {
     @Published var toast: SourcesToast?
     /// Why the last operation was not done, in the player's words; nil when it was.
     @Published var status: String?
+    /// The last change refused was "unavailable": `status` is music-core's words to the player, not developer text (v1.4).
+    private(set) var refusedInWords = false
     /// The original whose pages or sound are with the scan server now.
     @Published private(set) var reading: String?
     /// How hearing a recording goes, in the player's words (`RecordingHearing`); nil while none is heard.
@@ -93,6 +95,10 @@ final class SourcesController: ObservableObject {
     /// The draft of another piece a fragment just went into (v1.2, collage), whose toast offers «Открыть»; nil while none
     /// is told (`DraftElsewhereToast`).
     @Published var addedElsewhere: DraftAddedElsewhere?
+    /// A step of a draft is on its way, or the draft's view is opening again after one (v1.4): another is not sent until
+    /// then, and the draft's cards that read it hold their steps. Written only in SourcesDrafts.swift, by `draftStep`,
+    /// `acceptProposal` and `reopening`, as `addedElsewhere` by `addElsewhere`.
+    @Published var stepping = false
 
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?
@@ -547,6 +553,7 @@ final class SourcesController: ObservableObject {
         let answer = await call(name, fields, on: shown)
         guard let object = facadeObject(answer), object["error"] == nil, let read = SourceLayers(answer: answer) else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
+            refusedInWords = facadeObject(answer)?["error"] as? String == "unavailable"
             return nil
         }
         status = nil

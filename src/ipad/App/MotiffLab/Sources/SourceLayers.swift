@@ -55,6 +55,8 @@ struct SourceLayers: Equatable, Sendable {
         var isWorking: Bool { role == "working" }
         /// Other Notes can become the working ones («Сделать рабочими»); a version cannot (its merge left in v1.1).
         var canMakeWorking: Bool { role == "other" }
+        /// A recording heard as notes, what «Найти на записи» searches (v1.4, F2).
+        var isHeard: Bool { op == "audioRecognition" }
     }
 
     /// An original with the Notes music-core lists as made from it: the sheet shows them together (Andrei, v0.8 finding

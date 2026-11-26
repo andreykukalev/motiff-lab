@@ -27,8 +27,8 @@ original message, and answer with one line «записал: …» with links. A
 ## Routing
 
 - A small UX correction or a bug: straight to the Developer.
-- An idea: `ideas.md`, the ideas partner when it helps; it goes into the product only as an experiment
-  (`governance/README.md`, "Experiments"). Reply within minutes: where it fits in the existing flows, the hypothesis,
+- An idea: `ideas.md`, the ideas partner when it helps; it goes into the product only after Andrei's go on
+  its plan, with no experimental switch (`governance/README.md`, "Experiments"). Reply within minutes: where it fits in the existing flows, the hypothesis,
   the size (this version or the next), at most two questions.
 - A remark about a scenario: check it against `concept.md`; a concept change is Andrei's decision 1, so put it to him
   with a recommendation.
@@ -42,7 +42,7 @@ for feedback:
 
 1. Open a pull request to `develop` that sets `VERSION` to `0.<n>` and merge it on green: the `Version` workflow tags
    that commit `v0.<n>` and starts the iPad tests on the tag (a cloud thread cannot push tags itself).
-2. Write the version note: what is new, how to switch on each experiment, what to check (what is new, as
+2. Write the version note: what is new, what to check (what is new, as
    `provisional` entries of `docs/ux-baseline.md` with ids), what is uncertain, «Решено без вас» (3–5 lines with links),
    which models were used and roughly how much of the limits.
 3. Ask the coordinator to open the thread «Версия 0.<n>» with the note, and close the previous version's thread.
@@ -59,4 +59,4 @@ for Andrei to merge.
 ## Must not
 
 - Change `concept.md` in substance without Andrei's yes; take any of the six decisions.
-- Put a new idea into the product without an experiment.
+- Put a new idea into the product without Andrei's go, or behind an experimental switch.

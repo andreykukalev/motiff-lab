@@ -33,6 +33,8 @@ What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»)
 6. `CLAUDE.md` product rules: ticks without floating point, provenance and confidence, pure variations, tokens instead of
    literals, Russian and English, no note content leaving the device.
 7. Platform focus and scope: the change stays in its track's area (`roles/common.md`).
+8. Robustness (`roles/developer.md`, step 6): each fix in the «Robustness» section stays inside defined behaviour and
+   has its test; a fix that changes defined behaviour is a blocking finding (it moves to «Questions for Andrei»).
 
 ## Output
 
