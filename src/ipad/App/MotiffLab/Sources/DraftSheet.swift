@@ -122,15 +122,13 @@ struct DraftSheetRequest: Identifiable {
 /// (`drafts.sheet`, asked again when another part is chosen, as the same music depends on it); `sources` is the piece
 /// whose drafts they are, which keeps the answer and the project file. Under «Куда», after this piece's, the drafts of the
 /// other pieces in the folder, grouped by each piece's title (v1.2, collage, `OtherPieceDrafts`), read once the sheet shows.
-struct DraftSheet<Assistant: View>: View {
+struct DraftSheet: View {
     let request: DraftSheetRequest
     @ObservedObject var sources: SourcesController
     let text: UIText
     /// Once added, where it went: the sheet goes, and the screen says so.
     let added: (DraftChoice) -> Void
     let cancel: () -> Void
-    /// «С ассистентом · Pro» on the card «Новый черновик», drawn by the screen, as the assistant's are.
-    @ViewBuilder let assistant: () -> Assistant
     @State private var sheet: DraftSheetAnswer?
     @State private var others: [OtherPieceDrafts] = []
     @State private var choice: DraftChoice?
@@ -193,21 +191,15 @@ struct DraftSheet<Assistant: View>: View {
         }
     }
 
-    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»): the name it takes, its base (the notes
-    /// selected, the part chosen), «Как» and «С ассистентом · Pro». The assistant assembles a place from a variant beside
-    /// its base (ADR 0034 section 6), which a new draft of one fragment has not yet, so it is offered off, saying why;
-    /// «Создать» (`buttons`) makes the draft.
+    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»): the name it takes and its base (the notes
+    /// selected, the part chosen); «Создать» (`buttons`) makes the draft. «Как» shows only where there is a choice: a new
+    /// draft starts with the fragment as its first place (`DraftChoice.ways(nil)`), so it shows none.
     private func newDraftCard(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["drafts.new"]).overline()
             Text(sheet.newName).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
             Text(text.format("drafts.newBase", DraftChoice.word(part: choice.part, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-            ways(sheet, choice)
-            Button {} label: { assistant() }
-            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-            .disabled(true)
-            .accessibilityHint(text["drafts.newAssistantLater"])
-            Text(text["drafts.newAssistantLater"]).dsType(.caption).foregroundStyle(Color.ds("ink-3")).fixedSize(horizontal: false, vertical: true)
+            if DraftChoice.ways(choice.into, in: sheet).count > 1 { ways(sheet, choice) }
         }
         .padding(CGFloat.ds("s-3"))
         .frame(maxWidth: .infinity, alignment: .leading)

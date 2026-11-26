@@ -1,19 +1,5 @@
 import SwiftUI
 
-/// «С ассистентом · Pro» on a place's card of the draft's map, and on the card «Новый черновик» of the «В черновик» sheet
-/// (v1.4, F4): the assistant's icon, its words and the Pro tag.
-struct DraftAssistantLabel: View {
-    let text: UIText
-
-    var body: some View {
-        HStack(spacing: CGFloat.ds("s-1")) {
-            Icon(name: "insight", size: CGFloat.ds("icon-s"))
-            Text(text["drafts.withAssistant"]).dsType(.label)
-            ProTag()
-        }
-    }
-}
-
 /// The assistant in a draft's place (v1.2, ADR 0034 section 6, the plan's answer 7; the drafts spec «Ассистент», «Порядок
 /// работы» step 8), on the place's card of the draft's map: «С ассистентом · Pro» opens it on that place, in the role of the
 /// place assembler (`AssistantDraftPlace`). Before the first question in a draft, its own consent, listing exactly what such
@@ -40,7 +26,13 @@ struct DraftAssistantSection: View {
         if assistant.inDraft?.place == here {
             section
         } else {
-            Button { assistant.openInDraft(here) } label: { DraftAssistantLabel(text: text) }
+            Button { assistant.openInDraft(here) } label: {
+                HStack(spacing: CGFloat.ds("s-1")) {
+                    Icon(name: "insight", size: CGFloat.ds("icon-s"))
+                    Text(text["drafts.withAssistant"]).dsType(.label)
+                    ProTag()
+                }
+            }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             .accessibilityHint(text["drafts.withAssistantHint"])
         }

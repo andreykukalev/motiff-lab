@@ -127,7 +127,6 @@
   "drafts.addButton": "Add",
   "drafts.create": "Create",
   "drafts.newBase": "Base: the notes selected · {0}",
-  "drafts.newAssistantLater": "The assistant assembles a place from a second variant beside its base, such as a recording. Add one to the draft, and the assistant is there on the draft's map.",
   "drafts.techniqueLabel": "Technique {0}: {1}, bar {2}",
   "drafts.techniqueTitle": "Technique {0} · {1}",
   "drafts.sure": "sure",

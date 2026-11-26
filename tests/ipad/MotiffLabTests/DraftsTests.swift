@@ -95,18 +95,19 @@ final class DraftsTests: XCTestCase {
         XCTAssertEqual(DraftChoice.word(part: "right", UIText(language: "ru")), "Правая рука")
     }
 
-    /// The card «Новый черновик» (v1.4, F4): «Создать», its base, and why the assistant waits for a second variant, in both
-    /// languages; the sheet's words it reuses (the assistant's, from the draft's map) are there too.
+    /// The card «Новый черновик» (v1.4, F4): «Создать» and its base, in both languages; and no «Как» to choose, as a new
+    /// draft starts only with the fragment as its first place.
     func testTheNewDraftCardIsWordedInBothLanguages() {
         for language in ["en", "ru"] {
             let text = UIText(language: language)
-            for key in ["drafts.create", "drafts.newBase", "drafts.newAssistantLater", "drafts.new", "drafts.withAssistant"] {
+            for key in ["drafts.create", "drafts.newBase", "drafts.new"] {
                 XCTAssertNotEqual(text[key], key, "\(language): \(key)")
             }
         }
         let russian = UIText(language: "ru")
         XCTAssertEqual(russian["drafts.create"], "Создать")
         XCTAssertEqual(russian.format("drafts.newBase", DraftChoice.word(part: "left", russian)), "Основа: выделенные ноты · Левая рука")
+        XCTAssertEqual(DraftChoice.ways(nil).count, 1, "one way only, so the card shows no «Как»")
     }
 
     /// A fragment added from the sheet is a draft in Sources, its view last in the switch with its name; picked there, the
