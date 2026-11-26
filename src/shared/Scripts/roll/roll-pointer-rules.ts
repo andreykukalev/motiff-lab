@@ -50,12 +50,10 @@ export class RollPointers {
         this.rules = rules;
     }
 
-    /** The place rule on or off, with a stylus or not; true when it was turned on or off. */
-    setPlace(on: boolean, stylus: boolean): boolean {
-        const changed = on !== this.placeOn;
+    /** The place rule on or off, with a stylus or not. */
+    setPlace(on: boolean, stylus: boolean): void {
         this.placeOn = on;
         this.placeStylus = stylus;
-        return changed;
     }
 
     /** Whether a pointer of this type edits with the editor on, under the iPad's rules; every pointer without them. */

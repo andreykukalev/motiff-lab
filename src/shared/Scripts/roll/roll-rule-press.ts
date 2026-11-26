@@ -56,11 +56,6 @@ export class RollRulePress {
         }
     }
 
-    /** No press or box goes on. */
-    cancel(): void {
-        this.drop();
-    }
-
     /**
      * A press under the modes of version 0.5 (roll-modes.ts): the hand in Navigate, a range from outside the selection in
      * Select, a box in Edit notes (`box`, the editor's press on empty space); else only a click. False while the modes are

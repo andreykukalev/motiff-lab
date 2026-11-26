@@ -38,8 +38,8 @@ the handles are drawn on the canvas, so they check what the roll posts.
   `setFilter`, `setVariation`, `clearVariation`, `setGhosts`, `setAudible`, `dispose`; `HAND_NONE`, `fitZoom`, `fitRow`,
   `ticksIn`, `narrowedPicks`, `RollPlaceGesture.active`.
 - roll.js sets touch reading and axis zoom at load, so their off sides are the web's (`zoomBy`, `reportZoom`,
-  `onDocumentPointerUp`; `RollInput.pointerUp`); the rules before the modes and `!placeOn` run only before Swift's
-  first `input` (`setRules`, `heldModel`, `modelChanged`, `drawPlace`; `RollInput.pressBarNumbers`, `stripHost`).
+  `onDocumentPointerUp`; `RollInputRouter.pointerUp`); the rules before the modes and `!placeOn` run only before Swift's
+  first `input` (`setRules`, `heldModel`, `modelChanged`, `drawPlace`; `RollInputRouter.pressBarNumbers`, `stripHost`).
 
 ## iPad
 

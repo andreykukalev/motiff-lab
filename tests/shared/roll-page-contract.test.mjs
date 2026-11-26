@@ -14,8 +14,9 @@ const root = new URL("../../", import.meta.url);
 const contract = JSON.parse(readFileSync(new URL("tests/contracts/roll-page.json", root), "utf8"));
 const page = readFileSync(new URL("src/ipad/App/Web/roll.js", root), "utf8");
 const roll = readFileSync(new URL("src/shared/Scripts/roll/piano-roll.ts", root), "utf8");
-/** PianoRoll and the parts that call its host for it: the note editor, the input router and its press under the modes. */
-const callers = ["piano-roll.ts", "roll-editor.ts", "roll-input.ts", "roll-rule-press.ts"].map((file) => readFileSync(new URL(`src/shared/Scripts/roll/${file}`, root), "utf8")).join("\n");
+/** PianoRoll and every part of the roll that may call its host for it. */
+const rollFolder = new URL("src/shared/Scripts/roll/", root);
+const callers = readdirSync(rollFolder).filter((file) => file.endsWith(".ts")).map((file) => readFileSync(new URL(file, rollFolder), "utf8")).join("\n");
 const viewport = readFileSync(new URL("src/shared/Scripts/roll/roll-viewport.ts", root), "utf8");
 
 const sorted = (list) => [...list].sort();

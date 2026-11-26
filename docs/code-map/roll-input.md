@@ -6,7 +6,7 @@ stays in the painter. Tests: `tests/shared/roll-press.test.mjs` (the table) and 
 
 ## Modules
 
-- `roll-input.ts`: `RollInput` (built by `PianoRoll` over `InputHost`): the canvas's listeners; `onPointerDown` ›
+- `roll-input.ts`: `RollInputRouter` (built by `PianoRoll` over `InputHost`): the canvas's listeners; `onPointerDown` ›
   `rollPressFor` › one `begin*` per press kind; `onPointerMove` asks each gesture in turn (fingers, the hold, the
   editor, the strips, the place, a playhead, a range, the note's keys); `pointerUp`, `onPointerCancel`,
   `onLostCapture`, `cancelPresses`. Owns the range dragged (`rangeDragged`) and the selection by place's press.
@@ -34,5 +34,5 @@ stays in the painter. Tests: `tests/shared/roll-press.test.mjs` (the table) and 
 
 - One owner per press: a gesture that takes a pointer makes the router drop what else that pointer began
   (`dropPresses`, `letGoForPinch`); a cancelled or lost pointer sends nothing more (`cancelPresses`).
-- The host callbacks the router posts are scanned by `tests/shared/roll-page-contract.test.mjs` from every file that
-  posts (`piano-roll.ts`, `roll-editor.ts`, `roll-input.ts`, `roll-rule-press.ts`).
+- The host callbacks the roll posts are scanned by `tests/shared/roll-page-contract.test.mjs` from every
+  `Scripts/roll/*.ts`. `RollInputRouter` is the TS router; Swift's `RollInput` (InputRules.swift) is the pointer rules it reads.

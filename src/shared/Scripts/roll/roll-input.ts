@@ -28,7 +28,7 @@ import type { PlayheadDrag } from "../playback/playhead-drag.js";
 /** How close, in pixels, a press must be to an edge of the selection to drag that edge. */
 const EDGE_GRAB = 6;
 
-/** A range dragged across the roll: where it started and where the pointer is (see RollInput.rangeDragged). */
+/** A range dragged across the roll: where it started and where the pointer is (see RollInputRouter.rangeDragged). */
 interface RangeDrag {
     pointer: number;
     anchorX: number;
@@ -88,7 +88,7 @@ export interface InputHost {
 }
 
 /** The input router of the roll's notes canvas. */
-export class RollInput {
+export class RollInputRouter {
     /** Who may press what: the iPad's pointer rules and the place rule's switch (roll-pointer-rules.ts). */
     readonly pointers: RollPointers;
     /**
@@ -105,9 +105,7 @@ export class RollInput {
     constructor(private readonly host: InputHost) {
         this.pointers = new RollPointers(host);
         this.strip = new RollStripGesture(this.stripHost());
-        this.notes = new RollNotePress(host, (pointer, x, tick) => {
-            this.drag = { pointer, anchorX: x, anchor: tick, current: tick, edge: false };
-        });
+        this.notes = new RollNotePress(host, (pointer, x, tick) => this.beginRange(pointer, x, tick));
         this.fingers = new RollFingers(host, { cancelPresses: () => this.cancelPresses(), letGo: () => this.letGoForPinch(), tapped: (pan) => this.tapped(pan) });
         this.head = new RollHeadPress(host, (pointer) => {
             this.fingers.dropPan(pointer);
@@ -116,9 +114,7 @@ export class RollInput {
         this.rules = new RollRulePress(host, {
             navigates: (type) => this.pointers.navigates(type),
             waitForHold: (pointer, x, y) => this.head.waitForHold(pointer, x, y),
-            beginRange: (pointer, x, tick) => {
-                this.drag = { pointer, anchorX: x, anchor: tick, current: tick, edge: false };
-            },
+            beginRange: (pointer, x, tick) => this.beginRange(pointer, x, tick),
             tapStrip: (tick, y) => this.tapStrip(tick, y),
         });
         const canvas = host.canvas;
@@ -199,7 +195,7 @@ export class RollInput {
         this.notes.cancel();
         this.host.editor.cancel();
         this.drag = null;
-        this.rules.cancel();
+        this.rules.drop();
         this.strip.cancel();
         this.host.place.cancel();
         this.head.cancel();
@@ -358,6 +354,11 @@ export class RollInput {
         this.head.lost(event.pointerId);
         this.host.holdEnded(event.pointerId);
     };
+
+    /** A range drag begins from this pointer at a tick (a note's press moved on, or a press under the modes). */
+    private beginRange(pointer: number, x: number, tick: number): void {
+        this.drag = { pointer, anchorX: x, anchor: tick, current: tick, edge: false };
+    }
 
     private pointerUp(event: PointerEvent): void {
         const { x, y } = this.at(event);

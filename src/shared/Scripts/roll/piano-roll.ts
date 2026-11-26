@@ -40,7 +40,7 @@ import { sameZoom, type AxisZoom } from "./roll-zoom.js";
 import { frameOf, overviewSpan, revealSelection, selectionShift, viewAlong, viewOnLoad, zoomOutAfter, type ViewFrame, type ZoomOutEvent } from "./roll-view.js";
 import { RollEditor, type EditTool, type EditorHost } from "./roll-editor.js";
 import { RollLegend } from "./roll-legend.js";
-import { RollInput, type InputHost } from "./roll-input.js";
+import { RollInputRouter, type InputHost } from "./roll-input.js";
 import type { PointerRules } from "./roll-pointer-rules.js";
 
 interface DotNetObject {
@@ -284,7 +284,7 @@ export class PianoRoll {
     /** The note editor (testing item 15, roll-editor.ts). */
     private readonly editor = new RollEditor(this.editorHost());
     /** The notes canvas's input router (roll-input.ts), made once the canvas and the playhead's control are. */
-    private readonly input: RollInput;
+    private readonly input: RollInputRouter;
     /** The modes of version 0.5 (roll-modes.ts); null while the experiment is off. */
     private mode: InteractionMode | null = null;
     /** The selection, Цикл and transport of the player's model last drawn, so a change of them alone draws again. */
@@ -337,7 +337,7 @@ export class PianoRoll {
 
         this.host.replaceChildren(this.overview, this.roll, this.scroller, this.keys, this.legend.element, this.zoomBar, this.playhead.element);
 
-        this.input = new RollInput(this.inputHost());
+        this.input = new RollInputRouter(this.inputHost());
         this.roll.addEventListener("keydown", this.onKeyDown);
         this.roll.addEventListener("wheel", this.onWheel, { passive: false });
         this.keys.addEventListener("pointerdown", this.onKeysDown);
