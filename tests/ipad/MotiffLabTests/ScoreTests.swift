@@ -21,6 +21,23 @@ final class ScoreTests: XCTestCase {
         print("OPEN-AND-ENGRAVE \(elapsed)")
     }
 
+    /// #330, criterion 2: a MusicXML file opened with no title given is titled by its score's work title, as the library's
+    /// line shows it (music-core's `PieceDetails`), not by the file's name; a file whose score names none, by its name.
+    func testAnImportedScoreIsTitledByItsWorkTitleElseByItsFileName() async throws {
+        let example = try XCTUnwrap(KitPiece.example)
+        let named = try await OpenPiece.open(fileName: "downloaded-123.musicxml", data: example.data, language: "en").get()
+        defer { _ = MusicCore.close(piece: named.id) }
+        XCTAssertEqual(named.title, "Für Elise", "the score's work title, not the file's name")
+
+        let untitled = Data(String(decoding: example.data, as: UTF8.self)
+            .replacingOccurrences(of: #"<work-title>[^<]*</work-title>"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"<movement-title>[^<]*</movement-title>"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"<credit\b[\s\S]*?</credit>"#, with: "", options: .regularExpression).utf8)
+        let byName = try await OpenPiece.open(fileName: "Bagatelle.musicxml", data: untitled, language: "en").get()
+        defer { _ = MusicCore.close(piece: byName.id) }
+        XCTAssertEqual(byName.title, "Bagatelle", "no title in the score: the file's name")
+    }
+
     /// Even bars (Settings · Notes, testing item 35) add Verovio's spacing by length to the A4 page; off, its own by the notes.
     func testEvenBarsSpaceTheBarsByTheirLength() throws {
         let even = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(Engraver.a4(evenBars: true).utf8)) as? [String: Any])

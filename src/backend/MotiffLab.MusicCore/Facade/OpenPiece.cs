@@ -407,7 +407,7 @@ internal sealed partial class OpenPiece
         NoteNaming naming = NoteNames.For(request.Text("naming"), Words);
         RollPayload payload = PianoRollData.Create(Notes, score);
         RollNames names = PianoRollData.Names(Notes, [.. NotationKeys(Transcribed.IsHeard(Piece))], naming, Words);
-        return Answer.Write(json => Answer.Roll(json, payload, names));
+        return Answer.Write(json => RollAnswer.Write(json, payload, names));
     }
 
     /// <summary>

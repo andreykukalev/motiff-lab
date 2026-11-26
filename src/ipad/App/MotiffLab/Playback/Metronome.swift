@@ -85,7 +85,9 @@ final class Metronome: ObservableObject {
 
     private let clock = ClickClock()
     private var engine: AVAudioEngine?
-    /// Starts the clicks' engine again after an interruption or a route change while it clicks (EngineKeeper).
+    /// Starts the clicks' engine again after an interruption or a route change while it clicks, and stops the metronome
+    /// when a call takes the audio, the app goes to the background or the screen locks, or the headphones go (EngineKeeper;
+    /// v1.5 a-2, answer 29).
     private var keeper: EngineKeeper?
     private var timer: Timer?
     private var taps: [Double] = []
@@ -159,7 +161,9 @@ final class Metronome: ObservableObject {
     /// The system paused the player's piece (an interruption, the app in the background or the screen locked, the
     /// headphones gone; v1.4 a-1): a metronome that clicked with the piece stops with it rather than click on by itself
     /// (from the speaker once the headphones went); one the player paused goes on as before. Called before the transport
-    /// shows the pause, while it is still locked to the piece.
+    /// shows the pause, while it is still locked to the piece: its own keeper stops it too (v1.5), but the two hear the
+    /// system in no set order, and unlocked first it would click once. That click is the render thread's and no test can
+    /// see it (`PlayerInterruptionTests` shows only that the metronome ends stopped, as either keeper would leave it).
     func stopWithSystemPause(of player: Player) {
         guard playback === player, locked, running else { return }
         stop()
@@ -176,7 +180,7 @@ final class Metronome: ObservableObject {
             try AVAudioSession.sharedInstance().setActive(true)
             let engine = try self.engine ?? makeEngine()
             if self.engine == nil {
-                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }, pausesWhenAway: false) { [weak self] in self?.stop() }
+                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }) { [weak self] in self?.stop() }
             }
             self.engine = engine
             running = true

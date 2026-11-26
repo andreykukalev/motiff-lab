@@ -26,7 +26,8 @@ through the facade; the API references it.
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
+- `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
+  voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
   `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`).
 - The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
@@ -65,7 +66,7 @@ through the facade; the API references it.
   iPad's mark, «Распознать ещё раз», each answering the project it makes, the time taken as `now`) answers `KeptFile`,
   `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
-  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
+  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
   `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
