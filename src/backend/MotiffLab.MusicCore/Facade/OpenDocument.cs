@@ -110,30 +110,35 @@ internal sealed class OpenDocument
             ? project.WithOriginal(original with { Kind = OriginalKind.Images, Pages = pages })
             : project;
 
-    public string Call(string name, Request request) => name switch
-    {
-        "project" => Answer.Write(json => Answer.Project(json, "project", Project)),
-        "project.save" => Save(request),
-        "project.metadata" => Metadata(request),
-        // Version 1.1 (finding 29): the sources with the project's id, and a recording heard into the piece's notes.
-        "sources" => SourceRequest.Sources(Project, Words.For(request.Text("language"))),
-        "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words.For(request.Text("language"))),
-        // Version 0.6: the sources by the layers of 0030 for a piece that is only its PDF, as for a piece with notes.
-        _ when name.StartsWith("sources.", StringComparison.Ordinal) && SourceRequest.Call(name, request, () => Project, project => Project = project, null, Words.For(request.Text("language"))) is { } answer => answer,
-        _ when Project.Document is null =>
-            throw new FacadeException("noNotes", $"This piece is a recording with no notes yet, so there is no call \"{name}\" on it. Recognise its notes first."),
-        "document" => Pages(request),
-        "document.replace" => Replace(request),
-        "document.marks" => Answer.Write(json => Marks(json, Project.PageMarksOf(OriginalOf(request)))),
-        "document.ink.add" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])),
-        "document.ink.remove" => Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])),
-        "document.ink.clear" => Change(request, marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])),
-        "document.bookmark.add" => Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))),
-        "document.bookmark.rename" => Change(request, marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))),
-        "document.bookmark.remove" => Change(request, marks => marks.RemoveBookmark(request.Required("id"))),
-        "document.read" => Read(request),
-        _ => throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first."),
-    };
+    /// <summary>
+    /// The registry's call named <paramref name="name"/> on this piece (<see cref="CallRegistry.OnDocument"/>); "noNotes" for
+    /// any other, and for a call flagged <see cref="CallFlags.NeedsPdf"/> on a piece that is only its recording.
+    /// </summary>
+    public string Call(string name, Request request) =>
+        CallRegistry.OnDocument.TryGetValue(name, out FacadeCall<OpenDocument>? call) && (Project.Document is not null || !call.Flags.HasFlag(CallFlags.NeedsPdf)) ? call.Run(this, request)
+        : Project.Document is null ? throw new FacadeException("noNotes", $"This piece is a recording with no notes yet, so there is no call \"{name}\" on it. Recognise its notes first.")
+        : throw new FacadeException("noNotes", $"This piece is a PDF with no notes yet, so there is no call \"{name}\" on it. Read the notes from it first.");
+
+    /// <summary>The calls on a piece without notes (<see cref="CallRegistry.OnDocument"/>), the sources' apart (<see cref="SourceRequest.Calls"/>).</summary>
+    internal static readonly FacadeCall<OpenDocument>[] Calls =
+    [
+        new("project", static (document, _) => Answer.Write(json => Answer.Project(json, "project", document.Project))),
+        new("project.save", static (document, request) => document.Save(request)),
+        new("project.metadata", static (document, request) => document.Metadata(request)),
+        new("document", static (document, request) => document.Pages(request), CallFlags.NeedsPdf),
+        new("document.replace", static (document, request) => document.Replace(request), CallFlags.NeedsPdf),
+        new("document.marks", static (document, request) => Answer.Write(json => Marks(json, document.Project.PageMarksOf(document.OriginalOf(request)))), CallFlags.NeedsPdf),
+        new("document.ink.add", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])), CallFlags.NeedsPdf),
+        new("document.ink.remove", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])), CallFlags.NeedsPdf),
+        new("document.ink.clear", static (document, request) => document.Change(request, marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])), CallFlags.NeedsPdf),
+        new("document.bookmark.add", static (document, request) => document.Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))), CallFlags.NeedsPdf),
+        new("document.bookmark.rename", static (document, request) => document.Change(request, marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))), CallFlags.NeedsPdf),
+        new("document.bookmark.remove", static (document, request) => document.Change(request, marks => marks.RemoveBookmark(request.Required("id"))), CallFlags.NeedsPdf),
+        new("document.read", static (document, request) => document.Read(request), CallFlags.NeedsPdf),
+    ];
+
+    /// <summary>This piece's project as the sources' calls change it (<see cref="SourceRequest.Calls"/>), in the request's "language".</summary>
+    internal SourceOwner HeldSources(Request request) => new(() => Project, project => Project = project, null, Words.For(request.Text("language")));
 
     /// <summary>The PDF piece with the title, composer, tags and playlists of the request (contract 12), answered as its summary.</summary>
     private string Metadata(Request request)

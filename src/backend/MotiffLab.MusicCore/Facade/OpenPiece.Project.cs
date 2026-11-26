@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis.Phrasing;
-using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
@@ -21,58 +20,6 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private string CallOnProject(string name, Request request) => name switch
-    {
-        "marks" => MarksAnswer(),
-        "ink.add" => Marks(marks => marks.AddInk(request.Elements("strokes").Select(ReadStroke))),
-        "ink.remove" => Marks(marks => marks.RemoveInk(request.Texts("ids"))),
-        "ink.clear" => Marks(marks => marks.WithInk([])),
-        "note.add" => Marks(marks => marks.AddNote(new MarginNote(marks.NextNoteId(), Span(request), request.Required("text"), Now(request)))),
-        "note.change" => Marks(marks => marks.ChangeNote(request.Required("id"), request.Required("text"))),
-        "note.remove" => Marks(marks => marks.RemoveNote(request.Required("id"))),
-        "highlight.add" => Marks(marks => marks.AddHighlight(new Highlight(marks.NextHighlightId(), Span(request), request.Texts("notes"), request.Enum<InkColour>("colour") ?? InkColour.Amber))),
-        "highlight.remove" => Marks(marks => marks.RemoveHighlight(request.Required("id"))),
-        "fingering.set" => Marks(marks => marks.SetFingering(new Fingering(request.Required("noteId"), request.Int("finger") ?? throw FacadeException.BadRequest("The fingering needs \"finger\", 1 to 5.")))),
-        "fingering.remove" => Marks(marks => marks.RemoveFingering(request.Required("noteId"))),
-        "bookmarks" => BookmarksAnswer(),
-        "bookmark.add" => AddBookmark(request),
-        "bookmark.change" => ChangeBookmark(request),
-        "bookmark.move" => Bookmarks(project => project.MoveBookmark(request.Required("id"), request.Int("index") ?? throw FacadeException.BadRequest("Send \"index\", the place in your order."))),
-        "bookmark.remove" => Bookmarks(project => project.RemoveBookmark(request.Required("id"))),
-        "bookmark.structure" => Bookmarks(project => project.AddStructureBookmarks(Levels.Sentences.Sentences, Words, Now(request))),
-        "bookmark.form" => Bookmarks(project => project.AddFormBookmarks(Structure.Sections, Words, Now(request))),
-        "category.add" => Bookmarks(project => project.AddCategory(new BookmarkCategory(project.NextCategoryId(), request.Required("name"), request.Enum<InkColour>("ink") ?? InkColour.Graphite))),
-        "category.rename" => Bookmarks(project => project.RenameCategory(request.Required("id"), request.Text("name"))),
-        "category.remove" => Bookmarks(project => project.RemoveCategory(request.Required("id"))),
-        "resume" => Answer.Write(json => Answer.ResumePoints(json, Project, Piece.Meter)),
-        "resume.save" => SaveResumePoint(request),
-        "resume.rename" => Resume(project => project.ChangeResumePoint(request.Required("id"), point => point.Rename(request.Text("name")))),
-        "resume.remove" => Resume(project => project.RemoveResumePoint(request.Required("id"))),
-        "ideas" => IdeasAnswer(),
-        "idea.keep" => KeepIdea(request),
-        "idea.rename" => Ideas(project => project.RenameObservation(request.Required("id"), request.Required("name"))),
-        "idea.note" => Ideas(project => project.ChangeObservationNote(request.Required("id"), request.Text("note"))),
-        "idea.remove" => Ideas(project => project.DeleteObservation(request.Required("id"))),
-        "idea.open" => OpenIdea(request),
-        "settings" => Answer.Write(json =>
-        {
-            Answer.SettingsCatalogue(json);
-            Answer.Overrides(json, Project);
-        }),
-        "settings.override" => Change(project => project.OverrideSetting(request.Required("id"), request.Text("value")), json => Answer.Overrides(json, Project)),
-        "project.metadata" => Change(project => MetadataRequest.Apply(project, request), json => Answer.Project(json, "project", Project)),
-        "check" => Answer.Write(CheckAnswer),
-        "check.resolve" => Change(project => PiecesRequest.Resolve(project, request), CheckAnswer),
-        "pieces.find" => Answer.Write(json => PiecesRequest.Find(json, Project, Piece, Notes, Words, request)),
-        "pieces.save" => Change(project => PiecesRequest.Save(project, Piece, Words, Now(request), request), json => PiecesRequest.Layer(json, Project, Piece)),
-        "tempo" => Answer.Write(json => TempoRequest.Write(json, Project, Piece, Words)),
-        _ when name.StartsWith("performance", StringComparison.Ordinal) => CallOnPerformance(name, request),
-        _ when name.StartsWith("sources", StringComparison.Ordinal) => CallOnSources(name, request),
-        _ when name.StartsWith("corrections", StringComparison.Ordinal) => CallOnCorrections(name, request),
-        _ when name.StartsWith("assistant.", StringComparison.Ordinal) => AssistantRequest.Call(name, request, new AssistantPiece(Piece, Notes, Project.Check ?? [], Words, Structure)),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-    };
-
     /// <summary>
     /// The settings as a whole (piece 0): "values" as stored, then "preset" applied or one "set" {id, value},
     /// then a piece's "overrides" laid over; answers with the preset label and every value.
