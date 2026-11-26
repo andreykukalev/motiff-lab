@@ -151,7 +151,10 @@ function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: B
     const left = x < (nearest.lineLeft ?? nearest.left);
     const right = x > (nearest.lineRight ?? nearest.right);
     if (!left && !right) {
-        return { frame: nearest };
+        // Within the line but beside the nearest bar (under the line, a neighbour's notes reach nearer): the bar of that
+        // line the point is over, so u stays within 0 to 1 and placeMark draws the stroke where it was written, never
+        // reading it as a stroke of before 0.4 in the line's margin.
+        return { frame: frames.find((frame) => frame.line === nearest.line && x >= frame.left && x <= frame.right) ?? nearest };
     }
     let edge = nearest;
     for (const frame of frames) {
