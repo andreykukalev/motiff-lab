@@ -246,7 +246,9 @@ const users = new Map();
 for (const file of swiftFiles) {
     const folder = file.split("/")[0];
     const source = swift(file);
-    const literals = new Set([...source.matchAll(KEY)].map((match) => match[1]));
+    // The port to music-core names its calls, no texts, though a call may share a text's key (`reference.key`).
+    const port = /^Platform\/PieceCore\w*\.swift$/.test(file);
+    const literals = new Set([...source.matchAll(KEY)].map((match) => match[1]).filter((key) => !(port && CALLS.has(key))));
     const starts = [...source.matchAll(PREFIX), ...source.matchAll(/"([a-zA-Z]\w*(?:\.\w+)*\.)"/g)]
         .map((match) => match[1])
         .filter((start) => !notText(start));

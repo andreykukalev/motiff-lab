@@ -91,7 +91,7 @@ final class SelectionModel: ObservableObject {
 
     /// The piece's phrases, as music-core finds them and the player set them.
     func loadPhrases(of piece: Int32) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases") }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrases) }
         phrases = PiecePhrases(answer: answer)
     }
 
@@ -103,7 +103,7 @@ final class SelectionModel: ObservableObject {
     /// refusal, nil once edited.
     func editPhrases(in piece: Int32, _ request: String, done words: String) async -> String? {
         phraseOffer = nil
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrasesEdit, request) }
         guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
         phrases = edited
         let step = edited.edits.flatMap { phraseSteps.record(from: edited.previous, to: $0) }
@@ -122,7 +122,7 @@ final class SelectionModel: ObservableObject {
               let to = redo ? step.after : step.before else { return nil }
         phraseOffer = nil
         let request = "{\"restore\": \(to.json), \"expected\": \(from.json)}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "phrases.edit", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrasesEdit, request) }
         guard let restored = PiecePhrases(answer: answer) else {
             phraseSteps.dropLast(undone: !redo)
             return refusedPhrases(answer)

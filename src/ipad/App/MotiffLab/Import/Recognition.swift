@@ -396,7 +396,7 @@ final class RecognitionQueue: ObservableObject {
     }
 
     private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
-        let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
+        let document = await MusicCore.run { PieceCore(piece: piece).send(.document) }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
@@ -442,7 +442,7 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let document = await MusicCore.run { MusicCore.call(piece: piece, "document") }
+        let document = await MusicCore.run { PieceCore(piece: piece).send(.document) }
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         guard let base64 = facadeObject(document)?["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))

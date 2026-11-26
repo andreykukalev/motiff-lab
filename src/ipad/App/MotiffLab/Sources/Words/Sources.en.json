@@ -1,6 +1,5 @@
 {
   "sources.roleNotes": "Notes",
-  "sources.makeWorking": "Make working",
   "sources.appWrittenBars.one": "As the source writes it, {0} bar written by the app",
   "sources.appWrittenBars.many": "As the source writes it, {0} bars written by the app",
   "sources.rolePlaying": "Performance",

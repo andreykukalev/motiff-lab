@@ -142,14 +142,14 @@ enum FolderPlanning {
             "folders": folders.rawValue,
             "linked": linked,
         ]
-        guard let answer = await call("library.plan", request) else { return nil }
+        guard let answer = await call(.libraryPlan, request) else { return nil }
         return FolderPlan(answer: answer)
     }
 
     /// Where the library's originals from this folder are now; nil when music-core refused.
     static func relink(_ library: [[String: Any]], files: [FolderFile], facts: [String: FileFacts]) async -> (originals: [RelinkedOriginal], fingerprint: [String])? {
         let request: [String: Any] = ["library": library, "files": files.map { found($0, facts[$0.path]) }]
-        guard let answer = await call("library.relink", request), let object = facadeObject(answer), object["error"] == nil else { return nil }
+        guard let answer = await call(.libraryRelink, request), let object = facadeObject(answer), object["error"] == nil else { return nil }
         let originals = (object["originals"] as? [[String: Any]] ?? []).compactMap { each -> RelinkedOriginal? in
             guard let project = each["project"] as? String, let original = each["original"] as? String, let status = each["status"] as? String else { return nil }
             let candidates = (each["candidates"] as? [[String: Any]] ?? []).compactMap { $0["path"] as? String }
@@ -164,15 +164,15 @@ enum FolderPlanning {
         var request: [String: Any] = ["file": file, "tags": tags, "playlists": playlists]
         if let title, !title.isEmpty { request["title"] = title }
         if let composer, !composer.isEmpty { request["composer"] = composer }
-        guard let answer = await call("library.confirm", request), let object = facadeObject(answer),
+        guard let answer = await call(.libraryConfirm, request), let object = facadeObject(answer),
               let changed = object["file"] as? String, let project = (object["project"] as? [String: Any])?["id"] as? String else { return nil }
         return (changed, project)
     }
 
     /// One call on piece 0; nil for an error.
-    static func call(_ name: String, _ request: [String: Any]) async -> String? {
+    static func call(_ name: PieceCore.NoPiece, _ request: [String: Any]) async -> String? {
         let json = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, name, json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(name, json) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return answer
     }

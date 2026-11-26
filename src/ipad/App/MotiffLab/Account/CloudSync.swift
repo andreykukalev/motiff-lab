@@ -114,7 +114,7 @@ struct CloudSync {
             "changedOnline": row != nil && record.known && record.savedAt != row?.savedAt,
             "deletedOnline": record.deletedOnline,
         ]
-        switch await Self.core("project.sync", facts)?["step"] as? String {
+        switch await Self.core(.projectSync, facts)?["step"] as? String {
         case "upload":
             guard let local, online.writable else { return false }
             // Not sent again over the quota until it changes here or the account has room: the library says so meanwhile.
@@ -139,7 +139,7 @@ struct CloudSync {
     /// Sends the copy without the PDF; a piece that is only a PDF is not sent.
     private func upload(_ id: String, _ local: Local, ifMatch: String?, _ record: SyncRecord) async -> SyncRecord {
         guard let data = local.data, let file = String(data: data, encoding: .utf8),
-              let copy = await Self.core("project.online", ["file": file])?["file"] as? String
+              let copy = await Self.core(.projectOnline, ["file": file])?["file"] as? String
         else { return record }
         var noted = record
         switch await online.upload(id, file: copy, ifMatch: ifMatch) {
@@ -170,7 +170,7 @@ struct CloudSync {
         }
         var fields: [String: Any] = ["file": remote]
         if let data = local?.data, let text = String(data: data, encoding: .utf8) { fields["here"] = text }
-        guard let kept = await Self.core("project.pulled", fields)?["file"] as? String,
+        guard let kept = await Self.core(.projectPulled, fields)?["file"] as? String,
               write(kept, to: local?.url, title: row.title) != nil
         else { return false }
         records[id] = SyncRecord(etag: fetched.etag, savedAt: row.savedAt, hash: Self.hash(Data(kept.utf8)))
@@ -187,7 +187,7 @@ struct CloudSync {
             records[id] = await upload(id, local, ifMatch: etag, record)
             return false
         }
-        let answer = await Self.core("project.resolve", [
+        let answer = await Self.core(.projectResolve, [
             "here": here, "savedHere": Self.iso(local.modified),
             "online": remote, "savedOnline": row.savedAt ?? Self.iso(Date()),
             "copyTitle": copyTitle(Date()),
@@ -223,14 +223,14 @@ struct CloudSync {
             pieces.append((url: entry.url, id: id, keys: summary.pieceKeys))
         }
         let rows: [[String: Any]] = pieces.filter { !$0.keys.isEmpty }.map { ["id": $0.id, "keys": $0.keys] }
-        guard rows.count > 1, let groups = await Self.core("project.same", ["pieces": rows])?["groups"] as? [[String]] else { return [] }
+        guard rows.count > 1, let groups = await Self.core(.projectSame, ["pieces": rows])?["groups"] as? [[String]] else { return [] }
         var gone: [String] = []
         for group in groups {
             let members = group.compactMap { id in pieces.first { $0.id == id } }
             let files = members.compactMap { try? String(contentsOf: $0.url, encoding: .utf8) }
             guard members.count > 1, files.count == members.count else { continue }
             let stay = members.indices.filter { Self.keptBeside(members[$0].id) }
-            guard let joined = await Self.core("project.join", ["files": files, "stay": stay])?["joined"] as? [[String: Any]] else { continue }
+            guard let joined = await Self.core(.projectJoin, ["files": files, "stay": stay])?["joined"] as? [[String: Any]] else { continue }
             for piece in joined {
                 guard let keeper = (piece["keeper"] as? NSNumber)?.intValue, members.indices.contains(keeper),
                       let file = piece["file"] as? String, write(file, to: members[keeper].url, title: members[keeper].id) != nil
@@ -269,9 +269,9 @@ struct CloudSync {
     }
 
     /// A call on music-core's piece 0 with JSON fields; nil when it answers an error.
-    private static func core(_ name: String, _ fields: [String: Any]) async -> [String: Any]? {
+    private static func core(_ name: PieceCore.NoPiece, _ fields: [String: Any]) async -> [String: Any]? {
         let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, name, request) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(name, request) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return object
     }

@@ -292,7 +292,7 @@ extension ScanServer {
         let joined = ScanJobs.joined(device: plan.device, reports: plan.reports, server: read)
         guard !joined.pages.isEmpty else { return .failure(.server(text["pdf.readNone"])) }
         let json = facadeRequest(["pages": joined.pages])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.scanJoin, json) }
         guard let object = facadeObject(answer), object["error"] == nil, let score = object["score"] as? String else {
             return .failure(.server(text["import.scanPagesNotJoined"]))
         }

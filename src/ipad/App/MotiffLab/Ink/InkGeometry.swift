@@ -128,7 +128,7 @@ struct InkStep {
     /// Takes the step back through `change(call, request, draws)`: the strokes it added go, then the strokes it took come
     /// back, the answer drawn only at the last call, so a press of the eraser comes back whole at once.
     @MainActor
-    func undo(remove: String, add: String, through change: (String, [String: Any], Bool) async -> Void) async {
+    func undo<Call>(remove: Call, add: Call, through change: (Call, [String: Any], Bool) async -> Void) async {
         if !added.isEmpty { await change(remove, ["ids": added], removed.isEmpty) }
         if !removed.isEmpty { await change(add, ["strokes": removed], true) }
     }
@@ -136,7 +136,7 @@ struct InkStep {
     /// Does the step again through `change(call, request, draws)`: the strokes it took go again, then the strokes it added
     /// come back, the answer drawn only at the last call.
     @MainActor
-    func redo(remove: String, add: String, through change: (String, [String: Any], Bool) async -> Void) async {
+    func redo<Call>(remove: Call, add: Call, through change: (Call, [String: Any], Bool) async -> Void) async {
         let taken = removed.compactMap { $0["id"] as? String }
         if !taken.isEmpty { await change(remove, ["ids": taken], strokes.isEmpty) }
         if !strokes.isEmpty { await change(add, ["strokes": strokes], true) }

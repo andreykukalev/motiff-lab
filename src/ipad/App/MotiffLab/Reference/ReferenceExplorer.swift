@@ -185,7 +185,7 @@ extension ReferenceController {
     /// waits for Play (the web's ListeningTab).
     func loadExplorer(language: String, naming: String) async {
         let request = facadeRequest(explorer.request(language: language, naming: naming))
-        let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.explorer", request) }
+        let text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceExplorer, request) }
         guard let next = ExplorerAnswer(answer: text) else { return }
         progression = next
         explorer.steps = next.steps
