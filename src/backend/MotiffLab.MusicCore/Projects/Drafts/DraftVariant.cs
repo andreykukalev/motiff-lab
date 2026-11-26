@@ -81,4 +81,29 @@ public sealed record DraftVariant(string Id, DateTimeOffset AddedAt, DraftSource
 
     /// <summary>The id a note of this variant has in a place: the variant's id and the note's (<c>v_2.n_0042</c>).</summary>
     public string NoteId(string noteId) => $"{Id}.{noteId}";
+
+    /// <summary>
+    /// For a variant music-core made (<see cref="NotesProvenance.Variation"/>: a bridge candidate, a carried приём), the text
+    /// its provenance's params hold under <paramref name="param"/>, the rule or kind that made it; null for any other variant.
+    /// </summary>
+    internal string? MadeBy(string param)
+    {
+        if (Provenance.Op != NotesProvenance.Variation || Provenance.ParamsJson is not { } parameters)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(parameters);
+            return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && document.RootElement.TryGetProperty(param, out System.Text.Json.JsonElement value)
+                && value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
 }

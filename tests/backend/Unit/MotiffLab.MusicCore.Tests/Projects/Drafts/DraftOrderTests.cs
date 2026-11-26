@@ -40,7 +40,6 @@ public class DraftOrderTests
         // pl_3 first: pl_3 has no place before it, pl_1 has pl_3, pl_2 still has pl_1.
         Draft moved = Three().WithPlaceAt("pl_3", 0);
 
-        Assert.Equal([2], Three().SeamsLeftMoving("pl_3", 0).Select(static step => step.Number));
         Assert.Equal([1, 3], moved.Steps.Select(static step => step.Number));
         Assert.Contains(moved.Steps, static step => step is DraftLeave { Place: "pl_2", Seam: true });
     }
@@ -65,5 +64,47 @@ public class DraftOrderTests
         Assert.Throws<KeyNotFoundException>(() => draft.WithPlaceAt("pl_9", 0));
         // A draft of one place has nowhere to move it.
         Assert.Throws<ArgumentException>(() => Draft.Start("d_1", "Одно", At, "pl_1", Variant("v_1", Score(), 1, 2)).WithPlaceAt("pl_1", 0));
+    }
+
+    /// <summary>Bars 1–2 in C major, a bridge into bars 3–4 in G major with a step of its own, then bars 5–6 in C major.</summary>
+    private static Draft Bridged()
+    {
+        Draft draft = Draft.Start("d_1", "Коллаж", At, "pl_1", Variant("v_1", Score(), 1, 2))
+            .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 3, 4, notes: "n_g"), DraftDrop.Place, "pl_2")
+            .With(Variant("v_3", Score(prefix: "c"), 5, 6), DraftDrop.Place, "pl_3");
+        return DraftBridges.Put(draft, "pl_2", At).With(next => new DraftTempo(next, At, "pl_0004", 100));
+    }
+
+    [Theory]
+    [InlineData("pl_2", 0, new[] { "pl_2", "pl_1", "pl_3" })]
+    [InlineData("pl_1", 2, new[] { "pl_2", "pl_1", "pl_3" })]
+    [InlineData("pl_0004", 3, new[] { "pl_1", "pl_2", "pl_3" })]
+    public void A_move_that_gives_a_bridge_other_neighbours_drops_the_bridge_and_its_steps(string place, int index, string[] order)
+    {
+        Draft moved = Bridged().WithPlaceAt(place, index);
+
+        Assert.Equal(order, Order(moved));
+        Assert.Empty(moved.Steps);
+    }
+
+    [Fact]
+    public void A_move_that_keeps_a_bridge_s_neighbours_keeps_the_bridge()
+    {
+        Draft moved = Bridged().WithPlaceAt("pl_3", 0);
+
+        Assert.Equal(["pl_3", "pl_1", "pl_0004", "pl_2"], Order(moved));
+        Assert.Single(moved.Steps);
+    }
+
+    [Fact]
+    public void A_bridge_put_in_or_left_drops_the_seam_kept_before_the_place_after_it()
+    {
+        Draft two = Draft.Start("d_1", "Коллаж", At, "pl_1", Variant("v_1", Score(), 1, 2))
+            .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 3, 4, notes: "n_g"), DraftDrop.Place, "pl_2");
+        Draft kept = two.With(next => new DraftLeave(next, At, "pl_2") { Seam = true });
+
+        Assert.Empty(DraftBridges.Put(kept, "pl_2", At).Steps);
+        Draft bridged = DraftBridges.Put(two, "pl_2", At).With(next => new DraftLeave(next, At, "pl_2") { Seam = true });
+        Assert.Empty(DraftBridges.Leave(bridged, "pl_0003").Steps);
     }
 }

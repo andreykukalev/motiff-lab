@@ -82,7 +82,7 @@ Drafts are a new list in the workspace, `workspace.drafts`, and the file goes to
 ### 8. What goes and what comes later
 
 - **The bar-by-bar merge leaves the iPad**: the version page with its strip and three starts, the merge draft and Mine · Version · Result, the Compare versions window, Apply into the working notes, and «Сделать рабочими» by assembly. A file with taken bars (`performance.taken`, `merge`) reads as it does now.
-- **Later**, as new music-core operations: carrying a приём into another place, and changing a place's meter.
+- **Later**, as new music-core operations: carrying a приём into another place, and changing a place's meter. Version 1.4 builds the first, and a place's length in bars, with the project file still at version 17 (Andrei's answers of 2026-11-26): a carried приём is a variant music-core builds for the other place, as the bridge candidates are (`TechniqueCarry`), and a place made longer or shorter has its base cut again from its Notes (`PlaceLength`); both are changes of the draft's structure. Changing a place's meter comes in version 1.6 with project file version 18.
 
 ### 9. Steps and release
 

@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
@@ -126,22 +124,7 @@ public static class DraftBridges
     public static BridgeKind? KindOf(DraftVariant variant)
     {
         ArgumentNullException.ThrowIfNull(variant);
-        if (variant.Provenance.Op != NotesProvenance.Variation || variant.Provenance.ParamsJson is not { } parameters)
-        {
-            return null;
-        }
-
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(parameters);
-            return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty(KindParam, out JsonElement kind) && kind.ValueKind == JsonValueKind.String
-                ? Enum.GetValues<BridgeKind>().Cast<BridgeKind?>().FirstOrDefault(each => Name(each!.Value) == kind.GetString())
-                : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return variant.MadeBy(KindParam) is { } kind ? Enum.GetValues<BridgeKind>().Cast<BridgeKind?>().FirstOrDefault(each => Name(each!.Value) == kind) : null;
     }
 
     /// <summary>A candidate's kind in words: «Доминанта», «Через общий аккорд», «Ход баса».</summary>
