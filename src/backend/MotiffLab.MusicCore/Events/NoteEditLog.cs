@@ -51,7 +51,7 @@ public sealed record NoteEdit(string NoteId, NoteValues? Before, NoteValues? Aft
 }
 
 /// <summary>Who proposed a note correction (project file version 16).</summary>
-public static class NoteEditOrigin
+internal static class NoteEditOrigin
 {
     /// <summary>The player's own correction; the file leaves it out.</summary>
     public const string Player = "player";

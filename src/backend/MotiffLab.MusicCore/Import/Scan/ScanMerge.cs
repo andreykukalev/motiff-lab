@@ -8,10 +8,10 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Import.Scan;
 
 /// <summary>One engine's reading of a page: the engine as the scan server names it ("homr", "audiveris 5.11"…) and its MusicXML.</summary>
-public sealed record ScanReading(string Engine, byte[] MusicXml);
+internal sealed record ScanReading(string Engine, byte[] MusicXml);
 
 /// <summary>How sure a merged bar is, from how many engines agree on its staves (ADR 0035, section 5).</summary>
-public enum ScanLevel
+internal enum ScanLevel
 {
     /// <summary>Three or more engines agree on every staff.</summary>
     Sure,
@@ -26,13 +26,13 @@ public enum ScanLevel
 /// <summary>Which engines gave one staff of a merged bar: those whose reading of it was taken, in the merge's order.</summary>
 /// <param name="Part">The part, from 1.</param>
 /// <param name="Staff">The staff in the part, from 1.</param>
-public sealed record ScanStaffSource(int Part, int Staff, IReadOnlyList<string> Engines);
+internal sealed record ScanStaffSource(int Part, int Staff, IReadOnlyList<string> Engines);
 
 /// <summary>
 /// One bar of a merged page: its level and the engines that gave each staff; a bar to check also its other readings and its
 /// place on the page (v1.3 i-2).
 /// </summary>
-public sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSource> Staves)
+internal sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSource> Staves)
 {
     /// <summary>A bar to check: the engines' readings of its staves to check other than the one taken (<see cref="ScanVariant"/>); empty for other bars.</summary>
     public IReadOnlyList<ScanVariant> Variants { get; init; } = [];
@@ -42,7 +42,7 @@ public sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSourc
 }
 
 /// <summary>A page merged from several readings: its MusicXML, the engines that read it in the merge's order, and each bar in order.</summary>
-public sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engines, IReadOnlyList<ScanMergedBar> Bars);
+internal sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engines, IReadOnlyList<ScanMergedBar> Bars);
 
 /// <summary>
 /// Merges several engines' readings of one scanned page into one, staff by staff (ADR 0035, section 5; c-1a). Each reading
@@ -69,7 +69,7 @@ public sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engin
 /// notes stay detected. Pure and deterministic: the same readings give the same bytes.
 /// </para>
 /// </remarks>
-public static partial class ScanMerge
+internal static partial class ScanMerge
 {
     /// <summary>The engines in the order a tie is settled in; an engine not named here comes after them, in the order given.</summary>
     public static readonly IReadOnlyList<string> EngineOrder = ["homr", "copisteria", "audiveris", "transcoda"];

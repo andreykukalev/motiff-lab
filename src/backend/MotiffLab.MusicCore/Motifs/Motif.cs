@@ -134,7 +134,7 @@ public sealed record Motif
     }
 
     /// <summary>The name a new motif gets, for example "Motif 1 · bars 5–6" or "Motif 2 · bar 3" (N3).</summary>
-    public static string DefaultName(int number, int firstBar, int lastBar)
+    internal static string DefaultName(int number, int firstBar, int lastBar)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(number, 1);
         return firstBar == lastBar ? $"Motif {number} · bar {firstBar}" : $"Motif {number} · bars {firstBar}–{lastBar}";

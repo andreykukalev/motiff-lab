@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Events;
 public sealed partial record NoteEditLog
 {
     /// <summary>How far from the onset a correction found a note may be to be laid on another of the same pitch: a thirty-second.</summary>
-    public const long NearOnset = CanonicalTime.TicksPerQuarter / 8;
+    internal const long NearOnset = CanonicalTime.TicksPerQuarter / 8;
 
     /// <summary>
     /// The corrections laid over the imported notes one by one, in order (version 0.5, «Мои правки»), even when the notes

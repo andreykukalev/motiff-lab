@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Playback;
 /// <param name="Right">Whether any note is marked for the right hand.</param>
 /// <param name="Left">Whether any note is marked for the left hand.</param>
 /// <param name="Inferred">Whether any note's hand was inferred.</param>
-public readonly record struct PlaybackHands(bool Right, bool Left, bool Inferred)
+internal readonly record struct PlaybackHands(bool Right, bool Left, bool Inferred)
 {
     /// <summary>Whether either hand can be heard alone: the notes carry both.</summary>
     public bool CanSeparate => Right && Left;

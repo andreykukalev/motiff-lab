@@ -59,7 +59,7 @@ public sealed record NotesProvenance(string Op)
     public const string Import = "import";
 
     /// <summary>Notes the player entered by hand, with no original.</summary>
-    public const string Manual = "manual";
+    internal const string Manual = "manual";
 
     /// <summary>Notes assembled from other Notes (0024).</summary>
     public const string Assembly = "assembly";
@@ -135,7 +135,7 @@ public sealed record NotesProvenance(string Op)
             : !IsRecognition;
 
     /// <summary>Whether a text is a name: ASCII letters and digits, from a letter.</summary>
-    public static bool IsName(string? text) => !string.IsNullOrEmpty(text) && char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit);
+    internal static bool IsName(string? text) => !string.IsNullOrEmpty(text) && char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit);
 
     public bool Equals(NotesProvenance? other) =>
         other is not null && Op == other.Op && From.SequenceEqual(other.From) && Inputs.SequenceEqual(other.Inputs, StringComparer.Ordinal)

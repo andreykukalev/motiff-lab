@@ -8,7 +8,7 @@ using PigDocument = UglyToad.PdfPig.PdfDocument;
 namespace MotiffLab.MusicCore.Import.Vector;
 
 /// <summary>How a page of a PDF is read.</summary>
-public enum VectorPageKind
+internal enum VectorPageKind
 {
     /// <summary>A page a notation program drew, read here from its glyphs and lines.</summary>
     Read,
@@ -27,7 +27,7 @@ public enum VectorPageKind
 /// <param name="Notes">The notes read.</param>
 /// <param name="Bars">The bars read.</param>
 /// <param name="Issues">What could not be placed or does not add up, in English, for the page report.</param>
-public sealed record VectorPageReading(int Number, VectorPageKind Kind, byte[]? MusicXml, int Notes, int Bars, IReadOnlyList<string> Issues)
+internal sealed record VectorPageReading(int Number, VectorPageKind Kind, byte[]? MusicXml, int Notes, int Bars, IReadOnlyList<string> Issues)
 {
     /// <summary>The staves of each system.</summary>
     public int Staves { get; init; }
@@ -46,7 +46,7 @@ public sealed record VectorPageReading(int Number, VectorPageKind Kind, byte[]? 
 /// and checked; a page that is an image, uses a font the reader does not know, or fails the checks is left to the scan
 /// server. Pure and deterministic.
 /// </summary>
-public static class VectorReader
+internal static class VectorReader
 {
     /// <summary>The engine name pages read here carry in their provenance.</summary>
     public const string Engine = "vector";

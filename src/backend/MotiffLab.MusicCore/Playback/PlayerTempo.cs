@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Playback;
 /// has, and is the player's from then on. A tempo the piece states later on (a notated change) stays as stated; the
 /// tempos worked out from a recording, or the default, follow it in proportion, so a recording's rubato keeps its shape.
 /// </summary>
-public static class PlayerTempo
+internal static class PlayerTempo
 {
     /// <summary>The slowest tempo the player can set, in quarter notes a minute.</summary>
     public const int Min = 20;

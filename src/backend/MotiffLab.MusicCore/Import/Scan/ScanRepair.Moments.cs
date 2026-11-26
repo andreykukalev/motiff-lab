@@ -1,6 +1,6 @@
 namespace MotiffLab.MusicCore.Import.Scan;
 
-public static partial class ScanRepair
+internal static partial class ScanRepair
 {
     /// <summary>The moments of a bar as the engine writes them, and where they would start with split moments put back.</summary>
     private static class Moments

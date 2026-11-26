@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// from <c>&lt;creator type="composer"&gt;</c>, else a credit of type composer. Only the header is read, so a library of
 /// many pieces reads each card quickly.
 /// </summary>
-public sealed record ScoreHeader(string? Title, string? Composer)
+internal sealed record ScoreHeader(string? Title, string? Composer)
 {
     public static ScoreHeader None { get; } = new(null, null);
 

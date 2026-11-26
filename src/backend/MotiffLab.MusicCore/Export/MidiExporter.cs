@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Export;
 /// still sounding, the earlier note ends there, as a key must be released before it is struck again.
 /// Exporting is pure and deterministic: the same input gives the same bytes.
 /// </remarks>
-public static class MidiExporter
+internal static class MidiExporter
 {
     /// <summary>Ticks per quarter in the file: the canonical resolution.</summary>
     public const int TicksPerQuarter = CanonicalTime.TicksPerQuarter;

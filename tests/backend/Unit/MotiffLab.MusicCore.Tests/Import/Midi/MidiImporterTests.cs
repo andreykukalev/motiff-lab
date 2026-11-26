@@ -222,18 +222,18 @@ public class MidiImporterTests
     }
 
     [Theory]
-    [InlineData(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0, 0, 0, 0, 0, 0 }, MidiImportFailure.NotMidi)]
-    [InlineData(new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 }, MidiImportFailure.Unsupported)]
-    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 2, 0, 1, 0, 96 }, MidiImportFailure.Unsupported)]
-    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0xE7, 0x28 }, MidiImportFailure.Unsupported)]
-    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0, 0 }, MidiImportFailure.Damaged)]
-    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0, 96 }, MidiImportFailure.Damaged)]
-    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 9, 0, 1, 0, 1, 0, 96 }, MidiImportFailure.Damaged)]
-    public void Files_that_cannot_be_imported_fail_with_a_reason(byte[] bytes, MidiImportFailure failure)
+    [InlineData(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0, 0, 0, 0, 0, 0 }, nameof(MidiImportFailure.NotMidi))]
+    [InlineData(new byte[] { 0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0 }, nameof(MidiImportFailure.Unsupported))]
+    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 2, 0, 1, 0, 96 }, nameof(MidiImportFailure.Unsupported))]
+    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0xE7, 0x28 }, nameof(MidiImportFailure.Unsupported))]
+    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0, 0 }, nameof(MidiImportFailure.Damaged))]
+    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, 1, 0, 96 }, nameof(MidiImportFailure.Damaged))]
+    [InlineData(new byte[] { 0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 9, 0, 1, 0, 1, 0, 96 }, nameof(MidiImportFailure.Damaged))]
+    public void Files_that_cannot_be_imported_fail_with_a_reason(byte[] bytes, string failure)
     {
         var exception = Assert.Throws<MidiImportException>(() => MidiImporter.Import(bytes));
 
-        Assert.Equal(failure, exception.Failure);
+        Assert.Equal(Enum.Parse<MidiImportFailure>(failure), exception.Failure);
         Assert.False(string.IsNullOrWhiteSpace(exception.Message));
     }
 

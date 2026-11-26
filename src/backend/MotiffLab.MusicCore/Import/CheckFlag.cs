@@ -96,16 +96,16 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     }
 
     /// <summary>The most bars flagged for one reason in a transcription; beyond it the reason says nothing about a bar in particular.</summary>
-    public const double MostFlaggedShare = 0.25;
+    internal const double MostFlaggedShare = 0.25;
 
     /// <summary>An onset further than this from the 16th and the triplet-8th grids sits badly in its bar: a 64th.</summary>
-    public const long OffGridTicks = CanonicalTime.TicksPerQuarter / 16;
+    internal const long OffGridTicks = CanonicalTime.TicksPerQuarter / 16;
 
     /// <summary>The fewest onsets a bar needs before its fit to the tempo says anything.</summary>
-    public const int FewestOnsetsForTempo = 4;
+    internal const int FewestOnsetsForTempo = 4;
 
     /// <summary>The share of a bar's onsets off the grids that makes its tempo doubtful.</summary>
-    public const double OffGridShare = 0.5;
+    internal const double OffGridShare = 0.5;
 
     /// <summary>A cluster: this many separate onsets within a 16th…</summary>
     public const int ClusterOnsets = 4;
@@ -114,10 +114,10 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     public const int ClusterSeconds = 3;
 
     /// <summary>A hand inferred with less confidence than this was guessed from the pitch alone (<see cref="HandInference"/>).</summary>
-    public const double GuessedHandConfidence = 0.6;
+    internal const double GuessedHandConfidence = 0.6;
 
     /// <summary>The fewest notes with a guessed hand that flag a bar.</summary>
-    public const int FewestGuessedHands = 2;
+    internal const int FewestGuessedHands = 2;
 
     /// <summary>
     /// The doubts of a transcription (0018, section 9; preparation item 12), one flag per bar and reason, all open:

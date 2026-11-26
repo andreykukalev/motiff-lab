@@ -43,7 +43,7 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// its reading until its notes are read again.
 /// </para>
 /// </remarks>
-public static partial class ScanRepair
+internal static partial class ScanRepair
 {
     /// <summary>A time signature is rewritten only when at least this many of its bars have the length most of them have.</summary>
     public const int FewestBarsForMeter = 3;

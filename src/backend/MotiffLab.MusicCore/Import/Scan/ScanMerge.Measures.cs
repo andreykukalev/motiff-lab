@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
-public static partial class ScanMerge
+internal static partial class ScanMerge
 {
     /// <summary>
     /// The backbone's score with every staff taken from another reading written into its measure (<see cref="WriteChosenStaves"/>),

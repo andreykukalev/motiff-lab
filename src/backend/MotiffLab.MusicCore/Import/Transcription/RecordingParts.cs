@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// still held when a part's sound ends keeps the length the next part hears it go on for, and the pedal
 /// held across a seam stays one press. Pure and deterministic.
 /// </summary>
-public static class RecordingParts
+internal static class RecordingParts
 {
     /// <summary>The longest stretch a part keeps when the seams are cut evenly.</summary>
     public const long PartMilliseconds = 120_000;
@@ -340,4 +340,4 @@ public static class RecordingParts
 /// One part of a recording heard in parts: the stretch of sound sent, and the stretch inside it whose
 /// notes are kept, in milliseconds from the start of the recording.
 /// </summary>
-public sealed record RecordingPart(int Index, long SendFromMilliseconds, long SendToMilliseconds, long KeepFromMilliseconds, long KeepToMilliseconds);
+internal sealed record RecordingPart(int Index, long SendFromMilliseconds, long SendToMilliseconds, long KeepFromMilliseconds, long KeepToMilliseconds);

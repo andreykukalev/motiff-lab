@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// the tempo it may bend to for <see cref="JumpRun"/> beats running. A score linked to the recording may give a
 /// <see cref="Hint"/>; it is never imposed. Without a search, <see cref="RecordingBars.Find(MidiImport, TimeSignature?, int?, GridSearch?)"/> works as before.
 /// </summary>
-public sealed record GridSearch
+internal sealed record GridSearch
 {
     /// <summary>The shortest pause after which the beat is found again: 2.5 s, as a section boundary in a recording.</summary>
     public const long SectionSilence = 2_500_000;
@@ -33,7 +33,7 @@ public sealed record GridSearch
 /// looks for the tempo within 0.6 to 1.6 of it, and takes the signature when the recording supports it at least three
 /// quarters as well as the best.
 /// </summary>
-public sealed record GridHint(TimeSignature? Signature, int? QuarterNotesPerMinute)
+internal sealed record GridHint(TimeSignature? Signature, int? QuarterNotesPerMinute)
 {
     /// <summary>The 16th the hint's tempo gives, in microseconds; null without a tempo.</summary>
     public long? Sixteenth => QuarterNotesPerMinute is int bpm and > 0 ? 15_000_000L / bpm : null;
@@ -43,7 +43,7 @@ public sealed record GridHint(TimeSignature? Signature, int? QuarterNotesPerMinu
 /// <param name="Grid">The grid, or null when the notes follow no beat.</param>
 /// <param name="Sections">How many sections the beat was found in afresh: 1 when it was found once.</param>
 /// <param name="HintFits">Whether the hint's signature was taken; null without a hinted signature or a grid.</param>
-public sealed record GridFound(BarGrid? Grid, int Sections, bool? HintFits)
+internal sealed record GridFound(BarGrid? Grid, int Sections, bool? HintFits)
 {
     public static GridFound None { get; } = new(null, 0, null);
 }

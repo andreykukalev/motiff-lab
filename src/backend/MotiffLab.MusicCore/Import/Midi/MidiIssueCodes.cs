@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Import.Midi;
 
 /// <summary>Stable codes for MIDI import issues, and their descriptions in English and Russian.</summary>
-public static class MidiIssueCodes
+internal static class MidiIssueCodes
 {
     // Rounded
     public const string NotesRounded = "midi.notes-rounded";

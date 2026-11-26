@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Import.Transcription;
 
 /// <summary>Why the length of a note heard in a recording is uncertain (#352).</summary>
-public enum LengthDoubt
+internal enum LengthDoubt
 {
     /// <summary>The sustain pedal is down when the note ends, so its release cannot be heard.</summary>
     Pedal,
@@ -18,7 +18,7 @@ public enum LengthDoubt
 /// <param name="Bar">The bar number the notes start in, as the workspace shows it.</param>
 /// <param name="NoteIds">The notes, in time order, then by pitch.</param>
 /// <param name="Reasons">Each reason that holds for at least one of them, in the order of <see cref="LengthDoubt"/>.</param>
-public sealed record UncertainLengths(int Bar, IReadOnlyList<string> NoteIds, IReadOnlyList<LengthDoubt> Reasons)
+internal sealed record UncertainLengths(int Bar, IReadOnlyList<string> NoteIds, IReadOnlyList<LengthDoubt> Reasons)
 {
     public bool Equals(UncertainLengths? other) =>
         other is not null && Bar == other.Bar && NoteIds.SequenceEqual(other.NoteIds, StringComparer.Ordinal) && Reasons.SequenceEqual(other.Reasons);
@@ -39,7 +39,7 @@ public sealed record UncertainLengths(int Bar, IReadOnlyList<string> NoteIds, IR
 /// recording. These marks do not make chords uncertain: the Check flags do that (<c>NoteDoubt</c>). Pure and
 /// deterministic: the same notes, pedal and bars checked give the same bars.
 /// </remarks>
-public static class HeardLengths
+internal static class HeardLengths
 {
     /// <summary>A heard note longer than this, a half note, has an uncertain end.</summary>
     public const long LongestSure = 2 * CanonicalTime.TicksPerQuarter;

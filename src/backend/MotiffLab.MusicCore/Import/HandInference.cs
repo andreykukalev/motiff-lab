@@ -25,7 +25,7 @@ namespace MotiffLab.MusicCore.Import;
 /// several tracks and single melodic lines are left untouched. Inference is pure: the same notes give the same hands.
 /// </para>
 /// </remarks>
-public static class HandInference
+internal static class HandInference
 {
     /// <summary>Notes starting within this many ticks of a group's first note count as one chord (a 64th note).</summary>
     public const long ChordWindow = 30;

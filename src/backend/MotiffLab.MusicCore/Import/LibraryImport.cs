@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Import;
 /// piece's <see cref="PieceMetadata"/> only with the player's word (<see cref="Confirmed"/>), and never over what the
 /// player wrote. Two different files with the same title and composer are possibly the same piece, said and not merged.
 /// </remarks>
-public static class LibraryImport
+internal static class LibraryImport
 {
     /// <summary>A PDF with more pages than this is perhaps several pieces in one score, «В этой партитуре несколько пьес».</summary>
     public const int CollectionPages = 20;

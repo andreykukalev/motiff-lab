@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
-public static partial class ScanRepair
+internal static partial class ScanRepair
 {
     /// <summary>The most times the shared notehead is looked for on one staff of a bar.</summary>
     private const int MostSharedHeads = 16;

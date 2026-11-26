@@ -21,7 +21,7 @@ namespace MotiffLab.MusicCore.Time;
 /// widened to one tick and reported as inexact.
 /// </para>
 /// </remarks>
-public static class CanonicalTime
+internal static class CanonicalTime
 {
     public const int TicksPerQuarter = 480;
 

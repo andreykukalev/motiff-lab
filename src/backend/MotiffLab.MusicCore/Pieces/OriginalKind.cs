@@ -14,7 +14,7 @@ public enum OriginalKind
 }
 
 /// <summary>What kind of original a file is.</summary>
-public static class OriginalKinds
+internal static class OriginalKinds
 {
     /// <summary>MIDI or MusicXML by the file's extension, as the importers take it; null for anything else.</summary>
     public static OriginalKind? FileKind(string fileName)

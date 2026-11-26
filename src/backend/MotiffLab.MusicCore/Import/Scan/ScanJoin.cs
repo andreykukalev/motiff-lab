@@ -19,7 +19,7 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// </para>
 /// <para>Pure and deterministic: the same pages give the same bytes. Nothing is read from outside the text (no DTD, no entities).</para>
 /// </remarks>
-public static class ScanJoin
+internal static class ScanJoin
 {
     private static readonly XmlReaderSettings Safe = new() { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null };
 

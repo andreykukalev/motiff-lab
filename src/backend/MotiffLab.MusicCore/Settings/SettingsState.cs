@@ -6,7 +6,7 @@ namespace MotiffLab.MusicCore.Settings;
 /// back shows the preset again. Per-piece overrides from the project file lie over it with
 /// <see cref="Resolve"/>. Pure: every change gives a new state.
 /// </summary>
-public sealed record SettingsState
+internal sealed record SettingsState
 {
     private readonly IReadOnlyDictionary<string, string> _values;
 

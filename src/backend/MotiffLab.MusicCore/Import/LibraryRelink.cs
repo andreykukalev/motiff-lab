@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Import;
 
 /// <summary>Where an original of the library is in a fresh listing of its folder.</summary>
-public enum RelinkStatus
+internal enum RelinkStatus
 {
     /// <summary>At its place, with its fingerprint: linked.</summary>
     Linked,
@@ -27,11 +27,11 @@ public enum RelinkStatus
 /// <summary>A file that is possibly the same piece as an original whose content was not found: offered, never linked by itself.</summary>
 /// <param name="Score">How alike, higher first: the names (0 to 100), then 20 for the same pages, 10 for a size within a tenth, 10 for the same folder.</param>
 /// <param name="SamePlace">The file is at the original's place: its content changed.</param>
-public sealed record RelinkCandidate(string Path, int Score, bool SamePlace);
+internal sealed record RelinkCandidate(string Path, int Score, bool SamePlace);
 
 /// <summary>One original in the relink plan.</summary>
 /// <param name="Path">The file it is linked to (linked, unconfirmed, moved), or the different file at its place (changed); null otherwise.</param>
-public sealed record Relinked(LibraryOriginal Original, RelinkStatus Status, string? Path)
+internal sealed record Relinked(LibraryOriginal Original, RelinkStatus Status, string? Path)
 {
     /// <summary>For a changed or missing original, the files that are possibly the same piece, the likeliest first, at most three.</summary>
     public IReadOnlyList<RelinkCandidate> Candidates { get; init; } = [];
@@ -40,7 +40,7 @@ public sealed record Relinked(LibraryOriginal Original, RelinkStatus Status, str
 /// <summary>The relink plan: each original, and the files to fingerprint next, to decide and to confirm.</summary>
 /// <param name="ToFingerprint">The files whose fingerprint decides where an original went: hash these, then plan again.</param>
 /// <param name="ToConfirm">The files linked by place and size, whose fingerprint confirms the link: hash these when there is time.</param>
-public sealed record RelinkPlan(IReadOnlyList<Relinked> Originals, IReadOnlyList<string> ToFingerprint, IReadOnlyList<string> ToConfirm);
+internal sealed record RelinkPlan(IReadOnlyList<Relinked> Originals, IReadOnlyList<string> ToFingerprint, IReadOnlyList<string> ToConfirm);
 
 /// <summary>
 /// Links that heal themselves when the player reorganises the folder (version 0.5, «Импорт папки»; Andrei 2026-11-12 17:47
@@ -51,7 +51,7 @@ public sealed record RelinkPlan(IReadOnlyList<Relinked> Originals, IReadOnlyList
 /// the files that are possibly the same piece, by name, pages and size, which are offered and never linked by
 /// themselves. Pure and deterministic: the same originals and listing give the same plan. Nothing is changed on disk.
 /// </summary>
-public static class LibraryRelink
+internal static class LibraryRelink
 {
     /// <summary>The fewest name points (of 100) a candidate needs, or <see cref="SomeName"/> with the same pages.</summary>
     public const int AlikeName = 50;
