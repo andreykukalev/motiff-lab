@@ -74,10 +74,10 @@ public class MarksSessionTests
     public void Structure_bookmarks_are_written_once_and_a_category_removed_sends_its_bookmarks_to_practise()
     {
         SessionPiece piece = Example(Words.English);
-        SessionPiece structured = piece with { Project = MarksSession.WithStructureBookmarks(piece, Now) };
+        SessionPiece structured = piece with { Project = MarksSession.WithFormBookmarks(piece, Now) };
         Assert.NotEmpty(structured.Project.Bookmarks);
         Assert.All(structured.Project.Bookmarks, bookmark => Assert.Equal((BookmarkCategory.StructureId, Now), (bookmark.CategoryId, bookmark.CreatedAt)));
-        Assert.Equal(structured.Project.Bookmarks, MarksSession.WithStructureBookmarks(structured, Now.AddHours(1)).Bookmarks);
+        Assert.Equal(structured.Project.Bookmarks, MarksSession.WithFormBookmarks(structured, Now.AddHours(1)).Bookmarks);
 
         SessionPiece filed = piece with { Project = MarksSession.WithCategory(piece, "Memory", null) };
         Assert.Equal(InkColour.Graphite, filed.Project.FindCategory("c_0001")!.Ink);

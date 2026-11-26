@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.4 c-5):** contract 15 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-26, v1.5 c-16b):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -57,7 +57,6 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `bookmark.form` | piece |  |
 | `bookmark.move` | piece |  |
 | `bookmark.remove` | piece |  |
-| `bookmark.structure` | piece |  |
 | `bookmarks` | piece | OpenFirst |
 | `catalogue` | piece0 |  |
 | `category.add` | piece |  |
@@ -219,6 +218,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 <!-- End of the calls. -->
 
 ## History
+
+### 16
+
+16 removes bookmark.structure (version 1.5, c-16b, #366), a Structure bookmark for each detected sentence, which no app sends since the Contents files the form's sections with bookmark.form (#347); it answers unknownCall, as the calls 14 and 10 removed do. bookmark.form answers as before, and the project file stays version 17: Structure bookmarks the removed call made open and save as any other bookmark.
 
 ### 15
 

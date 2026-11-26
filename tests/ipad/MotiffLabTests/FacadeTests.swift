@@ -148,11 +148,11 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(changed.bookmarks.first?.title, "Тема")
 
         // The form music-core found, filed as Structure bookmarks once, named in the piece's language.
-        let filed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure")))
+        let filed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.form")))
         XCTAssertGreaterThan(filed.bookmarks.count, 1)
         XCTAssertTrue(filed.bookmarks.dropFirst().allSatisfy { $0.category == BookmarkShelf.structure })
-        XCTAssertTrue(filed.bookmarks.last?.title.hasPrefix("Предложение") ?? false)
-        XCTAssertEqual(try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.structure"))).bookmarks.count, filed.bookmarks.count)
+        XCTAssertTrue(filed.bookmarks.last?.title.hasPrefix("Раздел") ?? false)
+        XCTAssertEqual(try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.form"))).bookmarks.count, filed.bookmarks.count)
         XCTAssertLessThanOrEqual(filed.inScoreOrder.first?.onset ?? .infinity, bookmark.onset)
 
         let removed = try XCTUnwrap(BookmarkShelf(answer: MusicCore.call(piece: piece, "bookmark.remove", "{\"id\": \"\(bookmark.id)\"}")))
