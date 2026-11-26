@@ -49,7 +49,7 @@
   "rollZoom.timeInGreatest": "Масштаб уже наибольший",
   "rollZoom.timeInOneBar": "Один такт уже на всю ширину ролла",
   "rollZoom.timeOut": "Больше тактов",
-  "rollZoom.timeOutWhole": "Вся пьеса уже видна",
+  "rollZoom.timeOutLeast": "Масштаб уже наименьший",
   "roll.collapse": "Свернуть",
   "roll.collapseHint": "Убирает ролл вниз; кнопка ролла в нижней панели возвращает его."
 }

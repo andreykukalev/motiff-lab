@@ -134,8 +134,10 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 1, octaves: 3, timeIn: false), inward: true, ru), "Один такт уже на всю ширину ролла")
         XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 3, octaves: 3, timeIn: false), inward: true, en), "The roll is at its greatest zoom")
         XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 3, octaves: 3, timeIn: false), inward: true, ru), "Масштаб уже наибольший")
-        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, en), "The whole piece is in view")
-        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, ru), "Вся пьеса уже видна")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 0, octaves: 3, timeIn: false), inward: true, en), "The roll is at its greatest zoom", "no bar in view is not one bar")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, en), "The roll is at its least zoom")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, ru), "Масштаб уже наименьший")
+        XCTAssertNil(RollZoom.timeStepReason(RollZoom(bars: 0, octaves: 3, timeOut: false), inward: false, en), "with no bar in view no reason is true")
     }
 
     func testTheZoomIsReadFromTheRollsReport() throws {

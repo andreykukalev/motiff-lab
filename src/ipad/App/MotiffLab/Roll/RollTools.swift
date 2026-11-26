@@ -20,13 +20,14 @@ extension RollZoom {
         text.count("rollZoom.octaveWord", octaves)
     }
 
-    /// Why a time step is off, said by its hint as the Expand button's is (RollDrawer): + with one bar across the roll, or
-    /// at the greatest zoom; − with the whole piece in view. Nil while the step is on.
+    /// Why a time step is off, said by its hint as the Expand button's is (RollDrawer): + with one bar across the roll, else
+    /// at the greatest zoom; − at the least zoom (the roll's, or in Expand the passage's fit: the report does not tell them
+    /// apart). With no bar in view − says nothing, as no reason would be true. Nil while the step is on.
     static func timeStepReason(_ zoom: RollZoom, inward: Bool, _ text: UIText) -> String? {
         if inward {
-            return zoom.timeIn ? nil : text[zoom.bars <= 1 ? "rollZoom.timeInOneBar" : "rollZoom.timeInGreatest"]
+            return zoom.timeIn ? nil : text[zoom.bars == 1 ? "rollZoom.timeInOneBar" : "rollZoom.timeInGreatest"]
         }
-        return zoom.timeOut ? nil : text["rollZoom.timeOutWhole"]
+        return zoom.timeOut || zoom.bars == 0 ? nil : text["rollZoom.timeOutLeast"]
     }
 }
 

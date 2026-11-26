@@ -46,7 +46,7 @@
   "rollZoom.timeInGreatest": "The roll is at its greatest zoom",
   "rollZoom.timeInOneBar": "One bar already fills the roll",
   "rollZoom.timeOut": "More bars",
-  "rollZoom.timeOutWhole": "The whole piece is in view",
+  "rollZoom.timeOutLeast": "The roll is at its least zoom",
   "roll.collapse": "Collapse",
   "roll.collapseHint": "Puts the piano roll down; the roll button at the bottom brings it back."
 }
