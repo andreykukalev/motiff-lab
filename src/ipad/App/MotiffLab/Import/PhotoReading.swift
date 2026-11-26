@@ -54,7 +54,7 @@ final class PhotoReader: ObservableObject {
     func retake(_ page: Int, _ document: PDFDocument, photo: Data, piece: Int32) async -> Bool {
         guard let pdf = PhotoImages.pdf(document, replacing: page - 1, with: photo) else { return false }
         let request = facadeRequest(["pdf": pdf.base64EncodedString()])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "document.replace", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.documentReplace, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             problem = facadeObject(answer)?["message"] as? String
             return false
@@ -89,7 +89,7 @@ final class PhotoReader: ObservableObject {
         let read = readings.readPages
         guard let request = readings.joinRequest(again: again) else { return }
         let json = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.scanJoin, json) }
         guard let object = facadeObject(answer), readings.joined(object, from: read, reports: request["reports"] as? [String]) else {
             problem = facadeObject(answer)?["message"] as? String ?? "music-core did not join the pages."
             return

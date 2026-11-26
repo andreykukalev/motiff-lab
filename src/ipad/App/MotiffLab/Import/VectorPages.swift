@@ -22,7 +22,7 @@ extension ScanServer {
     /// cannot open the file.
     static func vectorPages(_ data: Data) async -> (engine: String, pages: [VectorPage])? {
         let json = facadeRequest(["pdf": data.base64EncodedString()])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.vector", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.scanVector, json) }
         guard let object = facadeObject(answer), object["error"] == nil, let engine = object["engine"] as? String,
               let pages = object["pages"] as? [[String: Any]] else { return nil }
         return (engine, pages.compactMap { page in
@@ -68,7 +68,7 @@ extension ScanServer {
         guard !read.isEmpty else { return .failure(.server(text["pdf.readNone"])) }
         let ordered = read.keys.sorted().compactMap { read[$0] }
         let json = facadeRequest(["pages": ordered.map(\.score)])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.scanJoin, json) }
         guard let object = facadeObject(answer), object["error"] == nil, let score = object["score"] as? String else {
             return .failure(.server(text["import.scanPagesNotJoined"]))
         }

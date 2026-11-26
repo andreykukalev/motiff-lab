@@ -12,7 +12,7 @@ protocol PenScore: AnyObject {
     var pieceId: Int32? { get }
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
     /// that make one change, so the page never shows it half done.
-    func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool) async
+    func changeMarks(_ piece: Int32, _ call: PieceCore.Call, _ request: [String: Any], draws: Bool) async
     /// The Pen was turned on or off (`PenModel.penOn`).
     func penTurned(_ on: Bool)
     /// The pen's tool became or stopped being the colour bars, or their colour changed (`PenState.colouring`): who
@@ -80,7 +80,7 @@ final class PenModel: ObservableObject, PenHolder {
             self.inkStepsChanged()
             // The colours first, then the ink, whose last call draws both: the step is drawn once.
             await score.recolour(last.colouring.reversed, draws: !last.changesInk)
-            await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+            await last.undo(remove: PieceCore.Call.inkRemove, add: .inkAdd) { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
         }
@@ -93,7 +93,7 @@ final class PenModel: ObservableObject, PenHolder {
             guard let self, let score = self.score, let piece = score.pieceId, let step = self.steps.redo() else { return }
             self.inkStepsChanged()
             await score.recolour(step.colouring, draws: !step.changesInk)
-            await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
+            await step.redo(remove: PieceCore.Call.inkRemove, add: .inkAdd) { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
         }
@@ -192,9 +192,9 @@ final class PenModel: ObservableObject, PenHolder {
     private func saveRub(_ removed: [[String: Any]], _ pieces: [[String: Any]], in piece: Int32) async -> InkStep {
         guard let score, !removed.isEmpty else { return InkStep() }
         if !pieces.isEmpty {
-            await score.changeMarks(piece, "ink.add", ["strokes": pieces], draws: false)
+            await score.changeMarks(piece, .inkAdd, ["strokes": pieces], draws: false)
         }
-        await score.changeMarks(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }], draws: true)
+        await score.changeMarks(piece, .inkRemove, ["ids": removed.compactMap { $0["id"] as? String }], draws: true)
         return InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces)
     }
 
@@ -206,7 +206,7 @@ final class PenModel: ObservableObject, PenHolder {
               let id = mark["id"] as? String
         else { return }
         record(InkStep(added: [id], strokes: [mark]))
-        await score.changeMarks(piece, "ink.add", ["strokes": [mark]], draws: true)
+        await score.changeMarks(piece, .inkAdd, ["strokes": [mark]], draws: true)
     }
 
     /// How the stroke beginning now looks while it is written: as the page will draw it at this zoom (InkOutline), the

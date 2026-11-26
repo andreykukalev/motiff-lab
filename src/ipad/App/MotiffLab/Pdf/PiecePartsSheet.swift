@@ -54,7 +54,7 @@ final class PieceSplitter: ObservableObject {
         guard !layerBusy, making == nil else { return }
         layerBusy = true
         defer { layerBusy = false }
-        let answer = await PiecesLayer.withNotes(file: file, language: text.language) { (piece: Int32) -> String in MusicCore.call(piece: piece, "pieces.find") }
+        let answer = await PiecesLayer.withNotes(file: file, language: text.language) { (piece: Int32) -> String in PieceCore(piece: piece).send(.piecesFind) }
         guard let answer, let found = PiecesLayer.rows(answer, pageCount: rows.pageCount) else {
             layerStatus = text["pieces.noSuggestion"]
             return
@@ -78,9 +78,9 @@ final class PieceSplitter: ObservableObject {
         let request = PiecesLayer.saveRequest(rows.rows, now: Date())
         let now = "{\"now\": \"\(ISO8601DateFormatter().string(from: Date()))\"}"
         let answers = await PiecesLayer.withNotes(file: file, language: text.language) { (piece: Int32) -> (saved: String, file: String?) in
-            let saved = MusicCore.call(piece: piece, "pieces.save", request)
+            let saved = PieceCore(piece: piece).send(.piecesSave, request)
             guard case .success = PiecesLayer.kept(saved) else { return (saved, nil) }
-            return (saved, MusicCore.call(piece: piece, "project.save", now))
+            return (saved, PieceCore(piece: piece).send(.projectSave, now))
         }
         guard let answers else {
             layerStatus = text["parts.pdf.failedNoWord"]
@@ -111,7 +111,7 @@ final class PieceSplitter: ObservableObject {
         problem = nil
         let now = Date()
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
-        let file = await MusicCore.run { MusicCore.call(piece: piece, "project.save", request) }
+        let file = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         // A refusal is a few words; the project file, with its PDF, can run to tens of megabytes and is not parsed here.
         if file.utf8.count < 4096, let failure = facadeObject(file), failure["error"] != nil {
             problem = failure["message"] as? String ?? text["parts.pdf.failedNoWord"]
@@ -148,7 +148,7 @@ final class PieceSplitter: ObservableObject {
         }
         let fields = PartsSplit.request(file: file, row: row, number: number, pdf: pdf, pages: rows.pageCount, playlist: playlist, collection: collection, now: now, text: text)
         let json = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "parts.split", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.partsSplit, json) }
         switch PartsSplit.made(answer) {
         case .failure(let failure):
             return .failure(failed(failure.message))

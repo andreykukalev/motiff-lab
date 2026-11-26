@@ -308,7 +308,7 @@ enum RecordingParts {
     static func plan(_ milliseconds: Int64, levels: [Int] = []) async -> [Part] {
         let fields: [String: Any] = ["milliseconds": milliseconds, "levels": levels]
         let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "recording.parts", request) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.recordingParts, request) }
         return (facadeObject(answer)?["parts"] as? [[String: Any]] ?? []).compactMap { part in
             guard let index = (part["index"] as? NSNumber)?.intValue,
                   let from = (part["sendFrom"] as? NSNumber)?.int64Value,

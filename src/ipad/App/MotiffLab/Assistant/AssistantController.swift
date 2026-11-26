@@ -497,8 +497,8 @@ final class AssistantController: ObservableObject {
     static func run(_ call: AssistantToolCall, role: String, place: AssistantDraftPlace?, piece: Int32) async -> JSONValue {
         let fields: [String: JSONValue] = ["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]
         let request = JSONValue.object(fields.merging(place?.fields ?? [:]) { $1 }).text
-        let name = place == nil ? "assistant.call" : "drafts.call"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        let name: PieceCore.Call = place == nil ? .assistantCall : .draftsCall
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, request) }
         return AssistantTurns.content(ofFacade: answer, tool: call.name)
     }
 
@@ -526,8 +526,8 @@ final class AssistantController: ObservableObject {
             request["selection"] = .object(["onset": .int(Int(selection.onset.rounded())), "end": .int(Int(selection.end.rounded()))])
         }
         let body = JSONValue.object(place?.fields ?? request).text
-        let name = place == nil ? "assistant.context" : "drafts.context"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+        let name: PieceCore.Call = place == nil ? .assistantContext : .draftsContext
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, body) }
         return JSONValue.parse(answer)?["context"]
     }
 }

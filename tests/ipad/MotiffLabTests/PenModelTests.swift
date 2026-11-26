@@ -59,8 +59,8 @@ final class PenModelTests: XCTestCase {
         var colourChanges = true
         var changed: (() -> Void)?
 
-        func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool) async {
-            changes.append(Change(piece: piece, call: call, request: facadeRequest(request), draws: draws))
+        func changeMarks(_ piece: Int32, _ call: PieceCore.Call, _ request: [String: Any], draws: Bool) async {
+            changes.append(Change(piece: piece, call: call.rawValue, request: facadeRequest(request), draws: draws))
             changed?()
         }
 

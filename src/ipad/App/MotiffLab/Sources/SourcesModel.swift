@@ -93,13 +93,13 @@ final class SourcesModel: ObservableObject {
 
     /// The versions kept with the piece (`performances`), as music-core answers them.
     func readList(of piece: Int32) async {
-        read(list: await MusicCore.run { MusicCore.call(piece: piece, "performances") })
+        read(list: await MusicCore.run { PieceCore(piece: piece).send(.performances) })
     }
 
     /// The version compared bar by bar with these notes (`performance`), or why it could not be read.
     func readVersion(_ id: String, in piece: Int32) async {
         let request = facadeRequest(["id": id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.performance, request) }
         if !read(performance: answer) { status = FacadeAnswer.message(answer) }
     }
 
@@ -109,7 +109,7 @@ final class SourcesModel: ObservableObject {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != versions.entries.first(where: { $0.id == id })?.name else { return }
         let request = facadeRequest(["id": id, "name": trimmed])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "performance.rename", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.performanceRename, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status = FacadeAnswer.message(answer)
             return

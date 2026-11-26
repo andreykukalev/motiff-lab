@@ -183,7 +183,7 @@ struct ScoreScreenContent: View {
         // «Идеи по смыслу» (#582 item 15): the ideas by what they are in the music.
         let request = #"{"ideas":"musical"}"#
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna", request) }
+            let answer = await MusicCore.run { PieceCore(piece: id).send(.dna, request) }
             guard let map = DnaMap(answer: answer) else { return }
             dnaFromMore = fromMore
             dna = map

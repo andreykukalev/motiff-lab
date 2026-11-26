@@ -1,6 +1,5 @@
 {
   "sources.roleNotes": "Ноты",
-  "sources.makeWorking": "Сделать рабочими",
   "sources.appWrittenBars.one": "По записи источника, {0} такт записан приложением",
   "sources.appWrittenBars.few": "По записи источника, {0} такта записаны приложением",
   "sources.appWrittenBars.many": "По записи источника, {0} тактов записано приложением",

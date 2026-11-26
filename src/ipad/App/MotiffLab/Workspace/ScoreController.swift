@@ -611,13 +611,13 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         Task {
             if let id = draft.id {
                 if words.isEmpty {
-                    await changeMarks(piece.id, "note.remove", ["id": id])
+                    await changeMarks(piece.id, .noteRemove, ["id": id])
                 } else {
-                    await changeMarks(piece.id, "note.change", ["id": id, "text": words])
+                    await changeMarks(piece.id, .noteChange, ["id": id, "text": words])
                 }
             } else if !words.isEmpty {
                 let span = ["onset": Int(draft.onset), "end": Int(draft.end)]
-                await changeMarks(piece.id, "note.add", ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
+                await changeMarks(piece.id, .noteAdd, ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
             }
         }
     }
@@ -625,7 +625,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func deleteNote(_ id: String) {
         guard let piece else { return }
         marksModel.noteDraft = nil
-        Task { await changeMarks(piece.id, "note.remove", ["id": id]) }
+        Task { await changeMarks(piece.id, .noteRemove, ["id": id]) }
     }
 
     /// Shows or hides layers of marks, kept with the piece.
@@ -705,7 +705,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         let request = facadeRequest(fields)
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
+            let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.checkResolve, request) }
             if let shelf = CheckShelf(answer: answer) {
                 check = shelf
                 await drawChecks()
@@ -941,7 +941,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func loadCheck(_ piece: OpenPiece) async {
         let before = check.fingerprint
-        check = CheckShelf(answer: await MusicCore.run { MusicCore.call(piece: piece.id, "check") }) ?? CheckShelf()
+        check = CheckShelf(answer: await MusicCore.run { PieceCore(piece: piece.id).send(.check) }) ?? CheckShelf()
         variantChoice.notesRead(check.fingerprint)
         if check.fingerprint != before || ScanServer.jobs != (scanReview != nil) { await loadScanReview() }
         await drawChecks()
@@ -989,7 +989,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         let name = (fileName as NSString).deletingPathExtension
         let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.performanceAdd, request) }
         guard sourcesModel.read(performance: answer) else {
             sourcesModel.say(FacadeAnswer.message(answer))
             return
@@ -1013,7 +1013,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func readSources() async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.sources) }
         sourcesModel.read(sources: answer)
     }
 
@@ -1052,7 +1052,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func setPieceTempo(_ perMinute: Int?) async {
         guard let piece else { return }
         let request = perMinute.map { "{\"perMinute\": \($0)}" } ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "tempo.set", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.tempoSet, request) }
         if let failure = facadeObject(answer), failure["error"] != nil {
             problem = FacadeAnswer.message(answer)
             return
@@ -1419,7 +1419,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await sendModeNow()
             await sendPlayheadsNow()
             await sendVisibilities()
-            let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
+            let marks = await MusicCore.run { PieceCore(piece: piece.id).send(.marks) }
             await draw(marks)
             ProbeCounts.shared.mark("marks")
             await loadPhrases(piece)
@@ -1468,9 +1468,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
     /// that make one change, so the page never shows it half done.
-    func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
+    func changeMarks(_ piece: Int32, _ call: PieceCore.Call, _ request: [String: Any], draws: Bool = true) async {
         let text = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(call, text) }
         if draws { await draw(answer) }
     }
 
