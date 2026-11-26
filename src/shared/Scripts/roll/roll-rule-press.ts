@@ -48,17 +48,17 @@ export class RollRulePress {
         return this.press === null || this.box === null ? null : { from: this.press, to: this.box };
     }
 
-    /** The press goes, or only this pointer's; a box drawn stays until a press ends. */
+    /** The press goes, or only this pointer's, and the box it drew, so a later press cannot pick that box. */
     drop(pointer?: number): void {
         if (pointer === undefined || this.press?.pointer === pointer) {
             this.press = null;
+            this.box = null;
         }
     }
 
     /** No press or box goes on. */
     cancel(): void {
-        this.press = null;
-        this.box = null;
+        this.drop();
     }
 
     /**
