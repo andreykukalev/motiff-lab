@@ -2,8 +2,8 @@
 // draft's приём number, seam diamond or anchor mark, a phrase's number held); when the page scrolls or is laid out again
 // (a rotation, Split View) the mark's new place goes to Swift (`markMoved`), so the card stays under it. The mark is
 // forgotten when Swift says no card shows there any more (`markForgotten`: its card closed by its own cover, which the
-// page never hears), when a press reaches the page (the card covers it while it shows), and when other pages or another
-// version's marks are drawn.
+// page never hears), when a press reaches the page (the card covers it while it shows), and when other pages are drawn;
+// a mark drawn anew is found again, one gone is forgotten.
 import { post } from "./page-state.js";
 
 /** The mark followed as last found, and how to find it again once it is drawn anew; null while none is followed. */
@@ -53,7 +53,7 @@ export function tellMarkMoved(): void {
     post({ markMoved: place });
 }
 
-/** No mark is followed: Swift's `markForgotten`, a press on the page, other pages or another version's marks. */
+/** No mark is followed: Swift's `markForgotten`, a press on the page, other pages. */
 export function forgetMark(): void {
     followed = null;
 }

@@ -7,7 +7,6 @@
 import { BRACKET_LIFT, type ScoreBar, type ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PageMarker } from "../page-contract.js";
 import { state } from "./page-state.js";
-import { forgetMark } from "./page-mark-place.js";
 import { NOTE_OFFSET_X, placeNotes, tint } from "./page-marks.js";
 
 /** How far under a taken bar's lowest staff its plum line runs, in pixels, as the web app's score view has it. */
@@ -49,8 +48,6 @@ let taken: number[] = [];
  * `performance` is the clock.
  */
 export function showVersion(version: Parameters<PageCommands["performance"]>[0]): number {
-    // Another version's marks: the one a card was opened under is no longer followed (r-1).
-    forgetMark();
     markers = version.markers ?? [];
     unheard = new Set(version.unheard ?? []);
     artefacts = new Set(version.artefacts ?? []);

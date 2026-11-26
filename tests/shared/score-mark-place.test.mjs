@@ -63,7 +63,7 @@ test("a mark drawn anew is found once and kept; one gone is forgotten", () => {
     assert.equal(asked, 1, "not found: no longer followed");
 });
 
-test("forgotten (Swift's markForgotten, a press on the page, other pages or marks), a mark tells nothing", () => {
+test("forgotten (Swift's markForgotten, a press on the page, other pages), a mark tells nothing", () => {
     posted.length = 0;
     const label = mark({ left: 0, bottom: 0 });
     follow(label);
