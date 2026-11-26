@@ -51,9 +51,9 @@ final class AssistantController: ObservableObject {
     private var piece: String?
     /// The score whose notes a draft is accepted on (`corrections.acceptDraft`).
     private weak var score: ScoreController?
-    /// The screen it serves now, by its score (`load`), and how many it has served: a draft's visit hands one controller to
-    /// each screen its view opens again on (v1.4), and what belonged to the screen before goes.
-    private var screen: ObjectIdentifier?
+    /// Whether it has served a screen yet (`load` with a score), and how many it has left: a draft's visit hands one
+    /// controller to each screen its view opens again on (v1.4), and what belonged to the screen before goes.
+    private var served = false
     private var screens = 0
 
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
@@ -74,8 +74,9 @@ final class AssistantController: ObservableObject {
     /// the screen before (`leaveScreen`, v1.4).
     func load(piece key: String, score: ScoreController? = nil) {
         if let score {
-            if let before = screen, before != ObjectIdentifier(score) { leaveScreen() }
-            screen = ObjectIdentifier(score)
+            // Another screen's score, or the one before already freed (nil), is another screen; the visit's first is none.
+            if served, self.score !== score { leaveScreen() }
+            served = true
             self.score = score
         }
         guard key != piece else { return }

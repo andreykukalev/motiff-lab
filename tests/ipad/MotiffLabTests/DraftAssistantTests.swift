@@ -344,6 +344,41 @@ final class DraftAssistantTests: XCTestCase {
         second.disappeared()
     }
 
+    /// Review round 2 (v1.4): a panel question on its way when the screen is made again (another score loads) is dropped:
+    /// nothing joins the piece's conversations, and nothing is left busy; a question asked on the new screen is kept.
+    func testAPanelQuestionFromTheScreenBeforeIsDropped() async throws {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        opened.append(piece.id)
+        let assistant = controller()
+        assistant.consent(true)
+        assistant.load(piece: "p_screens", score: ScoreController())
+        let ask = AssistantAsk(piece: piece.id, selection: nil, wholePiece: true, scope: "The whole piece", language: "en", role: "mentor", relay: stubbed())
+        AssistantStub.answers = ["status": allowed, "turn": (200, Data(#"{"kind": "answer", "text": "It is in A minor", "fallback": false}"#.utf8))]
+        AssistantStub.holdTurn = true
+        defer { AssistantStub.holdTurn = false }
+        let before = Task { await assistant.ask("Before", about: ask) }
+        for _ in 0..<500 where !AssistantStub.inTurn { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(AssistantStub.inTurn, "the question is on its way")
+        XCTAssertTrue(assistant.busy)
+
+        let next = ScoreController()
+        assistant.load(piece: "p_screens", score: next)
+        AssistantStub.holdTurn = false
+        AssistantStub.release.signal()
+        await before.value
+        XCTAssertEqual(assistant.chats, [], "asked on the screen before: nothing joins the conversations")
+        XCTAssertFalse(assistant.busy)
+        XCTAssertNil(assistant.pending)
+        XCTAssertEqual(assistant.phase, .idle)
+
+        await assistant.ask("After", about: ask)
+        let questions = assistant.current?.exchanges.map(\.question)
+        XCTAssertEqual(questions, ["After"], "a question on the new screen is kept")
+        let answered = assistant.current?.exchanges.first?.note
+        XCTAssertNil(answered, "and answered")
+    }
+
     /// F5 (v1.4): in a bridge place, the bridge chooser's conversation proposes a candidate as the base, music-core's
     /// step; only «Принять» makes it the base.
     func testTheBridgeChooserProposesACandidateInTheBridgesCard() async throws {
