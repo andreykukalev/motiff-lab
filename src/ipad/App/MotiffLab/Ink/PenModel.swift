@@ -180,7 +180,8 @@ final class PenModel: ObservableObject, PenHolder {
             guard let start = (span["start"] as? NSNumber)?.doubleValue, let end = (span["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
             return start..<end
         }
-        let colouring = uncoloured.isEmpty ? Recolouring() : await score.uncolourBars(uncoloured, draws: removed.isEmpty)
+        var colouring = Recolouring()
+        if !uncoloured.isEmpty { colouring = await score.uncolourBars(uncoloured, draws: removed.isEmpty) }
         var step = await saveRub(removed, cut["added"] as? [[String: Any]] ?? [], in: piece)
         step.colouring = colouring
         record(step)
