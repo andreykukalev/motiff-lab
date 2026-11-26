@@ -5,49 +5,9 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
-/// <summary>What plays and what the roll shows (0018 section 4): the playback score, its tempo and the hands, and the roll's flat arrays (packed by <c>PianoRollData</c>, written with <see cref="JsonWrite"/>'s list writers: D12).</summary>
+/// <summary>What plays (0018 section 4): the playback score, its tempo and the hands; the roll's data is <see cref="RollAnswer"/>'s.</summary>
 internal static partial class Answer
 {
-    /// <summary>The piano roll's data, with the field names the roll reads (Scripts/roll/roll-model.ts, RollPayload).</summary>
-    public static void Roll(Utf8JsonWriter json, RollPayload payload, RollNames names)
-    {
-        JsonWrite.Texts(json, "ids", payload.Ids);
-        JsonWrite.Numbers(json, "notes", payload.Notes);
-        JsonWrite.Numbers(json, "bars", payload.Bars);
-        json.WriteNumber("end", payload.End);
-        json.WriteStartObject("names");
-        JsonWrite.Texts(json, "notes", names.Notes);
-        JsonWrite.Numbers(json, "keyTicks", names.KeyTicks);
-        json.WriteStartArray("rows");
-        foreach (string[] row in names.Rows)
-        {
-            JsonWrite.Texts(json, null, row);
-        }
-
-        json.WriteEndArray();
-        JsonWrite.Texts(json, "short", names.Short);
-        json.WriteStartArray("shortRows");
-        foreach (string[] row in names.ShortRows)
-        {
-            JsonWrite.Texts(json, null, row);
-        }
-
-        json.WriteEndArray();
-        JsonWrite.Texts(json, "octaves", names.Octaves);
-        json.WriteStartArray("voices");
-        foreach (VoiceName voice in names.Voices)
-        {
-            json.WriteStartObject();
-            json.WriteNumber("track", voice.Track);
-            json.WriteNumber("voice", voice.Voice);
-            json.WriteString("name", voice.Name);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
-        json.WriteEndObject();
-    }
-
     /// <summary>
     /// "tempo": {"perMinute", "source"} of the tempo at the start as played, quarter notes a minute; "piece": the same as
     /// the piece states it, before the player's tempo; "player": the player's tempo for the piece, or null (version 0.5.4).

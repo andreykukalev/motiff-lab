@@ -203,7 +203,7 @@ struct PlaybackAnswer: Decodable, Sendable {
     let hands: Hands?
 }
 
-/// The piano roll's data (`Answer.Roll`, `PianoRollData`): `roll`, the notes and bars packed as `Scripts/roll/roll-model.ts`
+/// The piano roll's data (`RollAnswer.Write`, `PianoRollData`): `roll`, the notes and bars packed as `Scripts/roll/roll-model.ts`
 /// reads them, and their names spelled for the keys. The app reads none of it: the roll page gets it whole
 /// (`RollPage.load`), every field music-core writes.
 struct RollAnswer: Decodable, Sendable {
