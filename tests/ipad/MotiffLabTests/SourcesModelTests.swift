@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 
 @testable import MotiffLab
@@ -76,6 +77,11 @@ final class SourcesModelTests: XCTestCase {
         score.versionPicked = { asked.append($0) }
         score.handle(.performanceBar(12, left: 40.5, bottom: 300))
         XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 40.5, bottom: 300))
+        // r-1: the page scrolled or was laid out again on a rotation: the popover stays under its marker, and a phrase's
+        // menu, none shown, does not open.
+        score.handle(.markMoved(CGPoint(x: 52, y: 120)))
+        XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 52, bottom: 120))
+        XCTAssertNil(score.phraseMenu)
         score.openSourcesFromMarker()
         XCTAssertNil(score.sourcesModel.markerPick)
         XCTAssertEqual(asked, [12])
@@ -85,6 +91,27 @@ final class SourcesModelTests: XCTestCase {
         score.closeMarker()
         XCTAssertNil(score.sourcesModel.markerPick)
         XCTAssertEqual(asked, [12])
+    }
+
+    /// r-1: a card at a mark closes by its own cover, which the page never hears; the next `markMoved` finds no card and
+    /// tells the page to stop following the mark (`markForgotten`), so a scroll (playback turning the line) posts nothing.
+    func testAMarkMovedWithNoCardOpenTellsThePageToForgetTheMark() async {
+        let score = ScoreController()
+        let page = RecordingScorePage()
+        var sent: [PageCommand] = []
+        let forgotten = expectation(description: "the page told to forget the mark")
+        page.called = { command, _ in
+            sent.append(command)
+            if command == .markForgotten { forgotten.fulfill() }
+        }
+        score.scorePage = page
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300))
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 200)))
+        score.closeMarker()
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 100)))
+        await fulfillment(of: [forgotten], timeout: 5)
+        XCTAssertEqual(sent.filter { $0 == .markForgotten }.count, 1, "only once no card shows; the popover moved before")
+        XCTAssertNil(score.sourcesModel.markerPick, "and none opens")
     }
 
     /// «Переименовать…» on a version's row: music-core keeps the new name, the list shows it and the version shown stays the

@@ -53,6 +53,23 @@ final class AssistantTests: XCTestCase {
         XCTAssertNil(history.first?["calls"], "no empty fields are sent")
     }
 
+    /// v1.4 (a conversation in a draft, the plan's answer 8): a long conversation goes on, the oldest finished exchanges
+    /// left out while the turn is larger than it may be; only a question whose own context is too large is refused.
+    func testTheTurnLeavesOutTheOldestExchangesBeyondItsSize() {
+        let long = String(repeating: "x", count: AssistantChat.maxBytes / 4)
+        var talk = chat(role: "explainer")
+        for index in 0..<6 { talk = talk.asking("Q\(index)").answered(long) }
+        talk = talk.asking("Last")
+        let turn = talk.request(language: "en", context: context)
+        XCTAssertLessThanOrEqual(turn.data.count, AssistantChat.maxBytes, "it fits a turn")
+        let history = turn["history"]?.items ?? []
+        XCTAssertEqual(history.first?["kind"], .string("question"), "it starts on a question")
+        XCTAssertEqual(history.last?["text"], .string("Last"), "the question asked is always there")
+        XCTAssertGreaterThan(history.count, 1, "with the latest exchanges before it")
+        let alone = chat().asking("Last").request(language: "en", context: .string(String(repeating: "x", count: AssistantChat.maxBytes)))
+        XCTAssertGreaterThan(alone.data.count, AssistantChat.maxBytes, "a context too large alone is not cut: the turn says so")
+    }
+
     func testTheRepliesAndProblemsAreTheWebAppsOnes() {
         XCTAssertEqual(AssistantReply(.object(["kind": .string("notConfigured")])), .notConfigured)
         XCTAssertEqual(AssistantReply(JSONValue.parse(#"{"kind": "answer", "text": "x [[key]]", "fallback": true}"#)!), .answer(text: "x [[key]]", fallback: true))

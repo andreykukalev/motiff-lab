@@ -36,7 +36,11 @@ final class RollController: NSObject, ObservableObject {
     @Published private(set) var colourBy = "hand"
     /// Whether another colour scheme tells this piece's notes apart.
     @Published private(set) var canChangeColour = false
+    /// Why the last load did not show the notes (music-core gave no roll, the page refused them); nil once a load has.
     @Published private(set) var problem: String?
+    /// Whether the roll shows no notes because its load failed: it says so in its place (RollSurface), and opened again
+    /// it loads again. A load again that failed leaves the notes shown before.
+    var failed: Bool { problem != nil && !loaded }
 
     /// A bar tapped or a stretch dragged on the roll's bar numbers or the selection's handles, with its gesture for the
     /// selection's history (#511 11); `byBeats` says how a drag selects (by beats where the score does).
@@ -360,6 +364,7 @@ final class RollController: NSObject, ObservableObject {
             )
             colourBy = shown.colourBy
             canChangeColour = shown.canChangeColour
+            problem = nil
             loaded = true
             shownPiece = id
             if lanesOn {

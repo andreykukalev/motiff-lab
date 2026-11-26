@@ -100,17 +100,21 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `drafts.base` | piece |  |
 | `drafts.bridge` | piece |  |
 | `drafts.call` | piece |  |
+| `drafts.carry` | piece |  |
+| `drafts.carryPlaces` | piece |  |
 | `drafts.context` | piece |  |
 | `drafts.findOnRecording` | piece |  |
 | `drafts.leave` | piece |  |
 | `drafts.leaveBridge` | piece |  |
 | `drafts.leaveSeam` | piece |  |
+| `drafts.length` | piece |  |
 | `drafts.movePlace` | piece |  |
 | `drafts.open` | piece |  |
 | `drafts.place` | piece |  |
 | `drafts.proposal` | piece |  |
 | `drafts.remove` | piece |  |
 | `drafts.rename` | piece |  |
+| `drafts.resize` | piece |  |
 | `drafts.seams` | piece |  |
 | `drafts.sheet` | piece |  |
 | `drafts.take` | piece |  |
@@ -233,6 +237,8 @@ Also within 14 (version 1.4, c-2, the call registry): on a piece without notes, 
 "badRequest" before. No app sends such a call.
 
 Also within 14 (version 1.4, c-3, the plan's F1 and F2): drafts.movePlace moves a place of a draft to an index among its places, dropping the «Оставить» of a seam whose place has another before it now (`DraftRequest.Move`); drafts.findOnRecording answers the stretch of each of the piece's recordings that is a place's music and drafts.addFromRecording puts one in as a variant of the place, «Найти на записи» (`DraftRecordingRequest`, `OnRecording`); both changes of structure are undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
+
+Also within 14 (version 1.4, c-3b, Andrei's answers of 2026-11-26): drafts.length answers how long a place is in the bars of its source and whether it can change, drafts.resize cuts its base again from those Notes over other bars, the steps and seams kept as they are outside the new span dropped (`DraftLengthRequest`, `PlaceLength`); drafts.carryPlaces answers where a приём of a place fits in the draft's other places and drafts.carry puts in, for one of them, a variant music-core builds with that приём (`DraftCarryRequest`, `TechniqueCarry`); drafts.movePlace also drops a bridge place whose neighbours change, and drafts.resize one whose seam's edge moved, its steps in "dropped", a bridge place itself is not moved (unavailable), and a bridge put in or left drops the «Оставить» of the seam after it; changes of structure undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
 
 Also within 14 (version 1.4, c-4, «Как напечатано» step 1): notation writes notes with a source record (read from a PDF,
 or imported MusicXML) as the score prints them where the record fits, and answers "appWrittenBarCount", the bars the app

@@ -53,7 +53,6 @@
   "assistantDraft.stale": "This draft no longer fits the notes. Ask again.",
   "padAssistant.title": "Assistant",
   "padAssistant.conversations": "Conversations",
-  "padAssistant.new": "New conversation",
   "padAssistant.noConversations": "No conversations about this piece yet.",
   "padAssistant.continue": "Continue in the chat",
   "padAssistant.continueHint": "Opens the assistant's chat with a new conversation that starts from this question and its answer, to go on asking there.",

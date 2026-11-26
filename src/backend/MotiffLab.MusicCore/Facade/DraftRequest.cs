@@ -196,8 +196,7 @@ internal static class DraftRequest
             DraftDrop.Place => draft.NextPlaceId(),
             _ => null,
         };
-        IReadOnlyList<DraftStep> dropped = draft.Places.Any(each => each.Find(variant) is not null) ? draft.StepsNaming(variant) : [];
-        return Restructured(owner, request, draft, place, variant, dropped, each => each.Placed(variant, drop, place));
+        return Restructured(owner, request, draft, place, variant, each => each.Placed(variant, drop, place));
     }
 
     /// <summary>
@@ -210,16 +209,18 @@ internal static class DraftRequest
     {
         (Draft draft, string variant) = VariantOf(owner, request);
         string place = request.Required("place");
-        IReadOnlyList<DraftStep> dropped = draft.FindPlace(place)?.Base == variant ? [] : draft.StepsOf(place);
-        return Restructured(owner, request, draft, place, variant, dropped, each => each.WithBase(place, variant));
+        return Restructured(owner, request, draft, place, variant, each => each.WithBase(place, variant));
     }
 
     /// <summary>
     /// «Карта черновика: порядок мест» (version 1.4, F1): the place "place" of the draft "draft" moved to "index" among its
     /// places, from 0, the others in their order (<see cref="Draft.WithPlaceAt"/>); a place moved where it is, or to an index
-    /// outside the places, is a bad request. Answers the sources with "draft", "place" and "dropped", the numbers of the
-    /// steps that kept a seam as it was («Оставить») where the place before it is another now, so that seam is a new one.
-    /// Undone as <see cref="Place"/> is.
+    /// outside the places, is a bad request, and a bridge place itself, built for its seam, is unavailable (the lead's
+    /// decision, version 1.4 c-3b). A bridge place whose place before or after it is another now goes, made for a
+    /// seam that is no longer there (the lead's decision, version 1.4 c-3b), and so does each step that kept a seam as it
+    /// was («Оставить») where the place before it is another now. Answers the sources with "draft", "place" and "dropped",
+    /// the numbers of the steps that went: those «Оставить» and the steps of a bridge place that went. Undone as
+    /// <see cref="Place"/> is.
     /// </summary>
     public static string Move(OpenPiece owner, Request request)
     {
@@ -227,8 +228,12 @@ internal static class DraftRequest
         Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
         string place = request.Required("place");
         int index = request.RequiredInt("index");
-        IReadOnlyList<DraftStep> dropped = Refused(() => draft.SeamsLeftMoving(place, index));
-        return Restructured(owner, request, draft, place, null, dropped, each => each.WithPlaceAt(place, index));
+        if (draft.FindPlace(place) is { Bridge: true })
+        {
+            throw FacadeException.Unavailable(owner.Words.T("A bridge can't be moved: it is built for its seam.", "Связку нельзя переставить: она построена для своего стыка."));
+        }
+
+        return Restructured(owner, request, draft, place, null, each => each.WithPlaceAt(place, index));
     }
 
     /// <summary>
@@ -340,19 +345,20 @@ internal static class DraftRequest
     /// <summary>
     /// The draft's structure changed by <paramref name="change"/>, the draft as it was kept for drafts.undo; one the draft
     /// cannot make (no such variant or place, a base moved, a variant or a place put where it is) is a bad request. Answers
-    /// the sources with the ids (no "variant" when <paramref name="variant"/> is null), "dropped", the numbers of
-    /// <paramref name="dropped"/>, and what <paramref name="more"/> writes.
+    /// the sources with the ids (no "variant" when <paramref name="variant"/> is null), "dropped", the numbers of the steps
+    /// the change took out of the journal, and what <paramref name="more"/> writes of the draft changed.
     /// </summary>
-    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change, Action<Utf8JsonWriter>? more = null)
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, Func<Draft, Draft> change, Action<Utf8JsonWriter, Draft>? more = null)
     {
+        Draft changed = draft;
         string answer = owner.Changed(
             request,
-            piece => piece.ChangeDraft(draft.Id, each => Refused(() => change(each))),
+            piece => piece.ChangeDraft(draft.Id, each => changed = Refused(() => change(each))),
             json =>
             {
                 Added(json, draft.Id, place, variant);
-                JsonWrite.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
-                more?.Invoke(json);
+                JsonWrite.Numbers(json, "dropped", [.. draft.Steps.Select(static step => step.Number).Except(changed.Steps.Select(static step => step.Number))]);
+                more?.Invoke(json, changed);
             });
         owner.KeepDraftBefore(draft);
         return answer;

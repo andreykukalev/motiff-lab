@@ -88,7 +88,7 @@ internal static class DraftRecordingRequest
             throw FacadeException.Unavailable(owner.Words.T("The place has this stretch of the recording already.", "Этот отрезок записи уже есть в месте."));
         }
 
-        return DraftRequest.Restructured(owner, request, draft, placeId, chosen.Variant.Id, [], each => each.With(chosen.Variant, DraftDrop.Variant, placeId), json => json.WriteNumber("percent", chosen.Match.Percent));
+        return DraftRequest.Restructured(owner, request, draft, placeId, chosen.Variant.Id, each => each.With(chosen.Variant, DraftDrop.Variant, placeId), (json, _) => json.WriteNumber("percent", chosen.Match.Percent));
     }
 
     /// <summary>What the search found on one recording: the variant it would put in (its id the draft's next, added at <c>at</c>), how much is found, and the place's variant of that stretch already.</summary>
@@ -108,7 +108,7 @@ internal static class DraftRecordingRequest
         List<Found> found = [];
         foreach (SourceNotes notes in PieceViews.Of(project, HoldingDevice.Ipad).Notes.Where(each => each.Provenance.Op == NotesProvenance.AudioRecognition && (only is null || each.Id == only)))
         {
-            if (Heard(project, notes.Id) is not var (heard, piece, music) || OnRecording.Find(place, music) is not var (span, match))
+            if (Opened(project, notes.Id, EditsLayer.Lenient) is not var (heard, piece, music) || OnRecording.Find(place, music) is not var (span, match))
             {
                 continue;
             }
@@ -121,13 +121,16 @@ internal static class DraftRecordingRequest
         return [.. found.OrderByDescending(static each => each.Match.Matched)];
     }
 
-    /// <summary>The Notes <paramref name="id"/> of the project as they open, with their corrections, and their music; null when they no longer open.</summary>
-    private static (Project Notes, ImportedPiece Piece, SourceMusic Music)? Heard(Project project, string id)
+    /// <summary>
+    /// The Notes <paramref name="id"/> of the project (or a version) as they open, their corrections laid as
+    /// <paramref name="layer"/> says, and their music; null when they are no longer there or no longer open.
+    /// </summary>
+    internal static (Project Notes, ImportedPiece Piece, SourceMusic Music)? Opened(Project project, string id, EditsLayer layer)
     {
         try
         {
             Project notes = project.ViewOf(id);
-            OpenedProject opened = OpenedProject.Open(notes, EditsLayer.Lenient);
+            OpenedProject opened = OpenedProject.Open(notes, layer);
             return (notes, opened.Piece, SourceMusic.OfPiece(opened.Piece, opened.Notes));
         }
         catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or ProjectFileException)

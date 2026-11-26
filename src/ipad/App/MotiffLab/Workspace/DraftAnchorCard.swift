@@ -25,7 +25,7 @@ struct DraftAnchorContent: View {
                         return
                     }
                     score.anchorsModel.close()
-                    await reopen?(.tick(Double(mark.anchor.at)))
+                    await owner.reopening { await reopen?(.tick(Double(mark.anchor.at))) }
                 }
             } label: {
                 Label { Text(text["drafts.unpin"]) } icon: { Icon(name: "close", size: CGFloat.ds("icon-s")) }

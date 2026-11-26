@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
+`DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `DraftStructureControls`, `DraftVisitPieces`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
 `ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
@@ -37,15 +37,22 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
-  `ShownDraftScreen` (holds `draftMap`); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
+  `ShownDraftScreen` (holds `draftMap` and, v1.4, the visit's `AssistantController`, handed to each `ScoreWorkspace`;
+  r-1: `DraftVisitPieces.swift` closes each number it showed, one opened after it went at once); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
   v1.4: `DraftPlaceCard.swift`, `DraftPlaceContent` (a place's variants, base, «Сделать основой», «Перенести…»,
   «Взять всё уверенное»), one card on the map and as the ▾ menu a tap on a place's label opens (`pickLabel`, F3; none
   while the numbers are hidden), and `DraftMenuLabel` (a menu's label on the draft's cards and map);
   v1.2: `DraftBridgeCard.swift` (a bridge place's candidates, at its label and on the map), `DraftAnchorCard.swift`
   (an anchor's «Открепить», and «Сопоставить…»'s bars in the приём card), `DraftAssistant.swift` (step 8: the map place
-  card's «С ассистентом · Pro», `DraftAssistantSection`; `DraftProposalCard`, dashed plum, «▶ До» `hearDraft`, «▶ После»
-  `hearProposal`, «Принять» by `SourcesController.acceptProposal`);
+  card's «С ассистентом · Pro», `DraftAssistantSection`, `offered`, `named`; v1.4: its roles, a conversation, a bridge
+  place's chooser; `DraftProposalCard`, dashed plum, «▶ До» `hearDraft`, «▶ После» `hearProposal`, «Принять» by
+  `SourcesController.acceptProposal` while `proposedAgain`);
   `ScoreWorkspaceDrafts.swift`, `draftOwner`, `draftSheet`, `newDraft` (no selection: a hint).
+  v1.4 i-3b: `DraftStructureControls.swift`, `DraftPlaceOrder` (the map's «Раньше», «Позже», past a bridge: `target`),
+  `DraftRecordingRow` («Найти на записи», searched on a tap) and `DraftLengthRow` (the place's bars, read when opened,
+  `PageStepper` of `Pdf/`) in `DraftPlaceContent`, `DraftCarryMenu` («Перенести приём…») in `DraftTechniqueCard`; each
+  hands its step to its card's `act`/`take`; every draft card opens the view again through `SourcesController.reopening`,
+  which holds every step (`stepping`) until it has.
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,
   `OpenPiece.shownOnly`: a draft's view, other Notes), `pickPhrase` and `pickSection` (a tap on a number

@@ -21,28 +21,35 @@ extension EnvironmentValues {
 /// A draft's map over its view (v1.1, ADR 0034 sections 2 and 9 step 7; spec «Коллаж», «Экран (iPad)»): the places in
 /// order, each with a small roll of its notes and its card (`DraftPlaceContent`, as at its label: the variants, the base
 /// marked, «Сделать основой» and a variant moved to another place, a new place or the shelf; «Взять всё уверенное») and,
-/// since v1.2, «С ассистентом · Pro»
-/// (`DraftAssistantSection`) for each place; a bridge place's candidates (v1.2,
-/// `DraftBridgeContent`); the diamond of each seam that shows between two places, which opens the seam's card there; and
+/// since v1.2, «С ассистентом · Pro» (`DraftAssistantSection`) for each place with a variant besides its base; a bridge
+/// place's candidates (v1.2, `DraftBridgeContent`), with the assistant to choose among them (v1.4); the diamond of each seam that shows between two places, which opens the seam's card there; and
 /// the shelf, each variant on it put («Поставить…») into a place or as a new place. Each step is music-core's
 /// (`drafts.base`, `drafts.place`, `drafts.takeSure`, `drafts.leaveBridge`), undone from its toast, and the view opens
-/// again in its place with the map open. Places are not reordered: music-core has no call for it. In the sheet's place
-/// (`ScoreScreenContent.sheetPlace`): at the side in landscape, below the draft's pill, over the lower half in portrait,
-/// so the pills and toasts make way.
+/// again in its place with the map open. Since v1.4 (F1, spec «Карта черновика: порядок мест») each place moves before
+/// or after the nearest other place that is not a bridge (`DraftPlaceOrder`, `drafts.movePlace`; a bridge place is
+/// refused in music-core's words). In the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape,
+/// below the draft's pill, over the lower half in portrait, so the pills and toasts make way.
 struct DraftMap: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var seams: DraftSeamsModel
     @ObservedObject var techniques: DraftTechniquesModel
     let draft: DraftViewAnswer.Draft
-    let owner: SourcesController
+    @ObservedObject var owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
     @Environment(\.draftMap) private var map
     @EnvironmentObject private var assistant: AssistantController
     /// The draft view's notes, for the places' rolls.
     @State private var notes: [PlaybackNote] = []
-    /// The last step on the shelf was not taken: the map says so in its own words, never music-core's.
-    @State private var refused = false
+    /// Why the last step was not taken: on the shelf in the map's own words, a place moved in music-core's (v1.4), said
+    /// under that place's card.
+    @State private var refusal: Refusal?
+
+    private struct Refusal {
+        /// The place moved; nil for a step on the shelf.
+        let place: String?
+        let words: String
+    }
 
     var body: some View {
         if let map, let open = map.wrappedValue {
@@ -59,11 +66,11 @@ struct DraftMap: View {
                     header(close: close).id(DraftMapOpen.places)
                     ForEach(Array(draft.places.enumerated()), id: \.element.id) { index, place in
                         if index > 0, let seam = seams.before(place.id) { seamRow(seam) }
-                        placeCard(place)
+                        placeCard(place, at: index)
                     }
                     shelf.id(DraftMapOpen.shelf)
-                    if refused {
-                        Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
+                    if let refusal, refusal.place == nil {
+                        Text(refusal.words).dsType(.caption).foregroundStyle(Color.ds("danger"))
                     }
                 }
                 .padding(CGFloat.ds("s-4"))
@@ -71,6 +78,9 @@ struct DraftMap: View {
             .onAppear { reader.scrollTo(open, anchor: .top) }
             .onChange(of: open) { _, now in withAnimation { reader.scrollTo(now, anchor: .top) } }
         }
+        // The assistant's conversation goes with a place the draft no longer offers it in, as it was (v1.4).
+        .onAppear { closeAssistantIfGone() }
+        .onChange(of: draft) { _, _ in closeAssistantIfGone() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["drafts.mapTitle"])
     }
@@ -90,7 +100,7 @@ struct DraftMap: View {
 
     // MARK: - Places
 
-    private func placeCard(_ place: DraftViewAnswer.Place) -> some View {
+    private func placeCard(_ place: DraftViewAnswer.Place, at index: Int) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             // A tap on the place brings it into view, selected, as a tap on its label on the page.
             Button { _ = score.pickPlace(startingAt: place.firstBar) } label: {
@@ -100,22 +110,36 @@ struct DraftMap: View {
                 }
             }
             .buttonStyle(.plain)
+            // Its order in the draft (v1.4, F1), the steps waiting while one is on its way.
+            DraftPlaceOrder(place: place, index: index, places: draft.places, text: text) { target in
+                take(place: place.id) { await owner.movePlace(place, to: target, of: draft.id) }
+            }
+            .disabled(owner.stepping)
+            if let refusal, refusal.place == place.id {
+                Text(refusal.words).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
+            }
             if place.bridge {
                 // A bridge's candidates (v1.2): heard, chosen and the place removed, as on its card on the page.
                 DraftBridgeContent(score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
             } else {
                 // Its variants and steps, as in its ▾ menu at its label on the page (v1.4).
                 DraftPlaceContent(score: score, techniques: techniques, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
-                // The assistant assembles a place from a variant (v1.2 step 8): none in a place of the base alone.
-                if place.variants.contains(where: { !$0.base }) {
-                    DraftAssistantSection(assistant: assistant, score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
-                }
+            }
+            // The assistant (v1.2 step 8): it assembles a place from a variant or explains them, and in a bridge place
+            // chooses a candidate (v1.4, F5); none in a place of the base alone.
+            if DraftAssistantSection.offered(place) {
+                DraftAssistantSection(assistant: assistant, score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
             }
         }
         .padding(CGFloat.ds("s-3"))
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+    }
+
+    /// The assistant in a draft's place closed when the draft as it is now no longer offers it there (`offered`).
+    private func closeAssistantIfGone() {
+        assistant.closeInDraft(unlessOffered: draft.places.filter(DraftAssistantSection.offered).map { DraftAssistantSection.named($0, of: draft) })
     }
 
     // MARK: - Seams
@@ -167,21 +191,24 @@ struct DraftMap: View {
                     } label: {
                         DraftMenuLabel(icon: "plus", words: text["drafts.put"])
                     }
+                    .disabled(owner.stepping)
                 }
             }
         }
     }
 
-    /// A step on the draft: taken, the view opens again where the player is, the map still open; refused, the map says so.
-    private func take(_ step: @escaping @MainActor () async -> Bool) {
+    /// A step on the draft: taken, the view opens again where the player is, the map still open; refused, the map says so,
+    /// under the place moved in music-core's words (`place`, v1.4), else at the shelf in its own. No other step goes until
+    /// the view has opened again (`reopening`).
+    private func take(place: String? = nil, _ step: @escaping @MainActor () async -> Bool) {
         Task {
             let taken = await step()
             guard taken else {
-                refused = owner.refused(taken)
+                refusal = owner.refusal(taken, told: place != nil, otherwise: text["drafts.refused"]).map { Refusal(place: place, words: $0) }
                 return
             }
-            refused = false
-            await reopen?(.tick(await score.tickInView() ?? 0))
+            refusal = nil
+            await owner.reopening { await reopen?(.tick(await score.tickInView() ?? 0)) }
         }
     }
 }

@@ -205,6 +205,29 @@ public class FacadeAnswersContractTests
             ("drafts.open", """{"draft":"d_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // A place's length (version 1.4, c-3b): bars 1–4 asked how long they are and made bars 1–6, the map with the new
+        // label, and that undone.
+        ["drafts.length"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"place","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.length", """{"draft":"d_0001","place":"pl_0001"}"""),
+            ("drafts.resize", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","bars":{"first":1,"last":6},"now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.open", """{"draft":"d_0001"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
+        // A приём carried into another place (version 1.4, c-3b): bars 5–8 as a variant of the place of bars 1–4, whose
+        // simplification of bar 4 is carried into a second place of bars 1–4, its приёмы there, and that undone.
+        ["drafts.carry"] =
+        [
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"now":"2026-11-20T10:00:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":5,"last":8},"draft":"d_0001","drop":"variant","place":"pl_0001","now":"2026-11-20T10:05:00Z"}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":1,"last":4},"draft":"d_0001","drop":"place","now":"2026-11-20T10:10:00Z"}"""),
+            ("drafts.carryPlaces", """{"draft":"d_0001","place":"pl_0001","technique":1}"""),
+            ("drafts.carry", """{"device":"ipad","here":[],"draft":"d_0001","place":"pl_0001","technique":1,"to":"pl_0002","now":"2026-11-20T10:15:00Z"}"""),
+            ("drafts.techniques", """{"draft":"d_0001","place":"pl_0002"}"""),
+            ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
+        ],
         // «Найти на записи» (version 1.4, F2): the stretch of the recording heard as Notes n_2 that is the music of the place
         // of bars 1–4, put in as its variant, found again as that variant, and that undone.
         ["drafts.recording"] =

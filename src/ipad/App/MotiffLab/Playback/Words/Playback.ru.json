@@ -1,4 +1,5 @@
 {
+  "playback.failed": "Не получилось загрузить звук. Откройте пьесу снова, чтобы попробовать ещё раз.",
   "transport.play": "Играть",
   "transport.pause": "Пауза",
   "listen.bothHands": "Обе руки",

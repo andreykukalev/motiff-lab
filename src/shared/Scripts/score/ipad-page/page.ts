@@ -20,10 +20,12 @@ import { listenHandScroll, playing, writing } from "./page-sounding.js";
 import { focus, installCard, showCard } from "./page-card.js";
 import { input, listenPointerKind, listenTaps, mode, pen } from "./page-taps.js";
 import { highlight } from "./page-rings.js";
+import { forgetMark, listenMarkPress } from "./page-mark-place.js";
 import { firstTickOn, lineAt, outline, placeAt, reveal, showPage, showTick } from "./page-navigation.js";
 
 // The page's own listeners first, then the layers', each pointer's press reaching them in this order.
 listenPointerKind();
+listenMarkPress();
 listenScroll();
 installSelection();
 installColouring();
@@ -35,5 +37,5 @@ listenResize();
 installCard();
 listenHandScroll();
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, phraseMarks, layers, playing, returnToPlayhead, mode, playheads, practice, selectionControls, writing } satisfies PageCommands;
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, phraseMarks, layers, playing, returnToPlayhead, mode, playheads, practice, selectionControls, writing, markForgotten: forgetMark } satisfies PageCommands;
 window.webkit?.messageHandlers?.score?.postMessage("ready");

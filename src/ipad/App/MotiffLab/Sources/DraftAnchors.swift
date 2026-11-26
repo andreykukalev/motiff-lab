@@ -48,6 +48,14 @@ final class DraftAnchorsModel: ObservableObject {
         picked = Self.marks(draft).first { $0.key == pick.mark.key }.map { Pick(mark: $0, at: pick.at) }
     }
 
+    /// The mark under the menu shown moved on the page (`point`, its bottom left now): the menu goes with it. False when
+    /// none shows.
+    func moveCard(to point: CGPoint) -> Bool {
+        guard let pick = picked else { return false }
+        picked = Pick(mark: pick.mark, at: point)
+        return true
+    }
+
     /// The menu goes.
     func close() {
         picked = nil

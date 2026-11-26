@@ -97,7 +97,7 @@ final class ScoreColouringTests: XCTestCase {
         let older = try XCTUnwrap(score.marksModel.marks.highlights.first, "music-core lays it")
         XCTAssertEqual(older.notes, ["n1", "n2"], "and answers its notes")
 
-        let erased = await score.uncolourBars([0..<1920])
+        let erased = await score.uncolourBars([0..<1920], draws: true)
         XCTAssertEqual(erased.taken, [Recolouring.Highlight(onset: 0, end: 1920, colour: "forest", notes: ["n1", "n2"])])
         let gone = await settled(score, at: [])
         XCTAssertEqual(gone, [])

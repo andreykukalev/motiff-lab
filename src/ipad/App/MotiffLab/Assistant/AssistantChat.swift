@@ -310,16 +310,39 @@ struct AssistantChat: Codable, Equatable, Sendable, Identifiable {
     }
 
     /// The turn's body (format v1): the role, the language, the context and the history, the oldest finished exchanges
-    /// left out while there are more than `maxEntries` entries, as music-core's AssistantSession.Request does.
+    /// left out while there are more than `maxEntries` entries or (v1.4) while the body is larger than a turn takes
+    /// (`maxBytes`), so a long conversation goes on and only a question whose context alone is too large is refused.
     func request(language: String, context: JSONValue) -> JSONValue {
         var history = history
-        while history.count > Self.maxEntries, let next = history.indices.dropFirst().first(where: { history[$0].kind == .question }) {
+        while history.count > Self.maxEntries, let next = Self.nextQuestion(in: history) {
             history = Array(history[next...])
         }
+        var body = request(language: language, context: context, history: history)
+        while body.data.count > Self.maxBytes, let next = Self.nextQuestion(in: history) {
+            history = Array(history[next...])
+            body = request(language: language, context: context, history: history)
+        }
+        return body
+    }
+
+    private func request(language: String, context: JSONValue, history: [AssistantEntry]) -> JSONValue {
         let entries = (JSONValue.parse((try? JSONEncoder().encode(history)) ?? Data()) ?? .array([]))
         return .object([
             "version": .int(1), "role": .string(role), "language": .string(language), "context": context, "history": entries,
         ])
+    }
+
+    /// Where the question after the first one starts; nil when the history holds no other.
+    private static func nextQuestion(in history: [AssistantEntry]) -> Int? {
+        history.indices.dropFirst().first { history[$0].kind == .question }
+    }
+
+    /// The conversation with a question's exchange joined, after the decisions taken on it meanwhile: the history the
+    /// answer left (`answered`; unchanged when the question got none), and the exchange last.
+    mutating func join(_ exchange: AssistantExchange, answered: AssistantChat?) {
+        if let answered { history = answered.history }
+        exchanges.append(exchange)
+        updated = Date()
     }
 
     /// An answer as the conversation shows it: its words and each [[id]] it cites, found where the turn gave it (the

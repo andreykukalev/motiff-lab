@@ -53,7 +53,6 @@
   "assistantDraft.stale": "Этот черновик уже не подходит к нотам. Спросите ещё раз.",
   "padAssistant.title": "Ассистент",
   "padAssistant.conversations": "Разговоры",
-  "padAssistant.new": "Новый разговор",
   "padAssistant.noConversations": "Разговоров об этой пьесе ещё нет.",
   "padAssistant.continue": "Продолжить в чате",
   "padAssistant.continueHint": "Открывает чат ассистента с новым разговором, который начинается с этого вопроса и ответа, чтобы спрашивать дальше там.",
