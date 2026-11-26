@@ -61,8 +61,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `iconItem`), `FocusBar`.
 - `ScoreScreenViews.swift`: `viewPlace`, `showPlace`.
 - `ScoreColouring.swift` (v0.10 d-5, finding 31): `ScoreController`'s part of the pen's colour bars (`PenScore`'s
-  `colouringChanged`, `colourBars`, `uncolourBars`): the change `Marks/HighlightPaint` works out, sent to music-core and
-  drawn at its last call.
+  `colouringChanged`, `colourBars`, `uncolourBars`, `recolour`): the change `Marks/HighlightPaint` works out, sent to
+  music-core as `highlight.remove` (ids found by value) and `highlight.add`, drawn at its last call and answered to the
+  pen for its history; `recolour` sends a step's change again for the Pen's Undo and Redo (v1.4 i-5).
 - `ScoreController.swift`: the page (the menu's drag, marks, corrections, versions, Expand on the page); the
   models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
   [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`).
