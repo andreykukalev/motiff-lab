@@ -314,6 +314,96 @@ public class PrintedBarsTests
     }
 
     [Fact]
+    public void A_rest_whose_written_value_is_not_its_length_is_written_by_its_length_and_the_bar_as_printed()
+    {
+        // As the design kit's Für Elise writes the left hand's silent bars: a quarter without a dot filling 3/8.
+        string upper = N("E5", 6, "eighth", more: "<stem>up</stem>") + N("D5", 6, "eighth", more: "<stem>up</stem>") + N("C5", 6, "eighth", more: "<stem>up</stem>");
+        MusicXmlImport shorter = Score(2, "3/8", upper + Back(18) + R(18, "quarter", voice: "2", staff: 2));
+        MusicXmlImport longer = Score(2, "3/8", upper + Back(18) + R(18, "half", voice: "2", staff: 2));
+
+        foreach (MusicXmlImport score in new[] { shorter, longer })
+        {
+            XDocument mei = Printed(score);
+
+            Assert.All(Bar(mei, 1).Descendants(s_mei + "note"), note => Assert.Equal("up", (string?)note.Attribute("stem.dir")));
+            XElement rest = Bar(mei, 1, staff: 2).Descendants(s_mei + "rest").Single();
+            Assert.Equal(("4", "1"), ((string)rest.Attribute("dur")!, (string?)rest.Attribute("dots")));
+            Assert.Equal(0, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+        }
+    }
+
+    [Fact]
+    public void A_rest_written_by_its_length_keeps_its_voice_s_other_notes_as_printed()
+    {
+        MusicXmlImport score = Score(1, "3/8",
+            N("E5", 18, "quarter", more: "<dot/><stem>up</stem>")
+            + Back(18) + N("C4", 6, "eighth", voice: "2", more: "<stem>down</stem>") + R(12, "eighth", voice: "2"));
+
+        XElement[] layers = [.. Bar(Printed(score), 1).Elements(s_mei + "layer")];
+
+        Assert.Equal(2, layers.Length);
+        Assert.Equal("down", (string?)layers[1].Element(s_mei + "note")!.Attribute("stem.dir"));
+        Assert.Equal(["note", "rest"], layers[1].Elements().Select(element => element.Name.LocalName));
+        Assert.Equal("4", (string?)layers[1].Element(s_mei + "rest")!.Attribute("dur"));
+        Assert.Equal(0, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void A_note_whose_written_value_is_not_its_length_still_writes_the_bar_as_before()
+    {
+        MusicXmlImport score = Score(1, "3/8",
+            N("E5", 18, "quarter", more: "<dot/><stem>up</stem>") + Back(18) + N("C4", 18, "quarter", voice: "2", more: "<stem>down</stem>"));
+
+        Assert.All(Bar(Printed(score), 1).Descendants(s_mei + "note"), note => Assert.Null(note.Attribute("stem.dir")));
+        Assert.Equal(1, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void A_rest_that_runs_past_the_bar_still_writes_the_bar_as_before()
+    {
+        MusicXmlImport score = Score(1, "3/8",
+            N("E5", 18, "quarter", more: "<dot/><stem>up</stem>") + Back(18) + N("C4", 6, "eighth", voice: "2") + R(18, "quarter", voice: "2"),
+            N("E5", 18, "quarter", more: "<dot/><stem>up</stem>"));
+
+        Assert.All(Bar(Printed(score), 1).Descendants(s_mei + "note"), note => Assert.Null(note.Attribute("stem.dir")));
+        Assert.NotEqual(0, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void A_rest_in_a_tuplet_is_written_by_its_length_in_its_tuplet()
+    {
+        // A triplet eighth's rest that the file calls a quarter.
+        MusicXmlImport score = Score(1, "2/4",
+            N("C5", 4, "eighth", more: Triplet) + R(4, "quarter", more: Triplet) + N("E5", 4, "eighth", more: Triplet) + N("F5", 12, "quarter"));
+
+        XElement tuplet = Bar(Printed(score), 1).Descendants(s_mei + "tuplet").Single();
+
+        Assert.Equal(["note", "rest", "note"], tuplet.Elements().Select(element => element.Name.LocalName));
+        Assert.Equal("8", (string?)tuplet.Element(s_mei + "rest")!.Attribute("dur"));
+        Assert.Equal(0, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void A_rest_in_a_tuplet_that_no_value_makes_with_its_ratio_writes_the_bar_as_before()
+    {
+        // Nine twelfths of a quarter under 3:2 would be a note of 9/8 quarters: no value with up to two dots is.
+        MusicXmlImport score = Score(1, "2/4",
+            R(9, "quarter", more: Triplet) + N("E5", 3, "16th", more: Triplet + "<dot/><stem>up</stem>") + N("F5", 12, "quarter", more: "<stem>up</stem>"));
+
+        Assert.All(Bar(Printed(score), 1).Descendants(s_mei + "note"), note => Assert.Null(note.Attribute("stem.dir")));
+        Assert.Equal(1, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void The_design_kit_s_Fur_Elise_and_the_app_s_are_written_as_printed()
+    {
+        static MusicXmlImport Read(params string[] path) => MusicXmlImporter.Import(File.ReadAllBytes(Path.Combine([AppContext.BaseDirectory, .. path])));
+
+        Assert.Equal(0, NotationGenerator.FromMusicXml(Read("Golden", "Analysis", "elise.musicxml")).AppWrittenBarCount);
+        Assert.Equal(0, NotationGenerator.FromMusicXml(Read("Import", "MusicXml", "Fixtures", "FurElise.musicxml")).AppWrittenBarCount);
+    }
+
+    [Fact]
     public void Notes_written_as_printed_are_not_counted_as_moved_to_the_grid()
     {
         MusicXmlImport septuplets = MusicXmlImporter.Import(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "septuplets.musicxml")));

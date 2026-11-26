@@ -13,10 +13,10 @@ namespace MotiffLab.MusicCore.Notation;
 /// </summary>
 /// <remarks>
 /// A bar of a staff keeps the generator's writing when the record does not fit it: a voice whose notes or rests overlap,
-/// a voice whose values (with the time it skips as written) do not add up to the bar, a written value that is not the note's length, a tie or voice that
-/// crosses to another staff, a chord whose notes are written differently. In a bar that fits, a voice with a note the player
-/// corrected, added or removed is written by the generator's rules inside that voice; a note added goes into the first
-/// voice with room for it, or into a voice of its own.
+/// a voice whose values (with the time it skips as written) do not add up to the bar, a note's written value that is not its
+/// length (a rest's is written by its length), a tie or voice that crosses to another staff, a chord whose notes are written
+/// differently. In a bar that fits, a voice with a note the player corrected, added or removed is written by the generator's
+/// rules inside that voice; a note added goes into the first voice with room for it, or into a voice of its own.
 /// </remarks>
 internal static class PrintedBars
 {
@@ -251,7 +251,7 @@ internal static class PrintedBars
         };
     }
 
-    /// <summary>A rest as written: the whole bar's, one with its written value, or one without a sign; null when its value is not its length.</summary>
+    /// <summary>A rest as written: the whole bar's, one with its written value, or one without a sign; else by its length (<see cref="ByLength"/>).</summary>
     private static PrintedItem? RestItem(MusicXmlRest rest, Bar bar)
     {
         long start = rest.Span.Onset.Value;
@@ -268,11 +268,32 @@ internal static class PrintedBars
 
         if (rest.Writing is { } writing && Value(writing, rest.Duration) is { } value)
         {
-            return new PrintedItem(PrintedKind.Rest, start, end) { Dur = value.Dur, Dots = value.Dots, Writing = writing };
+            return WrittenRest(rest, writing, value);
         }
 
-        return rest.IsMeasureRest && Fillable(start, end, bar) ? new PrintedItem(PrintedKind.FilledRest, start, end) : null;
+        return ByLength(rest, bar);
     }
+
+    /// <summary>
+    /// A rest whose written value is not its length (or a whole-measure rest in a bar that is not full), written by its
+    /// length (Andrei's answer 28, 2026-11-26): in a tuplet, with the value that makes its length with the tuplet's ratio,
+    /// since values worked out outside the tuplet would break the score's group; elsewhere, with the values the generator
+    /// works out on the 128th grid. Null when neither can write it.
+    /// </summary>
+    private static PrintedItem? ByLength(MusicXmlRest rest, Bar bar)
+    {
+        if (!rest.IsMeasureRest && rest.Writing is { Tuplet: not null } writing)
+        {
+            return Value(writing with { Type = null }, rest.Duration) is { } value ? WrittenRest(rest, writing, value) : null;
+        }
+
+        long start = rest.Span.Onset.Value;
+        long end = rest.Span.End.Value;
+        return Fillable(start, end, bar) ? new PrintedItem(PrintedKind.FilledRest, start, end) : null;
+    }
+
+    private static PrintedItem WrittenRest(MusicXmlRest rest, MusicXmlWriting writing, (int Dur, int Dots) value) =>
+        new(PrintedKind.Rest, rest.Span.Onset.Value, rest.Span.End.Value) { Dur = value.Dur, Dots = value.Dots, Writing = writing };
 
     /// <summary>
     /// The items when they add up to the bar: one after another from its start to its end, the time the voice skips written
