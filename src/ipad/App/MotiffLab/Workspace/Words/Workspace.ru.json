@@ -64,7 +64,6 @@
   "ask.menu": "Спросить",
   "ask.thisPhrase": "Эта фраза · {0}",
   "ask.thisSelection": "Выделенное · {0}",
-  "performance.add": "Добавить версию",
   "performance.markerLabel": "Такт {0} в версии «{1}»: {2}",
   "performance.defaultName": "Версия",
   "focus.version": "Как в «{0}»",
