@@ -24,7 +24,7 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed partial class MusicCoreFacade
 {
     /// <summary>The facade contract's number, in the version call; what each number added or removed: docs/facade-contract.md.</summary>
-    public const int Contract = 15;
+    public const int Contract = 16;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];

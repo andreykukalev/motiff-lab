@@ -36,7 +36,6 @@ internal sealed partial class OpenPiece
             new("bookmark.change", static (piece, request) => piece.ChangeBookmark(request)),
             new("bookmark.move", static (piece, request) => piece.MoveBookmark(request)),
             new("bookmark.remove", static (piece, request) => piece.KeepBookmarks(MarksSession.WithoutBookmark(piece.State, request.Required("id")))),
-            new("bookmark.structure", static (piece, request) => piece.KeepBookmarks(MarksSession.WithStructureBookmarks(piece.State, request.Now()))),
             new("bookmark.form", static (piece, request) => piece.KeepBookmarks(MarksSession.WithFormBookmarks(piece.State, request.Now()))),
             new("category.add", static (piece, request) => piece.AddCategory(request)),
             new("category.rename", static (piece, request) => piece.RenameCategory(request)),
