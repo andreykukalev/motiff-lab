@@ -141,6 +141,36 @@ public class DraftLengthFacadeTests
     }
 
     [Fact]
+    public void A_bridge_itself_is_not_moved_and_says_why()
+    {
+        MusicCoreFacade facade = Opened("ru");
+        Call(facade, "drafts.transpose", Fields(""" "draft": "d_0001", "place": "pl_0002", "semitones": 2 """));
+        string bridge = Call(facade, "drafts.bridge", Fields(""" "draft": "d_0001", "place": "pl_0002" """)).GetProperty("place").GetString()!;
+
+        JsonElement answer = Json(facade.Call(1, "drafts.movePlace", Fields($$""" "draft": "d_0001", "place": "{{bridge}}", "index": 0 """)));
+
+        Assert.Equal("unavailable", answer.GetProperty("error").GetString());
+        Assert.Equal("Связку нельзя переставить: она построена для своего стыка.", answer.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public void A_resize_that_moves_a_bridge_s_seam_drops_it_and_undo_puts_it_back()
+    {
+        MusicCoreFacade facade = Opened();
+        Call(facade, "drafts.transpose", Fields(""" "draft": "d_0001", "place": "pl_0002", "semitones": 2 """));
+        string bridge = Call(facade, "drafts.bridge", Fields(""" "draft": "d_0001", "place": "pl_0002" """)).GetProperty("place").GetString()!;
+        Call(facade, "drafts.tempo", Fields($$""" "draft": "d_0001", "place": "{{bridge}}", "quarterNotesPerMinute": 100 """));
+
+        JsonElement resized = Call(facade, "drafts.resize", Fields(""" "draft": "d_0001", "place": "pl_0001", "bars": {"first": 1, "last": 3} """));
+
+        Assert.Equal([2], resized.GetProperty("dropped").EnumerateArray().Select(static step => step.GetInt32()));
+        string[] Order() => [.. Call(facade, "drafts.open", """{"draft": "d_0001"}""").GetProperty("draft").GetProperty("places").EnumerateArray().Select(static place => place.GetProperty("id").GetString()!)];
+        Assert.Equal(["pl_0001", "pl_0002"], Order());
+        Call(facade, "drafts.undo", Fields(""" "draft": "d_0001" """));
+        Assert.Equal(["pl_0001", bridge, "pl_0002"], Order());
+    }
+
+    [Fact]
     public void A_place_cut_from_a_recording_s_notes_is_cut_again_from_them_with_its_stretch_of_the_recording()
     {
         MusicCoreFacade facade = Opened();

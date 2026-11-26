@@ -31,7 +31,7 @@ public static class PlaceLength
     /// the same Notes, part and id. The place's steps follow its start: a step whose notes, bars or bars put in are outside
     /// the new span goes, the bars of the others are numbered again from the new start; the seam kept as it is («Оставить»)
     /// before the place goes when its start moved, the one after it (a step of the next place) when its end moved, as with a
-    /// move (<see cref="Draft.WithPlaceAt"/>). Each other variant keeps its anchors that fall inside the new base, moved with
+    /// move (<see cref="Draft.WithPlaceAt"/>), and so does a bridge on a seam whose edge moved, with its steps. Each other variant keeps its anchors that fall inside the new base, moved with
     /// its start, and is lined up with the new base anew.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
@@ -60,10 +60,19 @@ public static class PlaceLength
 
         var moved = new Moved(place, cut);
         int index = draft.Places.ToList().IndexOf(place);
+        string? before = cut.From.Span.Onset != was.From.Span.Onset && index > 0 ? draft.Places[index - 1].Id : null;
         string? next = cut.From.Span.End != was.From.Span.End && index + 1 < draft.Places.Count ? draft.Places[index + 1].Id : null;
         DraftVariant[] variants = [.. place.Variants.Select(variant => variant.Id == was.Id ? cut : variant with { Anchors = [.. moved.Anchors(variant.Anchors)] })];
-        return draft.WithPlace(place.With(variants, was.Id), Steps(draft, placeId, next, moved));
+        Draft resized = draft.WithPlace(place.With(variants, was.Id), Steps(draft, placeId, next, moved));
+        return WithoutBridge(WithoutBridge(resized, next), before);
     }
+
+    /// <summary>
+    /// <paramref name="draft"/> without the place <paramref name="placeId"/> when it is a bridge, built for a seam whose
+    /// edge moved (the lead's decision of 2026-11-26, as with a move): its steps go with it; as it was otherwise.
+    /// </summary>
+    private static Draft WithoutBridge(Draft draft, string? placeId) =>
+        placeId is not null && draft.FindPlace(placeId) is { Bridge: true } ? draft.WithoutPlace(placeId) : draft;
 
     /// <summary>
     /// The draft's journal with the place's steps read over its new base (<see cref="Moved.Step"/>), and without the seam

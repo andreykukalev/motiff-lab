@@ -215,7 +215,8 @@ internal static class DraftRequest
     /// <summary>
     /// «Карта черновика: порядок мест» (version 1.4, F1): the place "place" of the draft "draft" moved to "index" among its
     /// places, from 0, the others in their order (<see cref="Draft.WithPlaceAt"/>); a place moved where it is, or to an index
-    /// outside the places, is a bad request. A bridge place whose place before or after it is another now goes, made for a
+    /// outside the places, is a bad request, and a bridge place itself, built for its seam, is unavailable (the lead's
+    /// decision, version 1.4 c-3b). A bridge place whose place before or after it is another now goes, made for a
     /// seam that is no longer there (the lead's decision, version 1.4 c-3b), and so does each step that kept a seam as it
     /// was («Оставить») where the place before it is another now. Answers the sources with "draft", "place" and "dropped",
     /// the numbers of the steps that went: those «Оставить» and the steps of a bridge place that went. Undone as
@@ -227,6 +228,11 @@ internal static class DraftRequest
         Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
         string place = request.Required("place");
         int index = request.RequiredInt("index");
+        if (draft.FindPlace(place) is { Bridge: true })
+        {
+            throw FacadeException.Unavailable(owner.Words.T("A bridge can't be moved: it is built for its seam.", "Связку нельзя переставить: она построена для своего стыка."));
+        }
+
         return Restructured(owner, request, draft, place, null, each => each.WithPlaceAt(place, index));
     }
 

@@ -140,14 +140,20 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     /// <summary>
     /// «Карта черновика: порядок мест»: the place <paramref name="placeId"/> moved to <paramref name="index"/> among the places
     /// (from 0), the others in their order; its variants, marks and steps go with it. Where a place has other neighbours
-    /// now, what was made for its seams goes (<see cref="Reshaped"/>).
+    /// now, what was made for its seams goes (<see cref="Reshaped"/>). A bridge itself is not moved.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     /// <exception cref="ArgumentOutOfRangeException">An index outside the places.</exception>
     /// <exception cref="ArgumentException">The place is at that index already.</exception>
+    /// <exception cref="InvalidOperationException">A bridge place, built for its seam (the lead's decision of 2026-11-26).</exception>
     public Draft WithPlaceAt(string placeId, int index)
     {
         DraftPlace place = Place(placeId);
+        if (place.Bridge)
+        {
+            throw new InvalidOperationException($"The place {placeId} is a bridge, built for its seam: it is not moved.");
+        }
+
         if (index < 0 || index >= Places.Count)
         {
             throw new ArgumentOutOfRangeException(nameof(index), index, $"A place moves to a position from 0 to {Places.Count - 1}.");

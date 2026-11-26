@@ -84,6 +84,24 @@ public class PlaceLengthTests
         Assert.Single(PlaceLength.Resized(two, "pl_2", Variant("v_2", Score(), 5, 7)).Steps);
     }
 
+    [Theory]
+    [InlineData("pl_1", 1, 3, false)]
+    [InlineData("pl_2", 6, 8, false)]
+    [InlineData("pl_1", 2, 4, true)]
+    [InlineData("pl_2", 5, 7, true)]
+    public void A_bridge_goes_with_its_steps_where_the_boundary_of_its_seam_moved(string place, int first, int last, bool kept)
+    {
+        Draft two = Draft.Start("d_1", "Коллаж", At, "pl_1", Variant("v_1", Score(), 1, 4))
+            .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 5, 8, notes: "n_g"), DraftDrop.Place, "pl_2");
+        Draft bridged = DraftBridges.Put(two, "pl_2", At).With(next => new DraftTempo(next, At, "pl_0003", 100));
+        SourceMusic music = place == "pl_1" ? Score() : Score(fifths: 1, prefix: "b");
+
+        Draft resized = PlaceLength.Resized(bridged, place, Variant(place == "pl_1" ? "v_1" : "v_2", music, first, last, notes: place == "pl_1" ? "n_1" : "n_g"));
+
+        Assert.Equal(kept ? ["pl_1", "pl_0003", "pl_2"] : ["pl_1", "pl_2"], resized.Places.Select(static each => each.Id));
+        Assert.Equal(kept ? 1 : 0, resized.Steps.Count);
+    }
+
     [Fact]
     public void Bars_put_in_move_with_the_start_and_go_when_their_bar_line_is_cut_off()
     {

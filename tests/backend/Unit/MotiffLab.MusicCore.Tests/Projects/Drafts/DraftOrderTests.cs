@@ -78,13 +78,21 @@ public class DraftOrderTests
     [Theory]
     [InlineData("pl_2", 0, new[] { "pl_2", "pl_1", "pl_3" })]
     [InlineData("pl_1", 2, new[] { "pl_2", "pl_1", "pl_3" })]
-    [InlineData("pl_0004", 3, new[] { "pl_1", "pl_2", "pl_3" })]
     public void A_move_that_gives_a_bridge_other_neighbours_drops_the_bridge_and_its_steps(string place, int index, string[] order)
     {
         Draft moved = Bridged().WithPlaceAt(place, index);
 
         Assert.Equal(order, Order(moved));
         Assert.Empty(moved.Steps);
+    }
+
+    [Fact]
+    public void A_bridge_itself_is_not_moved()
+    {
+        Draft bridged = Bridged();
+
+        Assert.Throws<InvalidOperationException>(() => bridged.WithPlaceAt("pl_0004", 0));
+        Assert.Throws<InvalidOperationException>(() => bridged.WithPlaceAt("pl_0004", 3));
     }
 
     [Fact]
