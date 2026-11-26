@@ -72,8 +72,9 @@ struct DraftSeamContent: View {
     /// was not taken.
     private func act(_ step: @escaping () async -> Bool) {
         Task {
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             score.seamsModel.close()
@@ -82,8 +83,8 @@ struct DraftSeamContent: View {
     }
 }
 
-/// The cards over a draft's view: a приём's at its number, a seam's at its diamond, a bridge's at its place's label (v1.2),
-/// an anchor's at its mark (v1.2), one at a time (picking one closes the others); a tap elsewhere puts it away.
+/// The cards over a draft's view: a приём's at its number, a seam's at its diamond, a place's at its label (a bridge's
+/// candidates, v1.2; any other place's ▾ menu, v1.4), an anchor's at its mark (v1.2), one at a time (picking one closes the others); a tap elsewhere puts it away.
 struct DraftViewCards: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var seams: DraftSeamsModel
@@ -99,9 +100,19 @@ struct DraftViewCards: View {
             DraftCardAtMark(at: at, close: { seams.close() }) {
                 DraftSeamContent(score: score, seam: pick.seam, draft: draft, owner: owner, text: text, reopen: reopen)
             }
-        } else if let pick = seams.bridge, let place = draft.places.first(where: { $0.id == pick.place && $0.bridge }) {
+        } else if let pick = seams.label, let place = draft.places.first(where: { $0.id == pick.place }) {
             DraftCardAtMark(at: pick.at, close: { seams.close() }) {
-                DraftBridgeContent(score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
+                if place.bridge {
+                    DraftBridgeContent(score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
+                } else {
+                    // The ▾ menu of a place's label (v1.4, F3): its variants and steps, as on the draft's map.
+                    VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                        Text(place.label).overline()
+                        DraftPlaceContent(score: score, techniques: score.draftModel, place: place, draft: draft, owner: owner, text: text, reopen: reopen) { seams.close() }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(place.label)
+                }
             }
         } else if let pick = anchors.picked {
             DraftCardAtMark(at: pick.at, close: { anchors.close() }) {

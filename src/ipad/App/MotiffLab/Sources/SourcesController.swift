@@ -93,6 +93,9 @@ final class SourcesController: ObservableObject {
     /// The draft of another piece a fragment just went into (v1.2, collage), whose toast offers «Открыть»; nil while none
     /// is told (`DraftElsewhereToast`).
     @Published var addedElsewhere: DraftAddedElsewhere?
+    /// A step of a draft is on its way (v1.4): another is not sent until it is answered, and the draft's cards hold their
+    /// steps. Written only by `draftStep` (SourcesDrafts.swift), as `addedElsewhere` by `addElsewhere`.
+    @Published var stepping = false
 
     private(set) var piece: Int32 = 0
     private(set) var projectId: String?

@@ -79,7 +79,10 @@ button.perf-marker { position: absolute; z-index: 2; display: block; height: 24p
 button.perf-marker span { display: block; height: 20px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--plum-tint); color: var(--plum); font: var(--t-overline); line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* A draft's place label (v1.1, ADR 0034): where the place came from, in the second ink on the paper; provenance is told
    by words, not by a colour of its own. */
-button.perf-marker.place span { background: var(--paper); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--ink-2); }
+button.perf-marker.place span { background: var(--paper); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--ink-2); position: relative; padding-right: var(--s-5); }
+/* A tap on a place's label opens its menu (v1.4, F3, the drafts spec «… · 2 варианта ▾»): a small caret after its words,
+   two strokes of the icons' weight, kept in the label's end when the words are cut short. */
+button.perf-marker.place span::after { content: ""; position: absolute; top: 50%; right: var(--s-2); width: var(--s-1); height: var(--s-1); border-right: var(--stroke-icon) solid currentColor; border-bottom: var(--stroke-icon) solid currentColor; transform: translateY(-75%) rotate(45deg); }
 /* A draft's приём number (v1.1, ADR 0034 section 4): open, on the plum tint, what the app proposes; filled plum once taken;
    an ink outline once left as in the base. */
 button.perf-marker.technique span { min-width: 24px; padding: 0 var(--s-1); text-align: center; }
