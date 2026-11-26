@@ -36,7 +36,8 @@ struct AssistantPanel: View {
         }
         .background(Color.ds("surface"))
         .keyboardRoom()
-        // The question typed before the panel was laid out anew (a rotation, Split View) is still there (r-1).
+        // The question typed before the panel was laid out anew (a rotation, Split View, r-1) or closed (v1.5, answer 16)
+        // is still there.
         .onAppear {
             flow.apply(.open)
             flow.apply(.type(assistant.unsentInPanel))

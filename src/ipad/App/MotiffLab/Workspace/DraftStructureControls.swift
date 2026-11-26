@@ -104,8 +104,8 @@ struct DraftRecordingRow: View {
 
 /// A place's length in its card (v1.4): «Изменить длину…», which reads music-core's bounds (`drafts.length`, only then, as
 /// it opens the Notes the place was cut from) and shows the bars of its source its base is cut from, the first and the
-/// last bar stepped within the bars its Notes have, «Применить» once they differ, and «Отмена»; where it cannot change,
-/// music-core's reason.
+/// last bar stepped within the bars its Notes have (held, they step on: v1.5, answer 15), «Применить» once they differ,
+/// and «Отмена»; where it cannot change, music-core's reason.
 struct DraftLengthRow: View {
     let place: DraftViewAnswer.Place
     let draft: DraftViewAnswer.Draft
@@ -121,8 +121,8 @@ struct DraftLengthRow: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
             if let choice {
                 Text(text.format("drafts.lengthLine", String(choice.now.first), String(choice.now.last))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                PageStepper(label: text["drafts.lengthFrom"], spoken: text["drafts.lengthFromSpoken"], value: choice.first) { self.choice?.step(first: $0) }
-                PageStepper(label: text["drafts.lengthTo"], spoken: text["drafts.lengthToSpoken"], value: choice.last) { self.choice?.step(last: $0) }
+                PageStepper(label: text["drafts.lengthFrom"], spoken: text["drafts.lengthFromSpoken"], value: choice.first, range: choice.firstBars) { self.choice?.step(first: $0) }
+                PageStepper(label: text["drafts.lengthTo"], spoken: text["drafts.lengthToSpoken"], value: choice.last, range: choice.lastBars) { self.choice?.step(last: $0) }
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Button(text["drafts.lengthApply"]) {
                         guard let bars = choice.asked else { return }
