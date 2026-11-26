@@ -102,9 +102,9 @@ them, and the order inside each:
    `clearChoice`).
 2. `checking`: `placeFromMoreOpen` (`.placeFromMore`); `panels[.check]` (`score.checkDrawerOpen`, then `.check`);
    `panels[.versions]` (`.versions`, with Expand as it is now); `otherPlaceOpen(focused:)` (`.otherPlace`).
-3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`); `playRange`
-   (the player first, then `syncPlayheads`). 5. `body`: `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen`
-   (`assistant.close()`).
+3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`, then
+   `showRollPosition` while it is shown); `playRange` (the player first, then `syncPlayheads`). 5. `body`:
+   `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen` (`assistant.close()`).
 
 An order in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()` (the other, «Открыть в
 черновике» leaving Expand and opening Sources in one update, left with the merge in v1.1). A reaction
