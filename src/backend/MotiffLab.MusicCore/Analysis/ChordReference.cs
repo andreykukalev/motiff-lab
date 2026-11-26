@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// sevenths, the two sixths and the added ninth. Apart from the chord finder's <see cref="ChordQuality"/>, which names
 /// what a piece holds; this one names what a player looks up.
 /// </summary>
-public enum ChordType
+internal enum ChordType
 {
     Major,
     Minor,
@@ -26,7 +26,7 @@ public enum ChordType
 }
 
 /// <summary>How the Reference groups its chords (version 0.5): the triads, the sevenths, and the sixths with the added ninth.</summary>
-public enum ChordFamily
+internal enum ChordFamily
 {
     Triad,
     Seventh,
@@ -34,7 +34,7 @@ public enum ChordFamily
 }
 
 /// <summary>A chord the Reference offers: its id ("minor7"), the symbol after the root ("m7") and its name in words.</summary>
-public sealed record ChordTypeChoice(ChordType Type, string Id, string Suffix, string Name)
+internal sealed record ChordTypeChoice(ChordType Type, string Id, string Suffix, string Name)
 {
     /// <summary>The group it is offered in.</summary>
     public ChordFamily Family => ChordReference.FamilyOf(Type);
@@ -47,7 +47,7 @@ public sealed record ChordTypeChoice(ChordType Type, string Id, string Suffix, s
 /// <param name="Notes">The notes from the bass up, spelled for the naming.</param>
 /// <param name="Block">The chord struck at once and held two beats.</param>
 /// <param name="Arpeggio">The chord broken from the bass up, a quaver a note, each note let ring.</param>
-public sealed record ChordPosition(int Inversion, string Title, string? Figure, IReadOnlyList<string> Notes, ReferenceSound Block, ReferenceSound Arpeggio);
+internal sealed record ChordPosition(int Inversion, string Title, string? Figure, IReadOnlyList<string> Notes, ReferenceSound Block, ReferenceSound Arpeggio);
 
 /// <summary>A chord's own card: its symbol and name, its formula, its notes spelled by letter, and each position to hear and see.</summary>
 /// <param name="Symbol">"F♯m7", "B♭+", "Dsus4": in letters in both languages, as chord symbols are written.</param>
@@ -55,7 +55,7 @@ public sealed record ChordPosition(int Inversion, string Title, string? Figure, 
 /// <param name="Formula">Each tone's degree against the major scale of the root: "1 ♭3 5 ♭7".</param>
 /// <param name="Notes">The tones from the root, spelled for the naming.</param>
 /// <param name="Positions">Root position, then each inversion; every position on the same stretch of keyboard.</param>
-public sealed record ChordCard(
+internal sealed record ChordCard(
     SpelledName Root,
     ChordType Type,
     string Symbol,
@@ -70,7 +70,7 @@ public sealed record ChordCard(
 }
 
 /// <summary>Spells chords from any root of the Reference (<see cref="KeyReference.Roots"/>), with their inversions to hear. Pure theory.</summary>
-public static class ChordReference
+internal static class ChordReference
 {
     /// <summary>A quaver: the time from one note of a broken chord to the next.</summary>
     public const long ArpeggioStep = ScaleReference.Step;

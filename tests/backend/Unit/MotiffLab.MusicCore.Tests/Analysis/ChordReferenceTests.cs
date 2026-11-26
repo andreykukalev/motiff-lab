@@ -18,23 +18,23 @@ public class ChordReferenceTests
     private static string Letters(ChordCard card) => string.Join(" ", ChordReference.Spell(card.Root, card.Type).Select(note => note.Letter));
 
     [Theory]
-    [InlineData(0, 0, ChordType.Major, "C", "C E G", "1 3 5")]
-    [InlineData(3, 1, ChordType.Minor, "F♯m", "F♯ A C♯", "1 ♭3 5")]
-    [InlineData(6, 0, ChordType.Diminished, "Bdim", "B D F", "1 ♭3 ♭5")]
-    [InlineData(4, 1, ChordType.Augmented, "G♯+", "G♯ B♯ D𝄪", "1 3 ♯5")]
-    [InlineData(1, 0, ChordType.Sus2, "Dsus2", "D E A", "1 2 5")]
-    [InlineData(1, 0, ChordType.Sus4, "Dsus4", "D G A", "1 4 5")]
-    [InlineData(4, 0, ChordType.Dominant7, "G7", "G B D F", "1 3 5 ♭7")]
-    [InlineData(2, -1, ChordType.Major7, "E♭maj7", "E♭ G B♭ D", "1 3 5 7")]
-    [InlineData(5, 0, ChordType.Minor7, "Am7", "A C E G", "1 ♭3 5 ♭7")]
-    [InlineData(6, 0, ChordType.HalfDiminished7, "Bm7♭5", "B D F A", "1 ♭3 ♭5 ♭7")]
-    [InlineData(4, 1, ChordType.Diminished7, "G♯dim7", "G♯ B D F", "1 ♭3 ♭5 𝄫7")]
-    [InlineData(3, 0, ChordType.Major6, "F6", "F A C D", "1 3 5 6")]
-    [InlineData(1, 0, ChordType.Minor6, "Dm6", "D F A B", "1 ♭3 5 6")]
-    [InlineData(0, 0, ChordType.Add9, "Cadd9", "C E G D", "1 3 5 9")]
-    public void A_chord_is_spelled_on_its_letters_with_its_symbol_and_formula(int step, int alter, ChordType type, string symbol, string notes, string formula)
+    [InlineData(0, 0, nameof(ChordType.Major), "C", "C E G", "1 3 5")]
+    [InlineData(3, 1, nameof(ChordType.Minor), "F♯m", "F♯ A C♯", "1 ♭3 5")]
+    [InlineData(6, 0, nameof(ChordType.Diminished), "Bdim", "B D F", "1 ♭3 ♭5")]
+    [InlineData(4, 1, nameof(ChordType.Augmented), "G♯+", "G♯ B♯ D𝄪", "1 3 ♯5")]
+    [InlineData(1, 0, nameof(ChordType.Sus2), "Dsus2", "D E A", "1 2 5")]
+    [InlineData(1, 0, nameof(ChordType.Sus4), "Dsus4", "D G A", "1 4 5")]
+    [InlineData(4, 0, nameof(ChordType.Dominant7), "G7", "G B D F", "1 3 5 ♭7")]
+    [InlineData(2, -1, nameof(ChordType.Major7), "E♭maj7", "E♭ G B♭ D", "1 3 5 7")]
+    [InlineData(5, 0, nameof(ChordType.Minor7), "Am7", "A C E G", "1 ♭3 5 ♭7")]
+    [InlineData(6, 0, nameof(ChordType.HalfDiminished7), "Bm7♭5", "B D F A", "1 ♭3 ♭5 ♭7")]
+    [InlineData(4, 1, nameof(ChordType.Diminished7), "G♯dim7", "G♯ B D F", "1 ♭3 ♭5 𝄫7")]
+    [InlineData(3, 0, nameof(ChordType.Major6), "F6", "F A C D", "1 3 5 6")]
+    [InlineData(1, 0, nameof(ChordType.Minor6), "Dm6", "D F A B", "1 ♭3 5 6")]
+    [InlineData(0, 0, nameof(ChordType.Add9), "Cadd9", "C E G D", "1 3 5 9")]
+    public void A_chord_is_spelled_on_its_letters_with_its_symbol_and_formula(int step, int alter, string type, string symbol, string notes, string formula)
     {
-        ChordCard card = ChordReference.For(Root(step, alter), type);
+        ChordCard card = ChordReference.For(Root(step, alter), Enum.Parse<ChordType>(type));
 
         Assert.Equal(symbol, card.Symbol);
         Assert.Equal(notes, string.Join(" ", card.Notes));

@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Performance;
 /// grid, and so are its likely artefacts. Bars that do not line up stay empty, since nothing is claimed in them.
 /// Pure and deterministic.
 /// </summary>
-public static class PerformanceLayer
+internal static class PerformanceLayer
 {
     /// <summary>The prefix of every note id in the layer, followed by the version's own note id.</summary>
     public const string IdPrefix = "v-";
@@ -72,4 +72,4 @@ public static class PerformanceLayer
 /// <param name="Notes">Every note to engrave, ids starting with <see cref="PerformanceLayer.IdPrefix"/>.</param>
 /// <param name="Added">Ids of the notes the version plays and the print does not have: plum in the layer.</param>
 /// <param name="Artefacts">Ids of the notes that are likely a hearing error: grey, and hidden unless asked for.</param>
-public sealed record PerformanceLayerNotes(IReadOnlyList<Note> Notes, IReadOnlyList<string> Added, IReadOnlyList<string> Artefacts);
+internal sealed record PerformanceLayerNotes(IReadOnlyList<Note> Notes, IReadOnlyList<string> Added, IReadOnlyList<string> Artefacts);

@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>The V1 rhythm reshapes (Stage 1 spec, Operations in Stage 1 · V1).</summary>
-public enum RhythmReshapeKind
+internal enum RhythmReshapeKind
 {
     /// <summary>
     /// Every onset on a beat after the motif's first moves half a beat earlier and is held to where it
@@ -32,7 +32,7 @@ public enum RhythmReshapeKind
 
 /// <summary>The parameters of V1 Rhythm reshape (S1-E3).</summary>
 /// <param name="Eighths">How far <see cref="RhythmReshapeKind.Displace"/> moves the notes, 1–3 eighths; ignored otherwise.</param>
-public sealed record RhythmReshapeParameters(RhythmReshapeKind Kind, int Eighths = 1) : OperationParameters
+internal sealed record RhythmReshapeParameters(RhythmReshapeKind Kind, int Eighths = 1) : OperationParameters
 {
     public const int MinEighths = 1;
 
@@ -43,7 +43,7 @@ public sealed record RhythmReshapeParameters(RhythmReshapeKind Kind, int Eighths
 /// V1 Rhythm reshape: keeps the pitches and their order, changes onsets and durations. Pure and
 /// deterministic: the same notes, selection, Keep choices and parameters give the same variation.
 /// </summary>
-public sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
+internal sealed class RhythmReshape : VariationOperation<RhythmReshapeParameters>
 {
     public const string OperationId = "V1";
 

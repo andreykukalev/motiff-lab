@@ -23,13 +23,13 @@ public class ReferenceSoundingTests
         ReferenceSounding.Chord(ChordReference.For(new SpelledName(4, 0), ChordType.Dominant7), inversion, spacing, pattern);
 
     [Theory]
-    [InlineData(0, ChordSpacing.Close, "G3 B3 D4 F4")]
-    [InlineData(1, ChordSpacing.Close, "B3 D4 F4 G4")]
-    [InlineData(1, ChordSpacing.Open, "B2 F3 D4 G4")]
-    [InlineData(3, ChordSpacing.Open, "F3 B3 G4 D5")]
-    public void A_seventh_takes_its_position_close_or_open(int inversion, ChordSpacing spacing, string expected)
+    [InlineData(0, nameof(ChordSpacing.Close), "G3 B3 D4 F4")]
+    [InlineData(1, nameof(ChordSpacing.Close), "B3 D4 F4 G4")]
+    [InlineData(1, nameof(ChordSpacing.Open), "B2 F3 D4 G4")]
+    [InlineData(3, nameof(ChordSpacing.Open), "F3 B3 G4 D5")]
+    public void A_seventh_takes_its_position_close_or_open(int inversion, string spacing, string expected)
     {
-        ChordSounding sounding = G7(inversion, spacing, ChordPattern.Together);
+        ChordSounding sounding = G7(inversion, Enum.Parse<ChordSpacing>(spacing), ChordPattern.Together);
 
         Assert.Equal(expected, Pitches(sounding.Tones));
         Assert.Equal(inversion, sounding.Position.Inversion);
@@ -56,17 +56,18 @@ public class ReferenceSoundingTests
     }
 
     [Theory]
-    [InlineData(ChordPattern.Together, "47 53 62 67")]
-    [InlineData(ChordPattern.Up, "47 53 62 67 47 53 62 67")]
-    [InlineData(ChordPattern.Down, "47 53 62 67 67 62 53 47")]
-    [InlineData(ChordPattern.UpAndDown, "47 53 62 67 47 53 62 67 62 53 47")]
-    [InlineData(ChordPattern.Broken, "47 53 62 67 47 62 53 67")]
-    public void The_chord_is_struck_for_a_bar_then_played_the_chosen_way(ChordPattern pattern, string expected)
+    [InlineData(nameof(ChordPattern.Together), "47 53 62 67")]
+    [InlineData(nameof(ChordPattern.Up), "47 53 62 67 47 53 62 67")]
+    [InlineData(nameof(ChordPattern.Down), "47 53 62 67 67 62 53 47")]
+    [InlineData(nameof(ChordPattern.UpAndDown), "47 53 62 67 47 53 62 67 62 53 47")]
+    [InlineData(nameof(ChordPattern.Broken), "47 53 62 67 47 62 53 67")]
+    public void The_chord_is_struck_for_a_bar_then_played_the_chosen_way(string pattern, string expected)
     {
-        ReferenceMusic music = G7(1, ChordSpacing.Open, pattern).Music;
+        ChordPattern played = Enum.Parse<ChordPattern>(pattern);
+        ReferenceMusic music = G7(1, ChordSpacing.Open, played).Music;
 
         Assert.Equal(expected, Heard(music));
-        Assert.Equal(new Tick(pattern == ChordPattern.Together ? 1920 : 3840), music.End);
+        Assert.Equal(new Tick(played == ChordPattern.Together ? 1920 : 3840), music.End);
         Assert.All(music.Notes, note => Assert.Equal(Provenance.Inferred, note.Attribution.Provenance));
     }
 
@@ -112,13 +113,13 @@ public class ReferenceSoundingTests
     }
 
     [Theory]
-    [InlineData(ScalePattern.Up, 1, 8, 1)]
-    [InlineData(ScalePattern.Down, 1, 8, 1)]
-    [InlineData(ScalePattern.UpAndDown, 1, 15, 2)]
-    [InlineData(ScalePattern.UpAndDown, 2, 29, 4)]
-    public void A_scale_is_played_its_way_over_its_octaves_in_bars_of_quavers(ScalePattern pattern, int octaves, int count, int bars)
+    [InlineData(nameof(ScalePattern.Up), 1, 8, 1)]
+    [InlineData(nameof(ScalePattern.Down), 1, 8, 1)]
+    [InlineData(nameof(ScalePattern.UpAndDown), 1, 15, 2)]
+    [InlineData(nameof(ScalePattern.UpAndDown), 2, 29, 4)]
+    public void A_scale_is_played_its_way_over_its_octaves_in_bars_of_quavers(string pattern, int octaves, int count, int bars)
     {
-        ScaleSounding sounding = ReferenceSounding.Scale(ScaleReference.For(new SpelledName(1, 0), ScaleForm.HarmonicMinor), pattern, octaves);
+        ScaleSounding sounding = ReferenceSounding.Scale(ScaleReference.For(new SpelledName(1, 0), ScaleForm.HarmonicMinor), Enum.Parse<ScalePattern>(pattern), octaves);
 
         Assert.Equal(count, sounding.Music.Notes.Count);
         Assert.Equal(bars * 1920L, sounding.Music.End.Value);

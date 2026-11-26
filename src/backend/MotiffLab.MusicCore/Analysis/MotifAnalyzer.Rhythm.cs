@@ -12,7 +12,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// An onset is where one or more notes of the motif start; notes that start together count once,
 /// and the longest of them decides how long the onset is held.
 /// </remarks>
-public static partial class MotifAnalyzer
+internal static partial class MotifAnalyzer
 {
     /// <summary>A list in a fact names at most this many places, then says how many more there are.</summary>
     private const int MaxListed = 6;

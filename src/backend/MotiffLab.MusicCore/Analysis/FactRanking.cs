@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// music-core already found, not new analysis, so the Understand tab can open on one observation
 /// and say why that one. Deterministic: the same facts give the same choice.
 /// </summary>
-public static class FactRanking
+internal static class FactRanking
 {
     /// <summary>The lenses in the order they are worth hearing first: structure, then the line, its rhythm, its character, its harmony, the key.</summary>
     private static readonly FactLens[] s_lensOrder = [FactLens.Structure, FactLens.Melody, FactLens.Rhythm, FactLens.Character, FactLens.Harmony, FactLens.Key];

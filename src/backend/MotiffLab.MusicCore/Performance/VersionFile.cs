@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Performance;
 /// is, or a score in MusicXML written out as MIDI through its tempo marks, so every version is kept and compared the same
 /// way. Which one is "the notes" and which "the performance" is only which was opened first.
 /// </summary>
-public static class VersionFile
+internal static class VersionFile
 {
     /// <summary>The extensions the file picker offers: the same as for opening a piece.</summary>
     public const string AcceptedExtensions = PieceImporter.AcceptedExtensions;
@@ -43,4 +43,4 @@ public static class VersionFile
 /// <summary>A version read from a file: its notes as MIDI and their source, or why there are none.</summary>
 /// <param name="Midi">The notes; null when the file could not be read or has no notes.</param>
 /// <param name="Rejection">Why the file could not be read; null when it was read, or read with no notes.</param>
-public sealed record VersionFileResult(byte[]? Midi, PerformanceSource Source, ImportRejection? Rejection);
+internal sealed record VersionFileResult(byte[]? Midi, PerformanceSource Source, ImportRejection? Rejection);

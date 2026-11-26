@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>What V12 plays in the bass under each chord.</summary>
-public enum BassPatternKind
+internal enum BassPatternKind
 {
     /// <summary>The chord's root, held for the chord.</summary>
     RootsOnly,
@@ -25,7 +25,7 @@ public enum BassPatternKind
 }
 
 /// <summary>The parameters of V12 Bass pattern.</summary>
-public sealed record BassPatternParameters(BassPatternKind Kind) : OperationParameters;
+internal sealed record BassPatternParameters(BassPatternKind Kind) : OperationParameters;
 
 /// <summary>
 /// V12 Bass pattern (Stage 1 spec, Operations): the melody and the upper notes stay as they are, and the bass is
@@ -46,7 +46,7 @@ public sealed record BassPatternParameters(BassPatternKind Kind) : OperationPara
 /// would stop being the lowest line.
 /// </para>
 /// </remarks>
-public sealed class BassPattern : VariationOperation<BassPatternParameters>
+internal sealed class BassPattern : VariationOperation<BassPatternParameters>
 {
     public const string OperationId = "V12";
 

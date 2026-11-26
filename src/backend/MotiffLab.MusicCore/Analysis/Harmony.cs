@@ -149,7 +149,7 @@ public sealed record HarmonyAnalysis(IReadOnlyList<ChordSpan> Chords, IReadOnlyL
 /// root. Variation operations read the same finder (V12, V15) and the Keep check of harmony compares its chords.
 /// </para>
 /// </remarks>
-public static partial class HarmonyAnalyzer
+internal static partial class HarmonyAnalyzer
 {
     /// <summary>A reading at least this confident is inferred; a closer one is uncertain (FR-D5).</summary>
     public const int ClearConfidence = 70;

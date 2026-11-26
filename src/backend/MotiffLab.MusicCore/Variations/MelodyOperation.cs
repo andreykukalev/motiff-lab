@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// of the accompaniment sounding with it: the melody would stop being the top line, so the result
 /// would no longer be a variation of the same melody.
 /// </remarks>
-public abstract class MelodyOperation<TParameters> : VariationOperation<TParameters>
+internal abstract class MelodyOperation<TParameters> : VariationOperation<TParameters>
     where TParameters : OperationParameters
 {
     /// <summary>Whether these parameters count in scale steps, and so need a key.</summary>
@@ -95,7 +95,7 @@ public abstract class MelodyOperation<TParameters> : VariationOperation<TParamet
 /// The melody intervals a melody operation changes, by position: interval 0 runs from the melody's
 /// first note to its second. Compares by value, so steps that pick the same intervals are equal.
 /// </summary>
-public sealed record IntervalSet
+internal sealed record IntervalSet
 {
     /// <exception cref="ArgumentException">No interval is given, or one is negative.</exception>
     public IntervalSet(IEnumerable<int> indices)

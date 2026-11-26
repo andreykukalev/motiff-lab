@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// A range of bars to engrave on their own (decision record 0018, section 4; preparation item 10): bar
 /// numbers as the meter map counts them, 0 for a pickup, both ends included.
 /// </summary>
-public readonly record struct BarRange
+internal readonly record struct BarRange
 {
     public BarRange(int firstBar, int lastBar)
     {
@@ -46,8 +46,8 @@ public readonly record struct BarRange
 /// <param name="AsHeard">Written for reading, as <see cref="NotationGenerator.Generate"/>'s <c>asHeard</c>.</param>
 /// <param name="PlayedTempos">Written as played, with the marks of the playing, as <c>playedTempos</c>.</param>
 /// <param name="Pedal">With <paramref name="PlayedTempos"/>: when the sustain pedal was held.</param>
-public sealed record NotationOssia(string Label, IEnumerable<Note> Notes, bool AsHeard = false, IReadOnlyList<PlaybackTempo>? PlayedTempos = null, IEnumerable<TickSpan>? Pedal = null);
+internal sealed record NotationOssia(string Label, IEnumerable<Note> Notes, bool AsHeard = false, IReadOnlyList<PlaybackTempo>? PlayedTempos = null, IEnumerable<TickSpan>? Pedal = null);
 
 /// <summary>An ossia as engraved: its label, its staves numbered as in the document, and how many notes it holds.</summary>
 /// <param name="IdPrefix">What its notes' ids start with: the shared-model id follows ("ossia-n_0005").</param>
-public sealed record GeneratedOssia(string Label, IReadOnlyList<NotationStaff> Staves, int NoteCount, string IdPrefix);
+internal sealed record GeneratedOssia(string Label, IReadOnlyList<NotationStaff> Staves, int NoteCount, string IdPrefix);

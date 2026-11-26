@@ -92,25 +92,25 @@ public class RhythmReshapeTests
         Assert.Equal(first.Explanation, second.Explanation);
     }
 
-    public static TheoryData<RhythmReshapeKind, int> EveryParameter => new()
+    public static TheoryData<string, int> EveryParameter => new()
     {
-        { RhythmReshapeKind.Syncopate, 1 },
-        { RhythmReshapeKind.Dotted, 1 },
-        { RhythmReshapeKind.HalfTime, 1 },
-        { RhythmReshapeKind.DoubleTime, 1 },
-        { RhythmReshapeKind.Displace, 1 },
-        { RhythmReshapeKind.Displace, 2 },
-        { RhythmReshapeKind.Displace, 3 },
+        { nameof(RhythmReshapeKind.Syncopate), 1 },
+        { nameof(RhythmReshapeKind.Dotted), 1 },
+        { nameof(RhythmReshapeKind.HalfTime), 1 },
+        { nameof(RhythmReshapeKind.DoubleTime), 1 },
+        { nameof(RhythmReshapeKind.Displace), 1 },
+        { nameof(RhythmReshapeKind.Displace), 2 },
+        { nameof(RhythmReshapeKind.Displace), 3 },
     };
 
     [Theory]
     [MemberData(nameof(EveryParameter))]
-    public void Every_parameter_is_deterministic_and_leaves_the_input_as_it_was(RhythmReshapeKind kind, int eighths)
+    public void Every_parameter_is_deterministic_and_leaves_the_input_as_it_was(string kind, int eighths)
     {
         Note[] notes = Piece();
         var context = new VariationContext(FirstBar(notes).Span, s_keepPitchOrder, Seed: 7);
         IReadOnlyList<Note> motif = VariationFacts.MotifNotes(notes, FirstBar(notes));
-        var parameters = new RhythmReshapeParameters(kind, eighths);
+        var parameters = new RhythmReshapeParameters(Enum.Parse<RhythmReshapeKind>(kind), eighths);
 
         Variation first = RhythmReshape.Instance.Apply(motif, context, parameters);
         Variation second = RhythmReshape.Instance.Apply(motif, context with { Seed = 7 }, parameters);

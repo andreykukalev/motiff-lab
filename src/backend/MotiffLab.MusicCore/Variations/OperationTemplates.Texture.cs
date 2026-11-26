@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Variations;
 
-public static partial class OperationTemplates
+internal static partial class OperationTemplates
 {
     /// <summary>
     /// "In bars 2–3 the accompaniment keeps its pitches and plays them in a new rhythm or order; the

@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Performance;
 
 /// <summary>The notes of a performance read from MIDI: a transcription engine's file or a MIDI file played in by hand (decision record 0022, section 1).</summary>
-public static class PlayedNotes
+internal static class PlayedNotes
 {
     /// <summary>
     /// Every note of the file at its time, through the file's tempo changes, in microseconds from the file's start

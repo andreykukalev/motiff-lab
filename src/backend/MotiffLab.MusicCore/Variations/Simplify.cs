@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>The parameters of V6 Simplify.</summary>
 /// <param name="Level">1 to 3, each doing what the one before it does and more (PRD, V6).</param>
-public sealed record SimplifyParameters(int Level) : OperationParameters
+internal sealed record SimplifyParameters(int Level) : OperationParameters
 {
     public const int MinLevel = 1;
 
@@ -33,7 +33,7 @@ public sealed record SimplifyParameters(int Level) : OperationParameters
 /// voice or bass to simplify, or when it would change nothing.
 /// </para>
 /// </remarks>
-public sealed class Simplify : VariationOperation<SimplifyParameters>
+internal sealed class Simplify : VariationOperation<SimplifyParameters>
 {
     public const string OperationId = "V6";
 

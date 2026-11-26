@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>How long each note sounds, as a share of the time to the next onset (V13).</summary>
-public enum ArticulationKind
+internal enum ArticulationKind
 {
     /// <summary>About a quarter of the time to the next onset: short, with a wide gap.</summary>
     Short,
@@ -17,7 +17,7 @@ public enum ArticulationKind
 }
 
 /// <summary>The parameters of V13 Articulation.</summary>
-public sealed record ArticulationParameters(ArticulationKind Kind) : OperationParameters;
+internal sealed record ArticulationParameters(ArticulationKind Kind) : OperationParameters;
 
 /// <summary>
 /// V13 Articulation: every note keeps its pitch and its onset and sounds for a share of the time to
@@ -39,7 +39,7 @@ public sealed record ArticulationParameters(ArticulationKind Kind) : OperationPa
 /// too. Applying the same kind again changes nothing.
 /// </para>
 /// </remarks>
-public sealed class Articulation : VariationOperation<ArticulationParameters>
+internal sealed class Articulation : VariationOperation<ArticulationParameters>
 {
     public const string OperationId = "V13";
 

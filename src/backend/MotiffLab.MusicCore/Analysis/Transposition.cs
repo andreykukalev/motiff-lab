@@ -12,10 +12,10 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <param name="From">The key the piece is in.</param>
 /// <param name="To">The key it is moved to.</param>
 /// <param name="Semitones">How far each note moved: the nearer way, −6 to +5.</param>
-public sealed record TransposedPiece(MusicalKey From, MusicalKey To, int Semitones, IReadOnlyList<Note> Notes, IReadOnlyList<KeyChange> Keys, TransposedSpelling Spelling);
+internal sealed record TransposedPiece(MusicalKey From, MusicalKey To, int Semitones, IReadOnlyList<Note> Notes, IReadOnlyList<KeyChange> Keys, TransposedSpelling Spelling);
 
 /// <summary>Transposition of a piece to another key of the same mode. Pure: the same piece and keys give the same result.</summary>
-public static class Transposition
+internal static class Transposition
 {
     /// <summary>The semitones from one tonic to the other, the nearer way (−6 to +5): A minor to C minor is +3, to F♯ minor −3.</summary>
     public static int Semitones(MusicalKey from, MusicalKey to)

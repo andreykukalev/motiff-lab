@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Motifs;
 
 namespace MotiffLab.MusicCore.Variations;
 
-public static partial class OperationTemplates
+internal static partial class OperationTemplates
 {
     /// <summary>
     /// "4 of 6 melody intervals are 1 scale step wider in the key's scale, keeping their direction.",

@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>How V2 plays each bar's accompaniment notes.</summary>
-public enum AccompanimentPatternKind
+internal enum AccompanimentPatternKind
 {
     /// <summary>All the bar's accompaniment notes struck together once and held to the end of the bar.</summary>
     HeldChord,
@@ -27,7 +27,7 @@ public enum AccompanimentPatternKind
 }
 
 /// <summary>The note value a V2 pattern moves in.</summary>
-public enum PatternUnit
+internal enum PatternUnit
 {
     Eighths,
     Triplets,
@@ -36,7 +36,7 @@ public enum PatternUnit
 
 /// <summary>The parameters of V2 Accompaniment pattern.</summary>
 /// <param name="Unit">The note value the pattern moves in; <see cref="AccompanimentPatternKind.HeldChord"/> ignores it.</param>
-public sealed record AccompanimentPatternParameters(AccompanimentPatternKind Kind, PatternUnit Unit = PatternUnit.Eighths) : OperationParameters;
+internal sealed record AccompanimentPatternParameters(AccompanimentPatternKind Kind, PatternUnit Unit = PatternUnit.Eighths) : OperationParameters;
 
 /// <summary>
 /// V2 Accompaniment pattern: the melody stays as it is, and each bar's accompaniment replays the
@@ -59,7 +59,7 @@ public sealed record AccompanimentPatternParameters(AccompanimentPatternKind Kin
 /// being the top line.
 /// </para>
 /// </remarks>
-public sealed class AccompanimentPattern : VariationOperation<AccompanimentPatternParameters>
+internal sealed class AccompanimentPattern : VariationOperation<AccompanimentPatternParameters>
 {
     public const string OperationId = "V2";
 

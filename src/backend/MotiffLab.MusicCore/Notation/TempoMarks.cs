@@ -6,7 +6,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// <param name="PerMinute">Beats a minute, counted in <paramref name="Beat"/>.</param>
 /// <param name="Approximate">True for a tempo worked out from the playing (<see cref="TempoSource.Inferred"/>).</param>
 /// <param name="Beat">The note of the mark: a dotted quarter in 6/8 and the other compound meters ("♩. = 60").</param>
-public sealed record TempoMark(Tick At, int PerMinute, bool Approximate, TempoBeat Beat = TempoBeat.Quarter)
+internal sealed record TempoMark(Tick At, int PerMinute, bool Approximate, TempoBeat Beat = TempoBeat.Quarter)
 {
     /// <summary>The words after the note: "= 92" or "≈ 92".</summary>
     public string Text => $"{(Approximate ? "≈" : "=")} {PerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
@@ -18,7 +18,7 @@ public sealed record TempoMark(Tick At, int PerMinute, bool Approximate, TempoBe
 /// a recording, and nothing for a recording's own clock (assumed); after the start, only the changes the notes state.
 /// A mark counts the beat of the meter where it stands: dotted quarters in 6/8, quarters in 4/4.
 /// </summary>
-public static class TempoMarks
+internal static class TempoMarks
 {
     /// <param name="tempos">The tempo changes as played, in order, the first at tick 0.</param>
     /// <param name="meter">The bars the marks stand in, for their beat; null counts quarter notes throughout.</param>

@@ -13,20 +13,20 @@ namespace MotiffLab.MusicCore.Tests.Analysis;
 public class ScaleReferenceTests
 {
     [Theory]
-    [InlineData(0, 0, ScaleForm.Major, "C D E F G A B", "1 2 3 4 5 6 7")]
-    [InlineData(5, 0, ScaleForm.MelodicMinor, "A B C D E F♯ G♯", "1 2 ♭3 4 5 6 7")]
-    [InlineData(1, 0, ScaleForm.Dorian, "D E F G A B C", "1 2 ♭3 4 5 6 ♭7")]
-    [InlineData(2, 0, ScaleForm.Phrygian, "E F G A B C D", "1 ♭2 ♭3 4 5 ♭6 ♭7")]
-    [InlineData(3, 0, ScaleForm.Lydian, "F G A B C D E", "1 2 3 ♯4 5 6 7")]
-    [InlineData(4, 0, ScaleForm.Mixolydian, "G A B C D E F", "1 2 3 4 5 6 ♭7")]
-    [InlineData(6, 0, ScaleForm.Locrian, "B C D E F G A", "1 ♭2 ♭3 4 ♭5 ♭6 ♭7")]
-    [InlineData(1, 1, ScaleForm.Lydian, "D♯ E♯ F𝄪 G𝄪 A♯ B♯ C𝄪", "1 2 3 ♯4 5 6 7")]
-    [InlineData(4, -1, ScaleForm.Locrian, "G♭ A𝄫 B𝄫 C♭ D𝄫 E𝄫 F♭", "1 ♭2 ♭3 4 ♭5 ♭6 ♭7")]
-    [InlineData(0, 0, ScaleForm.MajorPentatonic, "C D E G A", "1 2 3 5 6")]
-    [InlineData(5, 0, ScaleForm.MinorPentatonic, "A C D E G", "1 ♭3 4 5 ♭7")]
-    public void A_scale_takes_its_letters_from_the_tonic_with_its_degrees(int step, int alter, ScaleForm form, string notes, string formula)
+    [InlineData(0, 0, nameof(ScaleForm.Major), "C D E F G A B", "1 2 3 4 5 6 7")]
+    [InlineData(5, 0, nameof(ScaleForm.MelodicMinor), "A B C D E F♯ G♯", "1 2 ♭3 4 5 6 7")]
+    [InlineData(1, 0, nameof(ScaleForm.Dorian), "D E F G A B C", "1 2 ♭3 4 5 6 ♭7")]
+    [InlineData(2, 0, nameof(ScaleForm.Phrygian), "E F G A B C D", "1 ♭2 ♭3 4 5 ♭6 ♭7")]
+    [InlineData(3, 0, nameof(ScaleForm.Lydian), "F G A B C D E", "1 2 3 ♯4 5 6 7")]
+    [InlineData(4, 0, nameof(ScaleForm.Mixolydian), "G A B C D E F", "1 2 3 4 5 6 ♭7")]
+    [InlineData(6, 0, nameof(ScaleForm.Locrian), "B C D E F G A", "1 ♭2 ♭3 4 ♭5 ♭6 ♭7")]
+    [InlineData(1, 1, nameof(ScaleForm.Lydian), "D♯ E♯ F𝄪 G𝄪 A♯ B♯ C𝄪", "1 2 3 ♯4 5 6 7")]
+    [InlineData(4, -1, nameof(ScaleForm.Locrian), "G♭ A𝄫 B𝄫 C♭ D𝄫 E𝄫 F♭", "1 ♭2 ♭3 4 ♭5 ♭6 ♭7")]
+    [InlineData(0, 0, nameof(ScaleForm.MajorPentatonic), "C D E G A", "1 2 3 5 6")]
+    [InlineData(5, 0, nameof(ScaleForm.MinorPentatonic), "A C D E G", "1 ♭3 4 5 ♭7")]
+    public void A_scale_takes_its_letters_from_the_tonic_with_its_degrees(int step, int alter, string form, string notes, string formula)
     {
-        ScaleCard card = ScaleReference.For(new SpelledName(step, alter), form);
+        ScaleCard card = ScaleReference.For(new SpelledName(step, alter), Enum.Parse<ScaleForm>(form));
 
         Assert.Equal(notes, string.Join(" ", card.Notes));
         Assert.Equal(formula, string.Join(" ", card.Formula));

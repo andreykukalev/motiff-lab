@@ -14,7 +14,7 @@ namespace MotiffLab.MusicCore.Assembly;
 /// <param name="Delta">How much longer the music became, in ticks (negative when shorter).</param>
 /// <param name="Span">Where the step's music lies right after it was applied.</param>
 /// <param name="Leans">The steps whose notes this step holds on to or changes: it depends on them.</param>
-public sealed record StepOutcome(
+internal sealed record StepOutcome(
     int Number,
     bool Applied,
     string? Lost,
@@ -33,7 +33,7 @@ public sealed record StepOutcome(
 /// <param name="Music">The notes, bars, tempo and keys.</param>
 /// <param name="Origins">For each note a step put in, that step's number; notes of the base are not here.</param>
 /// <param name="Steps">Each step's outcome, in journal order.</param>
-public sealed record Assembled(SourceMusic Music, IReadOnlyDictionary<string, int> Origins, IReadOnlyList<StepOutcome> Steps)
+internal sealed record Assembled(SourceMusic Music, IReadOnlyDictionary<string, int> Origins, IReadOnlyList<StepOutcome> Steps)
 {
     /// <summary>The step that put a note in, or 0 for a note of the base.</summary>
     public int OriginOf(string noteId) => Origins.GetValueOrDefault(noteId);

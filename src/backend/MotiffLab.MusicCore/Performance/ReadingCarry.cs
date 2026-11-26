@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Performance;
 
 /// <summary>What became of one of the player's corrections when the same pages were read again («Как напечатано», step 2).</summary>
-public enum CarryOutcome
+internal enum CarryOutcome
 {
     /// <summary>The new reading makes the same mistake: the correction is carried over to it.</summary>
     Carried,
@@ -22,7 +22,7 @@ public enum CarryOutcome
 /// <param name="Bar">The bar of its place in the new reading, as the workspace shows it (its music matched, so a bar the new reading has more or less before it moves it).</param>
 /// <param name="Corrected">The values the player gave the note; null when the player removed it.</param>
 /// <param name="Read">What the new reading gives at its place: the note carried to, or the nearest in pitch that starts there; null for none.</param>
-public sealed record CarriedCorrection(string NoteId, int Bar, CarryOutcome Outcome, NoteValues? Corrected, NoteValues? Read);
+internal sealed record CarriedCorrection(string NoteId, int Bar, CarryOutcome Outcome, NoteValues? Corrected, NoteValues? Read);
 
 /// <summary>
 /// The player's corrections of an earlier reading of a score carried over to a new reading of the same pages («Как
@@ -40,7 +40,7 @@ public sealed record CarriedCorrection(string NoteId, int Bar, CarryOutcome Outc
 /// <param name="Edits">The corrections carried, laid on the new reading's notes.</param>
 /// <param name="Corrections">Each correction of the earlier reading, in the order the player made them.</param>
 /// <param name="ConfirmedBars">The bars confirmed in the new reading.</param>
-public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrection> Corrections, IReadOnlyList<int> ConfirmedBars)
+internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrection> Corrections, IReadOnlyList<int> ConfirmedBars)
 {
     public int Count(CarryOutcome outcome) => Corrections.Count(correction => correction.Outcome == outcome);
 

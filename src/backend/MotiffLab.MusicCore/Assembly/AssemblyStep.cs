@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Assembly;
 /// <paramref name="NoteId"/> plus <paramref name="Offset"/> ticks, so material put in or taken out earlier never moves
 /// what a later step meant. Without a note (nothing to hold on to) <paramref name="Offset"/> is a time from the start.
 /// </summary>
-public readonly record struct TimeAnchor(string? NoteId, long Offset)
+internal readonly record struct TimeAnchor(string? NoteId, long Offset)
 {
     /// <summary>The anchor for a time: the note that starts there or nearest to it.</summary>
     public static TimeAnchor At(IReadOnlyList<Note> notes, Tick position)
@@ -36,7 +36,7 @@ public readonly record struct TimeAnchor(string? NoteId, long Offset)
 }
 
 /// <summary>Where a carry goes in the player's notes: replacing <c>[Start, End)</c>, or inserted at <see cref="Start"/> when <see cref="End"/> is null.</summary>
-public sealed record AssemblyPlace(TimeAnchor Start, TimeAnchor? End)
+internal sealed record AssemblyPlace(TimeAnchor Start, TimeAnchor? End)
 {
     public bool Inserts => End is null;
 
@@ -65,7 +65,7 @@ public abstract record AssemblyStep(int Number, DateTimeOffset At)
 /// With <paramref name="Keep"/> (a recording, «оставить ваши ноты, добавив то, что исполнитель играет иначе») the notes of
 /// the place stay and only the fragment's notes none of them sounds are added, fitted into the place, which keeps its length.
 /// </summary>
-public sealed record CarryStep(int Number, DateTimeOffset At, string SourceId, TickSpan From, AssemblyPlace To, int Transpose = 0, bool Keep = false) : AssemblyStep(Number, At)
+internal sealed record CarryStep(int Number, DateTimeOffset At, string SourceId, TickSpan From, AssemblyPlace To, int Transpose = 0, bool Keep = false) : AssemblyStep(Number, At)
 {
     public bool Keep { get; } = !Keep || !(To ?? throw new ArgumentNullException(nameof(To))).Inserts ? Keep : throw new ArgumentException("Only a carry that replaces can keep the notes of its place.", nameof(Keep));
 
@@ -78,7 +78,7 @@ public sealed record CarryStep(int Number, DateTimeOffset At, string SourceId, T
 }
 
 /// <summary>One note changed in the player's notes («✎ Ноты»): removed, or moved by <paramref name="Semitones"/>.</summary>
-public sealed record NoteStep(int Number, DateTimeOffset At, string NoteId, int? Semitones) : AssemblyStep(Number, At)
+internal sealed record NoteStep(int Number, DateTimeOffset At, string NoteId, int? Semitones) : AssemblyStep(Number, At)
 {
     public string NoteId { get; } = !string.IsNullOrWhiteSpace(NoteId) ? NoteId : throw new ArgumentException("A note change names its note.", nameof(NoteId));
 
@@ -86,7 +86,7 @@ public sealed record NoteStep(int Number, DateTimeOffset At, string NoteId, int?
 }
 
 /// <summary>The notes of a place in the player's notes moved by <paramref name="Semitones"/> («Транспонировать…»).</summary>
-public sealed record TransposeStep(int Number, DateTimeOffset At, AssemblyPlace Place, int Semitones) : AssemblyStep(Number, At)
+internal sealed record TransposeStep(int Number, DateTimeOffset At, AssemblyPlace Place, int Semitones) : AssemblyStep(Number, At)
 {
     public int Semitones { get; } = Semitones is >= -24 and <= 24 and not 0 ? Semitones : throw new ArgumentOutOfRangeException(nameof(Semitones), Semitones, "A transposition moves by 1 to 24 semitones up or down.");
 }

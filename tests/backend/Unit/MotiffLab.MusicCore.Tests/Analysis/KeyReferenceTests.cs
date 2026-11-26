@@ -26,14 +26,14 @@ public class KeyReferenceTests
         Assert.Equal(notes, Spelled(new MusicalKey(fifths, KeyMode.Major), ScaleForm.Major));
 
     [Theory]
-    [InlineData(0, ScaleForm.NaturalMinor, "A B C D E F G")]
-    [InlineData(0, ScaleForm.HarmonicMinor, "A B C D E F G♯")]
-    [InlineData(6, ScaleForm.HarmonicMinor, "D♯ E♯ F♯ G♯ A♯ B C𝄪")]
-    [InlineData(7, ScaleForm.HarmonicMinor, "A♯ B♯ C♯ D♯ E♯ F♯ G𝄪")]
-    [InlineData(-5, ScaleForm.HarmonicMinor, "B♭ C D♭ E♭ F G♭ A")]
-    [InlineData(-7, ScaleForm.NaturalMinor, "A♭ B♭ C♭ D♭ E♭ F♭ G♭")]
-    public void A_minor_scale_raises_its_seventh_in_the_harmonic_form(int fifths, ScaleForm form, string notes) =>
-        Assert.Equal(notes, Spelled(new MusicalKey(fifths, KeyMode.Minor), form));
+    [InlineData(0, nameof(ScaleForm.NaturalMinor), "A B C D E F G")]
+    [InlineData(0, nameof(ScaleForm.HarmonicMinor), "A B C D E F G♯")]
+    [InlineData(6, nameof(ScaleForm.HarmonicMinor), "D♯ E♯ F♯ G♯ A♯ B C𝄪")]
+    [InlineData(7, nameof(ScaleForm.HarmonicMinor), "A♯ B♯ C♯ D♯ E♯ F♯ G𝄪")]
+    [InlineData(-5, nameof(ScaleForm.HarmonicMinor), "B♭ C D♭ E♭ F G♭ A")]
+    [InlineData(-7, nameof(ScaleForm.NaturalMinor), "A♭ B♭ C♭ D♭ E♭ F♭ G♭")]
+    public void A_minor_scale_raises_its_seventh_in_the_harmonic_form(int fifths, string form, string notes) =>
+        Assert.Equal(notes, Spelled(new MusicalKey(fifths, KeyMode.Minor), Enum.Parse<ScaleForm>(form)));
 
     [Theory]
     [InlineData(5, "F♯ C♯ G♯ D♯ A♯", "8 5 9 6 3")]

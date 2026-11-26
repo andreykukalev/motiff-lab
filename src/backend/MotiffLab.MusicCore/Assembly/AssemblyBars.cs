@@ -17,7 +17,7 @@ public readonly record struct AssemblyBar(TickSpan Span, TimeSignature Signature
 /// section 3): the bars before the carry stay, the source's bars come in as they are, and the bars after it move
 /// with the music, so their downbeats stay downbeats. Two short bars meeting at a seam become one bar.
 /// </summary>
-public static class AssemblyBars
+internal static class AssemblyBars
 {
     /// <summary>The grid seams are put on: a 32nd note, the grid notation is written on.</summary>
     public const long Grid = Notation.NotationGenerator.Grid;

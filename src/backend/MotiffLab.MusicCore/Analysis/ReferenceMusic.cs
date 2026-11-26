@@ -5,14 +5,14 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>A note of the Reference's music: the key it sounds and the name it is written with (B♯3 for C4 in C♯ major).</summary>
-public readonly record struct WrittenTone(int Midi, SpelledName Name)
+internal readonly record struct WrittenTone(int Midi, SpelledName Name)
 {
     /// <summary>The octave the name is written in.</summary>
     public int Octave => Name.OctaveOf(Midi);
 }
 
 /// <summary>A key the Reference's keyboard marks, with the note spelled on it.</summary>
-public sealed record MarkedKey(int Midi, SpelledName Note)
+internal sealed record MarkedKey(int Midi, SpelledName Note)
 {
     /// <summary>The note by its letter: B♭, C♯.</summary>
     public string Name => Note.Letter;
@@ -33,7 +33,7 @@ public sealed record MarkedKey(int Midi, SpelledName Note)
 /// <param name="KeyboardLow">The C at or below the lowest key marked, where a keyboard that shows them starts.</param>
 /// <param name="KeyboardHigh">The B at or above the highest key marked, where it ends.</param>
 /// <param name="Keys">The keys a keyboard marks, each with its note's name; empty when the music shows none.</param>
-public sealed record ReferenceMusic(
+internal sealed record ReferenceMusic(
     IReadOnlyList<Note> Notes,
     Tick End,
     int MicrosecondsPerQuarter,
@@ -71,4 +71,4 @@ public sealed record ReferenceMusic(
 }
 
 /// <summary>The Reference's music on a piece's timeline: its notes there and the span of its bars.</summary>
-public sealed record PlacedMusic(IReadOnlyList<Note> Notes, TickSpan Span);
+internal sealed record PlacedMusic(IReadOnlyList<Note> Notes, TickSpan Span);
