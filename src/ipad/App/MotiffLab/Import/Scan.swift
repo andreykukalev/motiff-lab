@@ -24,7 +24,7 @@ struct ScanResult: Sendable {
 /// choice until the player gives their own server's address or turns scanning off in Settings; it reads only for a
 /// signed-in player with Pro. In a build without sign-in, scanning is off until the player gives an address. The PDF goes
 /// only to that address, and only when the player sends it; the server deletes it once read, or, sent as a scan job
-/// (`ScanJobs.swift`, the experiment `jobsKey`), once the app has fetched what it read, and at the latest after 24 hours.
+/// (`ScanJobs.swift`, the engine choice «Четыре движка», `allEngines`), once the app has fetched what it read, and at the latest after 24 hours.
 @MainActor
 final class ScanServer: ObservableObject {
     static let shared = ScanServer()

@@ -84,7 +84,7 @@ public class SettingsTests
         Assert.Equal(["all", "auto", "homr", "copisteria"], engine.Choices);
         Assert.Equal("all", SettingsState.Default["scan.engine"]);
         Assert.Null(SettingsCatalogue.Find("experimental.scanJobs"));
-        Assert.DoesNotContain(SettingsCatalogue.All, setting => setting.Section == SettingSection.Experimental);
+        Assert.DoesNotContain("Experimental", Enum.GetNames<SettingSection>());
     }
 
     [Fact]

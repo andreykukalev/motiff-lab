@@ -123,7 +123,7 @@
   "recognition.finished": "Notes recognised: {0} of {1}",
   "recognition.left": "about {0} min. left",
   "recognition.failMissing": "The piece is no longer in the library",
-  "scan.engineMissing": "The scan server has no {0} engine. Update the server, or choose homr in Settings, section Experimental.",
+  "scan.engineMissing": "The scan server has no {0} engine. Update the server, or choose another engine in Settings, section Account.",
   "folderImport.accessFine": "access is fine",
   "folderImport.accessLost": "no access: pick the folder again",
   "folderImport.accessUnreadable": "the folder cannot be read",

@@ -492,10 +492,9 @@ struct BackgroundRecognitionLine: View {
         }
     }
 
-    /// The piece's scan job is done on the server and its readings wait for the screen to let the piece go.
+    /// The piece's notes are read (by its scan job or otherwise) and wait for the screen to let the piece go.
     static func ready(_ item: RecognitionItem, queue: RecognitionQueue) -> Bool {
-        guard item.state == .reading || item.state == .queued, let job = queue.job, job.file == item.file else { return false }
-        return job.status.state == "done"
+        item.state == .reading && queue.awaiting == item.file
     }
 
     /// What the line says: why the notes were not read, the batch paused, how far the job is, or that it is being read;
@@ -505,6 +504,8 @@ struct BackgroundRecognitionLine: View {
         case .done: return nil
         case .failed: return text.format("recognition.backgroundFailed", item.reason ?? text["pdf.readNone"])
         case .queued, .reading:
+            // Stopped by the app, it says why, as the library's banner does, where «Продолжить» goes on.
+            if let stopped = queue.batch?.stopped { return text["recognition.stopped." + stopped] }
             if let batch = queue.batch, batch.paused { return text.format("recognition.pausedAt", String(batch.done), String(batch.items.count)) }
             if let current = queue.progress, current.file == item.file { return RecognitionTop.jobLine(current.progress, text) }
             return text["import.scanBusy"]

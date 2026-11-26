@@ -21,13 +21,6 @@ public enum SettingSection
     Assistant,
     Appearance,
     Account,
-
-    /// <summary>
-    /// Experiments (governance, "Experiments"): each new idea behind its own switch, off until the player turns it on. Holds
-    /// no setting: the 23 switches of versions 0.4 to 0.6.4 went in 0.7 (W1.11), and the scan engine's choice, with scan jobs
-    /// as one of its choices, is in Account since the 1.3 hotfix (Andrei, 2026-11-25: no experiment switches).
-    /// </summary>
-    Experimental,
 }
 
 /// <summary>What a setting's value is.</summary>

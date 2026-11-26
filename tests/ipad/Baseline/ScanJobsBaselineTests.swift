@@ -234,6 +234,48 @@ final class ScanJobsBaselineTests: XCTestCase {
         }
     }
 
+    /// SCAN-04: the piece open on its PDF gets its notes only once its screen lets it go («Открыть ноты»): meanwhile the
+    /// notes wait, its line says «Ноты готовы» and nothing is written into the file, which the screen saves.
+    private func readWhileOpen(_ url: URL, _ queue: RecognitionQueue) async throws {
+        queue.opened(url)
+        queue.start([RecognitionItem(file: url.lastPathComponent, title: "Etude", pages: 2)], address: ScanSupport.server, hosted: false)
+
+        try await ScanSupport.wait("the notes read and waiting for the screen") { queue.awaiting == url.lastPathComponent }
+        let waiting = try XCTUnwrap(queue.status(of: url))
+        XCTAssertTrue(BackgroundRecognitionLine.ready(waiting, queue: queue), "«Ноты готовы · Открыть ноты»")
+        let before = await PieceSummary.read(url)
+        XCTAssertEqual(before?.hasNotes, false, "nothing written while the piece is open")
+
+        queue.released(url)
+        let done = await queue.finished(url, within: 15)
+        XCTAssertEqual(done?.state, .done)
+        XCTAssertNil(queue.awaiting)
+        let after = await PieceSummary.read(url)
+        XCTAssertEqual(after?.hasNotes, true, "the notes written once the screen let the piece go")
+    }
+
+    func testSCAN04ThePieceOpenOnItsPdfGetsTheNotesOfItsJobOnlyOnceItsScreenLetsItGo() async throws {
+        jobsBefore = await ScanSupport.jobsOn()
+        let url = try piece(pages: 2)
+        StubAPI.reset(newJob("j1", [(1, "C"), (2, "E")]))
+
+        try await readWhileOpen(url, self.queue(in: url.deletingLastPathComponent()))
+
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [64])
+        XCTAssertEqual(ScanSupport.sent("POST", "jobs"), 1, "sent once, not again after the wait")
+    }
+
+    func testSCAN04APdfReadWholeOnTheIPadWaitsForItsScreenTooAndIsNotReadAgain() async throws {
+        jobsBefore = await ScanSupport.jobsOn()
+        let folder = try piece(pages: 2).deletingLastPathComponent()
+        let url = try ScanSupport.pdfPiece(in: folder, pdf: Data(contentsOf: ScanSupport.promenade), pages: 2)
+        StubAPI.reset(["http://scan.test/health": ScanSupport.health])
+
+        try await readWhileOpen(url, self.queue(in: folder))
+
+        XCTAssertEqual(ScanSupport.sent("POST", "jobs"), 0, "nothing sent: the Promenade is read on the iPad")
+    }
+
     // MARK: - SCAN-05: a page no engine read, «Повторить»
 
     /// SCAN-05: a page no engine read is said on the piece's line («есть ноты · стр. 2 не распознана») with «Повторить»; the

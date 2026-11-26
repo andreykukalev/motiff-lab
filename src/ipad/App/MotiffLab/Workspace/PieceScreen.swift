@@ -49,7 +49,10 @@ struct PieceScreen: View {
             },
             release: { file in
                 queue.released(file)
-                return await queue.finished(file)?.state == .done
+                let done = await queue.finished(file)?.state == .done
+                // Not in: the screen stays and writes the piece again, so the queue must not write it meanwhile.
+                if !done { queue.opened(file) }
+                return done
             }
         )
     }
