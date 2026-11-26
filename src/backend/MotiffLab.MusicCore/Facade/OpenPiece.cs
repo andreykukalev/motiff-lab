@@ -166,7 +166,7 @@ internal sealed partial class OpenPiece
         }
         catch (ProjectFileException exception)
         {
-            throw new FacadeException("import", exception.Message) { Data = { ["reason"] = "damaged" } };
+            throw new FacadeException("import", exception.Text(words)) { Data = { ["reason"] = "damaged" } };
         }
 
         var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words);
@@ -434,7 +434,7 @@ internal sealed partial class OpenPiece
         NoteNaming naming = NoteNames.For(request.Text("naming"), Words);
         RollPayload payload = PianoRollData.Create(Notes, score);
         RollNames names = PianoRollData.Names(Notes, [.. NotationKeys(Transcribed.IsHeard(Piece))], naming, Words);
-        return Answer.Write(json => Answer.Roll(json, payload, names));
+        return Answer.Write(json => RollAnswer.Write(json, payload, names));
     }
 
     /// <summary>

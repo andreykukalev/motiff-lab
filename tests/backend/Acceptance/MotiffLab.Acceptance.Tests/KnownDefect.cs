@@ -6,6 +6,4 @@ namespace MotiffLab.Acceptance.Tests;
 /// </summary>
 internal static class KnownDefect
 {
-    public const string NewerFileMessageInRussian =
-        "Known defect (#310): the refusal of a newer project file is in English only. Skipped until a fix task turns it on.";
 }

@@ -24,7 +24,7 @@ internal static class PartsRequest
     /// </summary>
     public static string Split(Request fields)
     {
-        Project collection = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project collection = MusicCoreFacade.ProjectIn(fields);
         var options = new PieceSplitOptions(fields.Now(), MusicCoreFacade.NewProjectId)
         {
             Playlist = fields.Text("playlist"),

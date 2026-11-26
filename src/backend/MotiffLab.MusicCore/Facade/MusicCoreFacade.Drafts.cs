@@ -77,7 +77,7 @@ public sealed partial class MusicCoreFacade
     /// </summary>
     private Project Elsewhere(Request fields)
     {
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project project = ProjectIn(fields);
         return Working(project.Id) is null ? project : throw FacadeException.BadRequest("That piece is open here: send \"into\", its number, in place of its file.");
     }
 
