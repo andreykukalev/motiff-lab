@@ -44,14 +44,13 @@ public class PieceDnaMapTests
     }
 
     [Fact]
-    public void Sections_that_bring_back_the_opening_take_its_letter_with_a_prime()
+    public void Sections_that_bring_back_the_opening_take_its_letter()
     {
         PieceDna dna = Dna(FurElise());
 
-        // The returns of the opening theme take A with primes; the material between takes letters of its own.
+        // The returns of the opening theme take A, unchanged without a prime (#365); the material between takes letters of its own.
         Assert.Equal("A", dna.Form[0].Label);
-        Assert.StartsWith("A", dna.Form[^1].Label);
-        Assert.NotEqual("A", dna.Form[^1].Label);
+        Assert.Equal("A", dna.Form[^1].Label);
         Assert.Contains(dna.Form, section => !section.Label.StartsWith('A'));
         Assert.Contains(dna.Form[^1].Id, dna.Form[0].SharesWith);
         Assert.Equal(dna.Form.OrderBy(section => section.Span.Onset).Select(section => section.Id), dna.Form.Select(section => section.Id));
@@ -82,6 +81,25 @@ public class PieceDnaMapTests
             Assert.All(dna.Ideas.Where(other => other != idea), other =>
                 Assert.DoesNotContain(other.Occurrences, occurrence => occurrence.Span.Onset == idea.Span.Onset));
         }
+    }
+
+    [Fact]
+    public void An_idea_names_each_letter_it_opens_once_with_how_many_sections_of_it()
+    {
+        // One-bar sections A B A A C from bar 1; the idea is heard at the start of the first four.
+        string[] labels = ["A", "B", "A", "A", "C"];
+        DnaSection[] sections = [.. labels.Select((label, i) => new DnaSection($"section_{i + 1}", label, MeterMap.Default.GetBar(i + 1).Span, i + 1, i + 1, []))];
+        IdeaOccurrence[] At(params int[] bars) => [.. bars.Select(bar => new IdeaOccurrence(
+            bar == bars[0] ? OccurrenceKind.Original : OccurrenceKind.Exact, MeterMap.Default.GetBar(bar).Span, bar, bar, 0, []))];
+
+        Assert.Equal("Heard 4 times, always exactly. Opens A 3 times and B once.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 4 раза, всегда точно. Открывает A 3 раза и B один раз.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.Russian));
+        Assert.Equal("Heard twice, always exactly. Opens A twice.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 2 раза, всегда точно. Открывает A дважды.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.Russian));
+
+        // No letter opened twice: the letters alone.
+        Assert.Equal("Heard twice, always exactly. Opens A and B.", IdeaFinder.Summary(At(1, 2), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 2 раза, всегда точно. Открывает A и B.", IdeaFinder.Summary(At(1, 2), MeterMap.Default, sections, Words.Russian));
     }
 
     [Fact]

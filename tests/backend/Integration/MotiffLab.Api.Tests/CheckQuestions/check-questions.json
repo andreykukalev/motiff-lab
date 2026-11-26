@@ -13,7 +13,7 @@
     { "id": "hands.ru", "language": "ru", "kind": "general", "bars": null, "question": "Какой диапазон у каждой руки?", "near": ["range."] },
     { "id": "phrases.en", "language": "en", "kind": "general", "bars": null, "question": "How should I shape the phrases?", "near": ["phrase."] },
     { "id": "phrases.ru", "language": "ru", "kind": "general", "bars": null, "question": "Как вести фразы?", "near": ["phrase."] },
-    { "id": "section.en", "language": "en", "kind": "specific", "bars": null, "question": "How do I play section C?", "near": ["form.section_3", "chords.section_3", "sentence.3"] },
+    { "id": "section.en", "language": "en", "kind": "specific", "bars": null, "question": "How do I play section C?", "near": ["form.section_4", "chords.section_4", "sentence.3", "sentence.4"] },
     { "id": "section.ru", "language": "ru", "kind": "specific", "bars": null, "question": "Как играть часть B?", "near": ["form.section_2", "chords.section_2", "sentence.2"] },
     { "id": "bar.en", "language": "en", "kind": "specific", "bars": null, "question": "Why is bar 32 so hard?", "near": ["density.32"] },
     { "id": "bar.ru", "language": "ru", "kind": "specific", "bars": null, "question": "Что происходит в тактах 24–31?", "near": ["phrase.6", "density.24", "new.24"] },

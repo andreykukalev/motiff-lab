@@ -89,14 +89,38 @@ public class PieceStructureTests
         facade.Close(piece);
     }
 
+    /// <summary>
+    /// Für Elise is the rondo A B A C A the ear hears (#365), in the bar and sixteenth of the file where each section starts:
+    /// the refrain a a b a with its repeats; the F major episode and the E–D♯ link; the refrain again from its upbeat in bar
+    /// 39, without repeats; the episode over the A pedal with the arpeggios and the chromatic run; the last refrain from its
+    /// first full bar. A return inside a refrain (the a after b, at 15.4, 53.4 and 97.4) stays in it. The refrain comes back
+    /// unchanged each time, so it keeps its letter without a prime: what it leaves out are the repeat and its endings, and
+    /// it closes in bar 105 on the A that opens the endings, without their lead-in.
+    /// </summary>
     [Fact]
-    public void The_long_section_of_fur_elise_selects_its_first_thirty_two_bars()
+    public void The_form_of_fur_elise_is_the_rondo_a_b_a_c_a()
     {
         ImportedPiece piece = FurElise();
-        DnaSection c = Structure(piece).Sections.Single(section => section.Label == "C");
 
-        Assert.Equal((24, 77), (c.FirstBar, c.LastBar));
-        Assert.Equal(TickSpan.FromBounds(c.Span.Onset, piece.Meter.GetBar(55).Span.End), FormAnalyzer.Selectable(c, piece.Meter));
+        IReadOnlyList<DnaSection> form = Structure(piece).Sections;
+
+        Assert.Equal(
+            [("A", 0, 23, (0, 0)), ("B", 24, 39, (24, 0)), ("A", 39, 60, (39, 4)), ("C", 61, 83, (61, 0)), ("A", 84, 105, (84, 0))],
+            form.Select(section => (section.Label, section.FirstBar, section.LastBar, Start(piece, section.Span.Onset))));
+        Assert.Equal(piece.End, form[^1].Span.End);
+        Assert.Equal(["section_3", "section_5"], form[0].SharesWith);
+        Assert.Empty(form[1].SharesWith);
+    }
+
+    [Fact]
+    public void A_long_section_selects_its_first_thirty_two_bars()
+    {
+        ImportedPiece piece = FurElise();
+        var whole = new DnaSection("section_1", "A", TickSpan.FromBounds(Tick.Zero, piece.End), 0, 105, []);
+
+        Assert.Equal(TickSpan.FromBounds(Tick.Zero, piece.Meter.GetBar(31).Span.End), FormAnalyzer.Selectable(whole, piece.Meter));
+        DnaSection refrain = Structure(piece).Sections[0];
+        Assert.Equal(refrain.Span, FormAnalyzer.Selectable(refrain, piece.Meter));
     }
 
     [Fact]
@@ -163,6 +187,12 @@ public class PieceStructureTests
     {
         string file = Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml");
         return PieceImporter.Import(Path.GetFileName(file), File.ReadAllBytes(file)).Piece!;
+    }
+
+    private static (int Bar, int Sixteenth) Start(ImportedPiece piece, Tick at)
+    {
+        Bar bar = piece.Meter.BarAt(at);
+        return (bar.Number, (int)((at.Value - bar.Span.Onset.Value) / (CanonicalTime.TicksPerQuarter / 4)));
     }
 
     private static PieceStructure Structure(ImportedPiece piece) =>

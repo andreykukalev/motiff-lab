@@ -22,7 +22,7 @@ public static class IdeaFinder
     /// <summary>The most ideas the map shows.</summary>
     public const int MaxIdeas = 6;
 
-    /// <summary>A card names at most this many sections an idea opens, then says how many.</summary>
+    /// <summary>A card names at most this many letters of the sections an idea opens, then says how many sections.</summary>
     private const int MaxListed = 4;
 
     /// <summary>The ideas, the one heard most often first; empty when no opening is heard again.</summary>
@@ -132,7 +132,11 @@ public static class IdeaFinder
         return new DnaIdea($"idea_{id}", false, span, firstBar, lastBar, [.. motif.Select(note => note.Id)], occurrences, title, Summary(occurrences, meter, sections, w));
     }
 
-    /// <summary>"Heard 7 times: 5 exactly, 2 higher. Opens A and A′."; "Звучит 7 раз: 5 точно, 2 выше. Открывает A и A′."</summary>
+    /// <summary>
+    /// "Heard 7 times: 5 exactly, 2 higher. Opens A twice and B once."; "Звучит 7 раз: 5 точно, 2 выше. Открывает A дважды и
+    /// B один раз.": each letter once, in the order the sections come, with how many sections of that letter the idea opens
+    /// when it opens more than one of any letter ("Opens A and B" otherwise).
+    /// </summary>
     internal static string Summary(IReadOnlyList<IdeaOccurrence> occurrences, MeterMap meter, IReadOnlyList<DnaSection> sections, Words w)
     {
         int exact = occurrences.Count(occurrence => occurrence.Transposition == 0);
@@ -150,17 +154,18 @@ public static class IdeaFinder
         string[] opens = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < meter.GetBar(section.FirstBar).Span.End))
             .Select(section => section.Label)];
+        string[] letters = w.Tallied(opens);
         string[] within = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < section.Span.End))
             .Select(section => section.Label)
             .Distinct()];
-        if (opens.Length > MaxListed)
+        if (letters.Length > MaxListed)
         {
             summary += " " + w.T("Opens ", "Открывает ") + w.Count(opens.Length, "section", "sections", "раздел", "раздела", "разделов") + ".";
         }
         else if (opens.Length > 0)
         {
-            summary += " " + w.T("Opens ", "Открывает ") + w.Joined(opens) + ".";
+            summary += " " + w.T("Opens ", "Открывает ") + w.Joined(letters) + ".";
         }
         else if (sections.Count > 1 && within.Length == 1)
         {

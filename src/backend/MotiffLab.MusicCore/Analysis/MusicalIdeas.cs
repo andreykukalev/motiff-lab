@@ -150,7 +150,7 @@ public static class MusicalIdeas
         return Idea(IdeaKind.Theme, span, piece, w.T("Theme", "Тема"), why, marks);
     }
 
-    /// <summary>"Its opening comes back 9 times, 2 of them at another pitch, and opens A′."</summary>
+    /// <summary>"Its opening comes back 9 times, 2 of them at another pitch, and opens A twice and B once."</summary>
     private static string Returns(List<Recurrence> returns, Piece piece)
     {
         Words w = piece.W;
@@ -166,7 +166,7 @@ public static class MusicalIdeas
             .Select(section => section.Label)];
         if (opens.Length > 0)
         {
-            text += w.T(" and opens ", " и открывает ") + w.Joined(opens);
+            text += w.T(" and opens ", " и открывает ") + w.Joined(w.Tallied(opens));
         }
 
         return text + ".";
