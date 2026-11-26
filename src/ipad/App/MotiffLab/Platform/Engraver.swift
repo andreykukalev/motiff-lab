@@ -39,8 +39,6 @@ final class Engraver {
         String(cString: vrvToolkit_renderToSVG(toolkit, Int32(page), false))
     }
 
-    var log: String { String(cString: vrvToolkit_getLog(toolkit)) }
-
     /// When each engraved note and rest sounds and where each measure starts, in quarter notes: the timemap the web
     /// app's score timeline reads (Scripts/score/score-timeline.ts), as JSON.
     func timemap() -> String {
@@ -99,15 +97,15 @@ final class Engraver {
 
     private static func layOut(piece: Int32, request: String, options: String) -> Result<Engraving, EngraveError> {
         guard let answer = facadeObject(PieceCore(piece: piece).send(.notation, request)) else {
-            return .failure(EngraveError(message: "music-core gave no notation."))
+            return .failure(EngraveError(message: UIText.current["opening.noNotation"]))
         }
         guard let mei = answer["mei"] as? String, !mei.isEmpty else {
-            return .failure(EngraveError(message: answer["message"] as? String ?? "music-core gave no notation."))
+            return .failure(EngraveError(message: answer["message"] as? String ?? UIText.current["opening.noNotation"]))
         }
         let engraver = Engraver()
         engraver.setOptions(options)
         guard engraver.load(mei) else {
-            return .failure(EngraveError(message: "Verovio could not lay out the notation: \(engraver.log)"))
+            return .failure(EngraveError(message: UIText.current["opening.notLaidOut"]))
         }
         let pages = (1...max(engraver.pageCount, 1)).map { engraver.svg(page: $0) }
         let ossias = (answer["ossias"] as? [[String: Any]] ?? []).map { ossia in

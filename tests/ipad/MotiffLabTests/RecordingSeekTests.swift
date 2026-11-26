@@ -1,4 +1,5 @@
 import AVFoundation
+import UIKit
 import XCTest
 @testable import MotiffLab
 
@@ -190,5 +191,41 @@ final class RecordingSeekTests: XCTestCase {
         sources.putAway()
         XCTAssertNil(sources.performance)
         XCTAssertNil(SourcesHandover.performance(for: other))
+    }
+
+    /// v1.5 a-2, answer 30: the app gone to the background (the screen locked too) and the headphones gone pause the
+    /// recording where it was heard, as they pause the notes; an output only added plays on, and play goes on after.
+    func testTheBackgroundAndTheHeadphonesGonePauseTheRecording() async throws {
+        let url = try silence()
+        let listening = RecordingListening()
+        listening.toggle(url)
+        let started = listening.playing
+        XCTAssertTrue(started)
+        NotificationCenter.default.post(
+            name: AVAudioSession.routeChangeNotification, object: nil,
+            userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.newDeviceAvailable.rawValue]
+        )
+        await Task.yield()
+        let pluggedIn = listening.playing
+        XCTAssertTrue(pluggedIn, "an output added: the recording plays on")
+        NotificationCenter.default.post(
+            name: AVAudioSession.routeChangeNotification, object: nil,
+            userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue]
+        )
+        await Task.yield()
+        let unplugged = listening.playing
+        XCTAssertFalse(unplugged, "the headphones gone: paused, not on from the speaker")
+
+        listening.toggle(url)
+        let again = listening.playing
+        XCTAssertTrue(again, "play goes on")
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        await Task.yield()
+        let away = listening.playing
+        let heard = listening.heardAt
+        let shown = listening.elapsed
+        XCTAssertFalse(away, "the app gone to the background: paused")
+        XCTAssertEqual(shown, heard, "the time shown is where it paused")
+        listening.stop()
     }
 }

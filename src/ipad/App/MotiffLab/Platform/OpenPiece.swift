@@ -36,7 +36,8 @@ struct OpenPiece: Identifiable, Sendable {
     /// phrases' marks are not drawn on it (v1.2, they belong to the working notes, where they are edited).
     var shownOnly = false
 
-    /// Opens the file in music-core in the interface's language and engraves it, titled by its name unless given one; a PDF,
+    /// Opens the file in music-core in the interface's language and engraves it, titled as given, else as music-core names
+    /// it (the player's title, a MusicXML score's work title, the file's name); a PDF,
     /// or a PDF piece's project file, opens as a PDF piece with nothing to engrave, and the project file of a piece that is
     /// only its recording opens as that recording (v1.1, finding 29). With `asPdf`, a piece with notes and a
     /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `pdf`, the PDF of a piece that
@@ -49,13 +50,16 @@ struct OpenPiece: Identifiable, Sendable {
             let answer = MusicCore.open(fileName: fileName, data: data, request: request)
             ProbeCounts.shared.mark("opened")
             guard let opened = facadeObject(answer) else {
-                return .failure(EngraveError(message: "music-core did not answer."))
+                return .failure(EngraveError(message: UIText.current["opening.noAnswer"]))
             }
             guard let piece = (opened["piece"] as? NSNumber)?.int32Value, piece > 0 else {
-                return .failure(EngraveError(message: opened["message"] as? String ?? "This file could not be opened."))
+                return .failure(EngraveError(message: opened["message"] as? String ?? UIText.current["opening.failed"]))
             }
-            let title = given ?? ProjectFiles.title(of: fileName)
             let own = PieceSummary(answer: answer)
+            // The title the player set, else the score's own (a MusicXML work title, #330), else the file's name: music-core's
+            // choice (`PieceDetails`), as the library's line shows it.
+            let fileTitle = ProjectFiles.title(of: fileName)
+            let title = given ?? own?.shownTitle(else: fileTitle) ?? fileTitle
             if opened["document"] is [String: Any] {
                 return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", isDocument: true, own: own))
             }

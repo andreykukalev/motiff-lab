@@ -134,6 +134,34 @@ final class PlayerInterruptionTests: XCTestCase {
         XCTAssertFalse(bySystem, "paused by the system: the metronome stops with the piece")
     }
 
+    /// v1.5 a-2, answer 29: the metronome clicking on its own, with no piece playing, stops as the app goes to the background
+    /// (the screen locked too) and as the headphones go, as the music does; an output only added leaves it clicking.
+    func testTheMetronomeOnItsOwnStopsInTheBackgroundAndWithTheHeadphonesGone() async {
+        let metronome = Metronome()
+        defer { metronome.stop() }
+        metronome.start()
+        let clicking = metronome.running
+        XCTAssertTrue(clicking)
+        routeChanges(.newDeviceAvailable)
+        await Task.yield()
+        let pluggedIn = metronome.running
+        XCTAssertTrue(pluggedIn, "an output added: it clicks on")
+        routeChanges(.oldDeviceUnavailable)
+        await Task.yield()
+        let unplugged = metronome.running
+        XCTAssertFalse(unplugged, "the headphones gone: stopped, not on from the speaker")
+
+        metronome.start()
+        let again = metronome.running
+        XCTAssertTrue(again, "its button starts it again")
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        await Task.yield()
+        let away = metronome.running
+        let beat = metronome.beat
+        XCTAssertFalse(away, "the app gone to the background: stopped")
+        XCTAssertEqual(beat, -1, "no beat shown lit")
+    }
+
     /// v1.4 a-1: the Reference's music paused by the system (the app gone to the background) shows stopped on its sheet.
     func testTheReferencesMusicShowsStoppedWhenTheSystemPausesIt() async throws {
         let example = try XCTUnwrap(KitPiece.example)

@@ -277,7 +277,7 @@ enum PieceDetailsFile {
     private static func change(_ url: URL, _ fields: [String: Any]) async throws -> (summary: PieceSummary, file: String) {
         let data = try Data(contentsOf: url)
         guard let file = String(data: data, encoding: .utf8) else {
-            throw ProjectError(message: "The project file could not be read.")
+            throw ProjectError(message: UIText.current["opening.unreadable"])
         }
         var request = fields
         request["file"] = file

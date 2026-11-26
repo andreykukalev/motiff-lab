@@ -34,6 +34,17 @@ internal static partial class Answer
 
         json.WriteEndArray();
         JsonWrite.Texts(json, "octaves", names.Octaves);
+        json.WriteStartArray("voices");
+        foreach (VoiceName voice in names.Voices)
+        {
+            json.WriteStartObject();
+            json.WriteNumber("track", voice.Track);
+            json.WriteNumber("voice", voice.Voice);
+            json.WriteString("name", voice.Name);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
         json.WriteEndObject();
     }
 
