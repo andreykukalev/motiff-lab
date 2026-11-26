@@ -54,7 +54,7 @@ public class NotesOperationsTests
         Project two = project.AddNotes(other);
         Assert.Throws<ArgumentException>(() => two.AddNotes(other));
 
-        Project swapped = two.MakeWorking(other.Id);
+        Project swapped = two.MakeWorking(other.Id, out _);
 
         Assert.Equal((other.Id, other.Music), (swapped.NotesId, swapped.Source));
         Assert.Equal(project.FileName, swapped.FileName);
@@ -68,10 +68,10 @@ public class NotesOperationsTests
         Assert.Equal(["m_0001", "m_0002", "v_0001", "v_0002"], opened.Hidden.Order(StringComparer.Ordinal));
         Assert.Equal(ProjectFile.Write(swapped), ProjectFile.Write(RoundTrip(swapped)));
 
-        Project back = swapped.MakeWorking(project.NotesId);
+        Project back = swapped.MakeWorking(project.NotesId, out _);
         Assert.Equal(ProjectFile.Write(two), ProjectFile.Write(back));
         Assert.Equal(2, OpenedProject.Open(back).Motifs.Count);
-        Assert.Throws<KeyNotFoundException>(() => back.MakeWorking(back.NotesId));
+        Assert.Throws<KeyNotFoundException>(() => back.MakeWorking(back.NotesId, out _));
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class NotesOperationsTests
     {
         Project project = ProjectFileTests.Worked();
         var other = new OtherNotes("n_2", "fur-elise.musicxml", Original(), new NotesProvenance(NotesProvenance.Import));
-        Project swapped = project.AddNotes(other).MakeWorking("n_2");
+        Project swapped = project.AddNotes(other).MakeWorking("n_2", out _);
 
         Project removed = swapped.DeleteNotes(project.NotesId);
 

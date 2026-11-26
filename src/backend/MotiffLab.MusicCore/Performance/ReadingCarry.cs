@@ -27,7 +27,7 @@ internal sealed record CarriedCorrection(string NoteId, int Bar, CarryOutcome Ou
 /// <summary>
 /// The player's corrections of an earlier reading of a score carried over to a new reading of the same pages («Как
 /// напечатано», step 2; concept 3.3, Andrei's answer 5 of 2026-11-25). The two readings are matched by the notes that
-/// start together, aligned with gaps as a performance is (<see cref="PerformanceAlignment"/>, ticks on both sides), which
+/// start together, aligned with gaps as a performance is (<see cref="ReadingMatch"/>, ticks on both sides), which
 /// gives each onset of the earlier reading its place in the new one; a note of the new reading is the same as one of the
 /// earlier when it has its pitch and length at that place. Each correction, as it lies on the earlier reading's notes,
 /// is then one of three (<see cref="CarryOutcome"/>): a changed note the new reading still reads as the player found it
@@ -119,12 +119,12 @@ internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorr
             .Select(static each => (each.Max(laidOn => laidOn.Index), each.Key));
     }
 
-    /// <summary>The two readings matched: where each onset of the earlier lies in the new one, and its notes paired.</summary>
+    /// <summary>The two readings matched (<see cref="ReadingMatch"/>) and the notes of the earlier paired with the new one's.</summary>
     private sealed class Carrying
     {
         private readonly ImportedPiece _before;
         private readonly ImportedPiece _after;
-        private readonly IReadOnlyList<(long From, long To)> _onsets;
+        private readonly ReadingMatch _match;
         private readonly Dictionary<string, Note> _imported;
         private readonly Dictionary<string, Note> _pairOf = new(StringComparer.Ordinal);
         private readonly HashSet<string> _used = new(StringComparer.Ordinal);
@@ -133,7 +133,7 @@ internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorr
         {
             _before = before;
             _after = after;
-            _onsets = PerformanceAlignment.AlignOnsets(before.Notes, after.Notes);
+            _match = new ReadingMatch(before, after);
             _imported = before.Notes.ToDictionary(static note => note.Id, StringComparer.Ordinal);
             foreach (Note note in before.Notes.OrderBy(static note => note.Span.Onset).ThenBy(static note => note.Id, StringComparer.Ordinal))
             {
@@ -199,21 +199,11 @@ internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorr
                 .Where(number => number >= _before.Meter.FirstBarNumber)
                 .Select(number => _before.Meter.GetBar(number))
                 .Where(earlier => earlier.Span.Onset < _before.End)
-                .Select(earlier => (Earlier: earlier, Later: Moved(earlier)))
+                .Select(earlier => (Earlier: earlier, Later: _match.Moved(earlier)))
                 .Where(bar => bar.Later is { } later && later.Span.Onset < _after.End && later.Span.Duration == bar.Earlier.Span.Duration
                     && InBar(was, bar.Earlier).SequenceEqual(InBar(now, later)))
                 .Select(static bar => bar.Later!.Value.Number)
                 .Distinct()];
-
-        /// <summary>The bar of the new reading an earlier bar's music starts in, when it starts a bar there; else null.</summary>
-        private Bar? Moved(Bar earlier)
-        {
-            (long From, long To)[] first = [.. _onsets.Where(pair => earlier.Span.Contains(new Tick(pair.From))).Take(1)];
-            long start = earlier.Span.Onset.Value;
-            long at = Math.Max(0, start + (first.Length == 1 ? first[0].To - first[0].From : Shift(start)));
-            Bar later = _after.Meter.BarAt(new Tick(at));
-            return later.Span.Onset.Value == at ? later : null;
-        }
 
         private static IEnumerable<(int Pitch, long At, long Duration)> InBar(IReadOnlyList<Note> notes, Bar bar) => notes
             .Where(note => bar.Span.Contains(note.Span.Onset))
@@ -239,21 +229,9 @@ internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorr
             return (new CarriedCorrection(id, bar, CarryOutcome.Carried, values, null), Carry);
         }
 
-        /// <summary>Values of the earlier reading at their place in the new one (<see cref="Shift"/>).</summary>
+        /// <summary>Values of the earlier reading at their place in the new one (<see cref="ReadingMatch.Shift"/>).</summary>
         private NoteValues Placed(NoteValues values) =>
-            values with { Span = new TickSpan(new Tick(Math.Max(0, values.Span.Onset.Value + Shift(values.Span.Onset.Value))), values.Span.Duration) };
-
-        /// <summary>How far an onset of the earlier reading lies in the new one: as far as the onsets matched at or before it, else the first matched.</summary>
-        private long Shift(long onset)
-        {
-            (long From, long To)? at = _onsets.Count > 0 ? _onsets[0] : null;
-            foreach ((long From, long To) pair in _onsets.TakeWhile(pair => pair.From <= onset))
-            {
-                at = pair;
-            }
-
-            return at is { } matched ? matched.To - matched.From : 0;
-        }
+            values with { Span = new TickSpan(new Tick(Math.Max(0, values.Span.Onset.Value + _match.Shift(values.Span.Onset.Value))), values.Span.Duration) };
 
         /// <summary>The note of the new reading no earlier note is paired with that has these pitch, onset and length; the same track first, then the lower id.</summary>
         private Note? Free(NoteValues values, int track) => _after.Notes

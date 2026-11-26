@@ -58,10 +58,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   (`RecordingHearing.hear`; `hearFields`: "tempo": "live" and the "hint" of `gridHint`, none without working notes,
   dropped when refused); `keepRecognised` keeps it under the literal
   call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
-  `fresh`, save, toast (with music-core's line of the corrections carried to notes read again, `recognisedToast`, v1.5
+  `fresh`, save, toast (with music-core's line of the corrections carried to notes read again, `toastText`, v1.5
   c-11); the first notes of a piece that had none are its working notes, and the piece opens again on
   them; the first pages added to a piece that is only its recording open it again as a PDF piece (`tell`: the toast here,
-  or handed over with `reopen`). New Notes go under their original; the working notes change only by «Сделать рабочими». A
+  or handed over with `reopen`). New Notes go under their original; the working notes change only by «Сделать рабочими» (its toast adds music-core's line of the bookmarks and phrases that
+  followed their bars, "followed"; its Undo writes the file back, `E-sheet-1`, v1.5 c-11b). A
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last

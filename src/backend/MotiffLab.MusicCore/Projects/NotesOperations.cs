@@ -154,17 +154,19 @@ internal static class NotesOperations
     /// <summary>
     /// The piece with other Notes made the working notes (Andrei, 2026-11-14: «Сделать рабочими» on the iPad, amending
     /// 0030, section 1): the working notes until now stay as other Notes with everything that is theirs (corrections, Check
-    /// flags, scan or transcription, page map), so they can be made working again with nothing lost. The work stays in
-    /// ticks: phrases, bookmarks, resume points and ideas without a variation stay with the piece; the marks on the score
+    /// flags, scan or transcription, page map), so they can be made working again with nothing lost. The work kept in ticks
+    /// with the piece, phrases, bookmarks, resume points and ideas without a variation, follows the music into the new working
+    /// notes by bars (<see cref="FollowedWork"/>, v1.5 c-11b), told by <paramref name="followed"/>; the marks on the score
     /// stay with the notes they were drawn on (sources sheet, 2026-11-14). Motifs, their
     /// variations and kept variations are made on particular notes: those of the notes until now wait with them, kept in the
     /// file and hidden while the piece opens, and those of the Notes made working come back. The Check flags of the
     /// comparisons with versions stay with the piece. The piece's title and name stay; only the music's kind (MusicXML or
     /// MIDI) follows the new working notes.
     /// </summary>
+    /// <param name="followed">What of the work followed the music; null when there was none, or either notes do not open and it stays in its ticks.</param>
     /// <exception cref="KeyNotFoundException">The piece has no other Notes with the id (a compared version is made the working notes through the assembly).</exception>
     /// <exception cref="InvalidOperationException">Bars are taken from versions into the working notes or an assembly is applied: undo them first.</exception>
-    public static Project MakeWorking(this Project project, string id)
+    public static Project MakeWorking(this Project project, string id, out FollowedWork? followed)
     {
         ArgumentNullException.ThrowIfNull(project);
         OtherNotes notes = project.Sources.Notes.FirstOrDefault(each => each.Id == id) ?? throw new KeyNotFoundException($"There are no other Notes {id}.");
@@ -190,7 +192,7 @@ internal static class NotesOperations
         }
 
         CheckFlag[] compared = [.. (project.Check ?? []).Where(static flag => flag.Source == CheckSource.Performance)];
-        return project with
+        Project made = project with
         {
             NotesId = id,
             FileName = Path.ChangeExtension(project.FileName, Path.GetExtension(notes.FileName)),
@@ -208,6 +210,8 @@ internal static class NotesOperations
             Motifs = [.. project.Motifs.Select(motif => motif with { Notes = Swapped(motif.Notes, was, id) })],
             Observations = [.. project.Observations.Select(observation => observation.Variation is null ? observation : observation with { Notes = Swapped(observation.Notes, was, id) })],
         };
+        followed = FollowedWork.Of(project, made);
+        return followed?.Project ?? made;
     }
 
     /// <summary>
@@ -230,7 +234,7 @@ internal static class NotesOperations
         }
 
         Project bare = project with { Performances = [], Assembly = PieceAssembly.Empty, Motifs = [], Variations = [], Observations = [] };
-        return bare.MakeWorking(id) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
+        return bare.MakeWorking(id, out _) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
     }
 
     /// <summary>The Notes a motif or kept variation names once <paramref name="now"/> are the working notes instead of <paramref name="was"/>.</summary>

@@ -29,8 +29,9 @@ through the facade; the API references it.
 - `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
   voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
   `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`); the player's
-  corrections carried to a new reading of the same pages (`ReadingCarry`, «Как напечатано» step 2: onsets matched by
-  `PerformanceAlignment.AlignOnsets`; wired by `SourcesSession.CarriedOver` on sources.notes.recognise).
+  corrections carried to a new reading of the same pages (`ReadingCarry`, «Как напечатано» step 2: the two readings matched
+  once by `ReadingMatch`, onsets by `PerformanceAlignment.AlignOnsets`, bars by their music; wired by
+  `SourcesSession.CarriedOver` on sources.notes.recognise).
 - The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (`ControlEvents` from `PlayingMarks`,
@@ -40,7 +41,8 @@ through the facade; the API references it.
   `StaffPlan.TakePiece` numbers the pieces of ids in both ways.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
-  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations`; originals
+  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
+  ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,

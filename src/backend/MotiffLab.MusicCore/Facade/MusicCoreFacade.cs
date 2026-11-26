@@ -268,15 +268,19 @@ public sealed partial class MusicCoreFacade
 
     /// <summary>
     /// «Сделать рабочими» (version 0.6; 0030, section 4 as amended): other Notes, "id", become the working notes and the
-    /// working notes until now stay beside them, so the piece is opened again on the new notes under the same number. Answers
-    /// as <c>open</c> does, with "project" the file to save; making the notes until now working again undoes it.
+    /// working notes until now stay beside them, so the piece is opened again on the new notes under the same number, the
+    /// work kept in ticks following the music by bars (<see cref="FollowedWork"/>). Answers as <c>open</c> does, with
+    /// "project" the file to save and, when there was work to follow, "followed": "moved" (how many bookmarks, phrase
+    /// boundaries and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are
+    /// now) and "text" (the toast's line, null when it says nothing).
     /// </summary>
     private string MakeWorking(int number, OpenPiece open, Request fields)
     {
         Project changed;
+        FollowedWork? followed;
         try
         {
-            changed = open.Project.MakeWorking(fields.Required("id"));
+            changed = open.Project.MakeWorking(fields.Required("id"), out followed);
         }
         catch (KeyNotFoundException exception)
         {
@@ -293,6 +297,15 @@ public sealed partial class MusicCoreFacade
         {
             json.WriteNumber("piece", number);
             reopened.Summary(json);
+            if (followed is not null)
+            {
+                json.WriteStartObject("followed");
+                json.WriteNumber("moved", followed.Bookmarks + followed.Phrases + followed.Ideas);
+                json.WriteNumber("near", followed.Near);
+                JsonWrite.Numbers(json, "bars", followed.NearBars);
+                json.WriteString("text", followed.Text(open.Words));
+                json.WriteEndObject();
+            }
         });
     }
 

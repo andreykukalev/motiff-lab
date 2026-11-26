@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.5 c-16b):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-26, v1.5 c-11b):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -222,6 +222,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ### 16
 
 16 removes bookmark.structure (version 1.5, c-16b, #366), a Structure bookmark for each detected sentence, which no app sends since the Contents files the form's sections with bookmark.form (#347); it answers unknownCall, as the calls 14 and 10 removed do. bookmark.form answers as before, and the project file stays version 17: Structure bookmarks the removed call made open and save as any other bookmark.
+
+Also within 16 (version 1.5, c-11b, the v1.4 plan's answer 5): sources.makeWorking moves the work kept in ticks with the piece (bookmarks, phrase boundaries at every level, resume points, ideas kept with a note alone) into the new working notes by bars, as the two are matched for the corrections carried (`ReadingMatch`, `FollowedWork`), a place in a bar with no match kept where the music before it went; when there was such work it answers "followed": "moved" (how many bookmarks, phrase boundaries of the level shown and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are now) and "text" (the toast's line, or null); without such work the answer is as before. A field added; the project file stays version 17.
 
 ### 15
 

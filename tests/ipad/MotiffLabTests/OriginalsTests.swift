@@ -141,9 +141,12 @@ final class OriginalsTests: XCTestCase {
     /// only what was read when it carried nothing or says nothing.
     func testTheToastOfNotesReadAgainSaysWhatWasCarried() {
         let carried: [String: Any] = ["carried": 2, "text": "2 corrections carried over · not carried: 1 (bar 3)"]
-        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: carried), "Notes recognised · 1 page · 2 corrections carried over · not carried: 1 (bar 3)")
-        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: nil), "Notes recognised · 1 page")
-        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: ["carried": 0, "text": NSNull()] as [String: Any]), "Notes recognised · 1 page")
+        XCTAssertEqual(SourcesController.toastText("Notes recognised · 1 page", adding: carried), "Notes recognised · 1 page · 2 corrections carried over · not carried: 1 (bar 3)")
+        XCTAssertEqual(SourcesController.toastText("Notes recognised · 1 page", adding: nil), "Notes recognised · 1 page")
+        XCTAssertEqual(SourcesController.toastText("Notes recognised · 1 page", adding: ["carried": 0, "text": NSNull()] as [String: Any]), "Notes recognised · 1 page")
+        // v1.5 c-11b: notes made working say how the bookmarks and phrases followed their bars ("followed").
+        let followed: [String: Any] = ["moved": 1, "text": "moved with their bars: 1 bookmark"]
+        XCTAssertEqual(SourcesController.toastText("Now working: the notes from Henle", adding: followed), "Now working: the notes from Henle · moved with their bars: 1 bookmark")
     }
 
     /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set
