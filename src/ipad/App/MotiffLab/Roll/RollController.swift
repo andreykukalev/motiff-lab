@@ -97,6 +97,9 @@ final class RollController: NSObject, ObservableObject {
     /// The tuplet blocks the score's page read (v0.6.4), which the roll's selection grid never splits.
     private var shownTuplets: [[String: Double]] = []
     private var shownHighlight: [RollLitPlace] = []
+    /// Where the player was last said to be (`position`): a load sends it again, so the roll's first load, which comes
+    /// after the screen told it, and a page loaded again draw the black playhead where the music is (v1.4 b-1).
+    private var shownPosition: (tick: Double, playing: Bool, label: String, looping: Bool)?
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
     /// Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one.
@@ -169,6 +172,7 @@ final class RollController: NSObject, ObservableObject {
     /// Where the player is: the roll marks the keys sounding and keeps the playhead in view. With the lanes, also the place as
     /// bar.beat for the whole-piece strip and whether the selection loops (Цикл).
     func position(_ tick: Double, playing: Bool, label: String = "", looping: Bool = false) {
+        shownPosition = (tick, playing, label, looping)
         guard loaded else { return }
         Task { await page.position(tick, playing: playing, label: label, looping: looping) }
     }
@@ -372,6 +376,9 @@ final class RollController: NSObject, ObservableObject {
             }
             if practiceOn {
                 await page.practice(true)
+            }
+            if let shownPosition {
+                await page.position(shownPosition.tick, playing: shownPosition.playing, label: shownPosition.label, looping: shownPosition.looping)
             }
             if !shownTuplets.isEmpty {
                 await page.tuplets(shownTuplets)

@@ -31,9 +31,11 @@ extension ScoreWorkspace {
     }
 
     /// The one holder of the roll's web view follows the place shown, so Expand and Back move it once (#495 BUG-01). The
-    /// reaction on `rollPlace`.
+    /// reaction on `rollPlace`. Shown in its drawer or on Expand's card, the roll takes where the player is: it is told
+    /// nothing while it is away (v1.4 b-1: its black playhead stood where it was left).
     func rollPlaceChanged(_ place: RollPlace?) {
         roll.place = place
+        if place != nil { showRollPosition() }
     }
 
     /// Where the music is, on the page and on the roll while it is on screen (the reaction on `player.tick`).

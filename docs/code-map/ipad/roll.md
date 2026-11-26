@@ -8,8 +8,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Roll`.
 roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
 
 - `RollController.swift`: the web view, its holders (`ScoreRollView`, `RollHolder`) and what the roll is told and kept
-  for a load again (selection, tuplets, highlight, editor, input, passage, lanes, practice); the notes it loads come
-  typed from `PieceCore.roll` (`RollAnswer`, B7); every call into the page
+  for a load again (selection, tuplets, highlight, editor, input, passage, lanes, practice, position); the notes it
+  loads come typed from `PieceCore.roll` (`RollAnswer`, B7); every call into the page
   goes through its `RollPage` (`Platform/RollPage.swift`) and every message comes in decoded as `RollEvent`s
   (`received` → the callbacks `picked`, `cleared`, `spanPicked`, `notesPicked`, `playheadMoved`, `noteEdited`, …).
   A load that failed and showed nothing is `failed` (`problem`, cleared by the next load that shows notes): `RollSurface`
@@ -33,7 +33,7 @@ roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
 ## The state it owns
 
 The mode chosen, the zoom reported, the colouring, the pick shape (`roll.pickShape`), and the last selection, tuplets,
-highlight, editor and input sent, which a load again (a new web content process, another naming) sends again.
+highlight, editor, input and position sent, which a load again (a new web content process, another naming) sends again.
 
 ## Baseline entries that protect it
 
