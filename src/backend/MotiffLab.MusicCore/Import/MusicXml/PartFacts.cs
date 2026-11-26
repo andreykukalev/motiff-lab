@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 
 // What a part reader collects from a part, in document order (PartReader), before the parts are aligned.
 
-/// <summary>A sounding note as written, before ties are merged: its place in the part, pitch, staff, voice and marks.</summary>
+/// <summary>A sounding note as written, before ties are merged: its place in the part, pitch, staff, voice, marks and how it is written.</summary>
 internal sealed record PartNote(
     int MeasureIndex,
     int NoteIndex,
@@ -17,14 +17,17 @@ internal sealed record PartNote(
     string Voice,
     bool TieStart,
     bool TieStop,
-    MusicXmlTuplet? Tuplet,
-    AccentKind? Accent);
+    AccentKind? Accent,
+    MusicXmlWriting Writing);
 
 /// <summary>A grace note, at the cursor before the note it ornaments.</summary>
 internal sealed record PartGraceNote(int MeasureIndex, int NoteIndex, QuarterFraction Offset, int Pitch, int Staff, string Voice, bool IsSlashed);
 
-/// <summary>A rest, or a whole-measure rest.</summary>
-internal sealed record PartRest(int MeasureIndex, int NoteIndex, QuarterFraction Offset, QuarterFraction Duration, int Staff, string Voice, bool IsMeasureRest);
+/// <summary>A rest, or a whole-measure rest, and how it is written.</summary>
+internal sealed record PartRest(int MeasureIndex, int NoteIndex, QuarterFraction Offset, QuarterFraction Duration, int Staff, string Voice, bool IsMeasureRest, MusicXmlWriting Writing);
+
+/// <summary>A <c>&lt;forward&gt;</c> that names its voice: time the voice skips without a sign.</summary>
+internal sealed record PartSpace(int MeasureIndex, QuarterFraction Offset, QuarterFraction Duration, int Staff, string Voice);
 
 /// <summary>A slur start or stop on a note, at the note's onset.</summary>
 internal sealed record PartSlurMark(int MeasureIndex, QuarterFraction Offset, int Number, bool IsStart);

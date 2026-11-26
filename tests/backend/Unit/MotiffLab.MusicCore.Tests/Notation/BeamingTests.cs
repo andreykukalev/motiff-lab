@@ -36,7 +36,7 @@ public class BeamingTests
     [Fact]
     public void A_triplet_beat_is_one_tuplet_with_its_own_beam()
     {
-        TupletSpan triplet = new(0, 480, 3);
+        TupletSpan triplet = new(0, 480, 3, 2);
 
         List<Element> grouped = Beaming.Group([Piece(0, 160, 8, triplet), Piece(160, 160, 8, triplet), Piece(320, 160, 8, triplet), Piece(480, 480, 4)], 0, 480);
 

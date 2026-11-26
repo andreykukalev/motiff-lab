@@ -10,9 +10,6 @@ internal sealed class Chord(long onset, long end, ShownNote[] notes)
     /// <summary>Lowest pitch first.</summary>
     public ShownNote[] Notes { get; set; } = notes;
 
-    /// <summary>The piece number the next bar's piece of this chord gets, for its id.</summary>
-    public int NextPiece { get; set; }
-
     /// <summary>Grace notes written in front of the chord, in the order played.</summary>
     public List<Chord> Graces { get; } = [];
 

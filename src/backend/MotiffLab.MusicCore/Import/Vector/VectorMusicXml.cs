@@ -8,8 +8,9 @@ namespace MotiffLab.MusicCore.Import.Vector;
 /// <summary>
 /// Writes the bars read from one page as MusicXML, the shape the scan server's engines give (decision record 0029): one
 /// partwise part with a staff per printed staff, 480 divisions a quarter, each staff's voices one after another with a
-/// backup between them. The first bar holds the clefs, key and meter in force, so the page stands on its own and
-/// <see cref="Scan.ScanJoin"/> joins it with the others.
+/// backup between them, each note's beam as read, and the time a voice skips as a <c>&lt;forward&gt;</c> in that voice. The
+/// first bar holds the clefs, key and meter in force, so the page stands on its own and <see cref="Scan.ScanJoin"/> joins it
+/// with the others.
 /// </summary>
 internal static class VectorMusicXml
 {
@@ -59,7 +60,9 @@ internal static class VectorMusicXml
             }
 
             List<ClefChange> clefs = [.. bar.Clefs.Where(clef => clef.Staff == voice.First().Staff && clef.X > voice.Min(item => item.X) && (voice.Key - 1) % 4 == 0)];
-            foreach (VectorEvent item in voice.OrderBy(item => item.Onset).ThenBy(item => item.Grace ? 0 : 1).ThenBy(item => item.X))
+            VectorEvent[] ordered = [.. voice.OrderBy(item => item.Onset).ThenBy(item => item.Grace ? 0 : 1).ThenBy(item => item.X)];
+            Dictionary<VectorEvent, string> beams = Beams(ordered);
+            foreach (VectorEvent item in ordered)
             {
                 foreach (ClefChange clef in clefs.Where(clef => clef.X <= item.X).ToList())
                 {
@@ -69,11 +72,11 @@ internal static class VectorMusicXml
 
                 if (item.Onset > position)
                 {
-                    measure.Add(new XElement("forward", new XElement("duration", Text(item.Onset - position))));
+                    measure.Add(new XElement("forward", new XElement("duration", Text(item.Onset - position)), new XElement("voice", Text(item.Voice)), new XElement("staff", Text(item.Staff + 1))));
                     position = item.Onset;
                 }
 
-                measure.Add(Notes(item));
+                measure.Add(Notes(item, beams.GetValueOrDefault(item)));
                 position += item.Ticks;
             }
         }
@@ -142,21 +145,41 @@ internal static class VectorMusicXml
         return element;
     }
 
-    private static IEnumerable<XElement> Notes(VectorEvent item)
+    /// <summary>
+    /// Where each of a voice's notes stands under its beam, as MusicXML writes the first beam: "begin", "continue" or "end";
+    /// a beam with one note of the voice under it is left out.
+    /// </summary>
+    private static Dictionary<VectorEvent, string> Beams(VectorEvent[] voice)
+    {
+        var beams = new Dictionary<VectorEvent, string>();
+        foreach (IGrouping<int, VectorEvent> beam in voice.Where(item => item.Beam >= 0 && !item.Rest && !item.Grace).GroupBy(item => item.Beam))
+        {
+            VectorEvent[] under = [.. beam];
+            for (int index = 0; under.Length >= 2 && index < under.Length; index++)
+            {
+                beams[under[index]] = index == 0 ? "begin" : index == under.Length - 1 ? "end" : "continue";
+            }
+        }
+
+        return beams;
+    }
+
+    private static IEnumerable<XElement> Notes(VectorEvent item, string? beam)
     {
         if (item.Rest)
         {
-            yield return Note(item, null, false);
+            yield return Note(item, null, false, null);
             yield break;
         }
 
         for (int index = 0; index < item.Pitches.Count; index++)
         {
-            yield return Note(item, item.Pitches[index], index > 0);
+            yield return Note(item, item.Pitches[index], index > 0, index == 0 ? beam : null);
         }
     }
 
-    private static XElement Note(VectorEvent item, VectorPitch? pitch, bool chord)
+    /// <param name="beam">Where the note stands under its beam, written on a chord's first note; null for none.</param>
+    private static XElement Note(VectorEvent item, VectorPitch? pitch, bool chord, string? beam)
     {
         var note = new XElement("note");
         if (item.Grace)
@@ -189,6 +212,11 @@ internal static class VectorMusicXml
         }
 
         note.Add(new XElement("staff", Text(item.Staff + 1)));
+        if (beam is not null)
+        {
+            note.Add(new XElement("beam", new XAttribute("number", "1"), beam));
+        }
+
         if (pitch is { TieStop: true } or { TieStart: true })
         {
             note.Add(new XElement("notations", Ties(pitch, "tied")));

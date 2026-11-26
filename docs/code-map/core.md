@@ -17,7 +17,8 @@ through the facade; the API references it.
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`; `ScanMerge`: engines' readings per staff, bar levels, settled by the page: `ScanEvidence`, `ScanAssembly`, `ScanMerge.Staffing` reads a reading's clefs; `ScanMerge.Variants`: a Check bar's other readings and crop box, v1.3 i-2, put in by `corrections.variant`), a page no engine read put in later by `ScanJoin.Insert` (v1.3 i-1b, `ScanPageInsert.Into`, `Project.CanInsertPage`, its corrections carried by `NoteEditLog.CarriedOver`, `NoteEditLog.Insert.cs`; facade `scan.insert`, `ScanRequest.Insert.cs`), `StaffPitch` (steps, clefs, key alterations, MIDI of a written note: MusicXML, Vector, Scan), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
   `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
-  The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`);
+  The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`;
+  `.Writing`: how each note is written, `WrittenNotes`, `Spaces`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA, the circle of fifths; `.Phrasing`: the
   phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`,
@@ -30,7 +31,9 @@ through the facade; the API references it.
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (`ControlEvents` from `PlayingMarks`,
   `TempoMarks`), `StaffLayout` with `BarValues`, `Beaming` and `BarAccidentals` (a staff in a bar,
-  `LayoutElements`), and `MeiWriter`.
+  `LayoutElements`), and `MeiWriter`. «Как напечатано»: `PrintedNotation` (the source record by note id) and
+  `PrintedBars` (`PrintedCell`, `PrintedTuplets`) pick the bars of a staff written as printed, `PrintedLayout` lays them out;
+  `StaffPlan.TakePiece` numbers the pieces of ids in both ways.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
   records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations`; originals

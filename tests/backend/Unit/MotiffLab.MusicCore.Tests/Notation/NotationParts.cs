@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Time;
@@ -8,6 +10,14 @@ namespace MotiffLab.MusicCore.Tests.Notation;
 internal static class NotationParts
 {
     public const long BarTicks = 1920;
+
+    private static readonly XNamespace s_mei = "http://www.music-encoding.org/ns/mei";
+
+    /// <summary>An MEI tuplet's length in ticks: its values' written lengths together, times its numbase over its num.</summary>
+    public static long TupletTicks(XElement tuplet) =>
+        tuplet.Descendants().Where(element => element.Attribute("dur") is not null && element.Parent!.Name != s_mei + "chord")
+            .Sum(element => 1920 / int.Parse((string)element.Attribute("dur")!) * (((int?)element.Attribute("dots") ?? 0) == 1 ? 3 : 2) / 2)
+        * (int)tuplet.Attribute("numbase")! / (int)tuplet.Attribute("num")!;
 
     public static Note Note(string id, int pitch, long onset, long duration, int track = 0, Hand? hand = null) => new()
     {

@@ -40,6 +40,8 @@ internal sealed partial class PartReader(int index, string id, string? name, str
 
     public List<PartRest> Rests { get; } = [];
 
+    public List<PartSpace> Spaces { get; } = [];
+
     public List<PartSlurMark> Slurs { get; } = [];
 
     public List<PartRepeat> Repeats { get; } = [];
@@ -108,6 +110,7 @@ internal sealed partial class PartReader(int index, string id, string? name, str
                     case "forward":
                         if (ReadDuration(element) is QuarterFraction forward)
                         {
+                            ReadSpace(element, forward);
                             Advance(forward);
                         }
 
@@ -171,7 +174,7 @@ internal sealed partial class PartReader(int index, string id, string? name, str
         if (note.Element("rest") is XElement rest)
         {
             bool isMeasureRest = string.Equals(rest.Attribute("measure")?.Value.Trim(), "yes", StringComparison.Ordinal);
-            Rests.Add(new PartRest(_measureIndex, _noteIndex, onset, duration, staff, voice, isMeasureRest));
+            Rests.Add(new PartRest(_measureIndex, _noteIndex, onset, duration, staff, voice, isMeasureRest, ReadWriting(note)));
             Staves = Math.Max(Staves, staff);
             return;
         }
@@ -192,7 +195,7 @@ internal sealed partial class PartReader(int index, string id, string? name, str
         int? velocity = ToVelocity(note.Attribute("dynamics")?.Value) ?? _velocity;
         (bool tieStart, bool tieStop) = ReadTies(note);
 
-        Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadTuplet(note), ReadAccent(note)));
+        Notes.Add(new PartNote(_measureIndex, _noteIndex, onset, duration, pitch, velocity, staff, voice, tieStart, tieStop, ReadAccent(note), ReadWriting(note)));
         ReadSlurs(note, onset);
     }
 
@@ -300,16 +303,6 @@ internal sealed partial class PartReader(int index, string id, string? name, str
         return (types.Contains("start") || isContinue, types.Contains("stop") || isContinue);
     }
 
-    private static MusicXmlTuplet? ReadTuplet(XElement note)
-    {
-        XElement? modification = note.Element("time-modification");
-        return modification is not null
-            && XmlValues.TryParseInt(modification.Element("actual-notes")?.Value, out int actual) && actual >= 1
-            && XmlValues.TryParseInt(modification.Element("normal-notes")?.Value, out int normal) && normal >= 1
-            && actual != normal
-            ? new MusicXmlTuplet(actual, normal)
-            : null;
-    }
 
     private int? ReadPitch(XElement? pitch)
     {
