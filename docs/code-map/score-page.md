@@ -29,7 +29,7 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
   Swift), `pointerRules`, `documentPoint`, `READING_LINE_PX`. DOM-free at load (node test `score-page-state.test.mjs`).
 - `page-layout.ts`: `show`, `layout` (places every mark again), `inView`, `inset`, `frames`; the scroll and resize listeners.
 - `page-mark-place.ts` (r-1): the mark a card shows at, followed (`markMoved` on a scroll or layout, in points with its
-  top: `windowPoint`; out of sight `markAway` and forgotten, v1.4 a-1); forgotten by `markForgotten`, a press, `show`.
+  top: `windowPoint`; taken out of sight by a scroll, not a new layout, `markAway` and forgotten, v1.4 a-1); forgotten by `markForgotten`, a press, `show`.
 - `page-ink.ts`: the pencil (`anchor`, `erase`, `eraseAlong`, `rub`, `rubEnd`, `draw`), owns the marks and the rubbing.
 - `page-bookmarks.ts`: `bookmarks`, `bookmarksTop` (the menu clears them).
 - `page-phrases.ts` (v1.2 i-2, the phrases spec): the phrases' marks (`phraseMarks`): a comma before each start note and

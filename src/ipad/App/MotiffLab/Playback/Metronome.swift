@@ -156,6 +156,15 @@ final class Metronome: ObservableObject {
         lock(player.state == .playing)
     }
 
+    /// The system paused the player's piece (an interruption, the app in the background or the screen locked, the
+    /// headphones gone; v1.4 a-1): a metronome that clicked with the piece stops with it rather than click on by itself
+    /// (from the speaker once the headphones went); one the player paused goes on as before. Called before the transport
+    /// shows the pause, while it is still locked to the piece.
+    func stopWithSystemPause(of player: Player) {
+        guard playback === player, locked, running else { return }
+        stop()
+    }
+
     func toggle() {
         running ? stop() : start()
     }

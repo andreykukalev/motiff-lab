@@ -16,6 +16,8 @@ struct DraftTechniqueCard: View {
     let player: Player
     @ObservedObject var owner: SourcesController
     let text: UIText
+    /// What the screen's own controls cover at the top and the bottom (`DraftCardAtMark`).
+    let covered: EdgeInsets
     let reopen: ((Landing) async -> Void)?
     /// Why the last step was not taken: in the card's own words, or music-core's for a приём carried (v1.4).
     @State private var refusal: String?
@@ -24,7 +26,7 @@ struct DraftTechniqueCard: View {
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
-            DraftCardAtMark(at: at, mark: score.markHeight, close: { model.closeCard() }) { card(pick.spot) }
+            DraftCardAtMark(at: at, mark: score.markHeight, covered: covered, close: { model.closeCard() }) { card(pick.spot) }
                 .onChange(of: pick.spot) { _, _ in
                     refusal = nil
                     matching = false
@@ -111,16 +113,19 @@ struct DraftTechniqueCard: View {
 }
 
 /// A card at its mark on the page (`at`, the mark's bottom left; `mark`, how high the mark is), on ds.css's `.menu`
-/// surface, kept on the screen: under the mark, or above it where it does not fit under it (v1.4 a-1, answer 14); a tap
-/// elsewhere puts it away (`close`). A draft's cards, a version marker's popover and a phrase's mark's menu
-/// (ScorePhraseEdits.swift) are each one.
+/// surface, kept on the screen and clear of what the screen's own controls cover (`covered`, from the top and the bottom:
+/// the bar, a draft's pill, the transport pill, a drawer or a sheet): under the mark, or above it where it does not fit
+/// under it (v1.4 a-1, answer 14); a tap elsewhere puts it away (`close`). A draft's cards, a version marker's popover and
+/// a phrase's mark's menu (ScorePhraseEdits.swift) are each one.
 struct DraftCardAtMark<Content: View>: View {
     let at: CGPoint
     let mark: CGFloat
+    let covered: EdgeInsets
     let close: @MainActor () -> Void
     @ViewBuilder let content: Content
-    /// The card's height as laid out, for where it fits.
-    @State private var height: CGFloat = 0
+    /// The card's height as laid out, for where it fits; nil until it is measured, the card not shown before, so it never
+    /// shows a frame under the mark before it goes above it.
+    @State private var height: CGFloat?
 
     var body: some View {
         GeometryReader { area in
@@ -133,25 +138,33 @@ struct DraftCardAtMark<Content: View>: View {
                     .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
                     .dsShadow("shadow-menu")
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+                    .opacity(height == nil ? 0 : 1)
                     .offset(
                         x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")),
-                        y: Self.top(at: at, mark: mark, card: height, area: area.size.height)
+                        y: Self.top(at: at, mark: mark, card: height ?? 0, within: Self.shown(covered, area: area.size.height))
                     )
             }
         }
     }
 
-    /// Where the card's top goes: just under the mark (`at`, its bottom left) where the card (`card` high) fits there
-    /// above the area's bottom edge (`area` high), else just above the mark (`mark` high) where it fits there; where it
-    /// fits neither way, as low as it stays on the screen, no higher than the area's top.
-    static func top(at: CGPoint, mark: CGFloat, card: CGFloat, area: CGFloat) -> CGFloat {
-        let gap = CGFloat.ds("s-1")
+    /// The part of the area (`area` high) a card shows whole in: below what covers its top and above what covers its
+    /// bottom (`covered`), and at least a margin from its edges.
+    static func shown(_ covered: EdgeInsets, area: CGFloat) -> ClosedRange<CGFloat> {
         let margin = CGFloat.ds("s-3")
+        let top = max(covered.top, margin)
+        return top...max(top, area - max(covered.bottom, margin))
+    }
+
+    /// Where the card's top goes: just under the mark (`at`, its bottom left) where the card (`card` high) fits there
+    /// within `visible`, else just above the mark (`mark` high) where it fits there; where it fits neither way, as low as
+    /// it stays within `visible`, no higher than its top.
+    static func top(at: CGPoint, mark: CGFloat, card: CGFloat, within visible: ClosedRange<CGFloat>) -> CGFloat {
+        let gap = CGFloat.ds("s-1")
         let below = at.y + gap
-        if below + card <= area - margin { return below }
+        if below + card <= visible.upperBound { return below }
         let above = at.y - mark - gap - card
-        if above >= margin { return above }
-        return max(margin, min(below, area - margin - card))
+        if above >= visible.lowerBound { return above }
+        return max(visible.lowerBound, min(below, visible.upperBound - card))
     }
 }
 

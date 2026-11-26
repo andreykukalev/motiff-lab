@@ -303,7 +303,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// Acts on one thing the page reported; the roll's long press comes here too (its hold hint).
     func handle(_ event: PageEvent) {
-        if let height = event.markHeight { markHeight = CGFloat(height) }
+        if let height = event.markHeight.map({ CGFloat($0) }), height != markHeight { markHeight = height }
         if !handleSelection(event) {
             handleMarks(event)
         }

@@ -107,6 +107,51 @@ final class PlayerInterruptionTests: XCTestCase {
         XCTAssertEqual(kept, loop, "the loop kept")
     }
 
+    /// v1.4 a-1: a metronome clicking with the piece stops with a pause the system makes (here the headphones gone) rather
+    /// than click on by itself from the speaker; a pause the player makes leaves it on, as before.
+    func testAMetronomeWithThePieceStopsWithASystemPauseOnly() async throws {
+        let (player, piece) = try await playing(0.0..<7680.0)
+        let metronome = Metronome.shared
+        defer {
+            metronome.stop()
+            player.shutdown()
+            _ = MusicCore.close(piece: piece)
+        }
+        metronome.start()
+        let clicking = metronome.running
+        XCTAssertTrue(clicking, "the metronome clicks with the piece")
+        player.toggle()
+        await until { player.state == .stopped }
+        let byThePlayer = metronome.running
+        XCTAssertTrue(byThePlayer, "paused by the player: the metronome goes on as before")
+        player.toggle()
+        await until { player.state == .playing }
+        routeChanges(.oldDeviceUnavailable)
+        await Task.yield()
+        let bySystem = metronome.running
+        let stopped = player.state
+        XCTAssertEqual(stopped, .stopped)
+        XCTAssertFalse(bySystem, "paused by the system: the metronome stops with the piece")
+    }
+
+    /// v1.4 a-1: the Reference's music paused by the system (the app gone to the background) shows stopped on its sheet.
+    func testTheReferencesMusicShowsStoppedWhenTheSystemPausesIt() async throws {
+        let example = try XCTUnwrap(KitPiece.example)
+        let opened = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: opened.id) }
+        let answer = await PieceCore(piece: opened.id).playback()
+        let score = try XCTUnwrap(answer.value.map(PlaybackScore.init), answer.message ?? "the piece's playback score")
+        let reference = ReferenceController()
+        defer { reference.stop() }
+        await reference.listen("chords", score, loop: true)
+        let listening = reference.playing
+        XCTAssertEqual(listening, "chords")
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        await Task.yield()
+        let after = reference.playing
+        XCTAssertNil(after, "paused by the system: the tab shows Play again")
+    }
+
     /// A route change says the output played through went only for `oldDeviceUnavailable`.
     func testOnlyAnOutputGoneIsADeviceGone() {
         XCTAssertTrue(EngineKeeper.deviceGone([AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue]))

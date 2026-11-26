@@ -1,7 +1,7 @@
 // Tests for the mark a card shows at, followed on the iPad's score page (Scripts/score/ipad-page/page-mark-place.ts,
 // r-1, v1.4 a-1): a scroll or a new layout tells Swift where it is now, in the web view's points (its top too, for a card
-// opened above it), so the card stays at it; a mark that leaves the visible part of the page tells Swift so and is no
-// longer followed. Run in Node on the compiled modules:   dotnet build src/shared && node --test tests/shared
+// opened above it), so the card stays at it; a mark a scroll takes out of the visible part of the page tells Swift so and
+// is no longer followed, one a new layout takes out of it tells nothing. Run in Node on the compiled modules:   dotnet build src/shared && node --test tests/shared
 // The wiring (the page's scroll and resize listeners, a tap on a mark, a phrase's number held) needs the page's DOM, which
 // these tests do not have: the page scenarios run the real page.
 
@@ -31,11 +31,11 @@ test("a mark followed tells Swift where it is once it has moved, and only then",
     posted.length = 0;
     const label = mark(40, 300);
     follow(label);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted, [], "where it was tapped Swift knows already");
     label.box = box(40, 180);
-    tellMarkMoved();
-    tellMarkMoved();
+    tellMarkMoved(true);
+    tellMarkMoved(true);
     assert.deepEqual(posted, [{ markMoved: { left: 40, top: 160, bottom: 180 } }], "once for each new place");
 });
 
@@ -49,9 +49,9 @@ test("a mark drawn anew is found once and kept; one gone is forgotten", () => {
         return again;
     });
     old.isConnected = false;
-    tellMarkMoved();
+    tellMarkMoved(true);
     again.box = box(12, 60);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted, [{ markMoved: { left: 12, top: 70, bottom: 90 } }, { markMoved: { left: 12, top: 40, bottom: 60 } }]);
     assert.equal(looked, 1, "not looked for again each frame");
 
@@ -63,8 +63,8 @@ test("a mark drawn anew is found once and kept; one gone is forgotten", () => {
         return null;
     });
     gone.isConnected = false;
-    tellMarkMoved();
-    tellMarkMoved();
+    tellMarkMoved(true);
+    tellMarkMoved(true);
     assert.deepEqual(posted, []);
     assert.equal(asked, 1, "not found: no longer followed");
 });
@@ -75,7 +75,7 @@ test("forgotten (Swift's markForgotten, a press on the page, other pages), a mar
     follow(label);
     forgetMark();
     label.box = box(5, 25);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted, []);
 });
 
@@ -84,20 +84,32 @@ test("a mark that leaves the visible part of the page says so once and is no lon
     const label = mark(40, 790);
     follow(label);
     label.box = box(40, 805);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted, [{ markMoved: { left: 40, top: 785, bottom: 805 } }], "partly in sight: its card still follows it");
     label.box = box(40, 830);
-    tellMarkMoved();
+    tellMarkMoved(true);
     label.box = box(40, 300);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted.slice(1), [{ markAway: true }], "below the bottom: away, then nothing more");
 
     posted.length = 0;
     const high = mark(40, 30);
     follow(high);
     high.box = box(40, -1);
-    tellMarkMoved();
+    tellMarkMoved(true);
     assert.deepEqual(posted, [{ markAway: true }], "scrolled off the top");
+});
+
+test("a new layout that takes the mark out of sight tells nothing: the reading place comes back after it (DRAFT-04)", () => {
+    posted.length = 0;
+    const label = mark(40, 300);
+    follow(label);
+    label.box = box(40, 900);
+    tellMarkMoved(false);
+    assert.deepEqual(posted, [], "laid out again (a rotation, Split View): no markAway, and no place out of sight");
+    label.box = box(40, 320);
+    tellMarkMoved(true);
+    assert.deepEqual(posted, [{ markMoved: { left: 40, top: 300, bottom: 320 } }], "still followed: its card stays at it");
 });
 
 test("at a zoom other than 1 a place is in the web view's points, from the visible part's corner", () => {
@@ -110,10 +122,10 @@ test("at a zoom other than 1 a place is in the web view's points, from the visib
         const label = mark(140, 260);
         follow(label);
         label.box = box(140, 250);
-        tellMarkMoved();
+        tellMarkMoved(true);
         assert.deepEqual(posted, [{ markMoved: { left: 80, top: 60, bottom: 100 } }]);
         label.box = box(140, 199);
-        tellMarkMoved();
+        tellMarkMoved(true);
         assert.deepEqual(posted.slice(1), [{ markAway: true }], "above the visible part's top, though still on the page");
     } finally {
         delete globalThis.window.visualViewport;

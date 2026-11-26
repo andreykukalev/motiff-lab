@@ -1,8 +1,9 @@
 // The mark whose card Swift shows, followed (r-1): a card opens at a mark the page named with where it is (a label, a
 // draft's приём number, seam diamond or anchor mark, a phrase's number held), under it or, with no room there, above it
 // (its top, v1.4 a-1); when the page scrolls or is laid out again (a rotation, Split View) the mark's new place goes to
-// Swift (`markMoved`), so the card stays at it, and once the mark has left the visible part of the page (playback turning
-// the page) Swift is told (`markAway`), which closes its card, and the mark is forgotten. It is forgotten too when Swift
+// Swift (`markMoved`), so the card stays at it, and once a scroll has taken the mark out of the visible part of the page
+// (playback turning the page) Swift is told (`markAway`), which closes its card, and the mark is forgotten; a new layout
+// alone never does, as the reading place comes back after it (DRAFT-04: the card stays through a rotation). It is forgotten too when Swift
 // says no card shows there any more (`markForgotten`: its card closed by its own cover, which the page never hears), when
 // a press reaches the page (the card covers it while it shows), and when other pages are drawn; a mark drawn anew is
 // found again, one gone is forgotten.
@@ -47,10 +48,11 @@ export function followMark(mark: Element, find: () => Element | null, place: Mar
 }
 
 /**
- * The mark followed moved (a scroll, a new layout): where it is now goes to Swift, nothing when it stayed or is gone; out
- * of sight, Swift is told so (its card closes) and the mark is forgotten.
+ * The mark followed moved (`scrolled`: a scroll, else a new layout): where it is now goes to Swift, nothing when it stayed
+ * or is gone; out of sight after a scroll, Swift is told so (its card closes) and the mark is forgotten, after a new
+ * layout nothing is told until it is in sight again.
  */
-export function tellMarkMoved(): void {
+export function tellMarkMoved(scrolled: boolean): void {
     if (followed === null) {
         return;
     }
@@ -65,8 +67,10 @@ export function tellMarkMoved(): void {
     }
     const box = followed.mark.getBoundingClientRect();
     if (!inSight(box)) {
-        forgetMark();
-        post({ markAway: true });
+        if (scrolled) {
+            forgetMark();
+            post({ markAway: true });
+        }
         return;
     }
     const place = windowPoint(box);

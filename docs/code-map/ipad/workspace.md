@@ -37,7 +37,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark` (every card at a mark, a version marker's
-  too: under it, else above it, `top`, by `ScoreController.markHeight`; v1.4 a-1, `closeCardAtMark` on `markAway`), `DraftAssemblyPill`, `DraftStepToast`,
+  too: under it, else above it, `top`, by `ScoreController.markHeight`, clear of the bars and the pill, `covered`, from
+  `ScoreScreen.barsBottom` and `ToastPlace.bottom`; v1.4 a-1, `closeCardAtMark` on `markAway`), `DraftAssemblyPill`, `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap` and, v1.4, the visit's `AssistantController`, handed to each `ScoreWorkspace`;
   r-1: `DraftVisitPieces.swift` closes each number it showed, one opened after it went at once); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
   v1.4: `DraftPlaceCard.swift`, `DraftPlaceContent` (a place's variants, base, «Сделать основой», «Перенести…»,

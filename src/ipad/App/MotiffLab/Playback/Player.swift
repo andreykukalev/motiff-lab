@@ -460,6 +460,8 @@ final class Player: ObservableObject {
         // The reports still waiting were rendered before it: none may show the music playing again.
         _ = renderer?.takeReports()
         last = nil
+        // A metronome clicking with the piece stops with it, before the pause lets it click on its own.
+        Metronome.shared.stopWithSystemPause(of: self)
         if state != .stopped { show(.stopped) }
     }
 
