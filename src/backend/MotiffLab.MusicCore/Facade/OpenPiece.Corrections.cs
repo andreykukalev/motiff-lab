@@ -152,6 +152,8 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable(Words.T("Other corrections came after the draft: undo them one by one.", "После черновика были другие правки: отменяйте их по одной."));
         }
 
+        // The bar is read before anything changes, so a call refused for it changes nothing.
+        _ = CorrectionBar(request);
         _acceptedDraft = null;
         return Correct(request, _ => accepted.Before);
     }
@@ -199,9 +201,10 @@ internal sealed partial class OpenPiece
 
     private string BeginDraft(Request request)
     {
+        Bar bar = CorrectionBar(request);
         _draftFrom ??= Project.Edits;
         _draftSteps.Clear();
-        return CorrectionsAnswer(CorrectionBar(request));
+        return CorrectionsAnswer(bar);
     }
 
     private string EndDraft(Request request, bool keep)
@@ -211,9 +214,10 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable("No note editing has begun.");
         }
 
+        Bar bar = CorrectionBar(request);
         _draftSteps.Clear();
         _draftFrom = null;
-        return keep ? CorrectionsAnswer(CorrectionBar(request)) : Correct(request, _ => from);
+        return keep ? CorrectionsAnswer(bar) : Correct(request, _ => from);
     }
 
     /// <summary>A note added where "onset" (ticks) says, "pitch" (MIDI) and "length" (ticks) long; the track and hand of the nearest note unless sent.</summary>

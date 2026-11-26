@@ -110,6 +110,8 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable(Words.T("Save or discard the note editing first.", "Сначала сохраните или отмените правку нот."));
         }
 
+        // The bar is read before anything changes, so a call refused for it changes nothing.
+        Bar bar = LayerBar(request);
         EditsLayer layer = on ? EditsLayer.Lenient : EditsLayer.Off;
         if (layer != _layer)
         {
@@ -121,7 +123,7 @@ internal sealed partial class OpenPiece
             Selection.FollowLayer(State, working);
         }
 
-        return CorrectionsAnswer(LayerBar(request));
+        return CorrectionsAnswer(bar);
     }
 
     /// <summary>"noteIds": the corrections of those notes that no longer fit are taken out of the log; the others stay.</summary>
@@ -133,6 +135,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest("Send \"noteIds\", the notes whose corrections no longer fit.");
         }
 
+        Bar bar = LayerBar(request);
         NoteEditLog edits = Project.Edits.DropUnfit(Piece.Notes, ids);
         if (!edits.Equals(Project.Edits))
         {
@@ -150,7 +153,7 @@ internal sealed partial class OpenPiece
             }
         }
 
-        return CorrectionsAnswer(LayerBar(request));
+        return CorrectionsAnswer(bar);
     }
 
     /// <summary>The bar a layer call answers for: "bar" when sent, else the first bar.</summary>

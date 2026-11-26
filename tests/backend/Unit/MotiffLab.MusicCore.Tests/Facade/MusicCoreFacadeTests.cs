@@ -137,6 +137,39 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void A_corrections_call_refused_for_its_bar_changes_nothing()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.begin", """{"bar": 999}"""));
+        Assert.False(Call(facade, "corrections", """{"bar": 2}""").GetProperty("editing").GetBoolean());
+
+        // Cancel or Save sent with a bar that is not there leave the note editor's draft as it was.
+        Call(facade, "corrections.begin", """{"bar": 2}""");
+        string id = Call(facade, "corrections", """{"bar": 2}""").GetProperty("notes")[0].GetProperty("id").GetString()!;
+        Call(facade, "corrections.remove", $$"""{"bar": 2, "id": "{{id}}"}""");
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.discard", """{"bar": 999}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.save", "{}"));
+        JsonElement still = Call(facade, "corrections", """{"bar": 2}""");
+        Assert.True(still.GetProperty("editing").GetBoolean());
+        Assert.True(still.GetProperty("changed").GetBoolean());
+        JsonElement discarded = Call(facade, "corrections.discard", """{"bar": 2}""");
+        Assert.Contains(discarded.GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id);
+        Assert.Equal(0, discarded.GetProperty("count").GetInt32());
+
+        // The assistant's draft refused to be undone for its bar can still be undone whole.
+        const string Parameters = """
+            {"bars": {"from": 1, "to": 1}, "edits": [{"kind": "remove", "address": "1.R.1", "bar": null, "hand": null, "start": null, "length": null, "pitch": null, "velocity": null}]}
+            """;
+        Call(facade, "corrections.acceptDraft", $$"""{"bar": 1, "tool": "notes.edit", "parameters": {{Parameters}}, "index": 0}""");
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.undoDraft", """{"bar": 999}"""));
+        Assert.Equal(0, Call(facade, "corrections.undoDraft", """{"bar": 1}""").GetProperty("count").GetInt32());
+
+        // The layer is not switched by a call refused for its bar.
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.layer", """{"on": false, "bar": 999}"""));
+        Assert.Equal(1, Call(facade, "corrections.change", $$"""{"bar": 2, "id": "{{id}}", "pitch": 1}""").GetProperty("count").GetInt32());
+    }
+
+    [Fact]
     public void VersionNamesTheContractAndTheProjectFile()
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
