@@ -60,8 +60,9 @@ struct DraftBridgeContent: View {
     /// so a step on the map does not scroll); refused, the card says so.
     private func act(_ step: @escaping () async -> Bool) {
         Task {
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             score.seamsModel.close()

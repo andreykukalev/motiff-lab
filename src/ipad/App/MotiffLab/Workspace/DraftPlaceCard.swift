@@ -11,7 +11,7 @@ struct DraftPlaceContent: View {
     @ObservedObject var techniques: DraftTechniquesModel
     let place: DraftViewAnswer.Place
     let draft: DraftViewAnswer.Draft
-    let owner: SourcesController
+    @ObservedObject var owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
     /// What else a step taken does here: the card at the label goes; nothing on the map.
@@ -19,8 +19,6 @@ struct DraftPlaceContent: View {
     @State private var asked: Asked?
     /// The last step was not taken: the card says so in its own words, never music-core's.
     @State private var refused = false
-    /// A step is on its way: the card's steps wait, so a second tap does not send it again.
-    @State private var taking = false
 
     /// A step the card asks about first, as it drops what was taken from the variant (a new base, a variant moved out).
     private struct Asked {
@@ -43,7 +41,8 @@ struct DraftPlaceContent: View {
                 Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
             }
         }
-        .disabled(taking)
+        // A step on its way (`SourcesController.stepping`): the card's steps wait for it.
+        .disabled(owner.stepping)
         .onChange(of: place) { _, _ in refused = false }
         .confirmationDialog(asked?.title ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }), titleVisibility: .visible, presenting: asked) { asked in
             Button(asked.button, role: .destructive) { take(asked.step) }
@@ -96,12 +95,10 @@ struct DraftPlaceContent: View {
 
     /// A step on the draft: taken, the view opens again where the player is; refused, the card says so.
     private func take(_ step: @escaping @MainActor () async -> Bool) {
-        guard !taking else { return }
-        taking = true
         Task {
-            defer { taking = false }
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             refused = false

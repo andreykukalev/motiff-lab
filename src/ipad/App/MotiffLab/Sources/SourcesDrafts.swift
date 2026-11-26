@@ -157,9 +157,19 @@ extension SourcesController {
         await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? nil : status ?? ""
     }
 
+    /// Whether a step that answered `taken` was refused by music-core: not when it was taken, nor when it was not sent as
+    /// another was on its way (`stepping`), which says nothing.
+    func refused(_ taken: Bool) -> Bool {
+        !taken && !stepping
+    }
+
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
-    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open).
+    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open). While one
+    /// is on its way (`stepping`) another is not sent (a second tap): false, `status` untouched (`refused`).
     private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {
+        guard !stepping else { return false }
+        stepping = true
+        defer { stepping = false }
         var fields = fields
         fields["draft"] = draft
         fields["now"] = Self.now()

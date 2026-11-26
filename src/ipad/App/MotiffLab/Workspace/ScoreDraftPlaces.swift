@@ -111,10 +111,11 @@ extension ScoreController {
 
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
     /// there, selected, with its card at its label (a bridge's candidates, v1.2; any other place's ▾ menu of its variants,
-    /// v1.4), else a version's marker, whose card opens there and whose bar is selected.
+    /// v1.4, none while «Скрыть номера» leaves the draft to practise on: DRAFT-05), else a version's marker, whose card
+    /// opens there and whose bar is selected.
     func pickLabel(_ bar: Int, left: Double, bottom: Double) {
         guard !pickPlace(startingAt: bar) else {
-            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }) {
+            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }), place.bridge || !draftModel.numbersHidden {
                 seamsModel.pickLabel(place.id, at: CGPoint(x: left, y: bottom))
                 draftModel.closeCard()
                 anchorsModel.close()

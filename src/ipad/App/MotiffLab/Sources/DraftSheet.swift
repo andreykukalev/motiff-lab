@@ -187,19 +187,18 @@ struct DraftSheet: View {
     @ViewBuilder private func ways(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         section("drafts.how")
         ForEach(Array(DraftChoice.ways(choice.into, in: sheet).enumerated()), id: \.offset) { _, way in
-            row(title(way, newDraft: choice.into == .new), caption(way), on: way == choice.way) { self.choice?.way = way }
+            row(title(way), caption(way), on: way == choice.way) { self.choice?.way = way }
         }
     }
 
-    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»): the name it takes and its base (the notes
-    /// selected, the part chosen); «Создать» (`buttons`) makes the draft. «Как» shows only where there is a choice: a new
-    /// draft starts with the fragment as its first place (`DraftChoice.ways(nil)`), so it shows none.
+    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»), in place of «Как»: the name it takes and its
+    /// base (the notes selected, the part chosen); «Создать» (`buttons`) makes the draft with the fragment as its first
+    /// place, the one way a new draft has (`DraftChoice.ways(nil)`).
     private func newDraftCard(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["drafts.new"]).overline()
             Text(sheet.newName).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
             Text(text.format("drafts.newBase", DraftChoice.word(part: choice.part, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-            if DraftChoice.ways(choice.into, in: sheet).count > 1 { ways(sheet, choice) }
         }
         .padding(CGFloat.ds("s-3"))
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -218,10 +217,10 @@ struct DraftSheet: View {
         .padding(.top, CGFloat.ds("s-2"))
     }
 
-    private func title(_ way: DraftChoice.Way, newDraft: Bool) -> String {
+    private func title(_ way: DraftChoice.Way) -> String {
         switch way.drop {
         case .variant: text["drafts.asVariant"]
-        case .place: text[newDraft ? "drafts.asFirst" : "drafts.asPlace"]
+        case .place: text["drafts.asPlace"]
         case .shelf: text["drafts.toShelf"]
         }
     }

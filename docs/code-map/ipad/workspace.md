@@ -39,7 +39,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap`); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
   v1.4: `DraftPlaceCard.swift`, `DraftPlaceContent` (a place's variants, base, «Сделать основой», «Перенести…»,
-  «Взять всё уверенное»), one card on the map and as the ▾ menu a tap on a place's label opens (`pickLabel`, F3);
+  «Взять всё уверенное»), one card on the map and as the ▾ menu a tap on a place's label opens (`pickLabel`, F3; none
+  while the numbers are hidden), and `DraftMenuLabel` (a menu's label on the draft's cards and map);
   v1.2: `DraftBridgeCard.swift` (a bridge place's candidates, at its label and on the map), `DraftAnchorCard.swift`
   (an anchor's «Открепить», and «Сопоставить…»'s bars in the приём card), `DraftAssistant.swift` (step 8: the map place
   card's «С ассистентом · Pro», `DraftAssistantSection`; `DraftProposalCard`, dashed plum, «▶ До» `hearDraft`, «▶ После»

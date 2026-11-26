@@ -72,8 +72,9 @@ struct DraftSeamContent: View {
     /// was not taken.
     private func act(_ step: @escaping () async -> Bool) {
         Task {
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             score.seamsModel.close()

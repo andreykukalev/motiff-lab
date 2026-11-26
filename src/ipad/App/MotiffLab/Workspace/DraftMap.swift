@@ -175,8 +175,9 @@ struct DraftMap: View {
     /// A step on the draft: taken, the view opens again where the player is, the map still open; refused, the map says so.
     private func take(_ step: @escaping @MainActor () async -> Bool) {
         Task {
-            guard await step() else {
-                refused = true
+            let taken = await step()
+            guard taken else {
+                refused = owner.refused(taken)
                 return
             }
             refused = false

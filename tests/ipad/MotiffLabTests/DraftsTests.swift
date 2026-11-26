@@ -169,6 +169,14 @@ final class DraftsTests: XCTestCase {
         XCTAssertNil(draftView.score.seamsModel.label)
         draftView.score.pickLabel(99, left: 0, bottom: 0)
         XCTAssertNil(draftView.score.seamsModel.label, "no place starts at bar 99: no card")
+        // DRAFT-05: with «Скрыть номера» the label's tap only selects the place, as before; no card opens.
+        draftView.score.hideTechniqueNumbers(true)
+        draftView.score.selectionModel.answered(nil)
+        draftView.score.pickMarker(.performanceBar(0, left: 12, bottom: 34))
+        XCTAssertNil(draftView.score.seamsModel.label, "numbers hidden: no ▾ menu")
+        for _ in 0..<100 where draftView.score.selectionModel.selection == nil { try await Task.sleep(for: .milliseconds(50)) }
+        XCTAssertEqual(draftView.score.selectionModel.selection?.onset, Double(places[0].onset), "the place is still selected")
+        draftView.score.hideTechniqueNumbers(false)
         XCTAssertNil(draftView.draftOwner(under: workspace.sources), "no «Черновик» on a draft's own view")
         XCTAssertTrue(workspace.score.placeMarkers.isEmpty, "the piece itself is no draft")
         XCTAssertTrue(workspace.draftOwner(under: nil) === workspace.sources, "on the piece, its own drafts")
@@ -377,6 +385,40 @@ final class DraftsTests: XCTestCase {
         XCTAssertNotNil(again, sources.status ?? "")
         view = try await draftView(draft, sources)
         XCTAssertEqual(view.draft?.shelf.map(\.id), [shelved.id], "undone: back on the shelf")
+    }
+
+    /// A second tap while a step is on its way (v1.4, i-3 robustness): one step of a draft at a time, so two «Поставить…»
+    /// sent together put the variant once, push one step to undo, and the one not sent is not reported refused.
+    func testAStepOnItsWayHoldsASecondOne() async throws {
+        let (workspace, _) = try await sourced()
+        let sources = workspace.sources
+        XCTAssertNotNil(await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"]), sources.status ?? "")
+        let draft = try XCTUnwrap(sources.layers.drafts.first)
+        let shelf: [String: Any] = ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "shelf", "now": "2026-11-20T10:01:00Z"]
+        XCTAssertNotNil(await sources.change("drafts.add", shelf), sources.status ?? "")
+        let before = try await draftView(draft, sources)
+        let shelved = try XCTUnwrap(before.draft?.shelf.first)
+        let place = try XCTUnwrap(before.draft?.places.first)
+
+        let first = Task { await sources.put(shelved.id, label: shelved.label, into: place.id, of: draft.id) }
+        for _ in 0..<1000 where !sources.stepping { await Task.yield() }
+        XCTAssertTrue(sources.stepping, "the first step is on its way")
+        let second = await sources.put(shelved.id, label: shelved.label, into: nil, of: draft.id)
+        XCTAssertFalse(second, "a second tap sends nothing while it is")
+        XCTAssertFalse(sources.refused(second), "and no card says it was refused")
+        XCTAssertNil(sources.status)
+        let sent = await first.value
+        XCTAssertTrue(sent, sources.status ?? "")
+        XCTAssertFalse(sources.stepping)
+        XCTAssertTrue(sources.refused(false), "once answered, a step not taken is music-core's refusal")
+        let after = try await draftView(draft, sources)
+        XCTAssertEqual(after.draft?.shelf, [], "put once")
+        XCTAssertEqual(after.draft?.places.flatMap(\.variants).filter { $0.id == shelved.id }.count, 1)
+
+        await sources.undo()
+        let undone = try await draftView(draft, sources)
+        XCTAssertEqual(undone.draft?.shelf.map(\.id), [shelved.id], "one Undo takes the one step back")
+        XCTAssertEqual(undone.draft?.places.map { $0.variants.map(\.id) }, before.draft?.places.map { $0.variants.map(\.id) })
     }
 
     /// The card offers only what music-core takes: an open occurrence every step, a hand only over bars with notes (an
