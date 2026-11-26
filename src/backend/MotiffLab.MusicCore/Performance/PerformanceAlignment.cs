@@ -226,6 +226,17 @@ public sealed class PerformanceAlignment
         return (long)result;
     }
 
+    /// <summary>
+    /// The onsets of two readings of the same music matched by the same alignment with gaps, ticks on both sides (the notes
+    /// that start together as a group, «Как напечатано», step 2: <see cref="ReadingCarry"/>): each pair an onset of
+    /// <paramref name="from"/> and the one of <paramref name="to"/> it lines up with, in order.
+    /// </summary>
+    internal static IReadOnlyList<(long From, long To)> AlignOnsets(IReadOnlyList<Note> from, IReadOnlyList<Note> to)
+    {
+        List<(long At, int[] Pitches)> earlier = ScoreGroups(from), later = ScoreGroups(to);
+        return [.. AlignGroups(earlier, later).Select(pair => (earlier[pair.I].At, later[pair.J].At))];
+    }
+
     private static List<(long At, int[] Pitches)> ScoreGroups(IReadOnlyList<Note> score) =>
         [.. score
             .GroupBy(note => note.Span.Onset.Value)

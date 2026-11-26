@@ -161,6 +161,38 @@ internal sealed class SourcesSession
         }
     }
 
+    /// <summary>
+    /// <paramref name="again"/>, the project with the Notes <paramref name="id"/> read again from the original
+    /// <paramref name="original"/> as <paramref name="readScore"/>, with the working notes' corrections and the bars the player
+    /// confirmed carried over to them («Как напечатано», step 2, <see cref="ReadingCarry"/>), the corrections carried in one
+    /// group, and each bar of theirs where a correction was not carried flagged in Check (<see cref="CheckReason.CorrectionUnfit"/>)
+    /// beside the flags of the reading; with no carry when the working notes are no reading of that original, or the player corrected and confirmed
+    /// nothing on them. The working notes keep theirs.
+    /// </summary>
+    public static (Project Project, ReadingCarry? Carry) CarriedOver(SessionPiece piece, Project again, string id, string original, ReadScore readScore)
+    {
+        if (piece.Project.Scan is not { } scan || (scan.From ?? PieceOriginal.DocumentId) != original || (piece.Project.Edits.IsEmpty && scan.ConfirmedBars.Count == 0))
+        {
+            return (again, null);
+        }
+
+        ReadingCarry carry = ReadingCarry.Of(piece.Piece, piece.Project.Edits, scan.ConfirmedBars, readScore.Piece, "g_1");
+        OtherNotes[] notes = [.. again.Sources.Notes.Select(notes => notes.Id == id && notes.Scan is { } read ? Carried(notes, read.Confirm(carry.ConfirmedBars), carry, readScore) : notes)];
+        return (again with { Sources = again.Sources with { Notes = notes } }, carry);
+    }
+
+    /// <summary>The Notes read again with the carry: its corrections, the bars confirmed, and the reading's Check flags with a <see cref="CheckReason.CorrectionUnfit"/> on each bar a correction was not carried to.</summary>
+    private static OtherNotes Carried(OtherNotes notes, ScanOrigin scan, ReadingCarry carry, ReadScore read)
+    {
+        IEnumerable<CheckFlag> unfit = carry.NotCarriedBars.Select(static bar => new CheckFlag(bar, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false));
+        return notes with
+        {
+            Edits = carry.Edits,
+            Scan = scan,
+            Check = [.. CheckFlag.FromScan(scan.CheckOf(read.Piece), scan.ConfirmedBars).Concat(unfit).OrderBy(static flag => flag.Bar).ThenBy(static flag => flag.Reason)],
+        };
+    }
+
     /// <summary>The <paramref name="pages"/> (else one) of the PDF notes were read again from, by the bars the scan began each with.</summary>
     public static PageMap ReadPages(ReadScore read, int? pages) => PageMap.Of(read.Piece, Math.Max(1, pages ?? 1));
 }

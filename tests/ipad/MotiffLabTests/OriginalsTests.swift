@@ -137,6 +137,15 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNil(heard.request["tempo"], "the request itself finds no bars")
     }
 
+    /// v1.5 c-11: notes recognised again say in their toast what music-core carried of the player's corrections, and
+    /// only what was read when it carried nothing or says nothing.
+    func testTheToastOfNotesReadAgainSaysWhatWasCarried() {
+        let carried: [String: Any] = ["carried": 2, "text": "2 corrections carried over · not carried: 1 (bar 3)"]
+        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: carried), "Notes recognised · 1 page · 2 corrections carried over · not carried: 1 (bar 3)")
+        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: nil), "Notes recognised · 1 page")
+        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: ["carried": 0, "text": NSNull()] as [String: Any]), "Notes recognised · 1 page")
+    }
+
     /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set
     /// or the notes state; never the default tempo, and none without bars or for a beat no signature counts in.
     func testTheHintIsTheWorkingNotesMetreAndTempo() throws {
