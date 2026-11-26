@@ -1,7 +1,9 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
@@ -166,6 +168,18 @@ public class NoteDoubtTests
         Assert.True(NoteDoubt.Of(notes, MeterMap.Default, CheckFlag.DoubtfulBars([hands])).IsEmpty);
         Assert.Equal([second], CheckFlag.DoubtfulBars([hands, seam]));
         Assert.Empty(CheckFlag.DoubtfulBars([hands, seam with { Resolved = true }]));
+    }
+
+    [Fact]
+    public void The_assistant_reads_no_doubt_from_a_bar_whose_only_open_flag_is_guessed_hands()
+    {
+        byte[] midi = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "basic-pitch-melody.mid"));
+        ImportedPiece heard = Transcribed.Mark(PieceImporter.Import("take.mid", midi).Piece!);
+        int bar = heard.Meter.BarAt(heard.Notes[0].Span.Onset).Number;
+        CheckFlag Open(CheckReason reason) => new(bar, CheckSource.Transcription, reason, Resolved: false);
+
+        Assert.True(new AssistantPiece(heard, heard.Notes, [Open(CheckReason.HandsGuessed)]).Doubt.IsEmpty);
+        Assert.Equal([bar], new AssistantPiece(heard, heard.Notes, [Open(CheckReason.HandsGuessed), Open(CheckReason.DenseCluster)]).Doubt.Bars);
     }
 
     [Fact]

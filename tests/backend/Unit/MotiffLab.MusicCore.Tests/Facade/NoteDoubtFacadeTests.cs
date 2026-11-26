@@ -1,6 +1,9 @@
+using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
@@ -127,6 +130,33 @@ public class NoteDoubtFacadeTests
 
         Assert.DoesNotContain(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}}""")));
         Assert.Contains(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}, "resolved": false}""")));
+    }
+
+    /// <summary>The heard piece saved and opened again with one open flag, for <paramref name="reason"/>, on bar 2: its only flag.</summary>
+    private static MusicCoreFacade OnlyFlag(CheckReason reason)
+    {
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(Heard().Call(1, "project.save")));
+        byte[] file = ProjectFile.Write(saved with { Check = [new CheckFlag(2, CheckSource.Transcription, reason, Resolved: false)] });
+        var facade = new MusicCoreFacade();
+        JsonElement opened = Json(facade.Open("recital.motiff.json", file, """{"language": "en"}"""));
+        Assert.False(opened.TryGetProperty("error", out _), opened.GetRawText());
+        return facade;
+    }
+
+    [Fact]
+    public void A_bar_whose_only_open_flag_is_guessed_hands_gives_no_doubt_to_its_chords_facts_or_the_dna()
+    {
+        foreach (CheckReason reason in new[] { CheckReason.HandsGuessed, CheckReason.DenseCluster })
+        {
+            MusicCoreFacade facade = OnlyFlag(reason);
+            Call(facade, "select", """{"bars": {"first": 1, "last": 3}}""");
+            bool doubted = Doubted(Call(facade, "understand")).Any();
+            bool dna = Call(facade, "dna").GetRawText().Contains("\"doubt\"", StringComparison.Ordinal);
+
+            // Only a flag about the notes makes what is read from them uncertain; the hands are not the notes.
+            Assert.Equal(reason != CheckReason.HandsGuessed, doubted);
+            Assert.Equal(reason != CheckReason.HandsGuessed, dna);
+        }
     }
 
     [Fact]

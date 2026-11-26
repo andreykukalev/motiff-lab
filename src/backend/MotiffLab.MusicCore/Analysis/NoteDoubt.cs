@@ -12,8 +12,10 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <remarks>
 /// <para>
 /// A note is doubtful when it was recognised (<see cref="Provenance.Detected"/>: read from a scan or heard in a
-/// recording) and starts in a bar with an open Check flag about the notes (a flag that only the hands were guessed is
-/// not: chords, keys and facts do not rest on the hands). Fixing the note makes it user-edited, and "Looks right"
+/// recording) and starts in a bar with an open Check flag about the notes. A flag that only the hands were guessed is not
+/// one: it doubts which hand plays a note, not its pitch, onset or length. The chords and keys never read the hands; the
+/// texture fact and the musical ideas' melody line do, when the notes carry both hands, so a guessed hand can change
+/// them; this doubt is about the notes, not the hands, and does not mark them for it. Fixing the note makes it user-edited, and "Looks right"
 /// resolves the bar's flags (for a scan its notes become user-confirmed); either way it is no longer doubtful, so the
 /// doubt goes from everything that rested on it. Imported notes are never doubtful: a piece without recognised notes
 /// reads exactly as before.

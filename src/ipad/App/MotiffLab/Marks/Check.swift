@@ -166,12 +166,11 @@ struct CheckShelf: Equatable, Sendable {
         return bars
     }
 
-    /// The drawer's heading (E-sheets-1): the bars to review, every bar checked, or, for a recording heard without a flag,
-    /// its note lengths to check (#352), since «Every bar checked» would be false where no bar was checked; once those notes
-    /// are fixed, every bar checked again.
+    /// The drawer's heading (E-sheets-1): the bars to review; with none open, a recording's note lengths still to check
+    /// (#352), since «Every bar checked» would be false over them; with neither, every bar checked. A length mark goes when
+    /// its note is fixed, or with Looks right on its bar's flags.
     func heading(_ text: UIText) -> String {
-        open > 0 ? text.count("check.toReview", openBars.count)
-            : hasFlags || lengths.isEmpty ? text["check.allDone"] : text["check.lengthsHeading"]
+        open > 0 ? text.count("check.toReview", openBars.count) : lengths.isEmpty ? text["check.allDone"] : text["check.lengthsHeading"]
     }
 
     /// "Read from a scan by homr 0.7.0. Compare each flagged bar with the page: …"; without a flag, where the notes come
@@ -328,8 +327,8 @@ struct CheckDrawer: View {
                     ForEach(check.openBars(in: check.pieces.first { $0.firstBar == shownPiece })) { bar in openEntry(bar) }
                     if !check.lengths.isEmpty {
                         // A recording's note lengths are heard less surely than their starts (#352): shown apart, under
-                        // their own heading unless they are all there is, when the title says it.
-                        if check.hasFlags {
+                        // their own heading unless no bar is open, when the title says it (E-sheets-1).
+                        if check.open > 0 {
                             Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
                         }
                         Text(text["check.lengthsHint"])

@@ -45,7 +45,8 @@ final class NoteDoubtTests: XCTestCase {
         XCTAssertEqual(check.heading(english), english.count("check.toReview", 1))
         XCTAssertEqual(check.how(english), "Heard in a recording by transkun 2.0.1. " + english["check.howRecordingShort"])
         let resolved = flag.replacingOccurrences(of: #""resolved": false"#, with: #""resolved": true"#)
-        XCTAssertEqual(try heard(flags: resolved).heading(english), "Every bar checked", "the lengths below stay apart")
+        XCTAssertEqual(try heard(flags: resolved).heading(english), "Note lengths to check", "every flag resolved, lengths left: named, not «Every bar checked»")
+        XCTAssertEqual(try heard(flags: resolved, lengths: false).heading(english), "Every bar checked")
     }
 
     func testPieceDnaKeepsTheDoubtOfAKeyAndACircleReadFromNotesToCheck() throws {
