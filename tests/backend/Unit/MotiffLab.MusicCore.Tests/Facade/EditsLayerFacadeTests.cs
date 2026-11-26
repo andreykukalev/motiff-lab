@@ -104,6 +104,8 @@ public class EditsLayerFacadeTests
         Assert.Equal(("n_9999", "missing", 1), (unfit.GetProperty("noteId").GetString(), unfit.GetProperty("reason").GetString(), unfit.GetProperty("bar").GetInt32()));
         Assert.True(opened.GetProperty("hasVariation").GetBoolean());
 
+        Assert.Equal("badRequest", Error(facade, "corrections.drop", """{"noteIds": ["n_9999"], "bar": 999}"""));
+        Assert.Single(Call(facade, "corrections", """{"bar": 1}""").GetProperty("unfit").EnumerateArray());
         JsonElement dropped = Call(facade, "corrections.drop", """{"noteIds": ["n_9999"]}""");
         Assert.Empty(dropped.GetProperty("unfit").EnumerateArray());
         Assert.Equal(1, dropped.GetProperty("count").GetInt32());

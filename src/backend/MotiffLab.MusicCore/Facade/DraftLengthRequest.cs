@@ -114,7 +114,7 @@ internal static class DraftLengthRequest
             return new Source(holder, owner.Piece, SourceMusic.OfPiece(owner.Piece, owner.Notes));
         }
 
-        if (DraftRecordingRequest.Opened(holder, from.Notes, owner.Layer) is var (notes, piece, music))
+        if (DraftRecordingRequest.Opened(holder, from.Notes, owner.Corrections.Layer) is var (notes, piece, music))
         {
             return new Source(notes, piece, music);
         }
