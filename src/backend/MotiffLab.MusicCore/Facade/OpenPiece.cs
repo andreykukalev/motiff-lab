@@ -220,6 +220,16 @@ internal sealed partial class OpenPiece
         Selection.ForgetUnderstanding();
     }
 
+    /// <summary>
+    /// The notes read again (<see cref="RefreshNotes"/>) and the selection kept over them (<see cref="SelectionSession.FollowNotes"/>):
+    /// after a correction, bars taken or restored, or a version with bars taken from it taken away.
+    /// </summary>
+    private void RefreshNotesAndSelection()
+    {
+        RefreshNotes();
+        Selection.FollowNotes(State);
+    }
+
     /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>
     [MemberNotNull(nameof(Structure))]
     private void ReadStructure(LevelEdits? edits = null) =>

@@ -259,8 +259,7 @@ internal sealed partial class OpenPiece
         if (edits is not null)
         {
             Project = Project with { Edits = edits };
-            RefreshNotes();
-            Selection.FollowNotes(State);
+            RefreshNotesAndSelection();
         }
 
         return CorrectionsAnswer(bar, added);

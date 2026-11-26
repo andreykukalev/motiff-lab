@@ -64,4 +64,22 @@ public class PerformancesFacadeTests
         Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
         Assert.DoesNotContain("perf-perf_1", Call(facade, "roll").GetRawText(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void A_selection_over_bars_taken_or_restored_follows_the_notes_so_the_piece_still_opens()
+    {
+        MusicCoreFacade facade = WithVersion(replaced: true);
+        Call(facade, "select", """{"bars": {"first": 5, "last": 5}}""");
+
+        Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""");
+        Assert.Contains(Assert.Single(ProjectFile.Read(SavedAndOpened(facade)).Motifs).NoteIds, id => id.StartsWith("perf-", StringComparison.Ordinal));
+
+        Call(facade, "performance.restore", """{"id": "perf_1", "bars": [5]}""");
+        Assert.DoesNotContain(Assert.Single(ProjectFile.Read(SavedAndOpened(facade)).Motifs).NoteIds, id => id.StartsWith("perf-", StringComparison.Ordinal));
+
+        // Taken again and the version removed, as the iPad saves and opens the piece again after it (SourcesController).
+        Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""");
+        Call(facade, "sources.notes.remove", """{"id": "perf_1"}""");
+        Assert.DoesNotContain(Assert.Single(ProjectFile.Read(SavedAndOpened(facade)).Motifs).NoteIds, id => id.StartsWith("perf-", StringComparison.Ordinal));
+    }
 }

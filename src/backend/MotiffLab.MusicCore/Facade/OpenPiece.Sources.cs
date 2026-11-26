@@ -51,8 +51,7 @@ internal sealed partial class OpenPiece
         Project = project;
         if (takenChanged)
         {
-            RefreshNotes();
-            Selection.FollowNotes(State);
+            RefreshNotesAndSelection();
         }
     }
 

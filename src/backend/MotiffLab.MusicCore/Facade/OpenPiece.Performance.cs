@@ -184,15 +184,16 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>
-    /// The <paramref name="project"/> a change of the version <paramref name="id"/> makes kept, the notes read again when
-    /// bars were taken or restored (<paramref name="notesChange"/>), and that version answered.
+    /// The <paramref name="project"/> a change of the version <paramref name="id"/> makes kept; when bars were taken or
+    /// restored (<paramref name="notesChange"/>) the notes read again and the selection kept over them, as after a
+    /// correction (<see cref="SelectionSession.FollowNotes"/>); then that version answered.
     /// </summary>
     private string Keep(Project project, string id, bool notesChange = false)
     {
         Project = project;
         if (notesChange)
         {
-            RefreshNotes();
+            RefreshNotesAndSelection();
         }
 
         return PerformanceAnswer(Project.FindPerformance(id)!);
