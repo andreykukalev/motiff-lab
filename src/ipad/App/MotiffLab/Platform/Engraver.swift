@@ -80,9 +80,9 @@ final class Engraver {
 
     /// The pages of a piece's notation as SVG with Verovio's timemap: music-core writes the MEI (`notation`), Verovio
     /// lays it out on A4 pages. Call it through `MusicCore.run`.
-    /// With `evenBars`, the bars take room by their length (Settings · Notes).
-    static func engrave(piece: Int32, title: String, evenBars: Bool = false) -> Result<Engraving, EngraveError> {
-        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4(evenBars: evenBars))
+    /// With `evenBars`, the bars take room by their length (Settings · Notes). A failure is said in `text`'s language.
+    static func engrave(piece: Int32, title: String, evenBars: Bool = false, text: UIText = .current) -> Result<Engraving, EngraveError> {
+        layOut(piece: piece, request: "{\"title\": \(jsonString(title))}", options: a4(evenBars: evenBars), text: text)
     }
 
     /// The bars of a phrase in focus engraved on their own (0018 section 4): music-core writes the excerpt
@@ -92,20 +92,20 @@ final class Engraver {
     /// another version of the piece as the performer has it (0022, section 5).
     static func engraveCard(piece: Int32, firstBar: Int, lastBar: Int, options: String, ossia: Bool = false, version: String? = nil) -> Result<Engraving, EngraveError> {
         let above = ossia ? ", \"ossia\": \"variation\"" : version.map { ", \"ossia\": \(jsonString($0))" } ?? ""
-        return layOut(piece: piece, request: "{\"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}\(above)}", options: options)
+        return layOut(piece: piece, request: "{\"bars\": {\"first\": \(firstBar), \"last\": \(lastBar)}\(above)}", options: options, text: .current)
     }
 
-    private static func layOut(piece: Int32, request: String, options: String) -> Result<Engraving, EngraveError> {
+    private static func layOut(piece: Int32, request: String, options: String, text: UIText) -> Result<Engraving, EngraveError> {
         guard let answer = facadeObject(PieceCore(piece: piece).send(.notation, request)) else {
-            return .failure(EngraveError(message: UIText.current["opening.noNotation"]))
+            return .failure(EngraveError(message: text["opening.noNotation"]))
         }
         guard let mei = answer["mei"] as? String, !mei.isEmpty else {
-            return .failure(EngraveError(message: answer["message"] as? String ?? UIText.current["opening.noNotation"]))
+            return .failure(EngraveError(message: answer["message"] as? String ?? text["opening.noNotation"]))
         }
         let engraver = Engraver()
         engraver.setOptions(options)
         guard engraver.load(mei) else {
-            return .failure(EngraveError(message: UIText.current["opening.notLaidOut"]))
+            return .failure(EngraveError(message: text["opening.notLaidOut"]))
         }
         let pages = (1...max(engraver.pageCount, 1)).map { engraver.svg(page: $0) }
         let ossias = (answer["ossias"] as? [[String: Any]] ?? []).map { ossia in

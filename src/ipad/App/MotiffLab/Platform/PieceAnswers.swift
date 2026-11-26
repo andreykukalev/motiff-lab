@@ -207,15 +207,23 @@ struct PlaybackAnswer: Decodable, Sendable {
 /// reads them, and their names spelled for the keys. The app reads none of it: the roll page gets it whole
 /// (`RollPage.load`), every field music-core writes.
 struct RollAnswer: Decodable, Sendable {
-    /// `RollNames`: one name per note, per key signature (from its tick) one per row, the same without the octave, and
-    /// each octave's name in words.
+    /// `RollNames`: one name per note, per key signature (from its tick) one per row, the same without the octave, each
+    /// octave's name in words, and the voices music-core names for a player (`VoiceNames`: upper and lower where the file
+    /// says which, v1.5 #330).
     struct Names: Decodable, Sendable {
+        struct Voice: Decodable, Sendable {
+            let track: Int
+            let voice: Int
+            let name: String
+        }
+
         let notes: [String]
         let keyTicks: [Int]
         let rows: [[String]]
         let short: [String]
         let shortRows: [[String]]
         let octaves: [String]
+        let voices: [Voice]
     }
 
     let ids: [String]

@@ -108,7 +108,9 @@ final class PlayerInterruptionTests: XCTestCase {
     }
 
     /// v1.4 a-1: a metronome clicking with the piece stops with a pause the system makes (here the headphones gone) rather
-    /// than click on by itself from the speaker; a pause the player makes leaves it on, as before.
+    /// than click on by itself from the speaker; a pause the player makes leaves it on, as before. Since v1.5 the
+    /// metronome's own keeper stops it too, so this holds whichever keeper hears the system first; the order
+    /// `Metronome.stopWithSystemPause` keeps (no click as the pause unlocks it) cannot be seen from here.
     func testAMetronomeWithThePieceStopsWithASystemPauseOnly() async throws {
         let (player, piece) = try await playing(0.0..<7680.0)
         let metronome = Metronome.shared

@@ -50,10 +50,10 @@ struct OpenPiece: Identifiable, Sendable {
             let answer = MusicCore.open(fileName: fileName, data: data, request: request)
             ProbeCounts.shared.mark("opened")
             guard let opened = facadeObject(answer) else {
-                return .failure(EngraveError(message: UIText.current["opening.noAnswer"]))
+                return .failure(EngraveError(message: UIText.of(language)["opening.noAnswer"]))
             }
             guard let piece = (opened["piece"] as? NSNumber)?.int32Value, piece > 0 else {
-                return .failure(EngraveError(message: opened["message"] as? String ?? UIText.current["opening.failed"]))
+                return .failure(EngraveError(message: opened["message"] as? String ?? UIText.of(language)["opening.failed"]))
             }
             let own = PieceSummary(answer: answer)
             // The title the player set, else the score's own (a MusicXML work title, #330), else the file's name: music-core's
@@ -67,7 +67,7 @@ struct OpenPiece: Identifiable, Sendable {
                 return .success(OpenPiece(id: piece, title: title, pages: [], timemap: "", recording: recording, own: own))
             }
             let edits = EditsLayerState.opened(answer)
-            switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars) {
+            switch Engraver.engrave(piece: piece, title: title, evenBars: evenBars, text: UIText.of(language)) {
             case .success(let engraving):
                 ProbeCounts.shared.mark("engraved")
                 return .success(OpenPiece(id: piece, title: title, pages: engraving.pages, timemap: engraving.timemap, appWrittenBars: engraving.appWrittenBars, own: own, edits: edits))

@@ -162,7 +162,8 @@ final class Metronome: ObservableObject {
     /// headphones gone; v1.4 a-1): a metronome that clicked with the piece stops with it rather than click on by itself
     /// (from the speaker once the headphones went); one the player paused goes on as before. Called before the transport
     /// shows the pause, while it is still locked to the piece: its own keeper stops it too (v1.5), but the two hear the
-    /// system in no set order, and unlocked first it would click once.
+    /// system in no set order, and unlocked first it would click once. That click is the render thread's and no test can
+    /// see it (`PlayerInterruptionTests` shows only that the metronome ends stopped, as either keeper would leave it).
     func stopWithSystemPause(of player: Player) {
         guard playback === player, locked, running else { return }
         stop()

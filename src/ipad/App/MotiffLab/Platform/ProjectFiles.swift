@@ -70,7 +70,7 @@ enum ProjectFiles {
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
         let text = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         if let failure = facadeObject(text), failure["error"] != nil {
-            throw ProjectError(message: failure["message"] as? String ?? "music-core did not save the project.")
+            throw ProjectError(message: failure["message"] as? String ?? UIText.current["opening.notSaved"])
         }
         try Data(text.utf8).write(to: url, options: .atomic)
     }
