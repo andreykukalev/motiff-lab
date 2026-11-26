@@ -53,7 +53,9 @@ final class SwitchUITests: XCTestCase {
             for (target, button) in [("pdf", pdfButton), ("score", notesButton)] {
                 let control = button()
                 guard control.waitForExistence(timeout: limit), control.isHittable else {
-                    print("SCREEN-SWITCH \(tag) \(round) \(target): no switch in the bar: \(probe() ?? "no probe")")
+                    // What stood in its way, for the log: More's popover left open covers the whole bar (run 45844766971).
+                    let covered = app.otherElements["PopoverDismissRegion"].exists
+                    print("SCREEN-SWITCH \(tag) \(round) \(target): no switch in the bar (exists \(control.exists), popover open \(covered)): \(probe() ?? "no probe")")
                     return XCTFail("round \(round): the switch to \(target) is missing")
                 }
                 control.tap()
@@ -99,7 +101,8 @@ final class SwitchUITests: XCTestCase {
         return nil
     }
 
-    /// More opened and put away again: how long the app took to show its popover, or nil when it did not.
+    /// More opened and put away again: how long the app took to show its popover, or nil when it did not show it or did
+    /// not put it away within 3 s of the tap outside it.
     private func answersTap() -> TimeInterval? {
         // The bar's More, not the pill's «⋯» while it has no room (finding 22).
         let more = app.buttons.matching(NSPredicate(format: "label == 'Ещё' AND identifier != 'ml-pill-more'")).firstMatch
@@ -112,7 +115,8 @@ final class SwitchUITests: XCTestCase {
         region.tap()
         let gone = Date()
         while region.exists && Date().timeIntervalSince(gone) < 3 { Thread.sleep(forTimeInterval: 0.1) }
-        return seconds
+        // A popover still open after its dismiss region was tapped is no answer: it would cover the bar's switch next.
+        return region.exists ? nil : seconds
     }
 
     /// The app's own time from the press to the screen ready: the last of the probe's phases (`name@ms`), in seconds.
