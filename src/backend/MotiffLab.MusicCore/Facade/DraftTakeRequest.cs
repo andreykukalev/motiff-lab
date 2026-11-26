@@ -104,7 +104,7 @@ internal static class DraftTakeRequest
             request,
             piece => piece.ChangeDraft(draft.Id, each =>
             {
-                (Draft changed, taken) = DraftTakes.TakeSure(each, placeId, SourceRequest.Now(request));
+                (Draft changed, taken) = DraftTakes.TakeSure(each, placeId, request.Now());
                 return changed;
             }),
             json =>
@@ -196,7 +196,7 @@ internal static class DraftTakeRequest
     {
         (Draft draft, string placeId) = PlaceOf(owner, request);
         int number = draft.Next;
-        return owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => step(each, placeId, SourceRequest.Now(request))), json =>
+        return owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => step(each, placeId, request.Now())), json =>
         {
             Ids(json, draft.Id, placeId);
             json.WriteNumber("step", number);

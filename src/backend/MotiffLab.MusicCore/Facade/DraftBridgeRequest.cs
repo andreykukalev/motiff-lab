@@ -27,7 +27,7 @@ internal static class DraftBridgeRequest
             draft,
             place,
             draft.NextVariantId(),
-            each => DraftBridges.Put(each, after, SourceRequest.Now(request)),
+            each => DraftBridges.Put(each, after, request.Now()),
             (json, changed) => Candidates(json, changed.FindPlace(place)!, owner.Words));
     }
 
