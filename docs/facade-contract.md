@@ -223,10 +223,6 @@ Also within 14 (v1.3 i-2, ADR 0035 section 6): scan.join answers "fingerprint" (
 
 Also within 14 (v1.3 i-1b, Andrei 2026-11-24): scan.insert puts a page no engine read, read again by itself, into the same Notes of a project file, the player's corrections carried over and the bars after it numbered on; a call added.
 
-Also within 14 (version 1.4, c-2): `reference.explorer` answers its chosen tempo as "chosenTempo"; "tempo" is only the
-playback's, as in every `playback` answer (it held both, which a strict JSON reader refuses); a field renamed that no
-app read.
-
 ### 13
 
 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply, .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they answer unknownCall, and a performance no longer tells "mergedAt" and "mergeKept". A version is removed as other Notes are (sources.notes.remove). The project file stays version 17 and reads a performance's "taken" and "merge" and writes them back as before.
