@@ -38,7 +38,22 @@ internal sealed partial class OpenPiece
     internal SourcesSession Sources { get; } = new();
 
     /// <summary>This piece's project as the sources' calls that need no notes change it (<see cref="SourceRequest.Calls"/>), a PDF's pages shared over the bars.</summary>
-    internal SourceOwner HeldSources => new(() => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+    internal SourceOwner HeldSources => new(() => Project, KeepSources, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+
+    /// <summary>
+    /// The <paramref name="project"/> one of the sources' calls that need no notes makes, kept; when it took away a version
+    /// with bars taken from it (sources.notes.remove, sources.original.remove with its notes), the notes read again without
+    /// them, and the selection kept over them, as when the bars are restored.
+    /// </summary>
+    private void KeepSources(Project project)
+    {
+        bool takenChanged = !Project.TakenBars.SequenceEqual(project.TakenBars);
+        Project = project;
+        if (takenChanged)
+        {
+            RefreshNotesFollowingSelection();
+        }
+    }
 
     /// <summary>The piece changed by one of the Sources sheet's operations, a draft's among them, answered as the sources with what <paramref name="more"/> adds.</summary>
     internal string Changed(Request request, Func<Project, Project> change, Action<Utf8JsonWriter> more) =>
@@ -66,9 +81,9 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "musicXml" (base64) the scan server read from the PDF kept in this piece, "engine", "pages" and "name": the notes
     /// added as another version from the score (0022), and the PDF's pages linked to these bars by the bar numbers the scan
-    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version and the link are kept together or
-    /// not at all: a call refused, or failing while the version is added, leaves the piece as it was. Answers the comparison,
-    /// as performance.add does.
+    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version is added over the pages linked, and both
+    /// are kept together or not at all: a call refused, or failing while the version is added, leaves the piece as it was.
+    /// Answers the comparison, as performance.add does.
     /// </summary>
     private string AddDocumentNotes(Request request)
     {
@@ -77,17 +92,7 @@ internal sealed partial class OpenPiece
         Project linked = SourcesSession.WithPagesLinked(State, read.Read, request.Int("pages"));
         string name = SourcesSession.VersionName(State, request.Text("name"));
         string? engine = request.Text("engine");
-        Project before = Project;
-        Project = linked;
-        try
-        {
-            return AddVersion(name, read.Midi, PerformanceSource.Score, 0, engine);
-        }
-        catch
-        {
-            Project = before;
-            throw;
-        }
+        return AddVersion(State with { Project = linked }, name, read.Midi, PerformanceSource.Score, 0, engine);
     }
 
     /// <summary>
