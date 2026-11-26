@@ -163,6 +163,7 @@ internal static partial class Answer
                 json.WriteNumber("fromPosition", circle.FromPosition ?? 0);
             }
 
+            Doubt(json, circle.Doubt);
             Circle(json, circle.Circle, circle.Span.Onset, end == default ? null : end);
             json.WriteEndObject();
         }

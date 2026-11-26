@@ -29,6 +29,8 @@ struct DnaMap: Sendable {
         var inferred: Bool
         var onset: Double
         var end: Double
+        /// Where the recognised notes still to check are when the key is read from them (#352); nil otherwise.
+        var doubt: String? = nil
     }
 
     struct Chord: Sendable {
@@ -60,6 +62,8 @@ struct DnaMap: Sendable {
         /// The key of the stretch before, when this one is in another.
         var fromName: String?
         var circle: KeyCircle
+        /// Why the circle is drawn as uncertain when its key and chords rest on recognised notes still to check (#352).
+        var doubt: String? = nil
     }
 
     struct Level: Sendable {
@@ -146,7 +150,7 @@ struct DnaMap: Sendable {
             guard let drawn = entry["circle"] as? [String: Any], let circle = KeyCircle(circle: drawn) else { return nil }
             let (onset, end, _, _) = passage(entry["passage"])
             return SectionCircle(id: entry["id"] as? String ?? "", label: entry["label"] as? String ?? "", onset: onset, end: end,
-                          fromName: entry["fromName"] as? String, circle: circle)
+                          fromName: entry["fromName"] as? String, circle: circle, doubt: entry["doubt"] as? String)
         }
         barStarts = (object["barStarts"] as? [NSNumber] ?? []).map(\.doubleValue)
         form = (lane("form")["sections"] as? [[String: Any]] ?? []).map { section in
@@ -171,7 +175,8 @@ struct DnaMap: Sendable {
             let (onset, end, _, _) = passage(key["passage"])
             let mode = (key["key"] as? [String: Any])?["mode"] as? String
             return Key(label: key["label"] as? String ?? "", minor: mode == "minor",
-                       inferred: (key["modeInferred"] as? Bool ?? false) || (key["keyInferred"] as? Bool ?? false), onset: onset, end: end)
+                       inferred: (key["modeInferred"] as? Bool ?? false) || (key["keyInferred"] as? Bool ?? false), onset: onset, end: end,
+                       doubt: key["doubt"] as? String)
         }
         harmony = (lane("harmony")["bars"] as? [[String: Any]] ?? []).map {
             Chord(bar: int($0["bar"]), symbol: $0["symbol"] as? String ?? "", clear: $0["clear"] as? Bool ?? true,

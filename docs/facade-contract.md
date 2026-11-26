@@ -227,6 +227,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.
 
+Also within 15 (version 1.5, c-15b, #352): a circle of dna's "circles" that rests on recognised notes still to check, and is drawn as uncertain for it, answers "doubt", where they are (as its keys and chords do since 11); written only then, so the answer about imported notes is as before; a field added.
+
 ### 14
 
 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.
