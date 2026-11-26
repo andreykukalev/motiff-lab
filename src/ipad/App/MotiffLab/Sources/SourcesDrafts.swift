@@ -175,10 +175,11 @@ extension SourcesController {
         await draftStep("drafts.movePlace", ["place": place.id, "index": index], of: draft, toast: text["drafts.toastMoved"], telling: true)
     }
 
-    /// «Найти на записи» in a place's card (F2): the stretch music-core found on the recording `found` names put in as a
-    /// variant of `place`; a stretch the place has already is refused, in music-core's words.
+    /// «Найти на записи» in a place's card (F2): the stretch music-core finds most put in as a variant of `place`, `found`
+    /// (`findOnRecording`'s) naming it in the toast. No "notes" is sent: music-core takes the stretch it finds most, never
+    /// another recording's in its stead, and refuses one the place has already, in its words.
     func addFromRecording(_ found: DraftRecordingAnswer.Found, to place: String, of draft: String) async -> Bool {
-        await draftStep("drafts.addFromRecording", ["place": place, "notes": found.notes], of: draft, toast: text.format("drafts.toastPut", found.label))
+        await draftStep("drafts.addFromRecording", ["place": place], of: draft, toast: text.format("drafts.toastPut", found.label))
     }
 
     /// A place's length in its card (v1.4): its base cut again from its Notes over `bars` of its source. The steps outside
@@ -197,10 +198,15 @@ extension SourcesController {
         return await draftStep("drafts.carry", fields, of: spot.draft, toast: text.format("drafts.toastCarried", String(spot.technique.number), target.label))
     }
 
-    /// What «Найти на записи» offers for `place` of `draft` (`drafts.findOnRecording`, read only): nothing searched on a
-    /// piece with no recording heard as notes.
-    func recordingOffer(for place: String, of draft: String) async -> DraftRecordingOffer {
-        guard layers.notes.contains(where: \.isHeard) else { return .noRecording }
+    /// Whether the piece has a recording heard as notes, the only notes «Найти на записи» searches (F2).
+    var hasHeardNotes: Bool {
+        layers.notes.contains(where: \.isHeard)
+    }
+
+    /// «Найти на записи» tapped (F2; spec «Ноты + запись»: the engine finds the stretch): what music-core finds for `place`
+    /// of `draft` (`drafts.findOnRecording`, read only), searched only then; nothing on a piece with no recording heard.
+    func findOnRecording(_ place: String, of draft: String) async -> DraftRecordingOffer {
+        guard hasHeardNotes else { return .noRecording }
         let found = await PieceCore(piece: piece).draftRecording(draft: draft, place: place)
         return DraftRecordingOffer(found.value)
     }
@@ -223,11 +229,12 @@ extension SourcesController {
     }
 
     /// What a card says of a step that answered `taken`: nothing when it was taken or not sent (`refused`); else, when
-    /// `told`, music-core's own words where it gave them (the steps of the draft's structure, v1.4: a bridge moved, a place
-    /// whose length cannot change, a приём carried there already), and the card's own `words` otherwise.
+    /// `told`, music-core's own words where it gave them to the player ("unavailable", `refusedInWords`: the steps of the
+    /// draft's structure, v1.4: a bridge moved, a place whose length cannot change, a приём carried there already), and
+    /// the card's own `words` otherwise, never a bad request's developer text.
     func refusal(_ taken: Bool, told: Bool, otherwise words: String) -> String? {
         guard refused(taken) else { return nil }
-        return told ? status ?? words : words
+        return told && refusedInWords ? status ?? words : words
     }
 
     /// The toast's words of a step of the draft's structure (`words`) with what went with it: `steps` of the journal

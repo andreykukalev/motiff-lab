@@ -69,14 +69,15 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertNil(DraftLengthChoice(nil))
     }
 
-    /// «Найти на записи» puts in the stretch found that the place does not have yet; one it has is named, never added again;
-    /// none found, or no answer, leaves the entry off, and its line says why, in both languages.
-    func testFindOnRecordingOffersOnlyAStretchThePlaceLacks() throws {
+    /// «Найти на записи» puts in the stretch found most, unless the place has it already: then it is named and nothing is
+    /// added, not another recording's in its stead (c-3); none found, or no answer, puts nothing in, and the line says why,
+    /// in both languages.
+    func testFindOnRecordingPutsInOnlyTheStretchFoundMost() throws {
         let recording = try FacadeAnswerFixturesTests.answers("drafts.recording")
         let first = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, recording[0].text, of: "drafts.findOnRecording"))
         let offer = DraftRecordingOffer(first)
         XCTAssertEqual(offer.adds?.notes, "n_2")
-        XCTAssertEqual(offer.line(UIText(language: "ru")), "Recording 0–2 · та же музыка на 77 %")
+        XCTAssertNil(offer.line(UIText(language: "ru")), "put in: the toast says so")
         XCTAssertNotNil(SourceLayers(answer: recording[1].text), "added: answered as the sources")
         let again = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, recording[2].text, of: "drafts.findOnRecording"))
         XCTAssertEqual(again.found.first?.variant, "v_0002")
@@ -90,14 +91,21 @@ final class DraftStructureTests: XCTestCase {
           {"notes": "n_3", "label": "Recording 9–12", "percent": 70, "variant": null}]}
         """#
         let both = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, two, of: "drafts.findOnRecording"))
-        XCTAssertEqual(DraftRecordingOffer(both).adds?.notes, "n_3", "the other recording's stretch, which the place lacks")
+        XCTAssertEqual(DraftRecordingOffer(both), .already(both.found[0]), "the stretch found most, which the place has")
+        XCTAssertNil(DraftRecordingOffer(both).adds, "another recording's stretch is not taken in its stead")
         let none = try XCTUnwrap(FacadeAnswer.decode(DraftRecordingAnswer.self, #"{"draft": "d_1", "place": "pl_1", "found": []}"#, of: "drafts.findOnRecording"))
         XCTAssertEqual(DraftRecordingOffer(none), .notFound)
         XCTAssertEqual(DraftRecordingOffer(nil), .notFound)
+        XCTAssertTrue(DraftRecordingOffer.ready.searchable)
+        XCTAssertTrue(DraftRecordingOffer.notFound.searchable, "searched again on a tap")
+        XCTAssertFalse(DraftRecordingOffer.noRecording.searchable, "nothing to search")
+        XCTAssertFalse(DraftRecordingOffer.searching.searchable, "one search at a time")
         for language in ["en", "ru"] {
             let text = UIText(language: language)
+            XCTAssertNil(DraftRecordingOffer.ready.line(text), "before a tap")
             for offer in [DraftRecordingOffer.noRecording, .searching, .notFound, .already(both.found[0])] {
-                XCTAssertFalse(offer.line(text).hasPrefix("drafts."), "\(language): \(offer)")
+                let line = try XCTUnwrap(offer.line(text), "\(language): \(offer)")
+                XCTAssertFalse(line.hasPrefix("drafts."), "\(language): \(offer)")
             }
         }
     }
@@ -119,6 +127,21 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(DraftCarryMenu.reason(alone, refused: nil, english), english["drafts.carryNoPlace"])
         let nowhere = DraftCarryPlacesAnswer(draft: "d_1", place: "pl_1", technique: 1, places: [DraftCarryPlacesAnswer.Place(place: "pl_2", label: "②", bars: [])])
         XCTAssertEqual(DraftCarryMenu.reason(nowhere, refused: nil, english), english["drafts.carryNoFit"])
+    }
+
+    /// «Раньше» and «Позже» move a place past the nearest place that is not a bridge, as a bridge between goes with its
+    /// seam: on [A, bridge, B] A «Позже» is 2 and B «Раньше» 0; none before the first nor after the last.
+    func testTheOrderStepsOverABridge() {
+        func place(_ id: String, bridge: Bool = false) -> DraftViewAnswer.Place {
+            DraftViewAnswer.Place(id: id, label: id, onset: 0, end: 0, firstBar: 1, lastBar: 1, steps: 0, bridge: bridge, variants: [])
+        }
+        let places = [place("A"), place("bridge", bridge: true), place("B")]
+        XCTAssertEqual(DraftPlaceOrder.target(0, by: 1, in: places), 2)
+        XCTAssertEqual(DraftPlaceOrder.target(2, by: -1, in: places), 0)
+        XCTAssertNil(DraftPlaceOrder.target(0, by: -1, in: places), "none before the first")
+        XCTAssertNil(DraftPlaceOrder.target(2, by: 1, in: places), "none after the last")
+        XCTAssertNil(DraftPlaceOrder.target(0, by: 1, in: [place("A"), place("bridge", bridge: true)]), "only a bridge after it")
+        XCTAssertEqual(DraftPlaceOrder.target(0, by: 1, in: [place("A"), place("B"), place("C")]), 1)
     }
 
     /// The toast of a move or a resize says what went with it, in both languages.
@@ -199,17 +222,32 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertNil(DraftLengthChoice(length), "a bridge's length does not change")
         XCTAssertFalse(length?.reason?.isEmpty ?? true, "music-core says why")
 
-        let moved = await sources.movePlace(three.places[0], to: 2, of: draft)
-        XCTAssertTrue(moved, sources.status ?? "")
-        let toast = try XCTUnwrap(sources.toast?.text)
-        XCTAssertTrue(toast.hasPrefix(sources.text["drafts.toastMoved"]), toast)
-        XCTAssertTrue(toast.contains(sources.text.count("drafts.goneBridges", 1)), toast)
-        let after = try await shown(draft, sources)
-        XCTAssertEqual(after.places.map(\.id), [three.places[2].id, three.places[0].id], "the bridge went with its seam")
+        // «Позже» on ① and «Раньше» on ②: each past the bridge, which goes with its seam, the order changed either way.
+        for (index, step) in [(0, 1), (2, -1)] {
+            let target = try XCTUnwrap(DraftPlaceOrder.target(index, by: step, in: three.places))
+            let moved = await sources.movePlace(three.places[index], to: target, of: draft)
+            XCTAssertTrue(moved, sources.status ?? "")
+            let toast = try XCTUnwrap(sources.toast?.text)
+            XCTAssertTrue(toast.hasPrefix(sources.text["drafts.toastMoved"]), toast)
+            XCTAssertTrue(toast.contains(sources.text.count("drafts.goneBridges", 1)), toast)
+            let after = try await shown(draft, sources)
+            XCTAssertEqual(after.places.map(\.id), [three.places[2].id, three.places[0].id], "\(index): the order changed, the bridge went")
 
+            await sources.undo()
+            let back = try await shown(draft, sources)
+            XCTAssertEqual(back.places.map(\.id), three.places.map(\.id))
+        }
+
+        // ① made a bar longer: the bridge at its moved edge goes, no step with it ("dropped" empty), and the toast says so.
+        let longer = await sources.resize(three.places[0].id, to: 1...5, of: draft)
+        XCTAssertTrue(longer, sources.status ?? "")
+        let resizedWords = sources.text.format("drafts.toastResized", "1", "5")
+        XCTAssertEqual(sources.toast?.text, SourcesController.told(resizedWords, steps: 0, bridges: 1, sources.text))
+        let resized = try await shown(draft, sources)
+        XCTAssertEqual(resized.places.map(\.bridge), [false, false])
         await sources.undo()
-        let back = try await shown(draft, sources)
-        XCTAssertEqual(back.places.map(\.id), three.places.map(\.id))
+        let restored = try await shown(draft, sources)
+        XCTAssertEqual(restored.places.map(\.id), three.places.map(\.id))
     }
 
     /// A place's length: music-core's bounds, the base cut again over two more bars of its Notes, told in the toast, the
@@ -224,6 +262,11 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(choice.now, DraftLengthAnswer.Bars(first: 1, last: 4))
         choice.step(last: 2)
         let bars = try XCTUnwrap(choice.asked)
+
+        // The length it has: a bad request (as a second «Применить» on the old draft would be), its developer text never shown.
+        let same = await sources.resize(place.id, to: 1...4, of: draft)
+        XCTAssertFalse(same)
+        XCTAssertEqual(sources.refusal(same, told: true, otherwise: "refused"), "refused", sources.status ?? "")
 
         let resized = await sources.resize(place.id, to: bars, of: draft)
         XCTAssertTrue(resized, sources.status ?? "")
@@ -273,14 +316,14 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(back.places.last?.variants.count, 1)
     }
 
-    /// F2 on a piece with no recording heard as notes: nothing is searched and the entry says so; a stretch of a recording
-    /// that is not there is refused in music-core's words, and the draft stays as it was.
+    /// F2 on a piece with no recording heard as notes: nothing is searched and the entry says so; a stretch put in anyway is
+    /// refused in music-core's words, and the draft stays as it was.
     func testFindOnRecordingWithoutARecordingHeard() async throws {
         let sources = try await piece()
         let draft = try await newDraft(sources, [1...4])
         let made = try await shown(draft, sources)
         let place = try XCTUnwrap(made.places.first)
-        let offer = await sources.recordingOffer(for: place.id, of: draft)
+        let offer = await sources.findOnRecording(place.id, of: draft)
         XCTAssertEqual(offer, .noRecording)
         let found = await PieceCore(piece: sources.piece).draftRecording(draft: draft, place: place.id).value
         XCTAssertEqual(found?.found, [], "music-core finds nothing either")

@@ -81,6 +81,8 @@ final class SourcesController: ObservableObject {
     @Published var toast: SourcesToast?
     /// Why the last operation was not done, in the player's words; nil when it was.
     @Published var status: String?
+    /// The last change refused was "unavailable": `status` is music-core's words to the player, not developer text (v1.4).
+    private(set) var refusedInWords = false
     /// The original whose pages or sound are with the scan server now.
     @Published private(set) var reading: String?
     /// How hearing a recording goes, in the player's words (`RecordingHearing`); nil while none is heard.
@@ -550,6 +552,7 @@ final class SourcesController: ObservableObject {
         let answer = await call(name, fields, on: shown)
         guard let object = facadeObject(answer), object["error"] == nil, let read = SourceLayers(answer: answer) else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
+            refusedInWords = facadeObject(answer)?["error"] as? String == "unavailable"
             return nil
         }
         status = nil

@@ -1,50 +1,53 @@
 import Foundation
 
 // What a place's card offers to change a draft's structure (v1.4, ADR 0034 section 8; drafts spec «Ноты + запись»), from
-// music-core's read-only answers: «Найти на записи» (F2) and the place's length. The steps are `SourcesController`'s
+// music-core's read-only answers: «Найти на записи» (F2) and a place's length. The steps are `SourcesController`'s
 // (SourcesDrafts.swift); nothing here changes the draft.
 
-/// What «Найти на записи» in a place's card offers (F2), from what music-core found on the piece's recordings heard as
-/// notes (`drafts.findOnRecording`): the entry adds a stretch only where one is found that the place does not have yet;
-/// otherwise it is off and its line says why.
+/// What «Найти на записи» in a place's card says (F2; spec «Ноты + запись»: the engine finds the stretch when it is tapped),
+/// from what music-core found on the piece's recordings heard as notes (`drafts.findOnRecording`): the stretch it finds
+/// most is put in, unless the place has it already, which is named; another recording's is not taken in its stead (c-3).
 enum DraftRecordingOffer: Equatable, Sendable {
-    /// The piece has no recording heard as notes: nothing is searched.
+    /// Not searched yet: a tap searches.
+    case ready
+    /// The piece has no recording heard as notes: nothing is searched, the entry is off.
     case noRecording
     /// The search is on its way.
     case searching
     /// No recording has the place's music, or music-core did not answer.
     case notFound
-    /// A stretch found that is no variant of the place yet: the entry puts it in.
+    /// The stretch found most is no variant of the place yet: it is put in.
     case add(DraftRecordingAnswer.Found)
-    /// Every stretch found is a variant of the place already: named, not added twice.
+    /// The stretch found most is a variant of the place already: named, nothing added.
     case already(DraftRecordingAnswer.Found)
 
-    /// The offer of music-core's answer: the stretch found most of that the place does not have yet, else the first one
-    /// found, which it has.
+    /// The offer of music-core's answer, from the stretch it found most only (the first).
     init(_ answer: DraftRecordingAnswer?) {
-        let found = answer?.found ?? []
-        if let new = found.first(where: { $0.variant == nil }) {
-            self = .add(new)
-        } else if let first = found.first {
-            self = .already(first)
-        } else {
+        guard let best = answer?.found.first else {
             self = .notFound
+            return
         }
+        self = best.variant == nil ? .add(best) : .already(best)
     }
 
-    /// The stretch the entry puts in; nil while it is off.
+    /// The stretch to put in; nil where nothing is.
     var adds: DraftRecordingAnswer.Found? {
         if case .add(let found) = self { return found }
         return nil
     }
 
-    /// The line under the entry: the stretch and how much of it is the place's music, or why the entry is off.
-    func line(_ text: UIText) -> String {
+    /// The entry takes a tap: not while it searches, nor on a piece with no recording heard.
+    var searchable: Bool {
+        self != .noRecording && self != .searching
+    }
+
+    /// The line under the entry: why nothing was put in, or that it searches; nil before a tap and once found.
+    func line(_ text: UIText) -> String? {
         switch self {
+        case .ready, .add: nil
         case .noRecording: text["drafts.recordingNone"]
         case .searching: text["drafts.recordingSearching"]
         case .notFound: text["drafts.recordingNotFound"]
-        case .add(let found): text.format("drafts.sameMusic", found.label, String(found.percent))
         case .already(let found): text.format("drafts.recordingAlready", found.label)
         }
     }
@@ -62,11 +65,6 @@ struct DraftLengthChoice: Equatable, Sendable {
     /// The choice music-core's answer allows; nil for a place whose length cannot change, or whose bars are not known.
     init?(_ answer: DraftLengthAnswer?) {
         guard let answer, answer.resizable, let now = answer.bars, let most = answer.most else { return nil }
-        self.init(now: now, most: most)
-    }
-
-    /// The place's own bars `now`, within `most`, none stepped yet.
-    init(now: DraftLengthAnswer.Bars, most: DraftLengthAnswer.Bars) {
         self.now = now
         self.most = most
         first = now.first

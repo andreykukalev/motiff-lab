@@ -20,6 +20,9 @@ struct DraftPlaceContent: View {
     @State private var asked: Asked?
     /// Why the last step was not taken: in the card's own words, or music-core's for a change of the draft's structure.
     @State private var refusal: String?
+    /// A step sent from the card, until the draft's view has opened again (or it was refused): the card holds its steps,
+    /// so none acts on the draft as it was.
+    @State private var acting = false
 
     /// A step the card asks about first, as it drops what was taken from the variant (a new base, a variant moved out).
     private struct Asked {
@@ -44,8 +47,9 @@ struct DraftPlaceContent: View {
                 Text(refusal).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
         }
-        // A step on its way (`SourcesController.stepping`): the card's steps wait for it.
-        .disabled(owner.stepping)
+        // A step on its way (`SourcesController.stepping`), or the view opening again after it (`acting`): the card's
+        // steps wait for it.
+        .disabled(owner.stepping || acting)
         .onChange(of: place) { _, _ in refusal = nil }
         .confirmationDialog(asked?.title ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }), titleVisibility: .visible, presenting: asked) { asked in
             Button(asked.button, role: .destructive) { take(asked.step) }
@@ -97,9 +101,11 @@ struct DraftPlaceContent: View {
     }
 
     /// A step on the draft: taken, the view opens again where the player is; refused, the card says so, in music-core's
-    /// words when `told` (a change of the draft's structure, v1.4).
+    /// words when `told` (a change of the draft's structure, v1.4). The card's steps are held meanwhile (`acting`).
     private func take(told: Bool = false, _ step: @escaping @MainActor () async -> Bool) {
+        acting = true
         Task {
+            defer { acting = false }
             let done = await step()
             guard done else {
                 refusal = owner.refusal(done, told: told, otherwise: text["drafts.refused"])

@@ -25,10 +25,10 @@ extension EnvironmentValues {
 /// place's candidates (v1.2, `DraftBridgeContent`), with the assistant to choose among them (v1.4); the diamond of each seam that shows between two places, which opens the seam's card there; and
 /// the shelf, each variant on it put («Поставить…») into a place or as a new place. Each step is music-core's
 /// (`drafts.base`, `drafts.place`, `drafts.takeSure`, `drafts.leaveBridge`), undone from its toast, and the view opens
-/// again in its place with the map open. Since v1.4 (F1, spec «Карта черновика: порядок мест») each place moves one
-/// place earlier or later (`DraftPlaceOrder`, `drafts.movePlace`; a bridge place is refused in music-core's words). In
-/// the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape, below the draft's pill, over the lower
-/// half in portrait, so the pills and toasts make way.
+/// again in its place with the map open. Since v1.4 (F1, spec «Карта черновика: порядок мест») each place moves before
+/// or after the nearest other place that is not a bridge (`DraftPlaceOrder`, `drafts.movePlace`; a bridge place is
+/// refused in music-core's words). In the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape,
+/// below the draft's pill, over the lower half in portrait, so the pills and toasts make way.
 struct DraftMap: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var seams: DraftSeamsModel
@@ -44,6 +44,9 @@ struct DraftMap: View {
     /// Why the last step was not taken: on the shelf in the map's own words, a place moved in music-core's (v1.4), said
     /// under that place's card.
     @State private var refusal: Refusal?
+    /// A step sent from the map, until the draft's view has opened again (or it was refused): the order and the shelf hold
+    /// their steps, so none acts on the draft as it was.
+    @State private var acting = false
 
     private struct Refusal {
         /// The place moved; nil for a step on the shelf.
@@ -111,10 +114,10 @@ struct DraftMap: View {
             }
             .buttonStyle(.plain)
             // Its order in the draft (v1.4, F1), the steps waiting while one is on its way.
-            DraftPlaceOrder(place: place, index: index, count: draft.places.count, text: text) { target in
+            DraftPlaceOrder(place: place, index: index, places: draft.places, text: text) { target in
                 take(place: place.id) { await owner.movePlace(place, to: target, of: draft.id) }
             }
-            .disabled(owner.stepping)
+            .disabled(owner.stepping || acting)
             if let refusal, refusal.place == place.id {
                 Text(refusal.words).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
@@ -191,15 +194,19 @@ struct DraftMap: View {
                     } label: {
                         DraftMenuLabel(icon: "plus", words: text["drafts.put"])
                     }
+                    .disabled(owner.stepping || acting)
                 }
             }
         }
     }
 
     /// A step on the draft: taken, the view opens again where the player is, the map still open; refused, the map says so,
-    /// under the place moved in music-core's words (`place`, v1.4), else at the shelf in its own.
+    /// under the place moved in music-core's words (`place`, v1.4), else at the shelf in its own. The order and the shelf
+    /// are held meanwhile (`acting`).
     private func take(place: String? = nil, _ step: @escaping @MainActor () async -> Bool) {
+        acting = true
         Task {
+            defer { acting = false }
             let taken = await step()
             guard taken else {
                 refusal = owner.refusal(taken, told: place != nil, otherwise: text["drafts.refused"]).map { Refusal(place: place, words: $0) }

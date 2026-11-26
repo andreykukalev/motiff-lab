@@ -21,6 +21,8 @@ struct DraftTechniqueCard: View {
     @State private var refusal: String?
     /// «Сопоставить…» tapped: the variant's bars show to pick the one that sounds here.
     @State private var matching = false
+    /// A step sent from the card, until the draft's view has opened again (or it was refused): its steps are held.
+    @State private var acting = false
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
@@ -78,8 +80,9 @@ struct DraftTechniqueCard: View {
                 Text(refusal).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
         }
-        // A step on its way (`SourcesController.stepping`): the card's steps wait for it, as the place's card's do.
-        .disabled(owner.stepping)
+        // A step on its way (`SourcesController.stepping`), or the view opening again after it (`acting`): the card's
+        // steps wait for it, as the place's card's do.
+        .disabled(owner.stepping || acting)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(DraftTechniquesModel.title(spot, text))
     }
@@ -93,10 +96,12 @@ struct DraftTechniqueCard: View {
     }
 
     /// A step on the draft: taken, the card goes and the draft's view opens again at the occurrence; refused, the card says
-    /// it was not taken, in music-core's words when `told` (a приём carried, v1.4).
+    /// it was not taken, in music-core's words when `told` (a приём carried, v1.4). Its steps are held meanwhile (`acting`).
     private func act(told: Bool = false, _ step: @escaping @MainActor () async -> Bool) {
         guard let spot = model.picked?.spot else { return }
+        acting = true
         Task {
+            defer { acting = false }
             let taken = await step()
             guard taken else {
                 refusal = owner.refusal(taken, told: told, otherwise: text["drafts.refused"])
