@@ -74,7 +74,7 @@ public sealed record InkStroke(string Id, InkTool Tool, InkColour Colour, double
     /// first and last points stay, and the points kept are as they were. The same stroke always gives the same points,
     /// and a thinned stroke stays as it is.
     /// </summary>
-    public InkStroke Thinned()
+    internal InkStroke Thinned()
     {
         IReadOnlyList<double> points = InkThinning.Thin(Points, Pressure);
         return points.Count == Points.Count ? this : new InkStroke(Id, Tool, Colour, Size, Bar, U, V, points, Pressure) { Margin = Margin };
@@ -87,7 +87,7 @@ public sealed record InkStroke(string Id, InkTool Tool, InkColour Colour, double
 /// <see cref="Tolerance"/> staff spaces of the line between the points kept on either side, and its pressure within
 /// <see cref="PressureTolerance"/> of theirs along that line.
 /// </summary>
-public static class InkThinning
+internal static class InkThinning
 {
     /// <summary>How far, in staff spaces, a point left out may lie from the line drawn without it: a twentieth of a space.</summary>
     public const double Tolerance = 0.05;

@@ -8,7 +8,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>How a part of a collection is told: by the collection's bars, or by its PDF's or scan's pages.</summary>
-public enum PartUnit
+internal enum PartUnit
 {
     Bars,
     Pages,
@@ -24,7 +24,7 @@ public enum PartUnit
 /// <param name="Title">The piece's title; blank gives "Part 2" of the collection's title.</param>
 /// <param name="First">The first bar (as the workspace numbers them) or page (from 1).</param>
 /// <param name="Last">The last bar or page, not before <paramref name="First"/>.</param>
-public sealed record PartRange(string? Title, PartUnit Unit, int First, int Last)
+internal sealed record PartRange(string? Title, PartUnit Unit, int First, int Last)
 {
     /// <summary>The part's own PDF: the collection's pages the part takes, copied by the app (PDFKit); null for a part without one.</summary>
     public byte[]? Pdf { get; init; }
@@ -50,7 +50,7 @@ public sealed record PartRange(string? Title, PartUnit Unit, int First, int Last
 
 /// <summary>What every part of one split shares: when it is made, the playlist it joins, the device that holds the collection.</summary>
 /// <param name="NewId">A new project's id; the facade passes its own, which gives a GUID.</param>
-public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
+internal sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
 {
     /// <summary>The playlist the parts join (the collection, version 0.2); null takes the collection's title.</summary>
     public string? Playlist { get; init; }
@@ -89,7 +89,7 @@ public sealed record PieceSplitOptions(DateTimeOffset Now, Func<string> NewId)
 /// </summary>
 /// <param name="Span">Where the part is in the collection's notes; null for a PDF without notes.</param>
 /// <param name="Notes">The part's notes as it opens, from tick 0; empty for a PDF without notes.</param>
-public sealed record PiecePart(int Number, Project Project, TickSpan? Span, IReadOnlyList<Note> Notes)
+internal sealed record PiecePart(int Number, Project Project, TickSpan? Span, IReadOnlyList<Note> Notes)
 {
     /// <summary>The collection's bars the part takes, as the workspace numbers them; null for a PDF without notes.</summary>
     public (int First, int Last)? Bars { get; init; }
@@ -103,7 +103,7 @@ public sealed record PiecePart(int Number, Project Project, TickSpan? Span, IRea
 
 /// <summary>The parts of one collection and what links them: the collection's original and the playlist.</summary>
 /// <param name="Original">The collection's original as each part keeps it, under <see cref="PieceParts.OriginalId"/>; null when the collection has none to name.</param>
-public sealed record PieceSplit(PieceOriginal? Original, string Playlist, IReadOnlyList<PiecePart> Parts);
+internal sealed record PieceSplit(PieceOriginal? Original, string Playlist, IReadOnlyList<PiecePart> Parts);
 
 /// <summary>
 /// Several pieces over one original (v0.4 design, B, «Первая версия без изменения формата»; ideas bank, «Несколько
@@ -121,7 +121,7 @@ public sealed record PieceSplit(PieceOriginal? Original, string Playlist, IReadO
 /// the collection. A note tied across the place a part begins is cut there. Joining the parts' notes back in order gives
 /// the collection's notes.
 /// </remarks>
-public static class PieceParts
+internal static class PieceParts
 {
     /// <summary>The id each part gives the collection's original in its <c>originals</c>.</summary>
     public const string OriginalId = "src_book";

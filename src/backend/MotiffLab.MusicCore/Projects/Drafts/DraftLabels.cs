@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>What a variant was copied from, for its place's label and its draft's line in Sources.</summary>
-public enum DraftSourceKind
+internal enum DraftSourceKind
 {
     /// <summary>Notes read from a PDF or photos of pages.</summary>
     PdfNotes,
@@ -32,7 +32,7 @@ public enum DraftSourceKind
 /// place's label over its start («① Ноты 9–16 + Запись · 2 варианта»), a draft's line in Sources («из нот с PDF и
 /// записи»), the kind of a приём («октава») and the name a new draft takes («Черновик 2»).
 /// </summary>
-public static class DraftLabels
+internal static class DraftLabels
 {
     /// <summary>What the variant was copied from: a bridge or a carried приём music-core made, another piece's Notes, Notes heard in a recording, read from a PDF, or a file's.</summary>
     public static DraftSourceKind Kind(DraftVariant variant)

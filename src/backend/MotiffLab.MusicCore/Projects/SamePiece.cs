@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// that stays, <paramref name="Joined"/> the indices of the ones that join it and go, and <paramref name="Project"/> the
 /// keeper as it is saved afterwards.
 /// </summary>
-public sealed record JoinedPiece(int Keeper, IReadOnlyList<int> Joined, Project Project);
+internal sealed record JoinedPiece(int Keeper, IReadOnlyList<int> Joined, Project Project);
 
 /// <summary>
 /// One piece, one entry in the library, whatever device or source it came from (version 0.6.1, #582 item 1; Andrei,
@@ -21,7 +21,7 @@ public sealed record JoinedPiece(int Keeper, IReadOnlyList<int> Joined, Project 
 /// their own work stay apart, as a conflict copy does: no work is ever dropped. Nothing new is saved: the rule reads the
 /// originals' fingerprints and the place in a collection the project files already keep.
 /// </summary>
-public static class SamePiece
+internal static class SamePiece
 {
     /// <summary>
     /// The player's own fields of a project file (<see cref="FieldClass.Player"/> in <see cref="ProjectSync.Fields"/>), each

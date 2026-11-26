@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// so the rebuild and the приёмы follow them. Never on a base or a variant on the shelf; both ticks strictly increase.
 /// Anchors are the variant's state, not steps. Pure: each gives a new draft.
 /// </summary>
-public static class DraftAnchors
+internal static class DraftAnchors
 {
     /// <summary>
     /// «Сопоставить»: <paramref name="anchor"/> confirmed on the variant <paramref name="variantId"/> of the place

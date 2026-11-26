@@ -36,7 +36,7 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     /// <summary>A scan just read, with no bar checked yet.</summary>
     public static ScanOrigin Read(string engine) => new(engine, []);
 
-    public bool IsConfirmed(int bar) => ConfirmedBars.Contains(bar);
+    internal bool IsConfirmed(int bar) => ConfirmedBars.Contains(bar);
 
     /// <summary>
     /// The check of the notes this scan read (<paramref name="piece"/>, its source as imported), with the page reports it

@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Assistant.Variants;
 /// <param name="Chain">The steps over the notes under it, all accepted; null when a step can no longer run.</param>
 /// <param name="BaseChanged">The notes under it are not the ones it was made on: it is heard over the notes as they are now, and offers to recompute.</param>
 /// <param name="Refusal">Why it cannot be made, in the player's language; null when it can.</param>
-public sealed record VariantReplay(PhraseVariant Variant, VariationChain? Chain, bool BaseChanged, string? Refusal)
+internal sealed record VariantReplay(PhraseVariant Variant, VariationChain? Chain, bool BaseChanged, string? Refusal)
 {
     /// <summary>The original against the variant's notes, with the Keep checks and the explanation; null when it cannot be made or changes nothing.</summary>
     public Variation? Result => Chain?.Result;
@@ -25,7 +25,7 @@ public sealed record VariantReplay(PhraseVariant Variant, VariationChain? Chain,
 /// Making, replaying and recomputing variants of a phrase (the AI companion study, sections 2.4 and 4.6), with no AI:
 /// every note comes from the variation operations. Pure: the same notes, variant and words give the same chain.
 /// </summary>
-public static class PhraseVariants
+internal static class PhraseVariants
 {
     /// <summary>
     /// A variant from the phrase's notes by one engine operation with fixed parameters (a «Что если» chip): its Keep

@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// out and the variant notes it puts in, as they are in the place's result now, so the rebuild reads only those; the приём is
 /// its label. Pure: each gives a new draft.
 /// </summary>
-public static class DraftTakes
+internal static class DraftTakes
 {
     /// <summary>
     /// The приём <paramref name="number"/> of the place taken: where it is still open, or, with <paramref name="bar"/>, only

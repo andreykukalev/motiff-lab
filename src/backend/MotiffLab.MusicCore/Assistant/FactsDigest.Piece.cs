@@ -16,10 +16,10 @@ namespace MotiffLab.MusicCore.Assistant;
 public sealed partial class FactsDigest
 {
     /// <summary>The densest bars the piece's digest lists, the densest first.</summary>
-    public const int MaxDenseBars = 5;
+    internal const int MaxDenseBars = 5;
 
     /// <summary>The most chords a section's line names, the ones held over most bars first.</summary>
-    public const int MaxSectionChords = 6;
+    internal const int MaxSectionChords = 6;
 
     /// <summary>
     /// The digest of the whole piece: its bars and meters; the keys; the map's summary line; the sections of the form with

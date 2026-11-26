@@ -16,7 +16,7 @@ public enum TechniqueKind
 }
 
 /// <summary>The приём a step came from: its kind and the place's bars, from 1. A label only: the rebuild never reads it.</summary>
-public sealed record DraftTechnique(TechniqueKind Kind, IReadOnlyList<int> Bars)
+internal sealed record DraftTechnique(TechniqueKind Kind, IReadOnlyList<int> Bars)
 {
     public IReadOnlyList<int> Bars { get; } = Bars is { Count: > 0 } && Bars.All(static bar => bar >= 1) ? [.. Bars] : throw new ArgumentException("A приём names the place's bars, from 1.", nameof(Bars));
 
@@ -53,7 +53,7 @@ public abstract record DraftStep(int Number, DateTimeOffset At, string Place)
 /// puts in (by their ids in the place), or, with <see cref="Insert"/>, the variant's bars put in whole. The rebuild reads
 /// only these, so the step means the same after the comparison's rules change.
 /// </summary>
-public sealed record DraftTake(int Number, DateTimeOffset At, string Place, string Variant) : DraftStep(Number, At, Place)
+internal sealed record DraftTake(int Number, DateTimeOffset At, string Place, string Variant) : DraftStep(Number, At, Place)
 {
     public string Variant { get; } = !string.IsNullOrWhiteSpace(Variant) ? Variant : throw new ArgumentException("A take names its variant.", nameof(Variant));
 
@@ -70,7 +70,7 @@ public sealed record DraftTake(int Number, DateTimeOffset At, string Place, stri
 }
 
 /// <summary>A приём kept as in the base, or with <see cref="Seam"/> the seam before the place kept as it is.</summary>
-public sealed record DraftLeave(int Number, DateTimeOffset At, string Place) : DraftStep(Number, At, Place)
+internal sealed record DraftLeave(int Number, DateTimeOffset At, string Place) : DraftStep(Number, At, Place)
 {
     public string? Variant { get; init; }
 
@@ -80,13 +80,13 @@ public sealed record DraftLeave(int Number, DateTimeOffset At, string Place) : D
 }
 
 /// <summary>The place's notes moved by <paramref name="Semitones"/>, and the keys its source states with them («② в соль мажор», decision record 0034, section 5).</summary>
-public sealed record DraftTranspose(int Number, DateTimeOffset At, string Place, int Semitones) : DraftStep(Number, At, Place)
+internal sealed record DraftTranspose(int Number, DateTimeOffset At, string Place, int Semitones) : DraftStep(Number, At, Place)
 {
     public int Semitones { get; } = Semitones is >= -24 and <= 24 and not 0 ? Semitones : throw new ArgumentOutOfRangeException(nameof(Semitones), Semitones, "A transposition moves by 1 to 24 semitones up or down.");
 }
 
 /// <summary>The place played at <paramref name="QuarterNotesPerMinute"/> from its start, its own changes in proportion («Темп как в ①»).</summary>
-public sealed record DraftTempo(int Number, DateTimeOffset At, string Place, int QuarterNotesPerMinute) : DraftStep(Number, At, Place)
+internal sealed record DraftTempo(int Number, DateTimeOffset At, string Place, int QuarterNotesPerMinute) : DraftStep(Number, At, Place)
 {
     public int QuarterNotesPerMinute { get; } = Playback.PlayerTempo.IsValid(QuarterNotesPerMinute)
         ? QuarterNotesPerMinute

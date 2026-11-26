@@ -12,7 +12,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// as saved, the piece's default where the place states none. Where the base was copied from is its provenance.
 /// </summary>
 /// <param name="Index">The place's position in the draft, from 0.</param>
-public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySignature? Key, TimeSignature Meter, PlaybackTempo Tempo)
+internal sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySignature? Key, TimeSignature Meter, PlaybackTempo Tempo)
 {
     /// <summary>The tempo in quarter notes a minute, rounded.</summary>
     public int PerMinute => TempoSources.PerMinute(Tempo.MicrosecondsPerQuarter);
@@ -36,7 +36,7 @@ public sealed record SeamSide(string Place, int Index, DraftVariant Base, KeySig
 /// <param name="Left">Whether the player kept the seam as it is: a <see cref="DraftLeave"/> with <see cref="DraftLeave.Seam"/> of the place after it.</param>
 /// <param name="LastBar">The draft's number of the last bar before the seam.</param>
 /// <param name="FirstBar">The draft's number of the first bar after it.</param>
-public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpan Listen, bool Left, int LastBar, int FirstBar)
+internal sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpan Listen, bool Left, int LastBar, int FirstBar)
 {
     /// <summary>Whether the keys differ; false when a side states none, since then nothing tells.</summary>
     public bool KeyChanges => Before.Key is { } before && After.Key is { } after
@@ -99,7 +99,7 @@ public sealed record DraftSeam(SeamSide Before, SeamSide After, Tick At, TickSpa
 /// has the seam before it. Transposing a place and setting its tempo are journal steps (<see cref="DraftTranspose"/>,
 /// <see cref="DraftTempo"/>), and so is «Оставить». Pure: each gives a new draft.
 /// </summary>
-public static class DraftSeams
+internal static class DraftSeams
 {
     /// <summary>The draft's seams in order, worked out from its score (<see cref="DraftMusic"/>), each place's result built once.</summary>
     public static IReadOnlyList<DraftSeam> Of(Draft draft)

@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Assistant.Repairs;
 
 /// <summary>The repairs of single notes: out of range, doubled at a seam, off the beat grid, crowded.</summary>
-public static partial class CheckRepairs
+internal static partial class CheckRepairs
 {
     /// <summary>Two notes of one pitch starting closer than this at a seam are one note heard twice: a 16th.</summary>
     public const long SeamWindow = CanonicalTime.TicksPerQuarter / 4;

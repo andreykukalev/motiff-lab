@@ -9,7 +9,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Assistant.Variants;
 
 /// <summary>What a variant is now: kept as an idea, or kept and in the working notes. Worked out, never stored.</summary>
-public enum VariantState
+internal enum VariantState
 {
     /// <summary>Not kept: the draft being heard, or one discarded.</summary>
     Draft,
@@ -31,7 +31,7 @@ public enum VariantState
 /// kept in another way) reads as before: its steps over the notes under its passage as they are now. Pure: the same
 /// variant gives the same bytes.
 /// </summary>
-public static class VariantRecord
+internal static class VariantRecord
 {
     private const string ChipField = "chip";
     private const string RequestField = "request";

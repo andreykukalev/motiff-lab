@@ -14,7 +14,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// same music as the «В черновик» sheet decides it (<see cref="SameMusic.In"/>). Pure and in integers: the same place and
 /// recording give the same stretch.
 /// </summary>
-public static class OnRecording
+internal static class OnRecording
 {
     /// <summary>How many runs of notes, each mostly outside the stretches compared before it, are compared note by note.</summary>
     public const int Candidates = 3;

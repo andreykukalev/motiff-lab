@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// Integer arithmetic only, deterministic: the same collection and stretch give the same piece. A stretch with fewer onsets
 /// than a grid needs (<see cref="RecordingBars.MinOnsets"/>) keeps the engine's bars, as any short recording does.
 /// </remarks>
-public static class HeardCut
+internal static class HeardCut
 {
     /// <summary>The most silence a piece's stretch takes before its first note: a second.</summary>
     public const long MostBefore = 1_000_000;

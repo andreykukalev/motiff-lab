@@ -5,26 +5,26 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Analytics;
 
 /// <summary>What one property of an event may hold.</summary>
-public abstract record AnalyticsProperty(string Name)
+internal abstract record AnalyticsProperty(string Name)
 {
     /// <summary>Whether <paramref name="value"/> may be sent under this property.</summary>
     public abstract bool Allows(object value);
 }
 
 /// <summary>A whole number from <paramref name="Min"/> to <paramref name="Max"/>.</summary>
-public sealed record CountProperty(string Name, int Min, int Max) : AnalyticsProperty(Name)
+internal sealed record CountProperty(string Name, int Min, int Max) : AnalyticsProperty(Name)
 {
     public override bool Allows(object value) => value is int count && count >= Min && count <= Max;
 }
 
 /// <summary>True or false.</summary>
-public sealed record FlagProperty(string Name) : AnalyticsProperty(Name)
+internal sealed record FlagProperty(string Name) : AnalyticsProperty(Name)
 {
     public override bool Allows(object value) => value is bool;
 }
 
 /// <summary>One of a fixed list of words.</summary>
-public sealed record ChoiceProperty(string Name, IReadOnlyList<string> Choices) : AnalyticsProperty(Name)
+internal sealed record ChoiceProperty(string Name, IReadOnlyList<string> Choices) : AnalyticsProperty(Name)
 {
     public override bool Allows(object value) => value is string choice && Choices.Contains(choice, StringComparer.Ordinal);
 }
@@ -35,7 +35,7 @@ public sealed record ChoiceProperty(string Name, IReadOnlyList<string> Choices) 
 /// no file names or titles, and no free text; a property outside the catalogue, or a value outside
 /// its range or list, is refused. Analytics are off until the player turns them on.
 /// </summary>
-public static class AnalyticsCatalogue
+internal static class AnalyticsCatalogue
 {
     public const int MaxTracks = 64;
 

@@ -208,7 +208,7 @@ public static class ProjectFile
     /// shape <see cref="InkStroke"/> describes, with the tool and the colour in lower case. The same shape the project
     /// file holds under "marks": "ink", so the layer and the file never translate.
     /// </summary>
-    public static string WriteInk(IReadOnlyList<InkStroke> ink)
+    internal static string WriteInk(IReadOnlyList<InkStroke> ink)
     {
         ArgumentNullException.ThrowIfNull(ink);
         using var buffer = new MemoryStream();
@@ -231,7 +231,7 @@ public static class ProjectFile
 
     /// <summary>The strokes in a document <see cref="WriteInk"/> wrote; nothing, or an unreadable document, gives none.</summary>
     /// <exception cref="ProjectFileException">A stroke is not whole.</exception>
-    public static IReadOnlyList<InkStroke> ReadInk(string? text)
+    internal static IReadOnlyList<InkStroke> ReadInk(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {

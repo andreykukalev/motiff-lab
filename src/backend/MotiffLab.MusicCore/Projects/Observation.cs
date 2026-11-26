@@ -257,7 +257,7 @@ public sealed record Observation(
     /// the bars of the variation's passage, and the observation's name (<see cref="MidiExporter.FileName"/>).
     /// </summary>
     /// <exception cref="InvalidOperationException">It keeps a note alone, with no variation to export.</exception>
-    public string MidiFileName(string projectFileName, MeterMap meter)
+    internal string MidiFileName(string projectFileName, MeterMap meter)
     {
         ArgumentNullException.ThrowIfNull(projectFileName);
         ArgumentNullException.ThrowIfNull(meter);

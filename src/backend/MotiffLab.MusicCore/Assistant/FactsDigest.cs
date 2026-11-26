@@ -19,10 +19,10 @@ namespace MotiffLab.MusicCore.Assistant;
 public sealed partial class FactsDigest
 {
     /// <summary>The most facts a range's digest lists, the strongest first (<see cref="FactRanking"/>).</summary>
-    public const int MaxFacts = 10;
+    internal const int MaxFacts = 10;
 
     /// <summary>The most note addresses a place lists; it says how many more it has.</summary>
-    public const int MaxPlaceNotes = 8;
+    internal const int MaxPlaceNotes = 8;
 
     private readonly IReadOnlyList<DigestItem> _items;
 
@@ -193,14 +193,14 @@ public sealed partial class FactsDigest
 }
 
 /// <summary>A place an item names: its label and up to <see cref="FactsDigest.MaxPlaceNotes"/> note addresses.</summary>
-public sealed record DigestPlace(string Label, IReadOnlyList<string> Notes);
+internal sealed record DigestPlace(string Label, IReadOnlyList<string> Notes);
 
 /// <summary>
 /// One item of a digest: its id, kind (a fact's lens, "chord", "check", "range"; of the piece also "summary", "key", "form",
 /// "tempo", "density", "newMaterial", "phrase", "sentence", "chords", "cadence"; of a draft's place "place", "source",
 /// "technique", "seam"), how sure it is and its line.
 /// </summary>
-public sealed record DigestItem(string Id, string Kind, string Certainty, string Text)
+internal sealed record DigestItem(string Id, string Kind, string Certainty, string Text)
 {
     /// <summary>"Rests on recognised notes still to check in bar 5." when it does (#352).</summary>
     public string? Doubt { get; init; }

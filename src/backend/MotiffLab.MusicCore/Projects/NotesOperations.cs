@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// Notes, and make other Notes the working ones (Andrei, 2026-11-14, amending section 1); <see cref="OriginalOperations"/>
 /// for the originals. Each is pure: the same piece and arguments give the same piece.
 /// </summary>
-public static class NotesOperations
+internal static class NotesOperations
 {
     /// <summary>
     /// The piece without the Notes <paramref name="id"/> (0030, section 4): other Notes or a compared version, with their

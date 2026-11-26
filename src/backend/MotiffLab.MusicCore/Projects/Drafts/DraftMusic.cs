@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>Where a place lies in its draft's score: its ticks and the draft's own bar numbers, both ends included.</summary>
 /// <param name="Key">The key its result has at its start, as its source states it; null when its source states none.</param>
-public sealed record DraftPlaceSpan(string Place, TickSpan Span, int FirstBar, int LastBar, KeySignature? Key);
+internal sealed record DraftPlaceSpan(string Place, TickSpan Span, int FirstBar, int LastBar, KeySignature? Key);
 
 /// <summary>
 /// A draft as one score (decision record 0034, section 2): the places' results in order, each in its own meter, key and
@@ -17,7 +17,7 @@ public sealed record DraftPlaceSpan(string Place, TickSpan Span, int FirstBar, i
 /// (<see cref="DraftPlaceSpan.Key"/> null), and only where an earlier place's key would run on into it does the score
 /// cancel that key, with no sharps or flats and no mode, so no key is shown as one its source states.
 /// </summary>
-public sealed record DraftMusic(SourceMusic Music, IReadOnlyList<DraftPlaceSpan> Places)
+internal sealed record DraftMusic(SourceMusic Music, IReadOnlyList<DraftPlaceSpan> Places)
 {
     public static DraftMusic Of(Draft draft)
     {

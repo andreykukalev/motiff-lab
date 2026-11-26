@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>A page no engine read, read again by itself and put into the same Notes (v1.3 i-1b, Andrei 2026-11-24 «Вставить в те же ноты»).</summary>
-public static class ScanPageInsert
+internal static class ScanPageInsert
 {
     /// <summary>
     /// The notes with a page no engine read before, read now and merged as scan.join merges a page (<paramref name="musicXml"/>),

@@ -90,7 +90,7 @@ public sealed record AssistantSession(AssistantRole Role, IReadOnlyList<TurnEntr
     public AssistantSession Answered(string text) => this with { History = [.. History, TurnEntry.Answered(text)] };
 
     /// <summary>The session without the question still being answered and what followed it, when that turn could not be completed.</summary>
-    public AssistantSession Withdrawn() => Waiting ? this with { History = [.. History.Take(TurnRequest.LastQuestion(History))] } : this;
+    internal AssistantSession Withdrawn() => Waiting ? this with { History = [.. History.Take(TurnRequest.LastQuestion(History))] } : this;
 
     /// <summary>The session with the player's decision on a draft.</summary>
     public AssistantSession Decided(string draftId, DraftState state) =>

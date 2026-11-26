@@ -37,7 +37,7 @@ public sealed partial record Project
         [.. Originals.Select(original => new OriginalSummary(original.Id, original.Kind, original.Kept, HasInFile(original), [.. original.Held.Select(static mark => mark.Device)]))];
 
     /// <summary>The original a picked file is, by its fingerprint (<see cref="PieceOriginal.Fingerprint"/>); null when none matches.</summary>
-    public PieceOriginal? OriginalWithFingerprint(string sha256) => Originals.FirstOrDefault(original => original.Matches(sha256));
+    internal PieceOriginal? OriginalWithFingerprint(string sha256) => Originals.FirstOrDefault(original => original.Matches(sha256));
 
     /// <summary>The project with an original's description added, or put in place of the one with its id.</summary>
     public Project WithOriginal(PieceOriginal original)
