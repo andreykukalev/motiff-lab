@@ -172,6 +172,26 @@ final class SourcesModelTests: XCTestCase {
         XCTAssertNil(model.engraved.appWrittenBars, "another piece has none of the last one's")
     }
 
+    /// The score keeps the bars the app wrote as each piece is shown and as it is engraved again (a tempo set engraves it).
+    func testTheScoreKeepsTheBarsTheAppWroteAsItIsEngraved() async throws {
+        let score = ScoreController()
+        score.scorePage = RecordingScorePage()
+        score.show(OpenPiece(id: 9_000_601, title: "Printed", pages: [], timemap: "", appWrittenBars: 3), dark: false)
+        XCTAssertEqual(score.sourcesModel.engraved.appWrittenBars, 3, "as the piece opened")
+        score.show(OpenPiece(id: 9_000_602, title: "Heard", pages: [], timemap: ""), dark: false)
+        XCTAssertNil(score.sourcesModel.engraved.appWrittenBars, "another piece, with no record, has none")
+
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        let id = piece.id
+        addTeardownBlock { _ = MusicCore.close(piece: id) }
+        let opened = try XCTUnwrap(piece.appWrittenBars, "a MusicXML file is the notes' record")
+        score.show(piece, dark: false)
+        score.sourcesModel.keepEngraved(SourcesModel.Engraved(even: false, appWrittenBars: nil))
+        await score.setPieceTempo(90)
+        XCTAssertEqual(score.sourcesModel.engraved.appWrittenBars, opened, "engraved again: the new engraving's count")
+    }
+
     func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {
         let model = SourcesModel(evenBars: false)
         model.read(sources: #"{"base": "scan", "baseName": "Elise.pdf", "summary": "Read from a scan", "document": {"fileName": "elise.pdf", "pages": 2, "starts": [0, 1920]}}"#)
