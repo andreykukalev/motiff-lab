@@ -125,6 +125,19 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(RollZoom.octaveWord(1, en), "octave")
     }
 
+    func testADisabledTimeStepSaysWhy() {
+        let ru = UIText(language: "ru")
+        let en = UIText(language: "en")
+        XCTAssertNil(RollZoom.timeStepReason(RollZoom(bars: 4, octaves: 3), inward: true, en), "a step that is on says nothing more")
+        XCTAssertNil(RollZoom.timeStepReason(RollZoom(bars: 4, octaves: 3), inward: false, en))
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 1, octaves: 3, timeIn: false), inward: true, en), "One bar already fills the roll")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 1, octaves: 3, timeIn: false), inward: true, ru), "Один такт уже на всю ширину ролла")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 3, octaves: 3, timeIn: false), inward: true, en), "The roll is at its greatest zoom")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 3, octaves: 3, timeIn: false), inward: true, ru), "Масштаб уже наибольший")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, en), "The whole piece is in view")
+        XCTAssertEqual(RollZoom.timeStepReason(RollZoom(bars: 12, octaves: 3, timeOut: false), inward: false, ru), "Вся пьеса уже видна")
+    }
+
     func testTheZoomIsReadFromTheRollsReport() throws {
         let read = try XCTUnwrap(RollZoom(["bars": 9, "octaves": 3, "timeIn": true, "timeOut": false, "pitchIn": true, "pitchOut": true]))
         XCTAssertEqual(read, RollZoom(bars: 9, octaves: 3, timeOut: false))
