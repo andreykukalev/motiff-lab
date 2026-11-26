@@ -224,6 +224,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.
 
+Also within 15 (version 1.5, c-11, «Как напечатано» step 2): sources.notes.recognise carries the working notes' corrections and the bars the player confirmed over to the new Notes when the working notes are a reading of the same original (`ReadingCarry`), the corrections carried in one group, and then answers "carried": "carried", "byReading" and "notCarried" (how many), "bars" (those with a correction not carried), "confirmed" (the bars confirmed again) and "text" (the toast's line, or null); without a carry the answer is as before. A field added.
+
 ### 14
 
 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.

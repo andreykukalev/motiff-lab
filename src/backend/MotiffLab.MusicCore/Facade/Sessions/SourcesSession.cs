@@ -161,6 +161,25 @@ internal sealed class SourcesSession
         }
     }
 
+    /// <summary>
+    /// <paramref name="again"/>, the project with the Notes <paramref name="id"/> read again from the original
+    /// <paramref name="original"/> as <paramref name="read"/>, with the working notes' corrections and the bars the player
+    /// confirmed carried over to them («Как напечатано», step 2, <see cref="ReadingCarry"/>), the corrections carried in one
+    /// group; with no carry when the working notes are no reading of that original, or the player corrected and confirmed
+    /// nothing on them. The working notes keep theirs.
+    /// </summary>
+    public static (Project Project, ReadingCarry? Carry) CarriedOver(SessionPiece piece, Project again, string id, string original, ReadScore read)
+    {
+        if (piece.Project.Scan is not { } scan || (scan.From ?? PieceOriginal.DocumentId) != original || (piece.Project.Edits.IsEmpty && scan.ConfirmedBars.Count == 0))
+        {
+            return (again, null);
+        }
+
+        ReadingCarry carry = ReadingCarry.Of(piece.Piece, piece.Project.Edits, scan.ConfirmedBars, read.Piece, "g_1");
+        OtherNotes[] notes = [.. again.Sources.Notes.Select(notes => notes.Id == id ? notes with { Edits = carry.Edits, Scan = notes.Scan?.Confirm(carry.ConfirmedBars) } : notes)];
+        return (again with { Sources = again.Sources with { Notes = notes } }, carry);
+    }
+
     /// <summary>The <paramref name="pages"/> (else one) of the PDF notes were read again from, by the bars the scan began each with.</summary>
     public static PageMap ReadPages(ReadScore read, int? pages) => PageMap.Of(read.Piece, Math.Max(1, pages ?? 1));
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;
@@ -75,6 +76,25 @@ public class SourceLayersFacadeTests
         Assert.Equal(["notes:n_1"], Views(layers));
         Assert.Equal("here", Item(Call(facade, "sources.layers", """{"device": "web"}"""), "originals", "src_pdf").GetProperty("state").GetString());
         Assert.Equal("badRequest", Error(facade, "sources.layers", """{"device": "phone"}"""));
+    }
+
+    [Fact]
+    public void Notes_read_again_take_the_working_notes_corrections_and_say_so_and_none_without_any()
+    {
+        MusicCoreFacade facade = Opened();
+        ImportedPiece read = PieceImporter.Import("a.musicxml", Scanned()).Piece!;
+        Note first = read.Notes[0];
+        int bar = read.Meter.BarAt(first.Span.Onset).Number;
+        Assert.False(Call(facade, "sources.notes.recognise", Recognise()).TryGetProperty("carried", out _));
+        Call(facade, "corrections.set", $$"""{"bar": {{bar}}, "id": "{{first.Id}}", "pitch": {{first.Pitch.MidiNumber + 1}}}""");
+
+        JsonElement carried = Call(facade, "sources.notes.recognise", Recognise()).GetProperty("carried");
+
+        Assert.Equal((1, 0, 0), (carried.GetProperty("carried").GetInt32(), carried.GetProperty("byReading").GetInt32(), carried.GetProperty("notCarried").GetInt32()));
+        Assert.Equal("1 correction carried over", carried.GetProperty("text").GetString());
+        Call(facade, "sources.makeWorking", """{"id": "n_3"}""");
+        NoteEdit edit = Assert.Single(ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Edits.Edits);
+        Assert.Equal((first.Pitch.MidiNumber + 1, "g_1"), (edit.After!.Value.Pitch.MidiNumber, edit.Group));
     }
 
     [Fact]
