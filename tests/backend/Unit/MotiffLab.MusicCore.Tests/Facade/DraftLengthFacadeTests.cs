@@ -103,12 +103,18 @@ public class DraftLengthFacadeTests
         Assert.StartsWith("Carried technique: ", variant.GetProperty("label").GetString(), StringComparison.Ordinal);
         Assert.Contains(Call(facade, "drafts.techniques", $$"""{"draft": "d_0001", "place": "{{to}}"}""").GetProperty("techniques").EnumerateArray(), static each => each.GetProperty("variant").GetString() == "v_0005");
         Assert.Equal("unavailable", Error(facade, "drafts.carry", Fields($$""" "draft": "d_0001", "place": "pl_0001", "technique": {{number}}, "to": "{{to}}" """)));
+        Assert.DoesNotContain(to, CarryPlaces(facade, number));
         Assert.True(Call(facade, "drafts.undo", Fields(""" "draft": "d_0001" """)).GetProperty("structure").GetBoolean());
         Assert.Equal(1, Place(facade, to).GetProperty("variants").GetArrayLength());
+        Assert.Contains(to, CarryPlaces(facade, number));
     }
 
+    /// <summary>The places drafts.carryPlaces offers for the приём <paramref name="number"/> of the place pl_0001.</summary>
+    private static IEnumerable<string?> CarryPlaces(MusicCoreFacade facade, int number) =>
+        Call(facade, "drafts.carryPlaces", $$"""{"draft": "d_0001", "place": "pl_0001", "technique": {{number}}}""").GetProperty("places").EnumerateArray().Select(static each => each.GetProperty("place").GetString());
+
     [Fact]
-    public void A_приём_carried_already_is_refused_again_after_the_project_is_saved_and_opened()
+    public void A_приём_carried_already_is_refused_and_not_offered_again_after_the_project_is_saved_and_opened()
     {
         MusicCoreFacade facade = Opened();
         Call(facade, "drafts.add", """{"bars": {"first": 5, "last": 8}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:10:00Z"}""");
@@ -117,6 +123,7 @@ public class DraftLengthFacadeTests
         Json(reopened.Open("FurElise.motiff.json", Encoding.UTF8.GetBytes(facade.Call(1, "project.save")), """{"language":"en"}"""));
 
         Assert.Equal("unavailable", Error(reopened, "drafts.carry", Fields(""" "draft": "d_0001", "place": "pl_0001", "technique": 1, "to": "pl_0002" """)));
+        Assert.DoesNotContain("pl_0002", CarryPlaces(reopened, 1));
         Assert.Equal(2, Place(reopened, "pl_0002").GetProperty("variants").GetArrayLength());
     }
 

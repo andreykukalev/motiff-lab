@@ -212,6 +212,6 @@ enum DocumentRead {
     @MainActor
     private static func send(_ piece: Int32, _ request: [String: Any]) async -> String {
         let json = facadeRequest(request)
-        return await MusicCore.run { MusicCore.call(piece: piece, "document.read", json) }
+        return await MusicCore.run { PieceCore(piece: piece).send(.documentRead, json) }
     }
 }

@@ -11,17 +11,18 @@ internal static class ScoreNotes
 {
     /// <summary>
     /// The source notes of every part, ties merged, in time order (then part, pitch, measure and document order), with
-    /// how many each part has; reports notes widened from no length, rounded, and played at the assumed velocity.
+    /// how many each part has and the written notes of each; reports notes widened from no length, rounded, and played at
+    /// the assumed velocity.
     /// </summary>
-    public static (List<MusicXmlNote> Notes, int[] Counts) SourceNotes(List<PartReader> parts, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
+    public static (List<MusicXmlNote> Notes, int[] Counts, List<MusicXmlWrittenNote> Written) SourceNotes(List<PartReader> parts, Func<int, QuarterFraction, QuarterFraction> at, ImportIssueCollector issues)
     {
-        var sourceNotes = new List<MusicXmlNote>();
+        var chains = new List<(MusicXmlNote Note, List<PartNote> Pieces)>();
         var noteCounts = new int[parts.Count];
         foreach (PartReader part in parts)
         {
             List<TiedNote> merged = MergeTies(part, at, issues);
             noteCounts[part.Index] = merged.Count;
-            foreach ((PartNote note, QuarterFraction onset, QuarterFraction noteEnd, int written) in merged)
+            foreach ((PartNote note, QuarterFraction onset, QuarterFraction noteEnd, List<PartNote> pieces) in merged)
             {
                 QuarterFraction duration = noteEnd - onset;
                 TickSpan span;
@@ -43,7 +44,7 @@ internal static class ScoreNotes
                     }
                 }
 
-                sourceNotes.Add(new MusicXmlNote(
+                chains.Add((new MusicXmlNote(
                     part.Index,
                     part.Id,
                     note.MeasureIndex,
@@ -57,17 +58,22 @@ internal static class ScoreNotes
                     duration,
                     span,
                     exact,
-                    written,
-                    note.Tuplet,
-                    note.Accent));
+                    pieces.Count,
+                    note.Writing.Tuplet,
+                    note.Accent), pieces));
             }
         }
 
-        sourceNotes.Sort(InScoreOrder);
+        chains.Sort((a, b) => InScoreOrder(a.Note, b.Note));
+        List<MusicXmlNote> sourceNotes = [.. chains.Select(chain => chain.Note)];
+        // A chain with a written note the file gave no length has no written notes: it is not written as printed.
+        List<MusicXmlWrittenNote> written = [.. chains.SelectMany((chain, index) => chain.Pieces.Any(piece => piece.Duration == QuarterFraction.Zero)
+            ? []
+            : chain.Pieces.Select(piece => Written(index, piece, at)))];
 
         issues.Add(ImportIssueKind.Assumed, MusicXmlIssueCodes.VelocityDefault, count: sourceNotes.Count(note => note.IsVelocityAssumed));
 
-        return (sourceNotes, noteCounts);
+        return (sourceNotes, noteCounts, written);
     }
 
     /// <summary>
@@ -97,7 +103,8 @@ internal static class ScoreNotes
             {
                 int target = open[match];
                 TiedNote tied = merged[target];
-                merged[target] = tied with { End = end > tied.End ? end : tied.End, Written = tied.Written + 1 };
+                tied.Pieces.Add(note);
+                merged[target] = tied with { End = end > tied.End ? end : tied.End };
                 if (!note.TieStart)
                 {
                     open.RemoveAt(match);
@@ -113,7 +120,7 @@ internal static class ScoreNotes
 
             // A new note of the same pitch in the same voice ends a tie that was never stopped.
             open.RemoveAll(i => merged[i].Note.Pitch == note.Pitch && merged[i].Note.Voice == note.Voice && merged[i].Note.Staff == note.Staff);
-            merged.Add(new TiedNote(note, onset, end, 1));
+            merged.Add(new TiedNote(note, onset, end, [note]));
             if (note.TieStart)
             {
                 open.Add(merged.Count - 1);
@@ -152,6 +159,13 @@ internal static class ScoreNotes
     private static int InScoreOrder(MusicXmlNote a, MusicXmlNote b) =>
         (a.Span.Onset, a.Track, a.Pitch, a.MeasureIndex, a.NoteIndex).CompareTo((b.Span.Onset, b.Track, b.Pitch, b.MeasureIndex, b.NoteIndex));
 
-    /// <summary>A note with the written notes tied to it: exact onset and end, and how many were merged.</summary>
-    private sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, int Written);
+    /// <summary>One written note of a tied chain, where it lies and how it is written.</summary>
+    private static MusicXmlWrittenNote Written(int sourceNote, PartNote piece, Func<int, QuarterFraction, QuarterFraction> at)
+    {
+        QuarterFraction onset = at(piece.MeasureIndex, piece.Offset);
+        return new MusicXmlWrittenNote(sourceNote, piece.MeasureIndex, piece.NoteIndex, piece.Staff, piece.Voice, CanonicalTime.ToSpan(onset, onset + piece.Duration).Span, piece.Duration, piece.Writing);
+    }
+
+    /// <summary>A note with the written notes tied to it, the first included: exact onset and end.</summary>
+    private sealed record TiedNote(PartNote Note, QuarterFraction Onset, QuarterFraction End, List<PartNote> Pieces);
 }

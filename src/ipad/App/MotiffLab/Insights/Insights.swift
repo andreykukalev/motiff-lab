@@ -187,7 +187,7 @@ final class InsightsController: ObservableObject {
             return
         }
         loading = true
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "understand") }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.understand) }
         // The selection moved on while music-core read it: the newer call shows its own.
         guard understood == selection else { return }
         loading = false
@@ -242,7 +242,7 @@ final class InsightsController: ObservableObject {
         guard circle == nil else { return }
         let piece = piece
         let selection = understood
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "circle") }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.circle) }
         guard understood == selection else { return }
         circle = KeyCircle(answer: answer)
         if circle == nil {
@@ -289,7 +289,7 @@ final class InsightsController: ObservableObject {
         defer { starting = nil }
         problem = nil
         let request = facadeRequest(["chip": way.id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "try", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.tryWay, request) }
         guard let state = facadeObject(answer), state["error"] == nil, let result = state["result"] as? [String: Any] else {
             problem = facadeObject(answer)?["message"] as? String
             return
@@ -313,7 +313,7 @@ final class InsightsController: ObservableObject {
         guard let trial, !trial.kept else { return }
         let piece = piece
         let request = facadeRequest(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "idea.keep", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.ideaKeep, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             problem = facadeObject(answer)?["message"] as? String
             return
@@ -326,7 +326,7 @@ final class InsightsController: ObservableObject {
         guard trial != nil else { return }
         trial = nil
         let piece = piece
-        _ = await MusicCore.run { MusicCore.call(piece: piece, "variation.clear") }
+        _ = await MusicCore.run { PieceCore(piece: piece).send(.variationClear) }
         variationLeft?()
     }
 

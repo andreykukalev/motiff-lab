@@ -135,8 +135,9 @@ export function nearestBar(frames: readonly BarFrame[], x: number, y: number): B
 }
 
 /**
- * The bar a stroke starting at a point is kept against: the one nearest, or, when the point is in the margin left or right
- * of that bar's line, the line's first or last bar, so the stroke stays at the edge of the line in another layout.
+ * The bar a stroke starting at a point is kept against: on the nearest line, the bar the point is over (the nearest bar
+ * where it is over none), or, when the point is in the margin left or right of that line, the line's first or last bar,
+ * so the stroke stays at the edge of the line in another layout.
  */
 export function anchorBar(frames: readonly BarFrame[], x: number, y: number): BarFrame | undefined {
     return anchorAt(frames, x, y)?.frame;
@@ -151,7 +152,10 @@ function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: B
     const left = x < (nearest.lineLeft ?? nearest.left);
     const right = x > (nearest.lineRight ?? nearest.right);
     if (!left && !right) {
-        return { frame: nearest };
+        // Within the line but beside the nearest bar (under the line, a neighbour's notes reach nearer): the bar of that
+        // line the point is over, so u stays within 0 to 1 and placeMark draws the stroke where it was written, never
+        // reading it as a stroke of before 0.4 in the line's margin.
+        return { frame: frames.find((frame) => frame.line === nearest.line && x >= frame.left && x <= frame.right) ?? nearest };
     }
     let edge = nearest;
     for (const frame of frames) {
@@ -163,8 +167,8 @@ function anchorAt(frames: readonly BarFrame[], x: number, y: number): { frame: B
 }
 
 /**
- * Keeps a stroke drawn in content pixels against the bar its first point is nearest, or, begun in a line's margin, against
- * the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
+ * Keeps a stroke drawn in content pixels against the bar its first point is over on the nearest line, or, begun in a
+ * line's margin, against the line's first or last bar (anchorBar), saying which margin. Null with no points or no bars.
  */
 export function anchorMark(
     frames: readonly BarFrame[],

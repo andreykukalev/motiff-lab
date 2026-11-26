@@ -33,6 +33,7 @@
   panels: roll
   roll load: a first load, frame none
   roll lanes: on
+  roll position: 0 standing, looping yes
   roll selection: 3120–4560, loops 3120–4560
 
 ## the player zooms the roll in
@@ -59,6 +60,7 @@
 ## the piece's notes change
   roll load: the zoom and the view kept, frame none
   roll lanes: on
+  roll position: 0 standing, looping no
   roll selection: 4560–6000, loops none
 
 ## Expand on the roll's drawer
@@ -68,6 +70,7 @@
   roll position: 0 standing, looping no
   roll selection: 4560–6000, loops none
   roll passage: 4560–6000
+  roll position: 0 standing, looping no
 
 ## Space in Expand
   player loops: 4560–6000
@@ -81,6 +84,7 @@
   roll lanes: on
   roll passage: none
   roll selection: 4560–6000, loops none
+  roll position: 0 standing, looping no
   roll selection: 4560–6000, loops none
   roll position: 0 standing, looping no
 
@@ -93,6 +97,7 @@
   roll position: 0 standing, looping no
   roll selection: 4560–6000, loops none
   roll passage: 4560–6000
+  roll position: 0 standing, looping no
 
 ## Expand's roll: the playhead is taken and dragged past the passage's end
   playhead held: blue at 5999, standing

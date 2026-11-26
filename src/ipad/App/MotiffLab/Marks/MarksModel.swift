@@ -145,7 +145,7 @@ final class MarksModel: ObservableObject {
     func keepLayers(_ layers: [String], _ on: Bool, in piece: Int32) async {
         for layer in layers {
             let request = facadeRequest(["id": "layers.\(layer)", "value": on ? "on" : "off"])
-            _ = await MusicCore.run { MusicCore.call(piece: piece, "settings.override", request) }
+            _ = await MusicCore.run { PieceCore(piece: piece).send(.settingsOverride, request) }
         }
     }
 
@@ -157,7 +157,7 @@ final class MarksModel: ObservableObject {
     /// The piece's own choices (`settings` on the piece): its layers. The level an older piece kept
     /// (`phrases.granularity`) is no choice any more: the score shows phrases (the phrases spec, v1.2).
     func loadSettings(of piece: Int32) async {
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "settings") }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.settings) }
         let overrides = facadeObject(answer)?["overrides"] as? [String: String] ?? [:]
         pieceOverrides = overrides.filter { $0.key.hasPrefix("layers.") }
         hiddenLayers = layersHidden()
@@ -179,7 +179,7 @@ final class MarksModel: ObservableObject {
     func forgetOverrides(_ ids: [String], in piece: Int32) async {
         for id in ids {
             let request = facadeRequest(["id": id, "value": NSNull()])
-            _ = await MusicCore.run { MusicCore.call(piece: piece, "settings.override", request) }
+            _ = await MusicCore.run { PieceCore(piece: piece).send(.settingsOverride, request) }
         }
     }
 

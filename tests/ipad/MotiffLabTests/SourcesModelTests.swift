@@ -1,4 +1,5 @@
 import CoreGraphics
+import SwiftUI
 import XCTest
 
 @testable import MotiffLab
@@ -93,6 +94,47 @@ final class SourcesModelTests: XCTestCase {
         XCTAssertEqual(asked, [12])
     }
 
+    /// v1.4 a-1, answer 14: the page tells how high the mark is with its place (a tap, a move), for a card opened above it;
+    /// once the mark has left the visible part of the page (`markAway`: playback turned the page), its card closes, and
+    /// with it the cover that would catch the next tap.
+    func testACardAtAMarkKnowsItsHeightAndClosesOnceItLeavesSight() {
+        let score = ScoreController()
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300, top: 276))
+        XCTAssertEqual(score.markHeight, 24)
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 200), top: 152))
+        XCTAssertEqual(score.markHeight, 48, "zoomed in: as the page lays it out now")
+        XCTAssertNotNil(score.sourcesModel.markerPick)
+        score.handle(.markAway)
+        XCTAssertNil(score.sourcesModel.markerPick, "out of sight: the popover goes")
+        score.phraseMenu = PhraseMarkPick(number: 1, at: CGPoint(x: 10, y: 20))
+        score.handle(.markAway)
+        XCTAssertNil(score.phraseMenu, "and a phrase's menu")
+    }
+
+    /// v1.4 a-1, answer 14: a card at a mark opens under it where it fits there, else above it, else as low as it stays on
+    /// the screen; never under what the screen's own controls cover (the bar and a draft's pill at the top, the transport
+    /// pill, a drawer or a sheet at the bottom).
+    func testACardAtAMarkOpensAboveItWhereItDoesNotFitUnderIt() {
+        typealias Card = DraftCardAtMark<EmptyView>
+        let gap = CGFloat.ds("s-1")
+        let margin = CGFloat.ds("s-3")
+        let screen = Card.shown(EdgeInsets(), area: 800)
+        XCTAssertEqual(screen, margin...(800 - margin), "nothing covers it: a margin from the edges")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 100), mark: 24, card: 200, within: screen), 100 + gap, "room under the mark")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 700), mark: 24, card: 200, within: screen), 700 - 24 - gap - 200, "none under it: above it")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 700, within: screen), 800 - margin - 700, "room neither way: on the screen")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 900, within: screen), margin, "taller than the screen: from its top")
+
+        // The transport pill's top at 120 from the bottom, the bar and a draft's pill down to 110.
+        let clear = Card.shown(EdgeInsets(top: 110, leading: 0, bottom: 120, trailing: 0), area: 800)
+        XCTAssertEqual(clear, 110...680)
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 500), mark: 24, card: 200, within: screen), 500 + gap, "under the mark on the bare screen")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 500), mark: 24, card: 200, within: clear), 500 - 24 - gap - 200, "the pill covers that: above it")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 330), mark: 24, card: 200, within: clear), 330 + gap, "room under it above the pill")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 560, within: clear), 680 - 560, "room neither way: as low as it ends above the pill")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 600, within: clear), 110, "taller than the room: from under the bars")
+    }
+
     /// r-1: a card at a mark closes by its own cover, which the page never hears; the next `markMoved` finds no card and
     /// tells the page to stop following the mark (`markForgotten`), so a scroll (playback turning the line) posts nothing.
     func testAMarkMovedWithNoCardOpenTellsThePageToForgetTheMark() async {
@@ -149,6 +191,47 @@ final class SourcesModelTests: XCTestCase {
         XCTAssertFalse(sources.layers.notes.contains { $0.id == version.id })
         XCTAssertNil(sources.toast, "the toast goes to the next screen")
         guard case .restore(_)? = SourcesHandover.toast(for: file)?.undo else { return XCTFail("its Undo writes the file back") }
+    }
+
+    /// The view's note («Как напечатано», v1.4, concept section 2): the bars the app wrote itself, counted in each
+    /// language's plural forms, only when there are some; none for notes with no record. Another piece starts with its own.
+    func testTheViewsNoteCountsTheBarsTheAppWrote() {
+        let russian = UIText(language: "ru")
+        XCTAssertNil(SourcesModel.Engraved(even: false, appWrittenBars: nil).note(text), "no record, no note")
+        XCTAssertNil(SourcesModel.Engraved(even: false, appWrittenBars: 0).note(text), "every bar as the source writes it")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 1).note(text), "As the source writes it, 1 bar written by the app")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 4).note(text), "As the source writes it, 4 bars written by the app")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 1).note(russian), "По записи источника, 1 такт записан приложением")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 4).note(russian), "По записи источника, 4 такта записаны приложением")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 5).note(russian), "По записи источника, 5 тактов записано приложением")
+
+        let model = SourcesModel(evenBars: false)
+        model.open(evenBars: false, appWrittenBars: 4)
+        XCTAssertEqual(model.engraved.note(text), "As the source writes it, 4 bars written by the app", "as the piece opened")
+        model.keepEngraved(SourcesModel.Engraved(even: false, appWrittenBars: 0))
+        XCTAssertNil(model.engraved.note(text), "engraved again after a correction: none left")
+        model.open(evenBars: false)
+        XCTAssertNil(model.engraved.appWrittenBars, "another piece has none of the last one's")
+    }
+
+    /// The score keeps the bars the app wrote as each piece is shown and as it is engraved again (a tempo set engraves it).
+    func testTheScoreKeepsTheBarsTheAppWroteAsItIsEngraved() async throws {
+        let score = ScoreController()
+        score.scorePage = RecordingScorePage()
+        score.show(OpenPiece(id: 9_000_601, title: "Printed", pages: [], timemap: "", appWrittenBars: 3), dark: false)
+        XCTAssertEqual(score.sourcesModel.engraved.appWrittenBars, 3, "as the piece opened")
+        score.show(OpenPiece(id: 9_000_602, title: "Heard", pages: [], timemap: ""), dark: false)
+        XCTAssertNil(score.sourcesModel.engraved.appWrittenBars, "another piece, with no record, has none")
+
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        let id = piece.id
+        addTeardownBlock { _ = MusicCore.close(piece: id) }
+        let opened = try XCTUnwrap(piece.appWrittenBars, "a MusicXML file is the notes' record")
+        score.show(piece, dark: false)
+        score.sourcesModel.keepEngraved(SourcesModel.Engraved(even: false, appWrittenBars: nil))
+        await score.setPieceTempo(90)
+        XCTAssertEqual(score.sourcesModel.engraved.appWrittenBars, opened, "engraved again: the new engraving's count")
     }
 
     func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {

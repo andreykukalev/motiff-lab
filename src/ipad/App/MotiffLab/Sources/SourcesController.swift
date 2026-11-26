@@ -126,7 +126,7 @@ final class SourcesController: ObservableObject {
         self.piece = piece
         self.file = file
         if projectId == nil {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece, "sources") }
+            let answer = await MusicCore.run { PieceCore(piece: piece).send(.sources) }
             projectId = facadeObject(answer)?["projectId"] as? String
         }
         // Only from an answer read: a piece whose sources could not be read keeps every sound.
@@ -216,7 +216,7 @@ final class SourcesController: ObservableObject {
     /// «Показывать в переключателе»: hides the view from the switch or shows it again; the view hidden while shown gives
     /// way to the working notes.
     func setHidden(_ id: String, _ hidden: Bool) async {
-        await change("sources.view.hide", ["id": id, "hidden": hidden])
+        await change(.sourcesViewHide, ["id": id, "hidden": hidden])
         if hidden, performance == id { performance = nil }
     }
 
@@ -227,7 +227,7 @@ final class SourcesController: ObservableObject {
         if let pages = PDFDocument(data: data)?.pageCount, pages > 0 { fields["pages"] = pages }
         // A piece that was only its recording opens again as music-core now holds it: a PDF piece with its first PDF.
         let onlyRecording = layers.working == nil && !layers.originals.contains { $0.isPages && !$0.isRemoved }
-        if await change("sources.original.add", fields) != nil {
+        if await change(.sourcesOriginalAdd, fields) != nil {
             await tell(SourcesToast(text: text.format("sources.sheet.toastAdded", fileName)), reopening: onlyRecording)
         }
     }
@@ -247,7 +247,7 @@ final class SourcesController: ObservableObject {
         var fields: [String: Any] = ["kind": "audio", "fileName": sound.fileName, "kept": "device", "now": Self.now()]
         if let milliseconds = sound.milliseconds { fields["durationMs"] = milliseconds }
         if let data = sound.data { fields["data"] = data.base64EncodedString() }
-        guard let object = await change("sources.original.add", fields), let id = object["id"] as? String else { return }
+        guard let object = await change(.sourcesOriginalAdd, fields), let id = object["id"] as? String else { return }
         guard OriginalSounds.keep(picked, project: projectId, original: id) else {
             status = text["sources.sheet.soundNotKept"]
             return
@@ -261,7 +261,7 @@ final class SourcesController: ObservableObject {
     func remove(_ original: SourceLayers.Original, withNotes: Bool) async {
         guard let before = await snapshot() else { return }
         let versions = versionIds
-        guard await change("sources.original.remove", ["id": original.id, "withNotes": withNotes, "now": Self.now()]) != nil else { return }
+        guard await change(.sourcesOriginalRemove, ["id": original.id, "withNotes": withNotes, "now": Self.now()]) != nil else { return }
         if performance == original.id { performance = nil }
         await removed(SourcesToast(text: text[withNotes ? "sources.sheet.toastGoneWith" : "sources.sheet.toastGone"], undo: .restore(before)), versions: versions)
     }
@@ -270,7 +270,7 @@ final class SourcesController: ObservableObject {
     func remove(_ notes: SourceLayers.Notes) async {
         guard let before = await snapshot() else { return }
         let versions = versionIds
-        guard await change("sources.notes.remove", ["id": notes.id]) != nil else { return }
+        guard await change(.sourcesNotesRemove, ["id": notes.id]) != nil else { return }
         await removed(SourcesToast(text: text["sources.sheet.toastNotesGone"], undo: .restore(before)), versions: versions)
     }
 
@@ -316,13 +316,13 @@ final class SourcesController: ObservableObject {
         if original.isRecording {
             switch await hearRecording(original, account: account) {
             case .failure(let refusal): return refusal.words
-            case .success(let heard): return await keepRecognised("sources.notes.hear", heard)
+            case .success(let heard): return await keepRecognised(.sourcesNotesHear, heard)
             }
         }
         guard let address else { return text["pdf.readNone"] }
         switch await readPages(original, address: address, account: account) {
         case .failure(let refusal): return refusal.words
-        case .success(let read): return await keepRecognised("sources.notes.recognise", read)
+        case .success(let read): return await keepRecognised(.sourcesNotesRecognise, read)
         }
     }
 
@@ -341,7 +341,7 @@ final class SourcesController: ObservableObject {
 
     /// The original's pages, as kept in the piece, read by the scan server, for `sources.notes.recognise`.
     private func readPages(_ original: SourceLayers.Original, address: URL, account: Account) async -> Result<Recognised, Refusal> {
-        let kept = await call("sources.pdf", ["id": original.id])
+        let kept = await call(.sourcesPdf, ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(Refusal(words: facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]))
         }
@@ -415,7 +415,7 @@ final class SourcesController: ObservableObject {
     /// original, shown fresh once, saved, and told in the toast. On a piece with no notes until now they are its working
     /// notes: the piece opens again on them in this screen's place (`reopen`), the toast on the next screen (v1.1,
     /// finding 29). Answers why not, or nil once kept.
-    private func keepRecognised(_ name: String, _ read: Recognised) async -> String? {
+    private func keepRecognised(_ name: PieceCore.Call, _ read: Recognised) async -> String? {
         let first = layers.working == nil
         var fields = read.fields
         var answer = await call(name, fields)
@@ -463,14 +463,14 @@ final class SourcesController: ObservableObject {
             await reopen?()
         case .draftStep(let draft):
             // Only the draft changes: its view, when shown, opens again itself (`SourcesToastView`'s `then`).
-            await change("drafts.undo", ["draft": draft])
+            await change(.draftsUndo, ["draft": draft])
         }
     }
 
     /// The bytes of another PDF or photos kept in the piece, opened in music-core as a PDF of its own for its view,
     /// shown as it is (nothing drawn on it is kept: music-core keeps page marks for the first PDF only).
     func openOriginal(_ original: SourceLayers.Original, title: String) async -> OpenPiece? {
-        let kept = await call("sources.pdf", ["id": original.id])
+        let kept = await call(.sourcesPdf, ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             status = facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
             return nil
@@ -489,15 +489,15 @@ final class SourcesController: ObservableObject {
     /// "readOnly"), so the piece itself stays as it is; the screen closes the number when it goes. Nil when they cannot
     /// be shown, with why in `status`.
     func openNotes(_ notes: SourceLayers.Notes, title: String, at tick: Double?) async -> OpenPiece? {
-        await openShown("sources.notes.open", ["id": notes.id], title: title, at: tick)
+        await openShown(.sourcesNotesOpen, ["id": notes.id], title: title, at: tick)
     }
 
     /// What `name` opens under a number of its own only to be shown ("readOnly", other Notes), engraved; nil, with why in
     /// `status`, when it cannot be shown.
-    func openShown(_ name: String, _ fields: [String: Any], title: String, at tick: Double?) async -> OpenPiece? {
+    func openShown(_ name: PieceCore.Call, _ fields: [String: Any], title: String, at tick: Double?) async -> OpenPiece? {
         let piece = self.piece
         let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, request) }
         return await engraveShown(answer, title: title, at: tick, draft: nil)
     }
 
@@ -512,7 +512,7 @@ final class SourcesController: ObservableObject {
             }
             switch Engraver.engrave(piece: number, title: title, evenBars: evenBars) {
             case .success(let engraving):
-                var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap)
+                var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap, appWrittenBars: engraving.appWrittenBars)
                 shown.draft = draft
                 shown.shownOnly = true
                 return .success(shown)
@@ -536,7 +536,7 @@ final class SourcesController: ObservableObject {
     private func swapWorking(to id: String) async -> Bool {
         let piece = self.piece
         let request = facadeRequest(["id": id])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "sources.makeWorking", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.sourcesMakeWorking, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
             return false
@@ -549,7 +549,7 @@ final class SourcesController: ObservableObject {
     /// `status`, when music-core refused it. `on`: the piece the call goes to, this one's unless notes opened only to be
     /// shown over it are (a fragment for a draft taken there, `SourcesDrafts.swift`).
     @discardableResult
-    func change(_ name: String, _ fields: [String: Any], on shown: Int32? = nil) async -> [String: Any]? {
+    func change(_ name: PieceCore.Call, _ fields: [String: Any], on shown: Int32? = nil) async -> [String: Any]? {
         let answer = await call(name, fields, on: shown)
         guard let object = facadeObject(answer), object["error"] == nil, let read = SourceLayers(answer: answer) else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
@@ -562,10 +562,10 @@ final class SourcesController: ObservableObject {
         return object
     }
 
-    private func call(_ name: String, _ fields: [String: Any] = [:], on shown: Int32? = nil) async -> String {
+    private func call(_ name: PieceCore.Call, _ fields: [String: Any] = [:], on shown: Int32? = nil) async -> String {
         let body = request(fields)
         let piece = shown ?? self.piece
-        return await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+        return await MusicCore.run { PieceCore(piece: piece).send(name, body) }
     }
 
     /// A request of the sheet's calls: its fields, with this iPad and the originals whose sound it keeps.
@@ -584,7 +584,7 @@ final class SourcesController: ObservableObject {
     func snapshot() async -> String? {
         let piece = self.piece
         let request = facadeRequest(["now": Self.now()])
-        let saved = await MusicCore.run { MusicCore.call(piece: piece, "project.save", request) }
+        let saved = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         guard let object = facadeObject(saved), object["error"] == nil else {
             status = facadeObject(saved)?["message"] as? String ?? text["sources.sheet.failed"]
             return nil

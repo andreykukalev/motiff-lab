@@ -228,7 +228,7 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 184,
+              "left": 185,
               "top": 164,
               "right": 191,
               "bottom": 182
@@ -240,9 +240,9 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 587,
+              "left": 585,
               "top": 219,
-              "right": 595,
+              "right": 593,
               "bottom": 231
             },
             {
@@ -252,7 +252,7 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 597,
+              "left": 595,
               "top": 213,
               "right": 603,
               "bottom": 231
@@ -277,9 +277,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 305,
+              "left": 310,
               "top": 444,
-              "right": 313,
+              "right": 318,
               "bottom": 456
             },
             {
@@ -289,9 +289,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 315,
+              "left": 320,
               "top": 438,
-              "right": 334,
+              "right": 339,
               "bottom": 458
             },
             {
@@ -301,9 +301,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 338,
+              "left": 343,
               "top": 438,
-              "right": 345,
+              "right": 350,
               "bottom": 456
             },
             {
@@ -313,9 +313,9 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 202,
+              "left": 204,
               "top": 705,
-              "right": 210,
+              "right": 212,
               "bottom": 717
             },
             {
@@ -325,7 +325,7 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 212,
+              "left": 214,
               "top": 699,
               "right": 219,
               "bottom": 717
@@ -435,7 +435,7 @@
           "messages": [
             {
               "phraseHeld": 3,
-              "left": 338.28125,
+              "left": 342.953125,
               "bottom": 456.125
             }
           ]
@@ -553,7 +553,7 @@
           "messages": [
             {
               "phraseHeld": 1,
-              "left": 184.453125,
+              "left": 185,
               "bottom": 182.1875
             }
           ]

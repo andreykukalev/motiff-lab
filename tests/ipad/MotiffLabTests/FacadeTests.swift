@@ -370,7 +370,7 @@ final class FacadeTests: XCTestCase {
         let box = try XCTUnwrap(pdf.document?.page(at: 1)).bounds(for: .cropBox)
         let line = [(CGPoint(x: 100, y: 700), 0.5), (CGPoint(x: 150, y: 690), 0.5), (CGPoint(x: 200, y: 700), 0.5)]
         let request = try XCTUnwrap(DocumentStroke.request(id: "pk_test", tool: "pen", colour: "carmine", size: PdfController.penSize, page: 2, box: box, points: line))
-        await pdf.change("document.ink.add", ["strokes": [request]])
+        await pdf.change(.documentInkAdd, ["strokes": [request]])
         let kept = try XCTUnwrap(pdf.strokes.first)
         XCTAssertEqual(pdf.strokes.count, 1)
         XCTAssertEqual(kept.page, 2)
@@ -389,12 +389,12 @@ final class FacadeTests: XCTestCase {
         let marginal = try XCTUnwrap(DocumentStroke.request(id: "pk_left", tool: "pen", colour: "graphite", size: PdfController.penSize, page: 2, box: box, points: beside))
         XCTAssertEqual(marginal["margin"] as? String, "left")
         XCTAssertEqual(DocumentStroke.margin(u: 1.02), "right")
-        await pdf.change("document.ink.add", ["strokes": [marginal]])
+        await pdf.change(.documentInkAdd, ["strokes": [marginal]])
         let left = try XCTUnwrap(pdf.strokes.first { $0.id == "pk_left" })
         XCTAssertEqual(left.margin, "left", "music-core answers the margin it kept")
         XCTAssertEqual(left.path(in: box).first?.x ?? 0, -12, accuracy: 1e-6)
         XCTAssertNil(pdf.strokes.first { $0.id == "pk_test" }?.margin)
-        await pdf.change("document.ink.remove", ["ids": ["pk_left"]])
+        await pdf.change(.documentInkRemove, ["ids": ["pk_left"]])
 
         // The project file keeps the PDF and its bookmarks, and opens as a PDF piece again.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Nocturne test.motiff.json")

@@ -349,7 +349,7 @@ internal static class MeiWriter
             case TupletGroup tuplet:
                 xml.WriteStartElement("tuplet", MeiNamespace);
                 xml.WriteAttributeString("num", Number(tuplet.Span.Num));
-                xml.WriteAttributeString("numbase", Number(tuplet.Span.Num * 2 / 3));
+                xml.WriteAttributeString("numbase", Number(tuplet.Span.NumBase));
                 xml.WriteAttributeString("num.format", "count");
                 foreach (Element inner in tuplet.Elements)
                 {
@@ -378,6 +378,7 @@ internal static class MeiWriter
                 }
 
                 WriteDuration(xml, piece);
+                WriteStem(xml, piece);
                 WritePitch(xml, piece, 0);
                 WriteAccent(xml, piece);
                 xml.WriteEndElement();
@@ -387,6 +388,7 @@ internal static class MeiWriter
                 xml.WriteStartElement("chord", MeiNamespace);
                 WriteId(xml, "c_" + piece.Chord.Notes[0].Note.Id, piece.Index);
                 WriteDuration(xml, piece);
+                WriteStem(xml, piece);
                 WriteAccent(xml, piece);
                 for (int i = 0; i < piece.Chord.Notes.Length; i++)
                 {
@@ -416,6 +418,15 @@ internal static class MeiWriter
         if (element.Dots > 0)
         {
             xml.WriteAttributeString("dots", Number(element.Dots));
+        }
+    }
+
+    /// <summary>The stem as the score writes it, when it says (<see cref="ChordPiece.StemUp"/>); Verovio places the others.</summary>
+    private static void WriteStem(XmlWriter xml, ChordPiece piece)
+    {
+        if (piece.StemUp is { } up)
+        {
+            xml.WriteAttributeString("stem.dir", up ? "up" : "down");
         }
     }
 

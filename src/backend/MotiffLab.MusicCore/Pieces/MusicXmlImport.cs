@@ -58,6 +58,15 @@ public sealed record MusicXmlImport(
     /// <summary>The words and rehearsal marks written over the music (tempo words, headings, letters), in time order.</summary>
     public IReadOnlyList<MusicXmlText> Texts { get; init; } = [];
 
+    /// <summary>
+    /// The written notes of the source notes, each chain of tied notes in order, as the score writes them («Как напечатано»,
+    /// step 1); none for a chain with a written note the file gave no length.
+    /// </summary>
+    public IReadOnlyList<MusicXmlWrittenNote> WrittenNotes { get; init; } = [];
+
+    /// <summary>The time voices skip without a sign (a <c>&lt;forward&gt;</c> that names its voice), in time order.</summary>
+    public IReadOnlyList<MusicXmlSpace> Spaces { get; init; } = [];
+
     /// <summary>The slurs and repeat signs as phrase evidence for <c>PhraseBoundaryFinder</c>.</summary>
     public PhraseMarks PhraseMarks => new(
         [.. Slurs.Select(static slur => new SlurMark(slur.Track, slur.Start, slur.Stop))],
@@ -108,6 +117,44 @@ public sealed record MusicXmlNote(
     MusicXmlTuplet? Tuplet,
     AccentKind? Accent = null);
 
+/// <summary>One written note of a sounding note: where it lies, on which staff and in which voice, and how it is written.</summary>
+/// <param name="SourceNote">The sounding note's index in <see cref="MusicXmlImport.SourceNotes"/>.</param>
+/// <param name="Duration">Exact length in quarter notes.</param>
+public sealed record MusicXmlWrittenNote(int SourceNote, int MeasureIndex, int NoteIndex, int Staff, string Voice, TickSpan Span, QuarterFraction Duration, MusicXmlWriting Writing);
+
+/// <summary>How a note or rest is written, from its <c>&lt;type&gt;</c>, <c>&lt;dot&gt;</c>, <c>&lt;time-modification&gt;</c>, <c>&lt;stem&gt;</c>, <c>&lt;beam&gt;</c> and tuplet bracket.</summary>
+/// <param name="Type">The note value as written, for example "eighth"; null when the file gives none.</param>
+/// <param name="Tuplet">The tuplet ratio; null outside tuplets.</param>
+public sealed record MusicXmlWriting(string? Type, int Dots, MusicXmlTuplet? Tuplet)
+{
+    /// <summary>True for a stem written up, false for down; null when the file says neither.</summary>
+    public bool? StemUp { get; init; }
+
+    /// <summary>The note's first beam.</summary>
+    public MusicXmlBeam Beam { get; init; }
+
+    /// <summary>A tuplet bracket starts on the note (<c>&lt;tuplet type="start"&gt;</c>).</summary>
+    public bool TupletStart { get; init; }
+
+    /// <summary>A tuplet bracket stops on the note.</summary>
+    public bool TupletStop { get; init; }
+
+    /// <summary>Written without a sign (<c>print-object="no"</c>), as a rest that only takes the time.</summary>
+    public bool IsHidden { get; init; }
+}
+
+/// <summary>A note's first beam as written: none, or where the note stands under it.</summary>
+public enum MusicXmlBeam
+{
+    None,
+    Begin,
+    Continue,
+    End,
+}
+
+/// <summary>Time a voice skips without a sign: a <c>&lt;forward&gt;</c> that names its voice.</summary>
+public sealed record MusicXmlSpace(int Track, int MeasureIndex, int Staff, string Voice, TickSpan Span);
+
 /// <summary>A tuplet ratio from <c>&lt;time-modification&gt;</c>: <paramref name="Actual"/> notes in the time of <paramref name="Normal"/>.</summary>
 public sealed record MusicXmlTuplet(int Actual, int Normal);
 
@@ -139,7 +186,11 @@ public sealed record MusicXmlRest(
     QuarterFraction Onset,
     QuarterFraction Duration,
     TickSpan Span,
-    bool IsMeasureRest);
+    bool IsMeasureRest)
+{
+    /// <summary>How the rest is written («Как напечатано», step 1); null for a rest built by hand.</summary>
+    public MusicXmlWriting? Writing { get; init; }
+}
 
 /// <summary>A slur from <c>&lt;notations&gt;&lt;slur&gt;</c>, its start and stop paired by <c>number</c>.</summary>
 /// <param name="Number">The slur's <c>number</c> attribute, 1 when not given; a slur inside another has a different number.</param>

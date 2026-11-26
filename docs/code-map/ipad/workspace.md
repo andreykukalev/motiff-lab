@@ -37,7 +37,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   collage toast's «Открыть»; the draft's view handed by `SourcesHandover.show`).
 - `ScoreWorkspaceSources.swift`: `loadOriginals`, `loadSources`, `pickView` (a draft by `showDraft`, v1.1), `toPdf`.
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
-  `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark`, `DraftAssemblyPill`, `DraftStepToast`,
+  `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark` (every card at a mark, a version marker's
+  too: under it, else above it, `top`, by `ScoreController.markHeight`, clear of the bars and the pill, `covered`, from
+  `ScoreScreen.barsBottom` and `ToastPlace.bottom`; v1.4 a-1, `closeCardAtMark` on `markAway`), `DraftAssemblyPill`, `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap` and, v1.4, the visit's `AssistantController`, handed to each `ScoreWorkspace`;
   r-1: `DraftVisitPieces.swift` closes each number it showed, one opened after it went at once); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
   v1.4: `DraftPlaceCard.swift`, `DraftPlaceContent` (a place's variants, base, «Сделать основой», «Перенести…»,
@@ -51,7 +53,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   `ScoreWorkspaceDrafts.swift`, `draftOwner`, `draftSheet`, `newDraft` (no selection: a hint).
   v1.4 i-3b: `DraftStructureControls.swift`, `DraftPlaceOrder` (the map's «Раньше», «Позже», past a bridge: `target`),
   `DraftRecordingRow` («Найти на записи», searched on a tap) and `DraftLengthRow` (the place's bars, read when opened,
-  `PageStepper` of `Pdf/`) in `DraftPlaceContent`, `DraftCarryMenu` («Перенести приём…») in `DraftTechniqueCard`; each
+  `PageStepper` of `Pdf/`, held to step on, within `DraftLengthChoice.firstBars`/`lastBars`, v1.5) in `DraftPlaceContent`, `DraftCarryMenu` («Перенести приём…») in `DraftTechniqueCard`; each
   hands its step to its card's `act`/`take`; every draft card opens the view again through `SourcesController.reopening`,
   which holds every step (`stepping`) until it has.
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
@@ -103,9 +105,9 @@ them, and the order inside each:
    `clearChoice`).
 2. `checking`: `placeFromMoreOpen` (`.placeFromMore`); `panels[.check]` (`score.checkDrawerOpen`, then `.check`);
    `panels[.versions]` (`.versions`, with Expand as it is now); `otherPlaceOpen(focused:)` (`.otherPlace`).
-3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`); `playRange`
-   (the player first, then `syncPlayheads`). 5. `body`: `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen`
-   (`assistant.close()`).
+3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`, then
+   `showRollPosition` while it is shown); `playRange` (the player first, then `syncPlayheads`). 5. `body`:
+   `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen` (`assistant.close()`).
 
 An order in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()` (the other, «Открыть в
 черновике» leaving Expand and opening Sources in one update, left with the merge in v1.1). A reaction

@@ -55,6 +55,15 @@ internal static partial class Answer
         json.WriteNumber("slurCount", notation.SlurCount);
         json.WriteNumber("pedalCount", notation.PedalCount);
         json.WriteBoolean("writtenAsHeard", notation.WrittenAsHeard);
+        // «Как напечатано» (v1.4 c-4): the bars the app wrote where the score's record does not fit; null without a record.
+        if (notation.AppWrittenBarCount is { } appWritten)
+        {
+            json.WriteNumber("appWrittenBarCount", appWritten);
+        }
+        else
+        {
+            json.WriteNull("appWrittenBarCount");
+        }
     }
 
     private static void Staves(Utf8JsonWriter json, IReadOnlyList<NotationStaff> staves)

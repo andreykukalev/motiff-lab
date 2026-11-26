@@ -23,7 +23,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `addFromRecording`, `resize`, `carry` (the move's and the resize's toast tells what went, `told`: "dropped" steps, and
   bridges by the places count), reads `findOnRecording` (on a tap; none searched without Notes `isHeard`), `length`,
   `carryPlaces` (`PieceCore`); `refusal(_:told:otherwise:)`, music-core's words for these when "unavailable"
-  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи»: the stretch
+  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи», not shown without a recording heard, `offered`, a-1: the stretch
   found most, else the variant it is named) and `DraftLengthChoice` (bars within the Notes).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
@@ -63,7 +63,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last
-  engraved; reads and renames versions (`performance.rename`). Tests: `SourcesModelTests`.
+  engraved (since v1.4 with the bars the app wrote, `Engraved.note`: the view's note in the score's bar); reads and
+  renames versions (`performance.rename`). Tests: `SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
   `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
   «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources

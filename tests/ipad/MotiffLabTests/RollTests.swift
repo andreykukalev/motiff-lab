@@ -185,7 +185,8 @@ final class RollTests: XCTestCase {
 }
 
 /// The roll's load (v1.4 r-1b): one that fails says so in the roll's place, and the next one that shows notes takes the
-/// failure away, so the drawer never says the roll could not be shown over notes it shows.
+/// failure away, so the drawer never says the roll could not be shown over notes it shows; and (v1.4 b-1) it draws the
+/// black playhead where the player was last said to be.
 @MainActor
 final class RollLoadTests: XCTestCase {
     private var window: UIWindow?
@@ -196,20 +197,34 @@ final class RollLoadTests: XCTestCase {
         try await super.tearDown()
     }
 
-    func testAFailedLoadSaysSoAndALoadThatShowsNotesTakesItAway() async throws {
-        let roll = RollController()
+    /// The calls a recording roll page was asked, by name, and the arguments of `position`.
+    private final class RollCalls {
+        var names: [String] = []
+        var positions: [[String: Any]] = []
+
+        func count(_ command: RollCommand) -> Int {
+            names.filter { $0 == command.rawValue }.count
+        }
+    }
+
+    /// The roll's web view on screen, once its page is ready: it tells the controller so as it defines `window.roll`.
+    private func shown(_ roll: RollController) async {
         let shown = UIWindow(frame: CGRect(x: 0, y: 0, width: 1024, height: 400))
         roll.webView.frame = shown.bounds
         shown.addSubview(roll.webView)
         shown.isHidden = false
         window = shown
-        // The page tells the controller it is ready as it defines `window.roll`.
         for _ in 0..<300 {
             let found = try? await roll.webView.callAsyncJavaScript("return typeof window.roll", arguments: [:], contentWorld: .page)
             if found as? String == "object" { break }
             try? await Task.sleep(for: .milliseconds(100))
         }
         try? await Task.sleep(for: .milliseconds(200))
+    }
+
+    func testAFailedLoadSaysSoAndALoadThatShowsNotesTakesItAway() async throws {
+        let roll = RollController()
+        await shown(roll)
 
         // A piece music-core does not hold: no roll.
         roll.show(OpenPiece(id: 9_000_777, title: "None", pages: [], timemap: ""), dark: false)
@@ -225,5 +240,55 @@ final class RollLoadTests: XCTestCase {
         let failedAfter = roll.failed
         XCTAssertNil(roll.problem, "a load that showed the notes leaves no failure behind")
         XCTAssertFalse(failedAfter)
+    }
+
+    /// The roll is told where the player is only while it is on screen (ScoreWorkspace.rollPlaceChanged): its drawer
+    /// opened, its first load draws the black playhead where the music is, the drawer opened again tells it again, and a
+    /// load again sends the position last told (v1.4 b-1, r-1b's finding: the playhead stood where it was left).
+    func testTheRollShownIsToldWhereThePlayerIsAndALoadSendsItAgain() async throws {
+        let example = try XCTUnwrap(KitPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        let workspace = ScoreWorkspace(piece: piece)
+        let roll = workspace.roll
+        await shown(roll)
+        let calls = RollCalls()
+        roll.page = RollPage { script, given in
+            let name = String(script.dropFirst("return roll.".count).prefix { $0 != "(" })
+            calls.names.append(name)
+            if name == RollCommand.position.rawValue { calls.positions.append(given["argument"] as? [String: Any] ?? [:]) }
+            return name == RollCommand.load.rawValue ? ["colourBy": "hand", "modes": ["hand"]] as [String: Any] : nil
+        }
+        // As the view reacts to the drawer's button: the drawer's reaction, then the roll's place.
+        let toggleDrawer = { (open: Bool) in
+            workspace.change(.toggle(.roll))
+            workspace.rollDrawerChanged(open, dark: false)
+            workspace.rollPlaceChanged(workspace.rollPlace)
+        }
+
+        toggleDrawer(true)
+        await until { calls.count(.load) == 1 && !calls.positions.isEmpty }
+        let loadAt = try XCTUnwrap(calls.names.firstIndex(of: RollCommand.load.rawValue), "the drawer opened loads the roll")
+        let toldAt = try XCTUnwrap(calls.names.firstIndex(of: RollCommand.position.rawValue), "the roll shown is told where the player is")
+        XCTAssertGreaterThan(toldAt, loadAt, "told before it had loaded, the roll gets the position with its first load")
+        XCTAssertEqual(calls.positions.first?["tick"] as? Double, workspace.player.tick)
+
+        toggleDrawer(false)
+        let told = calls.positions.count
+        toggleDrawer(true)
+        await until { calls.positions.count > told }
+        XCTAssertEqual(calls.positions.count, told + 1, "the drawer opened again tells the roll where the player is now")
+
+        roll.position(960, playing: true, label: "3.1", looping: true)
+        roll.notesChanged()
+        await until { calls.count(.load) == 2 && calls.positions.count == told + 3 }
+        XCTAssertEqual(calls.count(.load), 2, "the piece's notes changed load the roll again")
+        let last = try XCTUnwrap(calls.positions.last)
+        XCTAssertEqual(calls.positions.count, told + 3, "the position told, then sent again with the load")
+        XCTAssertEqual(last["tick"] as? Double, 960)
+        XCTAssertEqual(last["playing"] as? Bool, true)
+        XCTAssertEqual(last["label"] as? String, "3.1")
+        XCTAssertEqual(last["looping"] as? Bool, true)
+        XCTAssertGreaterThan(calls.names.lastIndex(of: RollCommand.position.rawValue) ?? 0, calls.names.lastIndex(of: RollCommand.load.rawValue) ?? 0)
     }
 }

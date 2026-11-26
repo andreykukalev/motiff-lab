@@ -70,6 +70,9 @@ final class PiecePartsTests: XCTestCase {
         rows.step(first, first: true, by: -1)
         rows.step(rows.rows[1].id, first: false, by: 1)
         XCTAssertEqual(pages(rows), [[1, 5], [6, 8]], "never before page 1 or after the last page")
+        // v1.5: the counters' − and + go off at these ends, which also ends a hold that steps on (answer 15).
+        XCTAssertEqual(rows.pages, 1...8)
+        XCTAssertEqual(PartRows(pageCount: 0).pages, 1...1, "a file of no pages still gives a range to step within")
         rows.step(first, first: false, by: 1)
         XCTAssertEqual(rows.problem, .overlap(piece: 2, previous: 1))
         rows.remove(rows.rows[1].id)

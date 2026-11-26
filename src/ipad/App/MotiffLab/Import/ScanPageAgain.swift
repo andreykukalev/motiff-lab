@@ -50,7 +50,7 @@ enum ScanPageAgain {
             var fields: [String: Any] = ["file": outcome.file, "page": place(of: number, read: outcome.read), "reading": page, "pages": pages, "language": text.language]
             if let report = joined.reports?[index] { fields["reports"] = [report] }
             let json = facadeRequest(fields)
-            let answer = facadeObject(await MusicCore.run { MusicCore.call(piece: 0, "scan.insert", json) })
+            let answer = facadeObject(await MusicCore.run { PieceCore.sendWithoutPiece(.scanInsert, json) })
             guard let answer, answer["error"] == nil, let with = answer["file"] as? String else {
                 outcome.unread.append(number)
                 outcome.why = answer?["message"] as? String ?? text["pdf.readNone"]

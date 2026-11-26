@@ -27,12 +27,23 @@ internal static class ScoreMarks
         .SelectMany(part => part.Rests.Select(rest =>
         {
             QuarterFraction onset = at(rest.MeasureIndex, rest.Offset);
-            return new MusicXmlRest(part.Index, part.Id, rest.MeasureIndex, rest.NoteIndex, rest.Staff, rest.Voice, onset, rest.Duration, CanonicalTime.ToSpan(onset, onset + rest.Duration).Span, rest.IsMeasureRest);
+            return new MusicXmlRest(part.Index, part.Id, rest.MeasureIndex, rest.NoteIndex, rest.Staff, rest.Voice, onset, rest.Duration, CanonicalTime.ToSpan(onset, onset + rest.Duration).Span, rest.IsMeasureRest) { Writing = rest.Writing };
         }))
         .OrderBy(rest => rest.Onset)
         .ThenBy(rest => rest.Track)
         .ThenBy(rest => rest.MeasureIndex)
         .ThenBy(rest => rest.NoteIndex)
+        .ToList();
+
+    /// <summary>The time voices skip without a sign, in every part, in time order, then by part.</summary>
+    public static List<MusicXmlSpace> Spaces(List<PartReader> parts, Func<int, QuarterFraction, QuarterFraction> at) => parts
+        .SelectMany(part => part.Spaces.Select(space =>
+        {
+            QuarterFraction onset = at(space.MeasureIndex, space.Offset);
+            return new MusicXmlSpace(part.Index, space.MeasureIndex, space.Staff, space.Voice, CanonicalTime.ToSpan(onset, onset + space.Duration).Span);
+        }))
+        .OrderBy(space => space.Span.Onset)
+        .ThenBy(space => space.Track)
         .ToList();
 
     /// <summary>The slurs of every part, paired (<see cref="PairSlurs"/>), by start, part and stop.</summary>

@@ -1,6 +1,8 @@
 {
   "sources.roleNotes": "Ноты",
-  "sources.makeWorking": "Сделать рабочими",
+  "sources.appWrittenBars.one": "По записи источника, {0} такт записан приложением",
+  "sources.appWrittenBars.few": "По записи источника, {0} такта записаны приложением",
+  "sources.appWrittenBars.many": "По записи источника, {0} тактов записано приложением",
   "sources.rolePlaying": "Исполнение",
   "performance.close": "Закрыть другие версии",
   "performance.name": "Название",
@@ -182,7 +184,6 @@
   "drafts.goneSteps.one": "ушёл {0} шаг",
   "drafts.goneSteps.few": "ушли {0} шага",
   "drafts.goneSteps.many": "ушли {0} шагов",
-  "drafts.recordingNone": "У пьесы нет записи, распознанной в ноты.",
   "drafts.recordingSearching": "Ищу на записях…",
   "drafts.recordingNotFound": "На записях нет музыки этого места.",
   "drafts.recordingFailed": "Не получилось поискать на записях. Попробуйте ещё раз.",

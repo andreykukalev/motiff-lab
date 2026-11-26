@@ -54,6 +54,13 @@ public sealed record GeneratedNotation(
     /// <summary>Times the sustain pedal is written as held, each with "Ped." and "*".</summary>
     public int PedalCount { get; init; }
 
+    /// <summary>
+    /// For notes with a source record («Как напечатано», step 1): the bars written where a staff of the original is not
+    /// written as the score prints it, because the record does not fit it, so the app wrote it («N тактов записаны
+    /// приложением»); null for notes without one.
+    /// </summary>
+    public int? AppWrittenBarCount { get; init; }
+
     /// <summary>The bars written, when the notation is an excerpt (decision record 0018, section 4); null for the whole piece.</summary>
     public BarRange? Excerpt { get; init; }
 

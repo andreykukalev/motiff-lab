@@ -1,6 +1,7 @@
 {
   "sources.roleNotes": "Notes",
-  "sources.makeWorking": "Make working",
+  "sources.appWrittenBars.one": "As the source writes it, {0} bar written by the app",
+  "sources.appWrittenBars.many": "As the source writes it, {0} bars written by the app",
   "sources.rolePlaying": "Performance",
   "performance.close": "Close Other versions",
   "performance.name": "Name",
@@ -167,7 +168,6 @@
   "drafts.goneBridges.many": "{0} bridges went",
   "drafts.goneSteps.one": "{0} step went",
   "drafts.goneSteps.many": "{0} steps went",
-  "drafts.recordingNone": "The piece has no recording heard as notes.",
   "drafts.recordingSearching": "Searching the recordings…",
   "drafts.recordingNotFound": "No recording has this place's music.",
   "drafts.recordingFailed": "The recordings could not be searched. Try again.",

@@ -10,7 +10,7 @@ import Foundation
 enum DraftRecordingOffer: Equatable, Sendable {
     /// Not searched yet: a tap searches.
     case ready
-    /// The piece has no recording heard as notes: nothing is searched, the entry is off.
+    /// The piece has no recording heard as notes: nothing is searched, the entry is not shown.
     case noRecording
     /// The search is on its way.
     case searching
@@ -43,16 +43,22 @@ enum DraftRecordingOffer: Equatable, Sendable {
         return nil
     }
 
-    /// The entry takes a tap: not while it searches, nor on a piece with no recording heard.
-    var searchable: Bool {
-        self != .noRecording && self != .searching
+    /// The entry shows: not on a piece with no recording heard as notes, where there is nothing to search (v1.4 a-1,
+    /// answer 9: hidden rather than off).
+    var offered: Bool {
+        self != .noRecording
     }
 
-    /// The line under the entry: why nothing was put in, or that it searches; nil before a tap and once found.
+    /// The entry takes a tap: not while it searches, nor on a piece with no recording heard.
+    var searchable: Bool {
+        offered && self != .searching
+    }
+
+    /// The line under the entry: why nothing was put in, or that it searches; nil before a tap, once found and where the
+    /// entry is not shown.
     func line(_ text: UIText) -> String? {
         switch self {
-        case .ready, .add: nil
-        case .noRecording: text["drafts.recordingNone"]
+        case .ready, .add, .noRecording: nil
         case .searching: text["drafts.recordingSearching"]
         case .notFound: text["drafts.recordingNotFound"]
         case .failed(let refused): refused ?? text["drafts.recordingFailed"]
@@ -79,14 +85,20 @@ struct DraftLengthChoice: Equatable, Sendable {
         last = now.last
     }
 
-    /// The first bar `by` bars on, kept from the Notes' first to the last bar asked.
+    /// The bars the first bar may be: from the Notes' first to the last bar asked.
+    var firstBars: ClosedRange<Int> { most.first...max(most.first, last) }
+
+    /// The bars the last bar may be: from the first bar asked to the Notes' last.
+    var lastBars: ClosedRange<Int> { min(first, most.last)...most.last }
+
+    /// The first bar `by` bars on, kept within `firstBars`.
     mutating func step(first by: Int) {
-        first = min(max(first + by, most.first), last)
+        first = min(max(first + by, firstBars.lowerBound), firstBars.upperBound)
     }
 
-    /// The last bar `by` bars on, kept from the first bar asked to the Notes' last.
+    /// The last bar `by` bars on, kept within `lastBars`.
     mutating func step(last by: Int) {
-        last = min(max(last + by, first), most.last)
+        last = min(max(last + by, lastBars.lowerBound), lastBars.upperBound)
     }
 
     /// The bars asked; nil while they are the place's own, which music-core does not take as a resize.

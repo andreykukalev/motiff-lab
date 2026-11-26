@@ -64,6 +64,7 @@
   panels: roll
   roll load: a first load, frame none
   roll lanes: on
+  roll position: 0 standing, looping yes
   roll selection: 3120–4560, loops 3120–4560
 
 ## PDF in the bar
@@ -95,6 +96,7 @@
   page playheads: selection 3120–4560, cycle on
   roll load: a first load, frame given
   roll lanes: on
+  roll position: 0 standing, looping yes
   roll selection: 3120–4560, loops 3120–4560
 
 ## the selection is cleared

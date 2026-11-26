@@ -74,6 +74,7 @@
     "leave",
     "cardLayout",
     "coloured",
-    "markMoved"
+    "markMoved",
+    "markAway"
   ]
 }

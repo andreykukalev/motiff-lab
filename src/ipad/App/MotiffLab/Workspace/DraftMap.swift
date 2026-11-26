@@ -26,8 +26,8 @@ extension EnvironmentValues {
 /// the shelf, each variant on it put («Поставить…») into a place or as a new place. Each step is music-core's
 /// (`drafts.base`, `drafts.place`, `drafts.takeSure`, `drafts.leaveBridge`), undone from its toast, and the view opens
 /// again in its place with the map open. Since v1.4 (F1, spec «Карта черновика: порядок мест») each place moves before
-/// or after the nearest other place that is not a bridge (`DraftPlaceOrder`, `drafts.movePlace`; a bridge place is
-/// refused in music-core's words). In the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape,
+/// or after the nearest other place that is not a bridge (`DraftPlaceOrder`, `drafts.movePlace`; a bridge place has no
+/// such buttons, a refusal said in music-core's words). In the sheet's place (`ScoreScreenContent.sheetPlace`): at the side in landscape,
 /// below the draft's pill, over the lower half in portrait, so the pills and toasts make way.
 struct DraftMap: View {
     @ObservedObject var score: ScoreController
@@ -110,11 +110,13 @@ struct DraftMap: View {
                 }
             }
             .buttonStyle(.plain)
-            // Its order in the draft (v1.4, F1), the steps waiting while one is on its way.
-            DraftPlaceOrder(place: place, index: index, places: draft.places, text: text) { target in
-                take(place: place.id) { await owner.movePlace(place, to: target, of: draft.id) }
+            // Its order in the draft (v1.4, F1), the steps waiting while one is on its way; none on a bridge.
+            if DraftPlaceOrder.offered(place) {
+                DraftPlaceOrder(place: place, index: index, places: draft.places, text: text) { target in
+                    take(place: place.id) { await owner.movePlace(place, to: target, of: draft.id) }
+                }
+                .disabled(owner.stepping)
             }
-            .disabled(owner.stepping)
             if let refusal, refusal.place == place.id {
                 Text(refusal.words).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }

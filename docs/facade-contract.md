@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.4 c-2):** contract 14 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-26, v1.4 c-5):** contract 15 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -220,6 +220,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 ## History
 
+### 15
+
+15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.
+
 ### 14
 
 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.
@@ -239,6 +243,10 @@ Also within 14 (version 1.4, c-2, the call registry): on a piece without notes, 
 Also within 14 (version 1.4, c-3, the plan's F1 and F2): drafts.movePlace moves a place of a draft to an index among its places, dropping the «Оставить» of a seam whose place has another before it now (`DraftRequest.Move`); drafts.findOnRecording answers the stretch of each of the piece's recordings that is a place's music and drafts.addFromRecording puts one in as a variant of the place, «Найти на записи» (`DraftRecordingRequest`, `OnRecording`); both changes of structure are undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
 
 Also within 14 (version 1.4, c-3b, Andrei's answers of 2026-11-26): drafts.length answers how long a place is in the bars of its source and whether it can change, drafts.resize cuts its base again from those Notes over other bars, the steps and seams kept as they are outside the new span dropped (`DraftLengthRequest`, `PlaceLength`); drafts.carryPlaces answers where a приём of a place fits in the draft's other places and drafts.carry puts in, for one of them, a variant music-core builds with that приём (`DraftCarryRequest`, `TechniqueCarry`); drafts.movePlace also drops a bridge place whose neighbours change, and drafts.resize one whose seam's edge moved, its steps in "dropped", a bridge place itself is not moved (unavailable), and a bridge put in or left drops the «Оставить» of the seam after it; changes of structure undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
+
+Also within 14 (version 1.4, c-4, «Как напечатано» step 1): notation writes notes with a source record (read from a PDF,
+or imported MusicXML) as the score prints them where the record fits, and answers "appWrittenBarCount", the bars the app
+wrote where it does not (null for notes without a record); a field added.
 
 ### 13
 

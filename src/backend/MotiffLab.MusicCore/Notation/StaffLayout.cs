@@ -4,19 +4,29 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Notation;
 
 /// <summary>
-/// A staff laid out in a bar: each voice's chords cut at the bar lines and tied, written in note values with rests or
-/// spaces between (<see cref="BarValues"/>), their triplet beats as tuplets, beamed (<see cref="Beaming"/>), with the
-/// bar's accidentals (<see cref="BarAccidentals"/>).
+/// A staff laid out in a bar: as the score prints it where it can (<see cref="PrintedLayout"/>), otherwise each voice's
+/// chords cut at the bar lines and tied, written in note values with rests or spaces between (<see cref="BarValues"/>),
+/// their triplet beats as tuplets, beamed (<see cref="Beaming"/>); with the bar's accidentals (<see cref="BarAccidentals"/>).
 /// </summary>
 internal static class StaffLayout
 {
-    public static StaffMeasure LayOut(StaffPlan staff, Bar bar, int fifths, TransposedSpelling? spelling)
+    /// <param name="index">The bar's index among the piece's bars.</param>
+    public static StaffMeasure LayOut(StaffPlan staff, Bar bar, int index, int fifths, TransposedSpelling? spelling)
     {
         var grid = new ValueGrid(bar.Origin, BarValues.Pulse(bar.Signature), BarValues.Middle(bar.Signature));
         long beamGroup = Beaming.BeamGroup(bar.Signature);
+        List<List<Element>> layers = staff.Printed.TryGetValue(index, out PrintedCell? cell)
+            ? PrintedLayout.Layers(staff, cell, bar, grid, beamGroup)
+            : Generated(staff, bar, grid, beamGroup);
+        BarAccidentals.Write(layers, fifths, spelling);
+        return new StaffMeasure(layers);
+    }
+
+    /// <summary>The staff's voices in the bar as the generator writes them.</summary>
+    private static List<List<Element>> Generated(StaffPlan staff, Bar bar, ValueGrid grid, long beamGroup)
+    {
         long start = bar.Span.Onset.Value;
         long stop = bar.Span.End.Value;
-
         var layers = new List<List<Element>>();
         for (int index = 0; index < Math.Max(1, staff.Voices.Count); index++)
         {
@@ -26,8 +36,7 @@ internal static class StaffLayout
             layers.Add(inBar.Length == 0 ? EmptyLayer(staff, bar, index, grid) : Layer(staff, inBar, index > 0, start, stop, grid, beamGroup));
         }
 
-        BarAccidentals.Write(layers, fifths, spelling);
-        return new StaffMeasure(layers);
+        return layers;
     }
 
     /// <summary>A voice with no chord in the bar: left out, but for the top voice, which rests for the whole bar when no voice plays.</summary>
@@ -44,7 +53,7 @@ internal static class StaffLayout
     }
 
     /// <summary>A voice's chords in the bar, with rests between, or spaces in a lower voice (<paramref name="space"/>).</summary>
-    private static List<Element> Layer(StaffPlan staff, Chord[] inBar, bool space, long start, long stop, ValueGrid grid, long beamGroup)
+    public static List<Element> Layer(StaffPlan staff, Chord[] inBar, bool space, long start, long stop, ValueGrid grid, long beamGroup)
     {
         TupletSpan[] tuplets = WrittenTuplets(staff.Tuplets, inBar, start, stop);
         var elements = new List<Element>();
@@ -62,7 +71,7 @@ internal static class StaffLayout
 
             foreach ((long pieceStart, long ticks, int dur, int dots, TupletSpan? tuplet) in BarValues.Pieces(from, to, grid, tuplets))
             {
-                elements.Add(new ChordPiece(pieceStart, ticks, dur, dots, chord, chord.NextPiece++, pieceStart > chord.Onset, pieceStart + ticks < chord.End) { Tuplet = tuplet });
+                elements.Add(new ChordPiece(pieceStart, ticks, dur, dots, chord, staff.TakePiece(chord.Notes), pieceStart > chord.Onset, pieceStart + ticks < chord.End) { Tuplet = tuplet });
             }
 
             cursor = to;

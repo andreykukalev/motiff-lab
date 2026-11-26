@@ -20,10 +20,8 @@ final class AssistantController: ObservableObject {
     static let draftConsentKey = "ml-assistant-draft-consent"
 
     /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere. Closed, the
-    /// question typed in it and not sent goes, as its field does.
-    @Published private(set) var panelOpen = false {
-        didSet { if !panelOpen { unsentInPanel = "" } }
-    }
+    /// question typed in it and not sent stays for its field when it opens again (`unsentInPanel`, v1.5, answer 16).
+    @Published private(set) var panelOpen = false
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
     /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
@@ -53,7 +51,8 @@ final class AssistantController: ObservableObject {
     }
     /// The question typed and not sent yet, in the panel and in a draft's place (r-1): kept here, since a rotation or
     /// Split View lays the panel and the draft's card out anew, and their fields with them. Not observed: only the field
-    /// made again reads it (`keepUnsent`).
+    /// made again reads it (`keepUnsent`). The panel's outlives closing the panel too (v1.5, answer 16) and goes once sent
+    /// or with the piece (`load` of another); a draft's goes with the place's assistant (`inDraft`).
     private(set) var unsentInPanel = ""
     private(set) var unsentInDraft = ""
 
@@ -94,6 +93,7 @@ final class AssistantController: ObservableObject {
         piece = key
         here = nil
         inDraft = nil
+        unsentInPanel = ""
         chats = store.chats(of: key)
         currentId = chats.first?.id
         listShown = false
@@ -110,8 +110,9 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
-    /// An Ask (Andrei, 2026-11-18, v0.8 finding 4): the panel opens empty, ready for a question, whatever was open before;
-    /// no conversation is made until its first question goes (`ask`), and the earlier ones stay in the list. It looks at
+    /// An Ask (Andrei, 2026-11-18, v0.8 finding 4): the panel opens on no conversation, ready for a question, whatever was
+    /// open before, its field still holding a question typed and not sent (`unsentInPanel`, v1.5, answer 16); no
+    /// conversation is made until its first question goes (`ask`), and the earlier ones stay in the list. It looks at
     /// the selection when there is one, or at the whole piece when asked about it (for the selection that stands now: bars
     /// selected after it are what the next question is about).
     func open(wholePiece: Bool, selection: ScoreSelection?) {
@@ -150,12 +151,13 @@ final class AssistantController: ObservableObject {
     }
 
     /// The question typed and not sent yet in the panel's field, or with `inDraft` in the draft's place's (r-1); empty once
-    /// sent or closed.
+    /// sent. Only an open field writes it: the panel's field emptied as the panel closes leaves the question kept for when
+    /// it opens again (v1.5, answer 16), and a draft's place's with no assistant open there keeps nothing.
     func keepUnsent(_ typed: String, inDraft: Bool = false) {
         if inDraft {
             unsentInDraft = self.inDraft == nil ? "" : typed
-        } else {
-            unsentInPanel = panelOpen ? typed : ""
+        } else if panelOpen {
+            unsentInPanel = typed
         }
     }
 
@@ -497,8 +499,8 @@ final class AssistantController: ObservableObject {
     static func run(_ call: AssistantToolCall, role: String, place: AssistantDraftPlace?, piece: Int32) async -> JSONValue {
         let fields: [String: JSONValue] = ["tool": .string(call.name), "parameters": call.arguments, "role": .string(role)]
         let request = JSONValue.object(fields.merging(place?.fields ?? [:]) { $1 }).text
-        let name = place == nil ? "assistant.call" : "drafts.call"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
+        let name: PieceCore.Call = place == nil ? .assistantCall : .draftsCall
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, request) }
         return AssistantTurns.content(ofFacade: answer, tool: call.name)
     }
 
@@ -526,8 +528,8 @@ final class AssistantController: ObservableObject {
             request["selection"] = .object(["onset": .int(Int(selection.onset.rounded())), "end": .int(Int(selection.end.rounded()))])
         }
         let body = JSONValue.object(place?.fields ?? request).text
-        let name = place == nil ? "assistant.context" : "drafts.context"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+        let name: PieceCore.Call = place == nil ? .assistantContext : .draftsContext
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, body) }
         return JSONValue.parse(answer)?["context"]
     }
 }

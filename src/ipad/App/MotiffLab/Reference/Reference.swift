@@ -206,10 +206,10 @@ final class ReferenceController: ObservableObject {
         }
         let body = facadeRequest(request)
         let piece = self.piece
-        var text = await MusicCore.run { MusicCore.call(piece: piece, "reference.key", body) }
+        var text = await MusicCore.run { PieceCore(piece: piece).send(.referenceKey, body) }
         if piece != 0, ReferenceAnswer(answer: text) == nil {
             // A PDF piece without notes answers no key: the circle of piece 0.
-            text = await MusicCore.run { MusicCore.call(piece: 0, "reference.key", body) }
+            text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceKey, body) }
         }
         guard let next = ReferenceAnswer(answer: text) else { return }
         if answer == nil, fifths == nil {
@@ -231,7 +231,7 @@ final class ReferenceController: ObservableObject {
     /// The chord of Chords: a root ("step", "alter") and a chord ("type"), or C major when none is chosen yet.
     func loadChord(_ root: ReferenceRoot?, type: String?, language: String, naming: String) async {
         let request = facadeRequest(Self.lookup(root ?? chords?.chord?.root, ["type": type ?? chords?.chord?.type ?? "major", "language": language, "naming": naming]))
-        let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.chord", request) }
+        let text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceChord, request) }
         guard let next = ReferenceLookup(answer: text) else { return }
         chords = next
         chordShown = next.chord?.positions.first?.block
@@ -240,7 +240,7 @@ final class ReferenceController: ObservableObject {
     /// The scale of Scales: a tonic and a scale ("form"), or C major when none is chosen yet.
     func loadScale(_ root: ReferenceRoot?, form: String?, language: String, naming: String) async {
         let request = facadeRequest(Self.lookup(root ?? scales?.scale?.root, ["form": form ?? scales?.scale?.form ?? "major", "language": language, "naming": naming]))
-        let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.scale", request) }
+        let text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceScale, request) }
         guard let next = ReferenceLookup(answer: text) else { return }
         scales = next
     }
@@ -306,7 +306,7 @@ final class ReferenceController: ObservableObject {
 
     private func play(_ request: [String: Any]) async {
         let body = facadeRequest(request)
-        let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.sound", body) }
+        let text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceSound, body) }
         guard let score = PlaybackScore.read(text) else { return }
         await piano.play(score)
     }
@@ -330,9 +330,10 @@ final class ReferencePiano {
     private var starting: Task<Player.Renderer?, Never>?
     /// Follows the engine's reports while music plays once, to tell when it has ended.
     private var watching: Task<Void, Never>?
-    /// Called when music played once has come to its end.
+    /// Called when music played once has come to its end, and when the system paused it (EngineKeeper).
     var ended: (() -> Void)?
-    /// Starts the engine again after an interruption or a route change (EngineKeeper); an interruption pauses the music.
+    /// Starts the engine again after an interruption or a route change (EngineKeeper); an interruption, the app gone to the
+    /// background and the headphones gone pause the music, and the sheet shows it stopped (v1.4 a-1).
     private var keeper: EngineKeeper?
 
     func play(_ score: PlaybackScore, loop: Bool = false) async {
@@ -408,7 +409,10 @@ final class ReferencePiano {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
-            keeper = EngineKeeper(audio) { [weak self] in self?.pause() }
+            keeper = EngineKeeper(audio) { [weak self] in
+                self?.pause()
+                self?.ended?()
+            }
             let samples = try await Task.detached(priority: .userInitiated) { try Piano.load() }.value
             renderer.send(.samples(samples))
             self.renderer = renderer

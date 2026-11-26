@@ -28,12 +28,12 @@ extension ScoreController {
         guard let piece, !change.isEmpty else { return Recolouring() }
         let removed = HighlightPaint.ids(of: change.taken, over: marksModel.marks.highlights)
         for (index, id) in removed.enumerated() {
-            await changeMarks(piece.id, "highlight.remove", ["id": id], draws: draws && change.laid.isEmpty && index == removed.count - 1)
+            await changeMarks(piece.id, .highlightRemove, ["id": id], draws: draws && change.laid.isEmpty && index == removed.count - 1)
         }
         for (index, laid) in change.laid.enumerated() {
             var request: [String: Any] = ["span": ["onset": Int(laid.onset), "end": Int(laid.end)], "colour": laid.colour]
             if !laid.notes.isEmpty { request["notes"] = laid.notes }
-            await changeMarks(piece.id, "highlight.add", request, draws: draws && index == change.laid.count - 1)
+            await changeMarks(piece.id, .highlightAdd, request, draws: draws && index == change.laid.count - 1)
         }
         return change
     }

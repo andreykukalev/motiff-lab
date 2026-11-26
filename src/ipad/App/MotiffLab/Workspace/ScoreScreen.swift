@@ -183,7 +183,7 @@ struct ScoreScreenContent: View {
         // «Идеи по смыслу» (#582 item 15): the ideas by what they are in the music.
         let request = #"{"ideas":"musical"}"#
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: id, "dna", request) }
+            let answer = await MusicCore.run { PieceCore(piece: id).send(.dna, request) }
             guard let map = DnaMap(answer: answer) else { return }
             dnaFromMore = fromMore
             dna = map
@@ -311,10 +311,19 @@ struct ScoreScreenContent: View {
     /// The layers' coordinate space, in which a sheet at the side is placed under the pills over the score.
     private static let layersSpace = "layers"
 
+    /// Where what floats over the score keeps below the bar: under it, with a gap.
+    private static var barBottom: CGFloat {
+        CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2")
+    }
+
+    /// Where the bar, and on a draft's view the draft's pill under it, end: a card at a mark keeps below them (v1.4 a-1).
+    private var barsBottom: CGFloat {
+        piece.draft == nil ? Self.barBottom : max(Self.barBottom, draftPillBottom + CGFloat.ds("s-2"))
+    }
+
     /// Where a sheet at the side starts: under the bar; a draft's map under the draft's pill too, which stays in reach.
     private var sideSheetTop: CGFloat {
-        let bar = CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2")
-        return mapOwner == nil ? bar : max(bar, draftPillBottom + CGFloat.ds("s-2"))
+        mapOwner == nil ? Self.barBottom : barsBottom
     }
 
     /// Where a toast stands: over the pill, a touch's height and a gap above where the pill floats.
@@ -330,6 +339,9 @@ struct ScoreScreenContent: View {
         let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: screen.width > screen.height) + gap : 0
         let pillTrailing = Self.pillTrailing(sheet: sheet, side: side)
         let pillLeading: CGFloat = contentsPlace == .side ? ScoreScreen.contentsWidth + gap : 0
+        // What the bars at the top and the pill, a drawer or a sheet at the bottom cover: a card at a mark opens where it
+        // shows whole between them (v1.4 a-1), the pill's top as the selection's toast keeps above it.
+        let controls = EdgeInsets(top: barsBottom, leading: 0, bottom: ToastPlace.bottom(pillBottom: pillBottom, transport: transportHeight, gap: gap), trailing: 0)
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
             .padding(.trailing, side).overlay { TypingShield() }
@@ -346,23 +358,20 @@ struct ScoreScreenContent: View {
             // Put away, the menu forgets where the player dragged it (#582 item 7).
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
-                // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
+                // A version's marker tapped (testing item 33): the popover at it, as every card at a mark (v1.4 a-1); a tap
+                // elsewhere puts it away.
                 if let pick = sourcesModel.markerPick, !focusModel.focused {
-                    GeometryReader { area in
-                        ZStack(alignment: .topLeading) {
-                            Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
-                            MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
-                                .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
-                        }
+                    DraftCardAtMark(at: CGPoint(x: pick.left, y: pick.bottom), mark: score.markHeight, covered: controls, close: { score.closeMarker() }) {
+                        MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
                     }
                 } else if let pick = score.phraseMenu, let unit = selectionModel.phrases?.unit(pick.number), !focusModel.focused {
                     // A phrase's number held (v1.2): its mark's menu under it (ScorePhraseEdits.swift).
-                    DraftCardAtMark(at: pick.at, close: { score.closePhraseMenu() }) {
+                    DraftCardAtMark(at: pick.at, mark: score.markHeight, covered: controls, close: { score.closePhraseMenu() }) {
                         PhraseMarkMenu(score: score, unit: unit, first: unit.number == selectionModel.phrases?.units.first?.number, text: text)
                     }
                 } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {
                     // A draft's приём number or seam's diamond tapped (v1.1): its card under it (DraftSeamCard.swift).
-                    DraftViewCards(score: score, seams: score.seamsModel, anchors: score.anchorsModel, player: player, owner: owner, draft: draft, text: text, reopen: reopen)
+                    DraftViewCards(score: score, seams: score.seamsModel, anchors: score.anchorsModel, player: player, owner: owner, draft: draft, text: text, covered: controls, reopen: reopen)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -397,7 +406,7 @@ struct ScoreScreenContent: View {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, marksModel: marksModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
-                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing, viewNote: sourcesModel.engraved.note(text),
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
@@ -828,6 +837,9 @@ struct ScoreBar: View {
     var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
     /// The read-only tag of a view shown over the piece; nil for the piece itself.
     var viewing: String? = nil
+    /// The view's note: how many bars the app wrote where the source's record did not fit (`SourcesModel.Engraved.note`),
+    /// the first thing in the bar to give way (TopBar).
+    var viewNote: String? = nil
     /// The bar's width, the screen's less its margins (TopBar).
     var width: CGFloat = 0
     let back: () -> Void
@@ -839,7 +851,7 @@ struct ScoreBar: View {
     /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
     /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        TopBar(width: width, pages: pageText) {
+        TopBar(width: width, pages: pageText, note: viewNote) {
             BarLeading(title: title, contentsOpen: panels.binding(.contents, change: change), text: text, back: back)
             if let sourceLayers, let pickView {
                 SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { change(.open(.versions)) }

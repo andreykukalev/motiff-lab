@@ -7,8 +7,7 @@ import SwiftUI
 // draft's view has opened again, and says why music-core refused it in its words; its toast undoes it (`drafts.undo`).
 
 /// «Раньше» and «Позже» on a place's card of the draft's map (F1): the place moved before or after the nearest other place
-/// that is not a bridge (`target`), none before the first nor after the last; a bridge place is refused in music-core's
-/// words.
+/// that is not a bridge (`target`), none before the first nor after the last; none on a bridge place (`offered`).
 struct DraftPlaceOrder: View {
     let place: DraftViewAnswer.Place
     let index: Int
@@ -21,6 +20,12 @@ struct DraftPlaceOrder: View {
             button("back", "drafts.earlier", "drafts.earlierSpoken", to: Self.target(index, by: -1, in: places))
             button("fwd", "drafts.later", "drafts.laterSpoken", to: Self.target(index, by: 1, in: places))
         }
+    }
+
+    /// Whether `place` shows «Раньше» and «Позже»: not a bridge, which music-core never moves (it is built for its seam and
+    /// goes when its neighbours change; v1.4 a-1, answer 8).
+    static func offered(_ place: DraftViewAnswer.Place) -> Bool {
+        !place.bridge
     }
 
     /// The index «Раньше» (`step` -1) or «Позже» (+1) moves the place at `index` of `places` to: that of the nearest place
@@ -47,7 +52,7 @@ struct DraftPlaceOrder: View {
 
 /// «Найти на записи» in a place's card (F2; spec «Ноты + запись»): tapped, music-core searches the piece's recordings heard
 /// as notes for the place's music and the stretch it finds most is put in as a variant; where it finds none, or only one
-/// the place has already, nothing is, and the line says which. Off on a piece with no recording heard, nothing searched.
+/// the place has already, nothing is, and the line says which. Not shown on a piece with no recording heard (`offered`).
 struct DraftRecordingRow: View {
     let place: DraftViewAnswer.Place
     let draft: DraftViewAnswer.Draft
@@ -60,44 +65,47 @@ struct DraftRecordingRow: View {
     @State private var offer = DraftRecordingOffer.ready
 
     var body: some View {
-        let shown: DraftRecordingOffer = !owner.hasHeardNotes ? .noRecording : asked == nil ? offer : .searching
-        VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
-            Button { asked = place } label: {
-                Label { Text(text["drafts.onRecording"]) } icon: { Icon(name: "fromRec", size: CGFloat.ds("icon-s")) }
+        // A search under way finishes, also if the recording went meanwhile, so the card's steps it holds come back.
+        let shown: DraftRecordingOffer = asked != nil ? .searching : !owner.hasHeardNotes ? .noRecording : offer
+        if shown.offered {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
+                Button { asked = place } label: {
+                    Label { Text(text["drafts.onRecording"]) } icon: { Icon(name: "fromRec", size: CGFloat.ds("icon-s")) }
+                }
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                .disabled(!shown.searchable)
+                if let line = shown.line(text) {
+                    Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-            .disabled(!shown.searchable)
-            if let line = shown.line(text) {
-                Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+            // Tapped: the search, then the stretch found most put in through the card's `act`, the card's steps held until
+            // the step is answered; a place changed meanwhile drops the answer.
+            .task(id: asked) {
+                guard let asked else { return }
+                let found = await owner.findOnRecording(asked.id, of: draft.id)
+                guard !Task.isCancelled else { return }
+                offer = found.adds == nil ? found : .ready
+                guard let best = found.adds else {
+                    self.asked = nil
+                    return
+                }
+                act {
+                    defer { self.asked = nil }
+                    return await owner.addFromRecording(best, to: asked.id, of: draft.id)
+                }
             }
-        }
-        // Tapped: the search, then the stretch found most put in through the card's `act`, the card's steps held until
-        // the step is answered; a place changed meanwhile drops the answer.
-        .task(id: asked) {
-            guard let asked else { return }
-            let found = await owner.findOnRecording(asked.id, of: draft.id)
-            guard !Task.isCancelled else { return }
-            offer = found.adds == nil ? found : .ready
-            guard let best = found.adds else {
-                self.asked = nil
-                return
+            .onChange(of: place) { _, _ in
+                asked = nil
+                offer = .ready
             }
-            act {
-                defer { self.asked = nil }
-                return await owner.addFromRecording(best, to: asked.id, of: draft.id)
-            }
-        }
-        .onChange(of: place) { _, _ in
-            asked = nil
-            offer = .ready
         }
     }
 }
 
 /// A place's length in its card (v1.4): «Изменить длину…», which reads music-core's bounds (`drafts.length`, only then, as
 /// it opens the Notes the place was cut from) and shows the bars of its source its base is cut from, the first and the
-/// last bar stepped within the bars its Notes have, «Применить» once they differ, and «Отмена»; where it cannot change,
-/// music-core's reason.
+/// last bar stepped within the bars its Notes have (held, they step on: v1.5, answer 15), «Применить» once they differ,
+/// and «Отмена»; where it cannot change, music-core's reason.
 struct DraftLengthRow: View {
     let place: DraftViewAnswer.Place
     let draft: DraftViewAnswer.Draft
@@ -113,8 +121,8 @@ struct DraftLengthRow: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
             if let choice {
                 Text(text.format("drafts.lengthLine", String(choice.now.first), String(choice.now.last))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-                PageStepper(label: text["drafts.lengthFrom"], spoken: text["drafts.lengthFromSpoken"], value: choice.first) { self.choice?.step(first: $0) }
-                PageStepper(label: text["drafts.lengthTo"], spoken: text["drafts.lengthToSpoken"], value: choice.last) { self.choice?.step(last: $0) }
+                PageStepper(label: text["drafts.lengthFrom"], spoken: text["drafts.lengthFromSpoken"], value: choice.first, range: choice.firstBars) { self.choice?.step(first: $0) }
+                PageStepper(label: text["drafts.lengthTo"], spoken: text["drafts.lengthToSpoken"], value: choice.last, range: choice.lastBars) { self.choice?.step(last: $0) }
                 HStack(spacing: CGFloat.ds("s-2")) {
                     Button(text["drafts.lengthApply"]) {
                         guard let bars = choice.asked else { return }

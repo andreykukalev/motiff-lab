@@ -156,6 +156,15 @@ final class Metronome: ObservableObject {
         lock(player.state == .playing)
     }
 
+    /// The system paused the player's piece (an interruption, the app in the background or the screen locked, the
+    /// headphones gone; v1.4 a-1): a metronome that clicked with the piece stops with it rather than click on by itself
+    /// (from the speaker once the headphones went); one the player paused goes on as before. Called before the transport
+    /// shows the pause, while it is still locked to the piece.
+    func stopWithSystemPause(of player: Player) {
+        guard playback === player, locked, running else { return }
+        stop()
+    }
+
     func toggle() {
         running ? stop() : start()
     }
@@ -167,7 +176,7 @@ final class Metronome: ObservableObject {
             try AVAudioSession.sharedInstance().setActive(true)
             let engine = try self.engine ?? makeEngine()
             if self.engine == nil {
-                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }) { [weak self] in self?.stop() }
+                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }, pausesWhenAway: false) { [weak self] in self?.stop() }
             }
             self.engine = engine
             running = true
@@ -330,6 +339,7 @@ struct MetronomePill: View {
             .accessibilityLabel(metronome.running ? text["metronome.stop"] : text["metronome.start"])
             Button("−") { metronome.slower() }
                 .buttonStyle(DSItemStyle())
+                .buttonRepeatBehavior(.enabled)
                 .disabled(metronome.bpm <= Metronome.minBpm)
                 .accessibilityLabel(text["metronome.slower"])
             Button {
@@ -345,6 +355,7 @@ struct MetronomePill: View {
             .accessibilityHint(text["metronome.tapHint"])
             Button("+") { metronome.faster() }
                 .buttonStyle(DSItemStyle())
+                .buttonRepeatBehavior(.enabled)
                 .disabled(metronome.bpm >= Metronome.maxBpm)
                 .accessibilityLabel(text["metronome.faster"])
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)

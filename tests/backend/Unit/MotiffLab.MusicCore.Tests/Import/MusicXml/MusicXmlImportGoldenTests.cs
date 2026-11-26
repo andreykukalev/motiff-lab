@@ -83,6 +83,8 @@ public class MusicXmlImportGoldenTests
         Section("rests", import.Rests);
         Section("grace notes", import.GraceNotes);
         Section("source notes", import.SourceNotes);
+        Section("written notes", import.WrittenNotes);
+        Section("spaces", import.Spaces);
         Section("notes", import.Notes);
         return text.ToString();
     }

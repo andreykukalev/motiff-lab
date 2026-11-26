@@ -92,6 +92,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     var barBeats = BarBeats()
     /// A phrase's mark held, whose menu is open under its number (ScorePhraseEdits.swift); nil for none.
     @Published var phraseMenu: PhraseMarkPick?
+    /// How high the mark is that a card opens at, as the page last told it with the mark's place (a tap on it, a move):
+    /// the card opens above it when there is no room below (`DraftCardAtMark`, v1.4 a-1). Written only in `handle`.
+    @Published private(set) var markHeight: CGFloat = 0
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
     var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
@@ -263,7 +266,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             selectionModel.open(piece)
             rendered = false
-            sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
+            sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"), appWrittenBars: piece.appWrittenBars)
             focusModel.forgetVersionNotes()
         }
         self.dark = dark
@@ -300,6 +303,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// Acts on one thing the page reported; the roll's long press comes here too (its hold hint).
     func handle(_ event: PageEvent) {
+        if let height = event.markHeight.map({ CGFloat($0) }), height != markHeight { markHeight = height }
         if !handleSelection(event) {
             handleMarks(event)
         }
@@ -363,7 +367,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             pages = PagesInView(first: first, last: last, count: count)
         case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark, .motifMark:
             markTapped(event)
-        case let .phraseHeld(number, left, bottom):
+        case let .phraseHeld(number, left, bottom, _):
             holdPhrase(number, at: CGPoint(x: left, y: bottom))
         case let .phraseMoved(from, to):
             movePhrase(from: from, to: to)
@@ -385,13 +389,23 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             Task { await engraveCard() }
         case let .coloured(start, end):
             penModel.colour(start, end)
-        case .markMoved(let point):
-            // No card shows at a mark any more (closed by its own cover, which the page never hears): the page stops
-            // following it, else it would tell each frame of a scroll (r-1).
-            if !moveCardAtMark(to: point) { Task { await scorePage.send(.markForgotten) } }
+        case .markMoved, .markAway:
+            markChanged(event)
         default:
             break
         }
+    }
+
+    /// The mark whose card shows moved on the page (r-1), or left the visible part of it (v1.4 a-1, answer 14).
+    private func markChanged(_ event: PageEvent) {
+        guard case .markMoved(let point, _) = event else {
+            // Out of sight (playback turned the page): its card closes, its cover with it, so the next tap reaches the score.
+            closeCardAtMark()
+            return
+        }
+        // No card shows at a mark any more (closed by its own cover, which the page never hears): the page stops following
+        // it, else it would tell each frame of a scroll (r-1).
+        if !moveCardAtMark(to: point) { Task { await scorePage.send(.markForgotten) } }
     }
 
     /// A mark on the score tapped: a bookmark goes there, a margin note opens, a Check flag shows its bar, a version's or a
@@ -597,13 +611,13 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         Task {
             if let id = draft.id {
                 if words.isEmpty {
-                    await changeMarks(piece.id, "note.remove", ["id": id])
+                    await changeMarks(piece.id, .noteRemove, ["id": id])
                 } else {
-                    await changeMarks(piece.id, "note.change", ["id": id, "text": words])
+                    await changeMarks(piece.id, .noteChange, ["id": id, "text": words])
                 }
             } else if !words.isEmpty {
                 let span = ["onset": Int(draft.onset), "end": Int(draft.end)]
-                await changeMarks(piece.id, "note.add", ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
+                await changeMarks(piece.id, .noteAdd, ["span": span, "text": words, "now": ISO8601DateFormatter().string(from: Date())])
             }
         }
     }
@@ -611,7 +625,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func deleteNote(_ id: String) {
         guard let piece else { return }
         marksModel.noteDraft = nil
-        Task { await changeMarks(piece.id, "note.remove", ["id": id]) }
+        Task { await changeMarks(piece.id, .noteRemove, ["id": id]) }
     }
 
     /// Shows or hides layers of marks, kept with the piece.
@@ -691,7 +705,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         let request = facadeRequest(fields)
         Task {
-            let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "check.resolve", request) }
+            let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.checkResolve, request) }
             if let shelf = CheckShelf(answer: answer) {
                 check = shelf
                 await drawChecks()
@@ -927,7 +941,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func loadCheck(_ piece: OpenPiece) async {
         let before = check.fingerprint
-        check = CheckShelf(answer: await MusicCore.run { MusicCore.call(piece: piece.id, "check") }) ?? CheckShelf()
+        check = CheckShelf(answer: await MusicCore.run { PieceCore(piece: piece.id).send(.check) }) ?? CheckShelf()
         variantChoice.notesRead(check.fingerprint)
         if check.fingerprint != before || ScanServer.jobs != (scanReview != nil) { await loadScanReview() }
         await drawChecks()
@@ -975,7 +989,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         let name = (fileName as NSString).deletingPathExtension
         let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "performance.add", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.performanceAdd, request) }
         guard sourcesModel.read(performance: answer) else {
             sourcesModel.say(FacadeAnswer.message(answer))
             return
@@ -999,7 +1013,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     private func readSources() async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.sources) }
         sourcesModel.read(sources: answer)
     }
 
@@ -1038,7 +1052,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func setPieceTempo(_ perMinute: Int?) async {
         guard let piece else { return }
         let request = perMinute.map { "{\"perMinute\": \($0)}" } ?? "{}"
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "tempo.set", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.tempoSet, request) }
         if let failure = facadeObject(answer), failure["error"] != nil {
             problem = FacadeAnswer.message(answer)
             return
@@ -1067,7 +1081,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft, shownOnly: piece.shownOnly)
-            sourcesModel.keepEngraved(SourcesModel.Engraved(even: even))
+            sourcesModel.keepEngraved(SourcesModel.Engraved(even: even, appWrittenBars: engraving.appWrittenBars))
             await render()
             if focusModel.focused { await engraveCard() }
         case .failure(let error):
@@ -1405,7 +1419,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             await sendModeNow()
             await sendPlayheadsNow()
             await sendVisibilities()
-            let marks = await MusicCore.run { MusicCore.call(piece: piece.id, "marks") }
+            let marks = await MusicCore.run { PieceCore(piece: piece.id).send(.marks) }
             await draw(marks)
             ProbeCounts.shared.mark("marks")
             await loadPhrases(piece)
@@ -1454,9 +1468,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// A change to the marks through music-core; the answer is drawn unless `draws` is false, for the first of two calls
     /// that make one change, so the page never shows it half done.
-    func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool = true) async {
+    func changeMarks(_ piece: Int32, _ call: PieceCore.Call, _ request: [String: Any], draws: Bool = true) async {
         let text = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, text) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(call, text) }
         if draws { await draw(answer) }
     }
 
