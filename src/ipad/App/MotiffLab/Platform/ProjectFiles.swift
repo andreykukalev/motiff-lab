@@ -68,7 +68,7 @@ enum ProjectFiles {
     /// Asks music-core for the piece's project file and writes it, whole, to the url.
     static func save(piece: Int32, to url: URL, now: Date = Date()) async throws {
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
-        let text = await MusicCore.run { MusicCore.call(piece: piece, "project.save", request) }
+        let text = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         if let failure = facadeObject(text), failure["error"] != nil {
             throw ProjectError(message: failure["message"] as? String ?? "music-core did not save the project.")
         }
@@ -187,7 +187,7 @@ struct PieceSummary: Equatable, Sendable {
     static func read(_ data: Data) async -> PieceSummary? {
         guard let file = String(data: data, encoding: .utf8) else { return nil }
         let request = facadeRequest(["file": file])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.summary", request) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.projectSummary, request) }
         ProbeCounts.shared.mark("summary")
         return PieceSummary(answer: answer)
     }
@@ -282,7 +282,7 @@ enum PieceDetailsFile {
         var request = fields
         request["file"] = file
         let body = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.metadata", body) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.projectMetadata, body) }
         guard let object = facadeObject(answer), object["error"] == nil,
               let changed = object["file"] as? String, let summary = PieceSummary(answer: answer) else {
             throw ProjectError(message: facadeObject(answer)?["message"] as? String ?? "music-core did not change the project.")

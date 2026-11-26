@@ -35,7 +35,7 @@ struct OtherPieceDrafts: Identifiable, Equatable, Sendable {
     static func read(_ data: Data, language: String) async -> Read? {
         guard let file = String(data: data, encoding: .utf8) else { return nil }
         let request = facadeRequest(["file": file, "language": language])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "project.drafts", request) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.projectDrafts, request) }
         guard let read = FacadeAnswer.decode(PieceDraftsAnswer.self, answer, of: "project.drafts") else { return nil }
         return Read(summary: PieceSummary(answer: answer), drafts: read.drafts.map { SourceLayers.Draft($0) })
     }

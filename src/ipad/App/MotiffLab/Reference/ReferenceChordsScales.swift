@@ -130,7 +130,7 @@ extension ReferenceController {
         guard let root = (sounding.scale ? scales?.scale?.root : chords?.chord?.root) ?? chords?.chord?.root else { return }
         let request = facadeRequest(sounding.request(root: root, type: chords?.chord?.type, form: scales?.scale?.form,
                                                                 language: language, naming: naming))
-        let text = await MusicCore.run { MusicCore.call(piece: 0, "reference.sounding", request) }
+        let text = await MusicCore.run { PieceCore.sendWithoutPiece(.referenceSounding, request) }
         guard let next = ReferenceSounding(answer: text) else { return }
         sounded = next
         if let inversion = next.inversion {

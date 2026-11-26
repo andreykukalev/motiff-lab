@@ -98,7 +98,7 @@ final class Engraver {
     }
 
     private static func layOut(piece: Int32, request: String, options: String) -> Result<Engraving, EngraveError> {
-        guard let answer = facadeObject(MusicCore.call(piece: piece, "notation", request)) else {
+        guard let answer = facadeObject(PieceCore(piece: piece).send(.notation, request)) else {
             return .failure(EngraveError(message: "music-core gave no notation."))
         }
         guard let mei = answer["mei"] as? String, !mei.isEmpty else {

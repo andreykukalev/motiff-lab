@@ -93,7 +93,7 @@ final class ScoreColouringTests: XCTestCase {
     func testAHighlightTakenAndPutBackKeepsItsNotes() async throws {
         let (score, piece) = try await opened()
         defer { _ = MusicCore.close(piece: piece.id) }
-        await score.changeMarks(piece.id, "highlight.add", ["span": ["onset": 0, "end": 1920], "colour": "forest", "notes": ["n1", "n2"]], draws: true)
+        await score.changeMarks(piece.id, .highlightAdd, ["span": ["onset": 0, "end": 1920], "colour": "forest", "notes": ["n1", "n2"]], draws: true)
         let older = try XCTUnwrap(score.marksModel.marks.highlights.first, "music-core lays it")
         XCTAssertEqual(older.notes, ["n1", "n2"], "and answers its notes")
 

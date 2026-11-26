@@ -42,7 +42,7 @@ final class DeviceSettings: ObservableObject {
     func load() async {
         guard !loaded else { return }
         loaded = true
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "settings") }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.settings) }
         var infos: [String: Info] = [:]
         for entry in facadeObject(answer)?["settings"] as? [[String: Any]] ?? [] {
             guard let id = entry["id"] as? String else { continue }
@@ -90,7 +90,7 @@ final class DeviceSettings: ObservableObject {
         kept["appearance.language"] = UIText.language(in: store)
         request["values"] = kept
         let body = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "settings.state", body) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.settingsState, body) }
         guard let object = facadeObject(answer), let state = object["values"] as? [String: String] else { return }
         values = state
         preset = object["preset"] as? String ?? "custom"

@@ -4,33 +4,22 @@
 // every folder below it, so a call renamed or removed in C# fails here on Linux and not only on the iPad.
 //   node --test tests/shared   (needs no build: it reads the Swift sources)
 //
-// The forms a call name takes in the Swift, all read here:
-//   1. A literal in MusicCore.call(piece: …, "name", …), the one function that reaches `ml_call`, spelled `MusicCore.call`
-//      or, inside `enum`/`extension MusicCore`, `Self.call`, `self.call` or `call`. `MusicCore.run { … }` only runs work
-//      on the core's thread, `facadeRequest` only encodes the request's fields, `MusicCore.open` and `MusicCore.close` are
-//      `ml_open` and `ml_close`, not calls by name.
-//   2. A parameter passed on as the name: a helper such as `change(_ piece:, _ call: String, …)`, `correctionsCall(_ name:, …)`
-//      or `FolderPlan.call(_ name:, …)` hands its own parameter to MusicCore.call or to another such helper; the names
-//      are then the literals at the helper's call sites, followed through any depth of helpers, by position for an
-//      unlabelled parameter and by label for a labelled one. A site reaches the helper through its type's name, through
-//      `self` or unqualified in the same type or file, or through a value whose declared type is the helper's
-//      (`pdf: PdfController`); a site through a value of a type the reader cannot tell, where another function has the
-//      same name, is read when it passes literals in the helper's name place and is unread otherwise.
-//   3. A labelled parameter's default, `layOut(…, call: String = "notation", …)`, which every site that leaves it out sends.
-//   4. A choice of literals, `cond ? "a" : "b"`, and a local `let name = <literal or choice>` assigned nowhere else.
-// Nothing call-shaped is dropped: anything else in the name's place (a name built from parts, a `var` or a reassigned
-// name, a collection, a helper or MusicCore.call passed as a function value, an unattributable site without literals)
-// is unread, and an unread place must be listed in `unresolved` below with the names it stands for, or the test fails.
-// A new helper with a common name (`send`, `run`) makes every site of that name whose type the reader cannot tell a
-// possible helper site, so unrelated `send(…)` calls without literals turn up as unread places: give the helper a name
-// of its own, or call it through its type or a value of a declared concrete type, rather than listing those places.
-// Only what is not a call of a function is passed over: an enum's case or a pattern (`case .change(…)`), an implicit
-// member (`.change(…)`, which only a static function could be), and a closure or variable the caller declares itself.
-// The piece argument is followed too: a literal 0 is a call on piece 0, anything else a call on an open piece.
+// The port (step B5, decision record 0031 step 1b, #654): every call by name goes through PieceCore, and only its files
+// (`portFiles`) reach MusicCore.call, the one function that reaches `ml_call`. Anywhere else, MusicCore.call (spelled
+// `MusicCore.call`, or `Self.call`, `self.call` or `call` inside `enum`/`extension MusicCore`), `ml_call` or a port enum
+// of calls made from a name (`PieceCore.Call(rawValue:)`) fails, whatever it is called through; the features name a call
+// by a case of the port's enums. `MusicCore.run { … }` only runs work on the core's thread, `facadeRequest` only encodes
+// the request's fields, `MusicCore.open` and `MusicCore.close` are `ml_open` and `ml_close`, not calls by name.
 //
-// The port (step B5, decision record 0031 step 1b, #654): a call the port PieceCore makes, by name in its file, is made by
-// no other file; the features reach it through the port. The calls move there one typed answer at a time, and the shapes
-// of #654 that this reader cannot see stay a risk for the calls not yet moved.
+// In the port, the name in MusicCore.call's name place is read as:
+//   1. a literal, a choice of literals (`cond ? "a" : "b"`), or a local `let name = <literal or choice>` assigned nowhere else;
+//   2. `call.rawValue` of a parameter typed as one of the port's enums of calls (`enum Call: String`): all its cases' names;
+//   3. a parameter of a private function of the port: the names its sites in the same file pass (as 1 and 2, or another
+//      such parameter), by position for an unlabelled parameter and by label for a labelled one, or its default.
+// Anything else is unread and fails: a name built from parts, a `var`, a port function that is not private taking a name
+// (the features could hand it any name), a helper or MusicCore.call passed as a function value, a helper reached through
+// another value or sharing its name with another function of its file. The piece argument is followed too: a literal 0 is
+// a call on piece 0, anything else a call on an open piece.
 
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
@@ -42,22 +31,8 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const swiftRoot = join(root, "src", "ipad", "App", "MotiffLab");
 const contract = JSON.parse(readFileSync(join(root, "tests", "contracts", "facade-calls.json"), "utf8"));
 
-/** The port's files: the calls named in them are made from no other file. */
-const portFiles = ["PieceCore.swift"];
-
-/**
- * The places where the Swift passes a call name the reader cannot follow, as "file › function › expression", with the
- * names they stand for and why. Each listed name must be written as a literal in that same function, so a rename there
- * fails too, and is checked against the contract like any name read.
- */
-const unresolved = new Map([
-    // The Pen's Undo and Redo hand InkStep.undo and .redo (InkGeometry.swift) the two names, which pass them back to the
-    // closure as `call`; the closure hands them to the score the pen writes on (`PenScore`, ScoreController).
-    ["PenModel.swift › undo › score.changeMarks(…) may be ScoreController.changeMarks", { names: ["ink.remove", "ink.add"] }],
-    ["PenModel.swift › redo › score.changeMarks(…) may be ScoreController.changeMarks", { names: ["ink.remove", "ink.add"] }],
-    ["PdfInk.swift › undo › call", { names: ["document.ink.remove", "document.ink.add"] }],
-    ["PdfInk.swift › redo › call", { names: ["document.ink.remove", "document.ink.add"] }],
-]);
+/** The port's files (src/ipad/App/MotiffLab/Platform): the only ones that call music-core by name. */
+const portFiles = ["PieceCore.swift", "PieceCoreCalls.swift"];
 
 // ---------------------------------------------------------------------------------------------------------------------
 // A small Swift reader: comments and the inside of strings masked, string literals kept, brackets matched.
@@ -203,10 +178,9 @@ function typesIn(code) {
     return types;
 }
 
-/** The functions declared in a file: name, parameters (label, name, default), body span, enclosing type, privacy. */
+/** The functions declared in a file: name, parameters (label, name, type, default), body span, privacy. */
 function functionsIn(file, lexed) {
     const { code } = lexed;
-    const types = typesIn(code);
     const functions = [];
     for (const match of code.matchAll(/\bfunc\s+([A-Za-z_]\w*)\s*(?:<[^>{}]*>)?\s*\(/g)) {
         const open = match.index + match[0].length - 1;
@@ -217,9 +191,12 @@ function functionsIn(file, lexed) {
             const equals = indexAtDepth0(part.text, "=");
             const defaultText = equals < 0 ? null : part.text.slice(equals + 1).trim();
             const defaultAt = equals < 0 ? -1 : part.at + equals + 1 + (part.text.slice(equals + 1).length - part.text.slice(equals + 1).trimStart().length);
+            const declared = head ? full.slice(head[0].length) : "";
+            const typeEnd = indexAtDepth0(declared, "=");
             return {
                 label: head ? (head[1] ?? head[2]) : null,
                 name: head ? head[2] : null,
+                type: head ? (typeEnd < 0 ? declared : declared.slice(0, typeEnd)).trim().split(".").pop() : null,
                 defaultText,
                 defaultAt,
             };
@@ -232,7 +209,6 @@ function functionsIn(file, lexed) {
         const bodyTo = hasBody ? closing(code, bodyFrom) : -1;
         const lineStart = Math.max(code.lastIndexOf("\n", match.index), code.lastIndexOf(";", match.index), code.lastIndexOf("}", match.index), code.lastIndexOf("{", match.index)) + 1;
         const modifiers = code.slice(lineStart, match.index);
-        const type = types.filter((t) => t.from < match.index && match.index < t.to).sort((a, b) => b.from - a.from)[0];
         functions.push({
             file,
             name: match[1],
@@ -240,9 +216,7 @@ function functionsIn(file, lexed) {
             params,
             bodyFrom,
             bodyTo,
-            type: type?.name ?? null,
             isPrivate: /\b(?:private|fileprivate)\b/.test(modifiers),
-            isStatic: /\b(?:static|class)\b/.test(modifiers),
         });
     }
     return functions;
@@ -302,16 +276,40 @@ function swiftFiles(dir) {
         .sort();
 }
 
+/** The camel-cased call name ("sources.view.hide" → "sourcesViewHide"), from its `from`th part on. */
+function camel(name, from = 0) {
+    return name.split(".").slice(from).map((part, k) => (k === 0 ? part : part[0].toUpperCase() + part.slice(1))).join("");
+}
+
+/** The enums of calls a port file declares (`enum Call: String { case check = "check", … }`): name → its cases. */
+function callEnums(lexed) {
+    const enums = new Map();
+    for (const match of lexed.code.matchAll(/\benum\s+([A-Za-z_]\w*)\s*:\s*String\b[^{]*\{/g)) {
+        const open = match.index + match[0].length - 1;
+        const end = closing(lexed.code, open);
+        const cases = [];
+        for (const item of lexed.code.slice(open, end).matchAll(/(?:\bcase\b|,)\s*([A-Za-z_]\w*)\s*=\s*/g)) {
+            const at = open + item.index + item[0].length;
+            const literal = lexed.strings.find((s) => s.start === at && !s.interpolated);
+            if (literal) cases.push({ name: item[1], call: literal.text });
+        }
+        enums.set(match[1], cases);
+    }
+    return enums;
+}
+
 /**
- * Every call name the sources send, with where, from which file and on which piece ("piece0" for a literal 0, "open" otherwise), and the
- * places the reader could not follow with the string literals of the function around each. `sources` maps a file's
- * path to its text; a place is named by the file's name, so moving files between folders changes no place.
+ * Every call name the sources send from the port, with where and on which piece ("piece0" for a literal 0, "open"
+ * otherwise); the port's places the reader cannot follow; the places outside the port that reach music-core by name;
+ * and the port's enums of calls. `sources` maps a file's path to its text; a place is named by the file's name.
  */
 function sentNames(sources) {
-    const files = Object.entries(sources).map(([file, text]) => ({ file, lexed: lex(text) }));
+    const files = Object.entries(sources).map(([file, text]) => ({ file, lexed: lex(text), port: portFiles.includes(basename(file)) }));
     const functions = files.flatMap(({ file, lexed }) => functionsIn(file, lexed));
+    const enums = new Map(files.filter((f) => f.port).flatMap((f) => [...callEnums(f.lexed)]));
     const sent = [];
     const unread = [];
+    const outside = [];
     const carriers = new Set();
     const queue = [];
 
@@ -319,7 +317,7 @@ function sentNames(sources) {
     const enclosing = (file, at) => functions
         .filter((f) => f.file === file && f.bodyFrom < at && at < f.bodyTo)
         .sort((a, b) => b.bodyFrom - a.bodyFrom)[0] ?? null;
-    const placeOf = (file, fn) => `${basename(file)} › ${fn?.name ?? "(top level)"}`;
+    const placeOf = (file, at) => `${basename(file)} › ${enclosing(file, at)?.name ?? "(top level)"}`;
     const parameterOf = (fn, text) => (fn && /^[A-Za-z_]\w*$/.test(text) ? fn.params.findIndex((p) => p.name === text) : -1);
 
     /**
@@ -339,37 +337,33 @@ function sentNames(sources) {
         return literalsOf(lexed, from, from + lexed.code.slice(from, from + stop).trimEnd().length);
     }
 
-    /** A place the reader cannot follow, with the literals written in its function (what a listed place must still hold). */
-    function unreadAt(file, lexed, at, text) {
-        const fn = enclosing(file, at);
-        const literals = fn ? lexed.strings.filter((s) => fn.bodyFrom < s.start && s.end < fn.bodyTo && !s.interpolated).map((s) => s.text) : [];
-        unread.push({ place: `${placeOf(file, fn)} › ${text}`, literals });
+    /** `p.rawValue` of the function's parameter `p` typed as an enum of calls: its cases' names; else null. */
+    function rawValues(fn, text) {
+        const match = /^([A-Za-z_]\w*)\s*\.\s*rawValue$/.exec(text);
+        const param = match && fn ? fn.params.find((p) => p.name === match[1]) : null;
+        return param && enums.has(param.type) ? enums.get(param.type).map((c) => c.call) : null;
     }
 
-    /**
-     * The name in a site's name argument: literals are sent; the enclosing function's parameter makes that function a
-     * helper whose own sites are read (`piece` is how it reaches the piece: "piece0", "open" or {param}); else unread.
-     */
+    /** The name in a site's name argument (in the port): its names are sent, a private function's parameter is followed. */
     function nameAt(file, lexed, arg, piece, through) {
         const fn = enclosing(file, arg.at);
-        const names = literalsOf(lexed, arg.at, arg.end) ?? localLiterals(lexed, fn, arg.text);
+        const names = literalsOf(lexed, arg.at, arg.end) ?? localLiterals(lexed, fn, arg.text) ?? rawValues(fn, arg.text);
         if (names) {
-            const where = `${placeOf(file, fn)} (${through})`;
-            for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where, file });
+            for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where: `${placeOf(file, arg.at)} (${through})`, file });
             return;
         }
         const param = parameterOf(fn, arg.text);
         if (param < 0) {
-            unreadAt(file, lexed, arg.at, lexed.source.slice(arg.at, arg.end));
-            return;
-        }
-        if (!carriers.has(fn)) {
+            unread.push(`${placeOf(file, arg.at)} › ${lexed.source.slice(arg.at, arg.end)}`);
+        } else if (!fn.isPrivate) {
+            unread.push(`${placeOf(file, arg.at)} › takes a call's name and is not private`);
+        } else if (!carriers.has(fn)) {
             carriers.add(fn);
             queue.push({ fn, nameParam: param, piece });
         }
     }
 
-    /** The piece a `MusicCore.call` names: "piece0" for a literal 0, the enclosing function's parameter, or "open". */
+    /** The piece a call names: "piece0" for a literal 0, the enclosing function's parameter, or "open". */
     function pieceAt(file, arg) {
         if (arg?.text === "0") return "piece0";
         const param = arg ? parameterOf(enclosing(file, arg.at), arg.text) : -1;
@@ -384,182 +378,74 @@ function sentNames(sources) {
             : parts.filter((a) => a.label === null)[fn.params.slice(0, index).filter((p) => p.label === "_").length];
     }
 
-    // Form 1: MusicCore.call itself, as `MusicCore.call`, or as `Self.call`, `self.call` or `call` inside MusicCore.
-    for (const { file, lexed } of files) {
+    for (const { file, lexed, port } of files) {
+        const cores = typesIn(lexed.code).filter((t) => t.name === "MusicCore");
+        // MusicCore.call itself, as `MusicCore.call`, or as `Self.call`, `self.call` or `call` inside MusicCore.
         for (const match of lexed.code.matchAll(/(?:\b([A-Za-z_]\w*)\s*\.\s*)?\bcall\b(\s*\()?/g)) {
-            const qualifier = qualifierAt(lexed.code, match.index, match[1]);
-            const insideCore = enclosing(file, match.index)?.type === "MusicCore";
+            const qualifier = match[1] ?? (/\.\s*$/.test(lexed.code.slice(0, match.index)) ? "?" : null);
+            const insideCore = cores.some((t) => t.from < match.index && match.index < t.to);
             const facade = qualifier === "MusicCore" || (insideCore && (qualifier === "Self" || qualifier === "self" || (qualifier === null && match[2])));
             if (!facade || /\bfunc\s*$/.test(lexed.code.slice(Math.max(0, match.index - 8), match.index))) continue;
+            if (!port) {
+                outside.push(`${placeOf(file, match.index)} › MusicCore.call`);
+                continue;
+            }
             const parts = match[2] ? argumentsAt(lexed.code, match.index + match[0].length - 1).parts : [];
             const nameArg = parts.filter((p) => p.label === null)[0];
             if (!nameArg) {
-                unreadAt(file, lexed, match.index, match[2] ? "MusicCore.call without a name" : "MusicCore.call passed as a value");
+                unread.push(`${placeOf(file, match.index)} › ${match[2] ? "MusicCore.call without a name" : "MusicCore.call passed as a value"}`);
                 continue;
             }
             nameAt(file, lexed, nameArg, pieceAt(file, parts.find((p) => p.label === "piece")), "MusicCore.call");
         }
+        if (port || basename(file) === "MusicCore.swift") continue;
+        for (const match of lexed.code.matchAll(/\bml_call\b/g)) outside.push(`${placeOf(file, match.index)} › ml_call`);
+        for (const match of lexed.code.matchAll(/\b([A-Za-z_]\w*)\s*(?:\.\s*init\s*)?\(\s*rawValue\s*:/g)) {
+            if (enums.has(match[1])) outside.push(`${placeOf(file, match.index)} › ${match[1]}(rawValue:)`);
+        }
     }
 
-    /** A site of a helper's name reached through `fn`: the name and piece it passes, read as `nameAt` reads them. */
-    function readSite(fn, nameParam, piece, file, lexed, parts) {
-        const arg = argumentFor(fn, nameParam, parts);
-        if (!arg) return; // the parameter's default, read with the helper
-        const pieceArg = typeof piece === "string" ? null : argumentFor(fn, piece.param, parts);
-        nameAt(file, lexed, arg, typeof piece === "string" ? piece : pieceArg ? pieceAt(file, pieceArg) : "open", fn.name);
-    }
-
-    // Forms 2 and 3: the helpers, followed until no new one turns up. A site that may reach a helper or another function
-    // of the same name (through an instance of a type the reader cannot tell) is read when it passes literals where a
-    // helper takes its name; one that passes none is unread, never dropped.
-    const helpers = new Map();
-    const unsure = new Map();
-    const settled = new Set();
+    // The port's private helpers, followed in their own file until no new one turns up: reached unqualified or through
+    // `self` or `Self`, never as a value, through another value, or beside another function of the same name.
     while (queue.length > 0) {
-        while (queue.length > 0) {
-            const { fn, nameParam, piece } = queue.shift();
-            helpers.set(fn, { nameParam, piece });
-            const param = fn.params[nameParam];
-            if (param.defaultText !== null) {
-                const lexed = files.find((f) => f.file === fn.file).lexed;
-                const names = literalsOf(lexed, param.defaultAt, param.defaultAt + param.defaultText.length);
-                if (names) for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where: `${placeOf(fn.file, fn)} (default of ${param.name})`, file: fn.file });
-                else unreadAt(fn.file, lexed, fn.bodyFrom + 1, `default ${param.defaultText}`);
-            }
-            for (const { file, lexed } of files) {
-                for (const match of lexed.code.matchAll(new RegExp(`(?:\\b([A-Za-z_]\\w*)\\s*\\.\\s*)?\\b${fn.name}\\s*\\(`, "g"))) {
-                    if (/\bfunc\s*$/.test(lexed.code.slice(Math.max(0, match.index - 8), match.index)) || inCase(lexed.code, match.index)) continue;
-                    const qualifier = qualifierAt(lexed.code, match.index, match[1]);
-                    const reached = attribution(functions, fn.name, file, lexed, qualifier, enclosing(file, match.index), files);
-                    if (!reached.functions.includes(fn)) continue;
-                    const { parts } = argumentsAt(lexed.code, match.index + match[0].length - 1);
-                    if (reached.sure) readSite(fn, nameParam, piece, file, lexed, parts);
-                    else unsure.set(`${file}#${match.index}`, { file, lexed, at: match.index, text: match[0], parts, reached: reached.functions });
-                }
-                // A helper handed on as a function value (`through: change`) sends names this reader does not follow.
-                for (const match of lexed.code.matchAll(new RegExp(`[(,:]\\s*(?:self\\s*\\.\\s*)?(${fn.name})\\s*[,)]`, "g"))) {
-                    const at = match.index + match[0].indexOf(fn.name, 1);
-                    const caller = enclosing(file, at);
-                    if (parameterOf(caller, fn.name) >= 0 || declaredIn(lexed, caller, fn.name) || inCase(lexed.code, at)) continue;
-                    if (!attribution(functions, fn.name, file, lexed, null, caller, files).functions.includes(fn)) continue;
-                    unreadAt(file, lexed, at, `${fn.name} passed as a value`);
-                }
-            }
+        const { fn, nameParam, piece } = queue.shift();
+        const { lexed } = files.find((f) => f.file === fn.file);
+        const param = fn.params[nameParam];
+        if (param.defaultText !== null) {
+            const names = literalsOf(lexed, param.defaultAt, param.defaultAt + param.defaultText.length);
+            if (names) for (const name of names) sent.push({ name, piece: typeof piece === "string" ? piece : "open", where: `${placeOf(fn.file, fn.bodyFrom + 1)} (default of ${param.name})`, file: fn.file });
+            else unread.push(`${placeOf(fn.file, fn.bodyFrom + 1)} › default ${param.defaultText}`);
         }
-        for (const [key, site] of unsure) {
-            if (settled.has(key)) continue;
-            settled.add(key);
-            const reachable = site.reached.filter((f) => helpers.has(f));
-            const literal = reachable.filter((f) => {
-                const arg = argumentFor(f, helpers.get(f).nameParam, site.parts);
-                return arg && literalsOf(site.lexed, arg.at, arg.end);
-            });
-            if (literal.length > 0) {
-                const { nameParam, piece } = helpers.get(literal[0]);
-                readSite(literal[0], nameParam, piece, site.file, site.lexed, site.parts);
-            } else {
-                unreadAt(site.file, site.lexed, site.at, `${site.text.replace(/\s*\($/, "")}(…) may be ${reachable.map((f) => `${f.type ?? basename(f.file)}.${f.name}`).join(" or ")}`);
+        if (functions.some((f) => f !== fn && f.file === fn.file && f.name === fn.name)) {
+            unread.push(`${placeOf(fn.file, fn.bodyFrom + 1)} › another function is named ${fn.name} too`);
+            continue;
+        }
+        for (const match of lexed.code.matchAll(new RegExp(`(?:\\b([A-Za-z_]\\w*)\\s*\\.\\s*)?\\b${fn.name}\\b(\\s*\\()?`, "g"))) {
+            if (/\bfunc\s*$/.test(lexed.code.slice(Math.max(0, match.index - 8), match.index))) continue;
+            const qualifier = match[1] ?? (/\.\s*$/.test(lexed.code.slice(0, match.index)) ? "?" : null);
+            if (!match[2] || (qualifier !== null && qualifier !== "self" && qualifier !== "Self")) {
+                unread.push(`${placeOf(fn.file, match.index)} › ${fn.name} ${match[2] ? "called through another value" : "passed as a value"}`);
+                continue;
             }
+            const { parts } = argumentsAt(lexed.code, match.index + match[0].length - 1);
+            const arg = argumentFor(fn, nameParam, parts);
+            if (!arg) continue; // the parameter's default, read above
+            const pieceArg = typeof piece === "string" ? null : argumentFor(fn, piece.param, parts);
+            nameAt(fn.file, lexed, arg, typeof piece === "string" ? piece : pieceArg ? pieceAt(fn.file, pieceArg) : "open", fn.name);
         }
     }
 
-    return { sent, unread };
-}
-
-/**
- * Whether the function (or, outside any function, the file) declares `name` as a value: a `let`, a `var`, a closure's
- * parameter (`{ name, other in`) or a loop's (`for (i, name) in`).
- */
-function declaredIn(lexed, fn, name) {
-    const body = fn ? lexed.code.slice(fn.bodyFrom, fn.bodyTo) : lexed.code;
-    const bound = `\\(?[\\w\\s,]*\\b${name}\\b[\\w\\s,]*\\)?\\s*in\\b`;
-    return new RegExp(`\\b(?:let|var)\\s+${name}\\b|\\{\\s*(?:\\[[^\\]]*\\]\\s*)?${bound}|\\bfor\\s+(?:case\\s+let\\s+)?${bound}`).test(body);
-}
-
-/** Whether the place is in a `case` (an enum's cases or a pattern, `case let .change(…)`), where no function is called. */
-function inCase(code, at) {
-    return /\bcase\b/.test(code.slice(code.lastIndexOf("\n", at) + 1, at));
-}
-
-/**
- * What qualifies a name at `at`: the identifier before its dot, "?" for another expression (`a().b`, `x?.b`), "." for an
- * implicit member (`= .change(…)`, a static member or an enum case of a type the context gives), or null for none.
- */
-function qualifierAt(code, at, identifier) {
-    if (identifier) return identifier;
-    const before = code.slice(0, at).trimEnd();
-    if (!before.endsWith(".")) return null;
-    return /[\w)\]?!"]$/.test(before.slice(0, -1).trimEnd()) ? "?" : ".";
-}
-
-/**
- * The functions a call of `name` in `file`, qualified by `qualifier` ("?" for an expression) inside `caller`, may reach,
- * and whether the reader is sure: through a type's name, that type's static ones (none for an enum's case, `Step.call(…)`);
- * unqualified or through `self`, a closure or variable of the caller's when it has one (none), else the caller's type's,
- * else the file's, else a global; as an implicit member, the static ones; through an instance whose declaration names its
- * type, that type's instance functions. A type counts only when it is a class, struct, enum or actor in the sources, the
- * caller's or a value's only when it also declares the function with a body; a file's function counts only with a body.
- * Otherwise every function of that name it could reach, sure only when there is one (or, through a type's name, none
- * static).
- */
-function attribution(functions, name, file, lexed, qualifier, caller, files) {
-    const named = functions.filter((f) => f.name === name && (!f.isPrivate || f.file === file));
-    const sure = (found) => ({ functions: found, sure: true });
-    // Sure of a type only when it is a class, struct, enum or actor in the sources that declares the function itself, with
-    // a body: a protocol, a generic parameter, a typealias or a type from elsewhere may stand for a type that has a helper.
-    const declaring = (type) => (concreteTypes(files).has(type) ? named.filter((f) => f.type === type && f.bodyFrom >= 0) : []);
-    if (qualifier && /^[A-Z]/.test(qualifier) && qualifier !== "Self") {
-        if (concreteTypes(files).has(qualifier)) return sure(declaring(qualifier).filter((f) => f.isStatic));
-        const statics = named.filter((f) => f.isStatic);
-        return { functions: statics, sure: statics.length === 0 };
-    }
-    if (!qualifier || qualifier === "self" || qualifier === "Self") {
-        if (!qualifier && caller && (caller.params.some((p) => p.name === name) || declaredIn(lexed, caller, name))) return sure([]);
-        for (const found of [caller?.type ? declaring(caller.type) : [], named.filter((f) => f.file === file && f.bodyFrom >= 0), named.filter((f) => f.type === null)]) {
-            if (found.length > 0) return sure(found);
-        }
-        return { functions: named, sure: named.length <= 1 };
-    }
-    if (qualifier === ".") return sure(named.filter((f) => f.isStatic));
-    const members = named.filter((f) => !f.isStatic);
-    const type = qualifier === "?" ? null : declaredType(qualifier, lexed, files);
-    const found = type ? declaring(type).filter((f) => !f.isStatic) : [];
-    if (found.length > 0) return sure(found);
-    return { functions: members, sure: members.length <= 1 };
-}
-
-const concrete = new WeakMap();
-
-/** The names of the classes, structs, enums and actors the sources declare (not protocols, extensions or aliases). */
-function concreteTypes(files) {
-    if (!concrete.has(files)) {
-        concrete.set(files, new Set(files.flatMap((f) => typesIn(f.lexed.code).filter((t) => t.kind !== "protocol" && t.kind !== "extension").map((t) => t.name))));
-    }
-    return concrete.get(files);
-}
-
-/**
- * The type a variable, property or parameter is declared with (`pdf: PdfController`, `var sources = SourcesController(…)`): the
- * file's own declaration, else the one type every other file declares it with; null when it cannot be told.
- */
-function declaredType(name, lexed, files) {
-    const pattern = new RegExp(`(?<![\\w.])${name}\\s*:\\s*([A-Z][\\w.]*)|\\b(?:let|var)\\s+${name}\\s*=\\s*([A-Z][\\w.]*)\\s*\\(`, "g");
-    const typesIn = (code) => [...new Set([...code.matchAll(pattern)].map((m) => (m[1] ?? m[2]).split(".").pop()))];
-    const own = typesIn(lexed.code);
-    if (own.length > 0) return own.length === 1 ? own[0] : null;
-    const everywhere = [...new Set(files.flatMap((f) => typesIn(f.lexed.code)))];
-    return everywhere.length === 1 ? everywhere[0] : null;
+    return { sent, unread, outside, enums };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 const sources = Object.fromEntries(swiftFiles(swiftRoot).map((file) => [file, readFileSync(file, "utf8")]));
-const { sent, unread } = sentNames(sources);
+const { sent, unread, outside, enums } = sentNames(sources);
 const calls = new Map(contract.calls.map((call) => [call.name, call]));
-const listed = [...unresolved].flatMap(([place, { names }]) => names.map((name) => ({ name, where: `${place} (listed)` })));
 
 test("every call name the Swift sends is one the facade answers", () => {
-    const unknown = [...sent, ...listed].filter((s) => !calls.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
+    const unknown = sent.filter((s) => !calls.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
     assert.deepEqual(unknown, [], "names not in tests/contracts/facade-calls.json");
 });
 
@@ -571,131 +457,129 @@ test("every call is sent to a piece the facade answers it on", () => {
     assert.deepEqual(misplaced, []);
 });
 
-test("every name the reader cannot follow is listed with the names it stands for, and every listed place is still there", () => {
-    assert.deepEqual(unread.map((u) => u.place).filter((place) => !unresolved.has(place)), [], "list these in `unresolved`");
-    assert.deepEqual([...unresolved.keys()].filter((place) => !unread.some((u) => u.place === place)), [], "no longer in the sources: take these out of `unresolved`");
-    const stale = unread
-        .filter((u) => unresolved.has(u.place))
-        .flatMap((u) => unresolved.get(u.place).names.filter((name) => !u.literals.includes(name)).map((name) => `${name} is no longer written in ${u.place}`));
-    assert.deepEqual(stale, []);
+test("no file but the port calls music-core by name", () => {
+    assert.deepEqual(outside, [], "make these calls through PieceCore (a case of PieceCore.Call or PieceCore.NoPiece)");
 });
 
-test("a call the port makes is made from no other file", () => {
-    const ported = new Set(sent.filter((s) => portFiles.includes(basename(s.file))).map((s) => s.name));
-    const corrections = ["", ".change", ".remove", ".revert", ".undo", ".acceptDraft", ".undoDraft", ".layer", ".drop", ".begin", ".set", ".add", ".reset", ".discard", ".save"]
-        .map((call) => `corrections${call}`);
-    const required = ["select", "playback", "roll", "sources.layers", ...corrections];
-    assert.deepEqual(required.filter((name) => !ported.has(name)), [], `the port's calls read: ${[...ported].join(", ")}`);
-    const elsewhere = [...sent.filter((s) => !portFiles.includes(basename(s.file))), ...listed]
-        .filter((s) => ported.has(s.name)).map((s) => `${s.name}  ← ${s.where}`);
-    assert.deepEqual(elsewhere, [], "make these calls through PieceCore");
+test("the reader follows every call the port makes", () => {
+    assert.deepEqual(unread, [], "write the call's name where the port makes it, or as a case of its enums of calls");
 });
 
-test("each case of the port's enums of calls sends the call it is named after", () => {
-    // PieceCore.Correction: the case is the last part of its call's name, so two literals swapped fail
-    // here. The one exception: `.bar` is the plain `corrections`.
-    const port = readFileSync(join(swiftRoot, "Platform", "PieceCore.swift"), "utf8");
-    const named = { bar: "corrections" };
-    const cases = [...port.matchAll(/case \.(\w+):\s*\n\s*return await \w+\("([^"]+)"/g)].map(([, name, call]) => ({ name, call }));
-    assert.ok(cases.length >= 15, `only ${cases.length} cases read`);
-    const wrong = cases.filter(({ name, call }) => (name in named ? call !== named[name] : call.split(".").pop() !== name)).map(({ name, call }) => `.${name} → ${call}`);
+test("each case of the port's enums of calls is named after the call it sends", () => {
+    // The case is the call's name camel-cased, whole or from its second part on ("sources.view.hide": sourcesViewHide or
+    // viewHide), so two names swapped fail here. The exceptions: `.bar` is the plain `corrections`, `.tryWay` is `try`.
+    const named = { bar: "corrections", tryWay: "try" };
+    const cases = [...enums.values()].flat();
+    assert.ok(cases.length >= 100, `only ${cases.length} cases read`);
+    const wrong = cases
+        .filter(({ name, call }) => (name in named ? call !== named[name] : name !== camel(call) && name !== camel(call, 1)))
+        .map(({ name, call }) => `.${name} → ${call}`);
     assert.deepEqual(wrong, []);
 });
 
 test("the reader still sees the Swift's calls", () => {
-    // A floor, not a count: if the calls change form (a typed port in place of MusicCore.call), this reader must follow it.
+    // A floor, not a count: if the calls change form, this reader must follow it.
     assert.ok(sent.length >= 100, `only ${sent.length} sites read`);
 });
 
 test("the calls no Swift sends (reported, not a failure)", (t) => {
-    const used = new Set([...sent, ...listed].map((s) => s.name));
+    const used = new Set(sent.map((s) => s.name));
     const unsent = contract.calls.map((c) => c.name).filter((name) => !used.has(name));
     t.diagnostic(`${unsent.length} of ${contract.calls.length} facade calls are sent by no Swift: ${unsent.join(", ")}`);
 });
 
-test("the reader follows literals, choices, locals, helpers, labels, defaults and the piece, and lists what it cannot read", () => {
+test("the reader follows the port's literals, choices, locals, enums, helpers, labels, defaults and pieces", () => {
     const { sent: found, unread: missed } = sentNames({
-        "/x/A.swift": `
-            enum Core {
-                // MusicCore.call(piece: 0, "commented.out")
-                /* MusicCore.call(piece: 0, "block.comment") */
-                static func plain() { _ = MusicCore.call(piece: 0, "version") }
-                static func choice(_ on: Bool) { _ = MusicCore.call(piece: p, on ? "a.on" : "a.off", "{\\"x\\": \\"(y)\\"}") }
-                static func local() { let call = "b.local"; _ = MusicCore.call(piece: p, call) }
-                static func changed(_ x: Bool) { var call = "b.var"; if x { call = "b.other" }; _ = MusicCore.call(piece: p, call) }
-                static func again(_ x: Bool) { let call = "b.first"; _ = MusicCore.call(piece: p, call); call = "b.later" }
-                private func send(_ piece: Int32, _ name: String, _ fields: [String: Any] = [:]) { _ = MusicCore.call(piece: piece, name, facadeRequest(fields)) }
-                private func relay(_ name: String) { send(0, name) }
-                func use() { send(id, "c.open"); relay("c.zero"); send(id, "x.\\(part)") }
-                func steps() { step.undo(remove: "d.remove") { call, fields in send(id, call, fields) } }
-                func handed() { step.redo(through: send) }
-                static func lay(piece: Int32, call: String = "notation", request: String) { _ = MusicCore.call(piece: piece, call, request) }
-                static func both() { lay(piece: id, request: "{}"); Core.lay(piece: id, call: "merge.notation", request: "{}") }
-            }`,
-        "/x/B.swift": `
-            struct Other {
-                private func send(_ a: Int32, _ b: String) { print(b) }
-                func elsewhere() { send(1, "not.a.call"); _ = MusicCore.call(piece: 0, "\\(prefix).add") }
-            }`,
-        // A helper that is not the only function of its name, called from other types and files.
-        "/x/Pdf/PdfController.swift": `
-            final class PdfController {
-                func change(_ call: String, _ fields: [String: Any]) async { _ = MusicCore.call(piece: piece, call, facadeRequest(fields)) }
-            }
-            final class Metronome { func change(bpm: Int) {} }
-            enum Edit { case change(id: String) }`,
-        "/x/Features/Tool.swift": `
-            struct Tool {
-                func typed(pdf: PdfController) async { await pdf.change("e.typed", [:]) }
-                func untyped() async { await controller.change("e.untyped", [:]) }
-                func unreadable(_ name: String) async { await controller.change(name.lowercased(), [:]) }
-                func others(metronome: Metronome) async { metronome.change(bpm: 90); let edit = Edit.change(id: "x"); if case let .change(id) = edit {} }
-                func loop(_ names: [String]) { for (i, change) in names.enumerated() { print(i, change) } }
-            }`,
-        // A value typed as a protocol, a generic parameter or an alias, a type's name that is an alias, and a protocol's
-        // own extension may all reach the helper: read as unsure. A nested type is its own type, not the outer one; an
-        // enum's case through a concrete type's name is no call.
-        "/x/Features/Kinds.swift": `
-            protocol InkHost { func change(_ call: String, _ fields: [String: Any]) async }
-            extension PdfController: InkHost {}
-            extension InkHost { func wipe() async { await change("g.own", [:]); await self.change("g.self", [:]) } }
-            typealias Sheet = PdfController
-            typealias Plan = Core
-            enum Step { case lay(call: String) }
-            struct Outer {
-                func send(_ x: Int) {}
-                struct Inner { func send(_ name: String) { _ = MusicCore.call(piece: 0, name) } }
-            }
-            struct Kinds<Holder: PdfController> {
-                let host: InkHost
-                let holder: Holder
-                let sheet: Sheet
-                let inner: Outer.Inner
-                func all() async { await host.change("g.proto", [:]); await holder.change("g.generic", [:]); await sheet.change("g.alias", [:]) }
-                func more() { Plan.lay(piece: id, call: "g.static", request: "{}"); inner.send("g.nested"); _ = Step.lay(call: "g.case") }
-            }`,
-        // The facade's own function, spelled without "MusicCore." inside its type.
-        "/x/Core/MusicCoreExtras.swift": `
-            extension MusicCore {
-                static func ping() -> String { call(piece: 0, "f.plain") }
-                static func pong() -> String { Self.call(piece: 0, "f.self") }
-                static func handed() -> Any { Self.call }
+        "/x/Platform/PieceCore.swift": `
+            struct PieceCore {
+                enum Call: String { case aOne = "a.one", two = "a.two" }
+                enum NoPiece: String {
+                    // case commented = "commented.out"
+                    case b = "b"
+                }
+                func literal() -> String { MusicCore.call(piece: piece, "c.literal") /* MusicCore.call(piece: 0, "block.comment") */ }
+                func choice(_ on: Bool) -> String { MusicCore.call(piece: piece, on ? "c.on" : "c.off", "{\\"x\\": \\"(y)\\"}") }
+                func local() -> String { let name = "c.local"; return MusicCore.call(piece: piece, name) }
+                func send(_ call: Call, _ request: String? = nil) -> String { MusicCore.call(piece: piece, call.rawValue, request) }
+                static func plain(_ call: NoPiece) -> String { MusicCore.call(piece: 0, call.rawValue) }
+                func helped() async { _ = await helper("d.helped"); _ = await self.helper(); _ = await labelled(on: 0, call: "d.zero") }
+                private func helper(_ name: String = "d.default") async -> String { MusicCore.call(piece: piece, name) }
+                private func labelled(on number: Int32, call: String) async -> String { MusicCore.call(piece: number, call) }
+                func forwards(_ name: String) -> String { MusicCore.call(piece: piece, name) }
+                func built(_ part: String) -> String { MusicCore.call(piece: piece, "e.\\(part)") }
+                func changed(_ x: Bool) -> String { var name = "e.var"; if x { name = "e.other" }; return MusicCore.call(piece: piece, name) }
+                func handed() -> Any { helper }
+                func through(_ other: PieceCore) async { _ = await other.helper("e.other") }
+                func twice() async { _ = await again("f.one") }
+                private func again(_ name: String) async -> String { MusicCore.call(piece: piece, name) }
+                private func again(_ name: String, _ x: Int) async -> String { "" }
+                func valued() -> Any { MusicCore.call }
             }`,
     });
     assert.deepEqual(found.map((s) => `${s.name}@${s.piece}`).sort(), [
-        "a.off@open", "a.on@open", "b.local@open", "c.open@open", "c.zero@piece0", "e.typed@open", "e.untyped@open",
-        "f.plain@piece0", "f.self@piece0", "g.alias@open", "g.generic@open", "g.nested@piece0", "g.own@open", "g.proto@open", "g.self@open",
-        "g.static@open", "merge.notation@open", "notation@open", "version@piece0",
+        "a.one@open", "a.two@open", "b@piece0", "c.literal@open", "c.local@open", "c.off@open", "c.on@open",
+        "d.default@open", "d.helped@open", "d.zero@piece0",
     ]);
-    assert.deepEqual(missed.map((m) => m.place).sort(), [
-        "A.swift › again › call",
-        "A.swift › changed › call",
-        "A.swift › handed › send passed as a value",
-        "A.swift › steps › call",
-        'A.swift › use › "x.\\(part)"',
-        'B.swift › elsewhere › "\\(prefix).add"',
-        "MusicCoreExtras.swift › handed › MusicCore.call passed as a value",
-        "Tool.swift › unreadable › controller.change(…) may be PdfController.change",
-    ]);
-    assert.deepEqual(missed.find((m) => m.place === "A.swift › steps › call").literals, ["d.remove"]);
+    assert.deepEqual(missed.sort(), [
+        "PieceCore.swift › again › another function is named again too",
+        "PieceCore.swift › changed › name",
+        'PieceCore.swift › built › "e.\\(part)"',
+        "PieceCore.swift › forwards › takes a call's name and is not private",
+        "PieceCore.swift › handed › helper passed as a value",
+        "PieceCore.swift › through › helper called through another value",
+        "PieceCore.swift › valued › MusicCore.call passed as a value",
+    ].sort());
+});
+
+test("outside the port, a call by name fails in every shape that once hid one (#654)", () => {
+    // Each file is one of the shapes the reader of scattered calls could not see; none needs to be read now: the call by
+    // name outside the port fails wherever the name comes from.
+    const { outside: found, sent: read } = sentNames({
+        "/x/Platform/PieceCore.swift": `struct PieceCore { enum Call: String { case check = "check" } }`,
+        // An overload with other argument labels hides a helper.
+        "/x/A/Overload.swift": `
+            final class Tool {
+                func change(_ call: String, _ fields: [String: Any]) async { _ = MusicCore.call(piece: 1, call, facadeRequest(fields)) }
+                func change(_ call: String, draws: Bool) async { await change(call, [:]) }
+                func use() async { await change("x.hidden", draws: true) }
+            }`,
+        // An \`if let\` local typed from another file's declaration of the same name.
+        "/x/A/IfLet.swift": `
+            final class Sheet { func change(_ call: String) { _ = MusicCore.call(piece: 1, call) } }
+            struct Use { func run(_ holder: Holder) { if let sheet = holder.sheet { sheet.change("x.iflet") } } }`,
+        // Another function of the same name in the caller's file hides an inherited helper.
+        "/x/A/SameName.swift": `
+            class Base { func send(_ name: String) { _ = MusicCore.call(piece: 1, name) } }
+            final class Sub: Base { func go() { send("x.inherited") } }
+            func send(_ x: Int) {}`,
+        // A helper used as a function value.
+        "/x/A/Value.swift": `
+            struct Core { func f(_ name: String) { _ = MusicCore.call(piece: 1, name) } }
+            func all(_ core: Core) { ["x.a", "x.b"].forEach(core.f) }`,
+        // An inherited class func called through a concrete subclass's name.
+        "/x/A/ClassFunc.swift": `
+            class Base { class func f(_ name: String) -> String { MusicCore.call(piece: 0, name) } }
+            final class Sub: Base {}
+            func use() { _ = Sub.f("x.class") }`,
+        // A name passed in a case of a switch (\`keepRecognised\` was missed so), the facade's own function in another file,
+        // the C function, and a port enum made from a name.
+        "/x/A/Other.swift": `
+            func kept(_ r: Result<Int, Error>) { switch r { case .success: keep("x.case"); case .failure: break } }
+            func keep(_ name: String) { _ = MusicCore.call(piece: 1, name) }
+            extension MusicCore { static func ping() -> String { call(piece: 0, "x.ext") } }
+            func raw() { _ = ml_call(0, nil, nil) }
+            func made(_ name: String) { _ = PieceCore.Call(rawValue: name) }`,
+    });
+    assert.deepEqual(read, []);
+    assert.deepEqual(found.sort(), [
+        "ClassFunc.swift › f › MusicCore.call",
+        "IfLet.swift › change › MusicCore.call",
+        "Other.swift › keep › MusicCore.call",
+        "Other.swift › made › Call(rawValue:)",
+        "Other.swift › ping › MusicCore.call",
+        "Other.swift › raw › ml_call",
+        "Overload.swift › change › MusicCore.call",
+        "SameName.swift › send › MusicCore.call",
+        "Value.swift › f › MusicCore.call",
+    ].sort());
 });

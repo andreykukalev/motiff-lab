@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
-`OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
+`OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
@@ -14,10 +14,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
 - `ScanReview.swift` (v1.3 i-2): a scan's Check bars kept only on this iPad (`ScanReviewStore`, Application Support/ScanReview/<fingerprint>/: review.json, bar-<n>.png, newest 40), found by `check`'s "fingerprint"; `ScanVariant` as `scan.join` gave it.
-- `PieceCore.swift`: the port to music-core for an open piece (0031 step 1b, a struct): the hot features'
-  calls, `select`, `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, 15 calls),
-  `variant` (v1.3 i-2), `draftSheet` and `draftTechniques` (v1.1), each answered as `PieceCore.Answer` (the typed value, the text,
-  music-core's `message`). Features make these calls only here; the other calls move with their features in phase C.
+- `PieceCore.swift`: the port to music-core (0031 step 1b, #654), the one way to a call by name. Typed: `select`,
+  `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, raw value the name), `variant`, the drafts'
+  calls, each answered as `PieceCore.Answer` (typed value, text, `message`).
+- `PieceCoreCalls.swift`: the calls not typed yet, cases of `PieceCore.Call` (`send`, open piece) and `PieceCore.NoPiece`
+  (`sendWithoutPiece`, piece 0) named by raw value, answering the text inside the caller's `MusicCore.run`. A helper
+  takes a case, never a name (`SourcesController.change`, `PdfController.change`, `PenScore.changeMarks`).
 - `FormSection.swift`: `FormSection`, a section of the form as music-core letters it (`Answer.FormSection`), one type
   for Piece DNA's form lane, the Contents' structure and the letters on the score (`PiecePhrases.sections`).
 - `PieceAnswers.swift`: the typed answers, `SelectionAnswer`, `PhrasesAnswer` (units with their starts, sections), `PlaybackAnswer`,
@@ -61,9 +63,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 ## The contract others may rely on
 
-- Every facade name sent must be in `tests/contracts/facade-calls.json` (`tests/shared/facade-calls-contract.test.mjs`
-  reads the Swift for them); a call `PieceCore` makes is made from no other file, and each case of its enums of calls
-  sends the call it is named after.
+- Every facade name sent must be in `tests/contracts/facade-calls.json`; only the port's two files call `MusicCore.call`,
+  its helpers taking a name are private, and each enum case is named after its call (`facade-calls-contract.test.mjs`).
 - The typed answers decode `tests/contracts/facade-answers/*.json` (`FacadeAnswerFixturesTests`), which
   `FacadeAnswersContractTests` keeps equal to the facade's answers on the example piece.
 - `PageCommand` and `PageEvent` are `tests/contracts/score-page.json`, checked by

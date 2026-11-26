@@ -131,7 +131,7 @@ enum PieceMaker {
             guard let opened = facadeObject(MusicCore.open(fileName: name, data: data, request: nil)),
                   let piece = (opened["piece"] as? NSNumber)?.int32Value, piece > 0 else { return nil }
             defer { MusicCore.close(piece: piece) }
-            let saved = MusicCore.call(piece: piece, "project.save", nil)
+            let saved = PieceCore(piece: piece).send(.projectSave, nil)
             guard let object = facadeObject(saved), object["error"] == nil else { return nil }
             return saved
         }

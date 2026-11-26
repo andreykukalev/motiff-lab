@@ -239,7 +239,7 @@ extension PdfController {
         inkQueue.then { [weak self] in
             guard let self, let last = self.steps.undo() else { return }
             self.inkStepsChanged()
-            await last.undo(remove: "document.ink.remove", add: "document.ink.add") { call, request, draws in
+            await last.undo(remove: PieceCore.Call.documentInkRemove, add: .documentInkAdd) { call, request, draws in
                 await self.change(call, request, draws: draws)
             }
         }
@@ -251,7 +251,7 @@ extension PdfController {
         inkQueue.then { [weak self] in
             guard let self, let step = self.steps.redo() else { return }
             self.inkStepsChanged()
-            await step.redo(remove: "document.ink.remove", add: "document.ink.add") { call, request, draws in
+            await step.redo(remove: PieceCore.Call.documentInkRemove, add: .documentInkAdd) { call, request, draws in
                 await self.change(call, request, draws: draws)
             }
         }
@@ -345,7 +345,7 @@ extension PdfController {
         guard let request = DocumentStroke.request(id: id, tool: tool, colour: colour, size: size, page: page, box: box, points: points) else { return }
         steps.record(InkStep(added: [id], strokes: [request]))
         inkStepsChanged()
-        await change("document.ink.add", ["strokes": [request]])
+        await change(.documentInkAdd, ["strokes": [request]])
     }
 
     /// The eraser moved (InkInput, BUG-05), its points in the PDF view's: on the page it came down on, the strokes under it
@@ -373,9 +373,9 @@ extension PdfController {
         inkQueue.then { [weak self] in
             guard let self else { return }
             if !eraser.pieces.isEmpty {
-                await self.change("document.ink.add", ["strokes": eraser.pieces.map(\.fields)], draws: false)
+                await self.change(.documentInkAdd, ["strokes": eraser.pieces.map(\.fields)], draws: false)
             }
-            await self.change("document.ink.remove", ["ids": eraser.removed.map(\.id)])
+            await self.change(.documentInkRemove, ["ids": eraser.removed.map(\.id)])
             if !self.closing.isEmpty { self.closing.removeFirst() }
             self.steps.record(InkStep(added: eraser.pieces.map(\.id), removed: eraser.removed.map(\.fields), strokes: eraser.pieces.map(\.fields)))
             self.inkStepsChanged()

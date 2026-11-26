@@ -230,7 +230,7 @@ extension ScanServer {
         }
         report?(progress)
         let json = facadeRequest(["pages": read])
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, "scan.join", json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(.scanJoin, json) }
         guard let object = facadeObject(answer), object["error"] == nil, let score = object["score"] as? String else {
             return .failure(.server(text["import.scanPagesNotJoined"]))
         }
