@@ -48,6 +48,8 @@
     <None Include="..\..\..\..\design\kit\elise.musicxml" Link="Golden\Analysis\elise.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <!-- The facade's call names (FacadeCallsContractTests), which tests/shared/facade-calls-contract.test.mjs reads too. -->
     <None Include="..\..\..\contracts\facade-calls.json" Link="Contracts\facade-calls.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The calls as docs/facade-contract.md lists them from the call registry (FacadeCallsContractTests). -->
+    <None Include="..\..\..\..\docs\facade-contract.md" Link="Contracts\facade-contract.md" CopyToOutputDirectory="PreserveNewest" />
     <!-- The facade's answers the iPad decodes into its typed answers (FacadeAnswersContractTests, FacadeAnswerFixturesTests.swift). -->
     <None Include="..\..\..\contracts\facade-answers\*.json" Link="Contracts\facade-answers\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- The example piece of both apps (tools/fur-elise/build.mjs). -->

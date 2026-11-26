@@ -15,16 +15,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private string CallOnSources(string name, Request request) => name switch
-    {
-        "sources" => SourcesAnswer(),
-        "sources.document" => KeepDocument(request),
-        "sources.documentNotes" => AddDocumentNotes(request),
-        "sources.pdf" => request.Text("id") is { } id && id != PieceOriginal.DocumentId ? OriginalBytes(id) : DocumentBytes(),
-        "sources.relink" => RelinkDocument(request),
-        "sources.held" => MarkHeld(request),
-        _ => CallOnSourceLayers(name, request) ?? throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-    };
+    /// <summary>This piece's project as the sources' calls that need no notes change it (<see cref="SourceRequest.Calls"/>), a PDF's pages shared over the bars.</summary>
+    internal SourceOwner HeldSources => new(() => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
 
     /// <summary>The sources answer (<see cref="SourceRequest.Sources"/>) of this piece; <paramref name="more"/> writes what a call adds first.</summary>
     private string SourcesAnswer(Action<Utf8JsonWriter>? more = null) => SourceRequest.Sources(Project, Words, more);

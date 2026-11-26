@@ -1,6 +1,7 @@
 // music-core as a native library (NativeAOT) for the iPad app (decision record 0019). The functions are the facade of
 // decision record 0020, exported by ../Exports.cs. Every returned string is UTF-8 JSON owned by the caller: free it with
-// ml_free. A failure returns {"error": "...", "message": "..."}. Call them from one thread at a time.
+// ml_free. A failure returns {"error": "...", "message": "..."} (docs/facade-contract.md lists the codes). Call them from
+// one thread at a time.
 #ifndef MOTIFFLAB_CORE_H
 #define MOTIFFLAB_CORE_H
 
@@ -10,16 +11,16 @@
 extern "C" {
 #endif
 
-// The facade's version: {"contract": 3, "projectFile": 12, "runtime": ".NET 10.0.x; ios-arm64; NativeAOT"}.
+// The facade's version: {"contract": n, "projectFile": n, "runtime": ".NET 10.0.x; ios-arm64; NativeAOT"}.
 char *ml_version(void);
 
-// Opens a MIDI or MusicXML file as a new project, or a project file (.motiff.json), and returns
-// {"piece": n, "project": {...}, "summary": {...}}; `request` is an optional JSON object
+// Opens a MIDI or MusicXML file as a new project, a project file (.motiff.json), a PDF or a recording, and returns
+// {"piece": n, "project": {...}, "summary": {...}} ("document" or "recording" for a piece without notes); `request` is an optional JSON object
 // ({"language": "ru", "id": "...", "now": "..."}) or NULL.
 char *ml_open(const char *file_name, const uint8_t *data, int32_t length, const char *request);
 
-// Runs one call ("phrases", "select", "understand", "try", "variation.propose", "notation", "playback",
-// "project.save", ...) on an open piece; piece 0 is for "version", "catalogue", "settings" and "settings.state".
+// Runs one call by name ("phrases", "select", "notation", "playback", "project.save", ...) on an open piece, or on
+// piece 0 for the calls that need none; the calls and where each is answered: docs/facade-contract.md.
 // `request` is the call's JSON object or NULL.
 char *ml_call(int32_t piece, const char *name, const char *request);
 

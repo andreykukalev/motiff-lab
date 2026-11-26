@@ -15,17 +15,16 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static partial class ReferenceRequest
 {
-    /// <summary>The Reference's calls on piece 0, by name.</summary>
-    public static string Call(string name, Request fields) => name switch
-    {
-        "reference.key" => Key(fields),
-        "reference.sound" => Sound(fields),
-        "reference.chord" => Chord(fields),
-        "reference.scale" => Scale(fields),
-        "reference.sounding" => Sounding(fields),
-        "reference.explorer" => Explorer(fields),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
-    };
+    /// <summary>The Reference's calls on piece 0 (<see cref="CallRegistry.WithoutPiece"/>).</summary>
+    public static readonly FacadeCall<MusicCoreFacade>[] Calls =
+    [
+        new("reference.key", static (_, fields) => Key(fields)),
+        new("reference.sound", static (_, fields) => Sound(fields)),
+        new("reference.chord", static (_, fields) => Chord(fields)),
+        new("reference.scale", static (_, fields) => Scale(fields)),
+        new("reference.sounding", static (_, fields) => Sounding(fields)),
+        new("reference.explorer", static (_, fields) => Explorer(fields)),
+    ];
 
     /// <summary>
     /// {"fifths"?, "mode"? ("major" or "minor"), "language", "naming"} → {"signatures": the fifteen choices of the lookup,

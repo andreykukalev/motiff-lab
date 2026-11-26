@@ -9,13 +9,14 @@ import os
 /// The facade keeps its open pieces in memory and is not shared between threads, so every call runs through
 /// `MusicCore.run`, one at a time, on a thread with the 8 MB stack the .NET runtime expects, off the main thread.
 enum MusicCore {
-    /// {"contract": 5, "projectFile": 14, "runtime": "…"}
+    /// {"contract": n, "projectFile": n, "runtime": "…"}: the facade contract's number (docs/facade-contract.md) and the
+    /// project file's version.
     static func version() -> String {
         take(ml_version())
     }
 
-    /// Opens a MIDI or MusicXML file as a new project, or a project file, and returns the piece's number with its
-    /// summary: {"piece": 1, "project": {…}, "summary": {…}}.
+    /// Opens a MIDI or MusicXML file as a new project, a project file, a PDF or a recording, and returns the piece's number
+    /// with its project: {"piece": 1, "project": {…}, "summary": {…}}, or "document" or "recording" for a piece without notes.
     static func open(fileName: String, data: Data, request: String? = nil) -> String {
         withOptionalCString(request) { requestPointer in
             fileName.withCString { name in
@@ -26,7 +27,8 @@ enum MusicCore {
         }
     }
 
-    /// Runs one call on an open piece; piece 0 is for "version", "catalogue", "settings" and "settings.state".
+    /// Runs one call by name on an open piece, or on piece 0 for the calls that need none. The calls and where each is
+    /// answered: docs/facade-contract.md (music-core's call registry), checked against tests/contracts/facade-calls.json.
     static func call(piece: Int32, _ name: String, _ request: String? = nil) -> String {
         withOptionalCString(request) { requestPointer in
             name.withCString { namePointer in
