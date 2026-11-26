@@ -17,17 +17,21 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static class SourceRequest
 {
-    /// <summary>The answer of a call of the sheet on the piece <paramref name="get"/> gives; null when the call is not one of them.</summary>
-    /// <param name="evenPages">The page map of a PDF added to a piece with notes, its pages shared over the bars; null for a piece with none.</param>
-    public static string? Call(string name, Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages, Words words) => name switch
-    {
-        "sources.layers" => Layers(request, get(), words),
-        "sources.view.hide" => Changed(request, get, set, words, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false."))),
-        "sources.notes.remove" => Changed(request, get, set, words, project => project.DeleteNotes(request.Required("id"))),
-        "sources.original.remove" => Changed(request, get, set, words, project => project.RemoveOriginal(request.Required("id"), Now(request), request.Bool("withNotes") ?? false)),
-        "sources.original.add" => AddOriginal(request, get, set, evenPages, words),
-        _ => null,
-    };
+    /// <summary>
+    /// The sources' calls that need no notes open, on a piece with notes and on one without (<see cref="CallRegistry"/>), each
+    /// on the project the <see cref="SourceOwner"/> holds: the sources answer, «Распознать» on a recording, the layers, hiding a
+    /// view, removing Notes, removing and adding an original.
+    /// </summary>
+    public static readonly FacadeCall<SourceOwner>[] Calls =
+    [
+        new("sources", static (on, _) => Sources(on.Get(), on.Words), CallFlags.OpenFirst),
+        new("sources.notes.hear", static (on, request) => Hear(request, on.Get, on.Set, on.Words)),
+        new("sources.layers", static (on, request) => Layers(request, on.Get(), on.Words)),
+        new("sources.view.hide", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false.")))),
+        new("sources.notes.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.DeleteNotes(request.Required("id")))),
+        new("sources.original.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.RemoveOriginal(request.Required("id"), Now(request), request.Bool("withNotes") ?? false))),
+        new("sources.original.add", static (on, request) => AddOriginal(request, on.Get, on.Set, on.EvenPages, on.Words)),
+    ];
 
     /// <summary>
     /// The base and its name, the summary line for the Sources sheet («Основа — ноты из файла · взято 12 тактов · 9 правок»),
@@ -193,3 +197,10 @@ internal static class SourceRequest
         }
     }
 }
+
+/// <summary>
+/// The project a call of <see cref="SourceRequest.Calls"/> reads and changes, of a piece with notes or without: how to get
+/// and set it, the page map of a PDF added to a piece with notes (its pages shared over the bars; null for a piece with
+/// none) and the words of the answer.
+/// </summary>
+internal sealed record SourceOwner(Func<Project> Get, Action<Project> Set, Func<int, PageMap>? EvenPages, Words Words);

@@ -1,6 +1,7 @@
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -12,14 +13,15 @@ namespace MotiffLab.MusicCore.Tests.Facade;
 
 /// <summary>
 /// The facade's call names as data (audit C2, blueprint 5.4): tests/contracts/facade-calls.json is exactly the calls
-/// <see cref="MusicCoreFacade.Call"/> answers today and where it answers each, so a call added, renamed or removed in C#
+/// <see cref="MusicCoreFacade.Call"/> answers today and where it answers each, as the call registry
+/// (<see cref="CallRegistry"/>) holds them and as the facade answers them, so a call added, renamed or removed in C#
 /// fails here until the file says so, and tests/shared/facade-calls-contract.test.mjs checks every name the iPad's Swift
-/// sends against the same file. Run the tests with MOTIFF_UPDATE_SNAPSHOTS=1 to write the file again after a deliberate
-/// change of the calls.
+/// sends against the same file; docs/facade-contract.md lists the same calls with their flags. Run the tests with
+/// MOTIFF_UPDATE_SNAPSHOTS=1 to write the file and the document's list again after a deliberate change of the calls.
 /// </summary>
 /// <remarks>
-/// The facade dispatches by name in <c>switch</c> expressions spread over many files, and by prefix between them, so the
-/// names are not read from the code's shape. Every name the facade could answer is a string literal compiled into
+/// The registry is read for the file and the document; the facade's answers are probed as well, so a name it answers
+/// outside the registry is caught too. Every name the facade could answer is a string literal compiled into
 /// music-core; each literal shaped like a call name, and each name the file lists, is sent to the facade on piece 0, on
 /// an open piece with notes, on an open PDF piece and on an open piece that is only a recording (version 1.1), and the
 /// facade's own answer says whether it knows the call there: it refuses an unknown one with "unknownCall" (or "noPiece"
@@ -61,6 +63,32 @@ public class FacadeCallsContractTests
         ];
         Assert.True(differences.Length == 0, $"tests/contracts/facade-calls.json differs from the facade ({UpdateVariable}=1 writes it again):\n{string.Join("\n", differences)}");
         Assert.Equal(Written(answered), kept);
+    }
+
+    [Fact]
+    public void The_registry_holds_the_calls_of_the_contract_file_where_the_file_says()
+    {
+        string kept = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Contracts", "facade-calls.json"));
+
+        Assert.Equal(kept, Written(Registered()));
+    }
+
+    [Fact]
+    public void The_contract_document_lists_the_registrys_calls_with_their_flags()
+    {
+        string kept = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Contracts", "facade-contract.md"));
+        int start = kept.IndexOf(CallsStart, StringComparison.Ordinal) + CallsStart.Length;
+        int end = kept.IndexOf(CallsEnd, StringComparison.Ordinal);
+        Assert.True(start >= CallsStart.Length && end >= start, "docs/facade-contract.md has lost the marks around its calls");
+        string written = string.Concat(kept.AsSpan(0, start), "\n", Table(), kept.AsSpan(end));
+
+        if (Environment.GetEnvironmentVariable(UpdateVariable) == "1")
+        {
+            File.WriteAllText(SourcePath(Path.Combine("docs", "facade-contract.md")), written);
+            return;
+        }
+
+        Assert.True(written == kept, $"docs/facade-contract.md lists other calls than the registry ({UpdateVariable}=1 writes them again)");
     }
 
     [Fact]
@@ -150,6 +178,46 @@ public class FacadeCallsContractTests
         };
     }
 
+    private const string CallsStart = "<!-- The calls: written from CallRegistry by FacadeCallsContractTests (MOTIFF_UPDATE_SNAPSHOTS=1). -->\n";
+
+    private const string CallsEnd = "<!-- End of the calls. -->";
+
+    /// <summary>Every call the registry holds, with where, as the file names the receivers (drafts.* on a piece).</summary>
+    private static SortedDictionary<string, string[]> Registered()
+    {
+        var registered = new SortedDictionary<string, string[]>(StringComparer.Ordinal);
+        foreach (string name in CallRegistry.WithoutPiece.Keys.Concat(CallRegistry.OnPiece.Keys).Concat(CallRegistry.OnDrafts.Keys).Concat(CallRegistry.OnDocument.Keys).Distinct())
+        {
+            CallFlags? document = CallRegistry.OnDocument.GetValueOrDefault(name)?.Flags;
+            registered[name] =
+            [
+                .. CallRegistry.WithoutPiece.ContainsKey(name) ? ["piece0"] : Array.Empty<string>(),
+                .. CallRegistry.OnPiece.ContainsKey(name) || CallRegistry.OnDrafts.ContainsKey(name) ? ["piece"] : Array.Empty<string>(),
+                .. document is not null ? ["pdf"] : Array.Empty<string>(),
+                .. document is { } flags && !flags.HasFlag(CallFlags.NeedsPdf) ? ["recording"] : Array.Empty<string>(),
+            ];
+        }
+
+        return registered;
+    }
+
+    /// <summary>The document's list: a call to a row, with where and the flags of its entries.</summary>
+    private static string Table()
+    {
+        var text = new StringBuilder("| Call | Answered on | Flags |\n| --- | --- | --- |\n");
+        foreach ((string name, string[] on) in Registered())
+        {
+            CallFlags flags = new[]
+            {
+                CallRegistry.WithoutPiece.GetValueOrDefault(name)?.Flags, CallRegistry.OnPiece.GetValueOrDefault(name)?.Flags,
+                CallRegistry.OnDrafts.GetValueOrDefault(name)?.Flags, CallRegistry.OnDocument.GetValueOrDefault(name)?.Flags,
+            }.Aggregate(CallFlags.None, static (all, each) => all | (each ?? CallFlags.None));
+            text.Append(CultureInfo.InvariantCulture, $"| `{name}` | {string.Join(", ", on)} | {(flags == CallFlags.None ? "" : flags.ToString())} |\n");
+        }
+
+        return text.ToString();
+    }
+
     private static Dictionary<string, string[]> Listed(string file) =>
         JsonDocument.Parse(file).RootElement.GetProperty("calls").EnumerateArray().ToDictionary(
             call => call.GetProperty("name").GetString()!,
@@ -171,6 +239,9 @@ public class FacadeCallsContractTests
         return text.ToString();
     }
 
-    private static string SourceContractPath([CallerFilePath] string source = "") =>
-        Path.Combine(Path.GetDirectoryName(source)!, "..", "..", "..", "..", "contracts", "facade-calls.json");
+    private static string SourceContractPath() => SourcePath(Path.Combine("tests", "contracts", "facade-calls.json"));
+
+    /// <summary>A file of the repository by its path from the root.</summary>
+    private static string SourcePath(string path, [CallerFilePath] string source = "") =>
+        Path.Combine(Path.GetDirectoryName(source)!, "..", "..", "..", "..", "..", path);
 }

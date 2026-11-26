@@ -44,7 +44,9 @@ through the facade; the API references it.
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
   `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
+  `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
+  gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Dispatch`, a nested
+  class that reaches its handlers; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`). `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
@@ -63,7 +65,8 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
   `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `<Folder>/Golden/*.txt` for what real
   pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
-- The wire contract: `tests/contracts/facade-calls.json` (`FacadeCallsContractTests`, and the Swift scan
+- The wire contract: `tests/contracts/facade-calls.json` and the calls of `docs/facade-contract.md`, both checked
+  against the registry and the facade's answers (`FacadeCallsContractTests`; the Swift scan
   `tests/shared/facade-calls-contract.test.mjs`) and the answer fixtures `tests/contracts/facade-answers`
   (`FacadeAnswersContractTests`, written again as above).
 
@@ -82,6 +85,7 @@ reads as a namespace.
 - No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
   same notes and diff. A phrase edit keeps the player's boundaries as saved and never moves the selection or a bookmark.
-- A new call goes into `facade-calls.json`; a change to the project file or to an answer the app reads is Andrei's
+- A call is a registry entry in its feature's list, never a name compared elsewhere; a new one goes into
+  `facade-calls.json` and `docs/facade-contract.md` (written again as above, its history line by hand); a change to the project file or to an answer the app reads is Andrei's
   decision 3 (`ProjectFile.Version`, `Contract`).
 - Analytics events are built only from `AnalyticsCatalogue`; sentences come in both languages from `Words`.
