@@ -1,6 +1,9 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
@@ -151,5 +154,50 @@ public class NoteDoubtTests
             Assert.Equal(dna.Harmony.Single(read => read.Bar == chord.Bar).Clear && chord.Bar != second, chord.Clear);
         });
         Assert.Same(dna, NoteDoubt.None.On(dna));
+    }
+
+    [Fact]
+    public void A_flag_that_only_the_hands_were_guessed_makes_no_note_doubtful()
+    {
+        Note[] notes = Heard();
+        int second = BarOf(notes.Single(note => note.Id == "f1"));
+        CheckFlag hands = new(second, CheckSource.Transcription, CheckReason.HandsGuessed, Resolved: false);
+        CheckFlag seam = new(second, CheckSource.Transcription, CheckReason.PartSeam, Resolved: false);
+
+        Assert.Empty(CheckFlag.DoubtfulBars([hands]));
+        Assert.True(NoteDoubt.Of(notes, MeterMap.Default, CheckFlag.DoubtfulBars([hands])).IsEmpty);
+        Assert.Equal([second], CheckFlag.DoubtfulBars([hands, seam]));
+        Assert.Empty(CheckFlag.DoubtfulBars([hands, seam with { Resolved = true }]));
+    }
+
+    [Fact]
+    public void The_assistant_reads_no_doubt_from_a_bar_whose_only_open_flag_is_guessed_hands()
+    {
+        byte[] midi = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Transcription", "Fixtures", "basic-pitch-melody.mid"));
+        ImportedPiece heard = Transcribed.Mark(PieceImporter.Import("take.mid", midi).Piece!);
+        int bar = heard.Meter.BarAt(heard.Notes[0].Span.Onset).Number;
+        CheckFlag Open(CheckReason reason) => new(bar, CheckSource.Transcription, reason, Resolved: false);
+
+        Assert.True(new AssistantPiece(heard, heard.Notes, [Open(CheckReason.HandsGuessed)]).Doubt.IsEmpty);
+        Assert.Equal([bar], new AssistantPiece(heard, heard.Notes, [Open(CheckReason.HandsGuessed), Open(CheckReason.DenseCluster)]).Doubt.Bars);
+    }
+
+    [Fact]
+    public void A_circle_of_fifths_read_from_doubtful_notes_is_uncertain_and_says_where_they_are()
+    {
+        Note[] notes = Heard();
+        int second = BarOf(notes.Single(note => note.Id == "f1"));
+        PieceDna dna = PieceDna.Build(notes, MeterMap.Default, [], new Tick(notes.Max(note => note.Span.End.Value)), null, null);
+
+        PieceDna doubted = NoteDoubt.Of(notes, MeterMap.Default, [second]).On(dna);
+        PieceDna resolved = NoteDoubt.Of(notes, MeterMap.Default, []).On(dna);
+
+        DnaCircle circle = Assert.Single(doubted.Circles, read => read.FirstBar <= second && second <= read.LastBar);
+        Assert.Equal(FactCertainty.Uncertain, circle.Circle.Certainty);
+        Assert.Equal($"Rests on recognised notes still to check in bar {second}.", circle.Doubt);
+        Assert.All(doubted.Circles.Where(read => read != circle), read => Assert.Null(read.Doubt));
+        // Checked: the circle reads as the analysers gave it.
+        Assert.All(resolved.Circles, read => Assert.Null(read.Doubt));
+        Assert.Equal(dna.Circles.Select(read => read.Circle.Certainty), resolved.Circles.Select(read => read.Circle.Certainty));
     }
 }

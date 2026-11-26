@@ -104,6 +104,9 @@ public sealed record DnaCircle(string Id, string Label, TickSpan Span, int First
 {
     /// <summary>Where <see cref="From"/> sits on the circle; null when the key does not change.</summary>
     public int? FromPosition => From is { } from ? KeyCircle.PositionOf(from) : null;
+
+    /// <summary>Why the circle is drawn as uncertain when its key and chords rest on recognised notes still to check (<see cref="NoteDoubt"/>, #352); null otherwise.</summary>
+    public string? Doubt { get; init; }
 }
 
 /// <summary>One bar of a lane measured as a number: notes per beat for density, the mean velocity for dynamics.</summary>

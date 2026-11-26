@@ -65,6 +65,8 @@ extension DnaScreen {
                             }
                             .buttonStyle(.plain)
                             .offset(x: x(key.onset, width))
+                            // A key read from recognised notes still to check says so, as a chord does (#352).
+                            .accessibilityLabel(key.doubt.map { "\(keyName(key)). \($0)" } ?? keyName(key))
                             .accessibilityHint(text["dna.keyHint"])
                         }
                     }
