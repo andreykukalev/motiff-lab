@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
@@ -88,6 +90,27 @@ public sealed record DraftVariant(string Id, DateTimeOffset AddedAt, DraftSource
     /// </summary>
     internal string? MadeBy(string param)
     {
+        using JsonDocument? made = Made();
+        return made is not null && made.RootElement.ValueKind == JsonValueKind.Object && made.RootElement.TryGetProperty(param, out JsonElement value)
+            && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+
+    /// <summary>
+    /// Whether music-core made this variant with the params <paramref name="parameters"/>, compared as JSON values: a project
+    /// file read back holds them as it wrote them, indented.
+    /// </summary>
+    internal bool MadeWith(string parameters)
+    {
+        using JsonDocument? made = Made();
+        using var other = JsonDocument.Parse(parameters);
+        return made is not null && JsonElement.DeepEquals(made.RootElement, other.RootElement);
+    }
+
+    /// <summary>The params of a variant music-core made, parsed; null for any other variant or params that are not JSON.</summary>
+    private JsonDocument? Made()
+    {
         if (Provenance.Op != NotesProvenance.Variation || Provenance.ParamsJson is not { } parameters)
         {
             return null;
@@ -95,13 +118,9 @@ public sealed record DraftVariant(string Id, DateTimeOffset AddedAt, DraftSource
 
         try
         {
-            using var document = System.Text.Json.JsonDocument.Parse(parameters);
-            return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && document.RootElement.TryGetProperty(param, out System.Text.Json.JsonElement value)
-                && value.ValueKind == System.Text.Json.JsonValueKind.String
-                ? value.GetString()
-                : null;
+            return JsonDocument.Parse(parameters);
         }
-        catch (System.Text.Json.JsonException)
+        catch (JsonException)
         {
             return null;
         }

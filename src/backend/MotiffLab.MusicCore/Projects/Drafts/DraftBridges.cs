@@ -315,7 +315,7 @@ public static class DraftBridges
             .SequenceEqual(notes.Select(static note => (note.Pitch, note.Onset, note.Duration)).Order());
 
     /// <summary>A key as the harmony reads it: its signature and mode, major where the source states no mode.</summary>
-    private static MusicalKey KeyOf(KeySignature key) => new(key.Fifths, key.Mode ?? KeyMode.Major);
+    internal static MusicalKey KeyOf(KeySignature key) => new(key.Fifths, key.Mode ?? KeyMode.Major);
 
     private static HashSet<int> PitchClasses(ExplorerChord chord) => [.. ChordReference.Spell(chord.Root, chord.Type).Select(static tone => tone.PitchClass)];
 

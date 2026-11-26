@@ -43,15 +43,67 @@ public class TechniqueCarryTests
     public void A_note_put_in_follows_the_base_note_by_steps_of_the_other_place_s_key()
     {
         // The variant adds a third below each quarter of bar 3 (72 74 76 77 over 69 71 72 74 in C major).
-        SourceMusic filled = Score(prefix: "h");
-        filled = filled with { Notes = [.. filled.Notes, .. new[] { 69, 71, 72, 74 }.Select((pitch, beat) => Note($"f{beat}", pitch, (2 * BarLength) + (beat * Quarter), Quarter))] };
-        Draft draft = Drafted(filled).With(Variant("v_3", Score(bars: 2, melody: static _ => [71, 72, 74, 76], fifths: 1, prefix: "g"), 1, 2, notes: "n_other"), DraftDrop.Place, "pl_2");
+        Draft draft = Filled(Score(bars: 2, melody: static _ => [71, 72, 74, 76], fifths: 1, prefix: "g"));
         PlaceTechnique fill = Assert.Single(draft.TechniquesOf("pl_1"));
 
         (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", fill.Number, null, "pl_2", Later, Words.English);
 
         // In G major two steps below B, C, D, E are G, A, B, C (by semitones they would be G♯, A, A♯, C♯).
-        Assert.Equal([67, 69, 71, 72], carried.FindPlace("pl_2")!.Variants[1].Music.Notes.Where(static note => note.Id.StartsWith("c_", StringComparison.Ordinal) && note.Span.Onset.Value < BarLength).Select(static note => note.Pitch.MidiNumber));
+        Assert.Equal([67, 69, 71, 72], PutIn(carried));
+    }
+
+    /// <summary>The base of eight bars and a variant that adds a third below each quarter of bar 3, then the place <paramref name="other"/>.</summary>
+    private static Draft Filled(SourceMusic other)
+    {
+        SourceMusic filled = Score(prefix: "h");
+        filled = filled with { Notes = [.. filled.Notes, .. new[] { 69, 71, 72, 74 }.Select((pitch, beat) => Note($"f{beat}", pitch, (2 * BarLength) + (beat * Quarter), Quarter))] };
+        return Drafted(filled).With(Variant("v_3", other, 1, other.Bars.Count, notes: "n_other"), DraftDrop.Place, "pl_2");
+    }
+
+    /// <summary>The notes the carry put in the first bar of the place pl_2.</summary>
+    private static IEnumerable<int> PutIn(Draft carried) =>
+        carried.FindPlace("pl_2")!.Variants[1].Music.Notes.Where(static note => note.Id.StartsWith("c_", StringComparison.Ordinal) && note.Span.Onset.Value < BarLength).Select(static note => note.Pitch.MidiNumber);
+
+    [Fact]
+    public void In_a_minor_key_a_note_put_in_follows_by_steps_of_its_natural_minor()
+    {
+        SourceMusic minor = Score(bars: 2, melody: static _ => [69, 70, 72, 74], fifths: -1);
+        Draft draft = Filled(minor with { Keys = [new MotiffLab.MusicCore.Pieces.KeySignature(Tick.Zero, -1, KeyMode.Minor)] });
+
+        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", 1, null, "pl_2", Later, Words.English);
+
+        // In D minor two steps below A, B♭, C, D are F, G, A, B♭ (by semitones they would be F♯, G, A♭, B).
+        Assert.Equal([65, 67, 69, 70], PutIn(carried));
+    }
+
+    [Fact]
+    public void A_note_put_in_over_a_chromatic_base_note_keeps_the_semitones_left_over_the_scale_steps()
+    {
+        // The base's bar 3 starts on F♯ and the variant fills it as above, the A over F♯: two steps of C major up from F♯ (A♯), one semitone less.
+        static int[] Melody(int bar) => bar == 2 ? [66, 74, 76, 77] : [72, 74, 76, 77];
+        SourceMusic heard = Score(melody: Melody, prefix: "h");
+        heard = heard with { Notes = [.. heard.Notes, .. new[] { 69, 71, 72, 74 }.Select((pitch, beat) => Note($"f{beat}", pitch, (2 * BarLength) + (beat * Quarter), Quarter))] };
+        Draft draft = Draft.Start("d_1", "Хроматика", At, "pl_1", Variant("v_1", Score(melody: Melody), 1, 8)).With(Variant("v_2", heard, 1, 8, notes: "perf_1"), DraftDrop.Variant, "pl_1")
+            .With(Variant("v_3", Score(bars: 2, melody: static _ => [65, 74, 76, 77], prefix: "g"), 1, 2, notes: "n_other"), DraftDrop.Place, "pl_2");
+
+        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", Assert.Single(draft.TechniquesOf("pl_1")).Number, null, "pl_2", Later, Words.English);
+
+        // Onto F: two steps up is A, and the semitone less gives A♭; the others follow D, E, F by steps of C major.
+        Assert.Equal([68, 71, 72, 74], PutIn(carried));
+    }
+
+    [Fact]
+    public void A_carry_that_would_take_out_every_note_of_the_place_is_refused_and_not_offered()
+    {
+        SourceMusic emptied = Score(prefix: "h");
+        emptied = emptied with { Notes = [.. emptied.Notes.Where(static note => !note.Id.StartsWith("h1r", StringComparison.Ordinal))] };
+        SourceMusic melody = Score(bars: 1, prefix: "g");
+        melody = melody with { Notes = [.. melody.Notes.Where(static note => note.Hand?.Value == Hand.Right)] };
+        Draft draft = Drafted(emptied).With(Variant("v_3", melody, 1, 1, notes: "n_other"), DraftDrop.Place, "pl_2");
+        PlaceTechnique simplify = Assert.Single(draft.TechniquesOf("pl_1"));
+
+        Assert.Equal("Этот приём убрал бы все ноты этого места.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(draft, "pl_1", simplify.Number, null, "pl_2", Later, Words.Russian)).Message);
+        Assert.Empty(Assert.Single(TechniqueCarry.Targets(draft, "pl_1", simplify.Number, null, Words.English)).Bars);
     }
 
     [Fact]

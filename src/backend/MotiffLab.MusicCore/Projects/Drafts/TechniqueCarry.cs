@@ -32,13 +32,10 @@ public static class TechniqueCarry
 {
     private const string KindParam = "carry";
 
-    /// <summary>The grid a note's place in the bar is read on: a 16th, as a приём's shape (<see cref="PlaceTechniques"/>).</summary>
-    private const long Slot = CanonicalTime.TicksPerQuarter / 4;
-
     /// <summary>
     /// Where the приём <paramref name="number"/> of the place <paramref name="fromId"/>, read at its bar <paramref name="bar"/>
     /// (its first when null), can go: each other place of the draft that is not a bridge, in order, with its bars (from 1)
-    /// where the приём fits, none where it fits nowhere.
+    /// where the приём fits, none where it fits nowhere or would take out every note of the place.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place, приём, or bar of it.</exception>
     /// <exception cref="InvalidOperationException">Bars put in, which are not carried; the message in <paramref name="words"/>.</exception>
@@ -46,7 +43,7 @@ public static class TechniqueCarry
     {
         ArgumentNullException.ThrowIfNull(draft);
         Pattern pattern = PatternOf(draft, fromId, number, bar, words);
-        return [.. draft.Places.Where(place => place.Id != fromId && !place.Bridge).Select(place => (place, Applied(pattern, place.BaseVariant.Music).Bars))];
+        return [.. draft.Places.Where(place => place.Id != fromId && !place.Bridge).Select(place => (place, Applied(pattern, place.BaseVariant.Music) is ({ Notes.Count: > 0 }, var bars) ? bars : []))];
     }
 
     /// <summary>
@@ -56,7 +53,8 @@ public static class TechniqueCarry
     /// <exception cref="KeyNotFoundException">No such place, приём, or bar of it.</exception>
     /// <exception cref="ArgumentException">The place of the приём itself.</exception>
     /// <exception cref="InvalidOperationException">
-    /// Bars put in, a bridge place, no bar it fits, or the place has that variant already; the message in <paramref name="words"/>.
+    /// Bars put in, a bridge place, no bar it fits, every note of the place taken out, or the place has that variant already;
+    /// the message in <paramref name="words"/>.
     /// </exception>
     public static (Draft Draft, IReadOnlyList<int> Bars) Put(Draft draft, string fromId, int number, int? bar, string toId, DateTimeOffset at, Words words)
     {
@@ -74,12 +72,17 @@ public static class TechniqueCarry
         }
 
         (SourceMusic music, IReadOnlyList<int> bars) = Applied(pattern, to.BaseVariant.Music);
+        if (bars.Count > 0 && music.Notes.Count == 0)
+        {
+            throw new InvalidOperationException(words.T("The technique would take out every note of that place.", "Этот приём убрал бы все ноты этого места."));
+        }
+
         if (bars.Count == 0)
         {
             throw new InvalidOperationException(words.T("The technique fits no bar of that place.", "Этот приём не подходит ни к одному такту этого места."));
         }
 
-        if (to.Variants.Any(each => each.Provenance.ParamsJson == pattern.Params && Same(each.Music.Notes, music.Notes)))
+        if (to.Variants.Any(each => each.MadeWith(pattern.Params) && Same(each.Music.Notes, music.Notes)))
         {
             throw new InvalidOperationException(words.T("The technique is carried into that place already.", "Этот приём уже перенесён в это место."));
         }
@@ -131,7 +134,7 @@ public static class TechniqueCarry
     /// <summary>The notes of a bar a приём takes out (by their ids in the base), by hand and 16th from <paramref name="start"/>, each group with its ranks from the hand's edge.</summary>
     private static Removal[] Removals(Note[] inBar, HashSet<string> removed, Tick start)
     {
-        long SlotOf(Note note) => (note.Span.Onset.Value - start.Value) / Slot;
+        long SlotOf(Note note) => (note.Span.Onset.Value - start.Value) / PlaceTechniques.ShapeGrid;
         return [.. inBar.Where(note => removed.Contains(note.Id))
             .GroupBy(note => (Hand: note.Hand?.Value, At: SlotOf(note)))
             .OrderBy(static group => group.Key.At).ThenBy(static group => group.Key.Hand)
@@ -205,7 +208,7 @@ public static class TechniqueCarry
         List<string> removed = [];
         foreach (Removal removal in pattern.Removals)
         {
-            Note[] there = Edged([.. inBar.Where(note => note.Hand?.Value == removal.Hand && (note.Span.Onset.Value - bar.Span.Onset.Value) / Slot == removal.At)], removal.Hand);
+            Note[] there = Edged([.. inBar.Where(note => note.Hand?.Value == removal.Hand && (note.Span.Onset.Value - bar.Span.Onset.Value) / PlaceTechniques.ShapeGrid == removal.At)], removal.Hand);
             if (there.Length == 0 || removal.Ranks.Any(rank => rank >= there.Length))
             {
                 return null;
@@ -267,7 +270,7 @@ public static class TechniqueCarry
 
     /// <summary>The key in force at a tick, as the harmony reads it: its signature and mode, major where none is stated, C major where no key is.</summary>
     private static MusicalKey KeyAt(SourceMusic music, Tick at) =>
-        KeySignature.InForce(music.Keys, at) is { } key ? new MusicalKey(key.Fifths, key.Mode ?? KeyMode.Major) : new MusicalKey(0, KeyMode.Major);
+        KeySignature.InForce(music.Keys, at) is { } key ? DraftBridges.KeyOf(key) : new MusicalKey(0, KeyMode.Major);
 
     /// <summary>The provenance's params: {"carry": the kind, "place", "variant" and "bar" it was read at}.</summary>
     private static string Params(PlaceTechnique technique, string place, int bar)

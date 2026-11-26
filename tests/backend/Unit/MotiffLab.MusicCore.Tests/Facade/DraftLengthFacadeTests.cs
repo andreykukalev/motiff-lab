@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
@@ -104,6 +105,19 @@ public class DraftLengthFacadeTests
         Assert.Equal("unavailable", Error(facade, "drafts.carry", Fields($$""" "draft": "d_0001", "place": "pl_0001", "technique": {{number}}, "to": "{{to}}" """)));
         Assert.True(Call(facade, "drafts.undo", Fields(""" "draft": "d_0001" """)).GetProperty("structure").GetBoolean());
         Assert.Equal(1, Place(facade, to).GetProperty("variants").GetArrayLength());
+    }
+
+    [Fact]
+    public void A_приём_carried_already_is_refused_again_after_the_project_is_saved_and_opened()
+    {
+        MusicCoreFacade facade = Opened();
+        Call(facade, "drafts.add", """{"bars": {"first": 5, "last": 8}, "draft": "d_0001", "drop": "variant", "place": "pl_0001", "now": "2026-11-20T10:10:00Z"}""");
+        Call(facade, "drafts.carry", Fields(""" "draft": "d_0001", "place": "pl_0001", "technique": 1, "to": "pl_0002" """));
+        var reopened = new MusicCoreFacade();
+        Json(reopened.Open("FurElise.motiff.json", Encoding.UTF8.GetBytes(facade.Call(1, "project.save")), """{"language":"en"}"""));
+
+        Assert.Equal("unavailable", Error(reopened, "drafts.carry", Fields(""" "draft": "d_0001", "place": "pl_0001", "technique": 1, "to": "pl_0002" """)));
+        Assert.Equal(2, Place(reopened, "pl_0002").GetProperty("variants").GetArrayLength());
     }
 
     [Fact]
