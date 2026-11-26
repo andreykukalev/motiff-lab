@@ -229,6 +229,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 Also within 15 (version 1.5, c-15b, #352): a circle of dna's "circles" that rests on recognised notes still to check, and is drawn as uncertain for it, answers "doubt", where they are (as its keys and chords do since 11); written only then, so the answer about imported notes is as before; a field added.
 
+Also within 15 (version 1.5, c-11, «Как напечатано» step 2): sources.notes.recognise carries the working notes' corrections and the bars the player confirmed over to the new Notes when the working notes are a reading of the same original (`ReadingCarry`), the corrections carried in one group, and then answers "carried": "carried", "byReading" and "notCarried" (how many), "bars" (those with a correction not carried), "confirmed" (the bars confirmed again) and "text" (the toast's line, or null); without a carry the answer is as before. A field added.
+
 ### 14
 
 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.

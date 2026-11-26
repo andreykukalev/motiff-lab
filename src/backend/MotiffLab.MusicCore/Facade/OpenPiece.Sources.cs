@@ -125,7 +125,9 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// «Распознать ещё раз»: "original" (the PDF's id), "musicXml" (base64) the scan server read from it, "engine",
     /// "pages", "reports" (the scan server's page reports) and "now": other Notes beside the working ones, which keep their
-    /// corrections (<see cref="NotesOperations.RecognisedAgain"/>). Answers the sources with their "id".
+    /// corrections (<see cref="NotesOperations.RecognisedAgain"/>), carried over to the new Notes where they still apply
+    /// (<see cref="SourcesSession.CarriedOver"/>). Answers the sources with their "id" and, when corrections or confirmed
+    /// bars were carried, "carried" (<see cref="CarryAnswer"/>).
     /// </summary>
     private string RecogniseAgain(Request request)
     {
@@ -136,6 +138,47 @@ internal sealed partial class OpenPiece
         string original = request.Required("original");
         string engine = request.Required("engine");
         DateTimeOffset now = request.Now();
-        return Changed(request, project => project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), json => json.WriteString("id", id));
+        ReadingCarry? carry = null;
+        return Changed(
+            request,
+            project =>
+            {
+                (Project carried, carry) = SourcesSession.CarriedOver(State, project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), id, original, read);
+                return carried;
+            },
+            json =>
+            {
+                json.WriteString("id", id);
+                CarryAnswer(json, carry, Words);
+            });
+    }
+
+    /// <summary>
+    /// "carried": what became of the working notes' corrections on the notes read again, "carried", "byReading" and
+    /// "notCarried" (how many), "bars" (those with a correction not carried), "confirmed" (the bars confirmed again) and
+    /// "text" (the toast's line, null when it says nothing); nothing without a carry.
+    /// </summary>
+    private static void CarryAnswer(Utf8JsonWriter json, ReadingCarry? carry, Words words)
+    {
+        if (carry is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("carried");
+        json.WriteNumber("carried", carry.Count(CarryOutcome.Carried));
+        json.WriteNumber("byReading", carry.Count(CarryOutcome.ByReading));
+        json.WriteNumber("notCarried", carry.Count(CarryOutcome.NotCarried));
+        JsonWrite.Numbers(json, "bars", carry.NotCarriedBars);
+        JsonWrite.Numbers(json, "confirmed", carry.ConfirmedBars);
+        if (carry.Text(words) is { } text)
+        {
+            json.WriteString("text", text);
+        }
+        else
+        {
+            json.WriteNull("text");
+        }
+        json.WriteEndObject();
     }
 }

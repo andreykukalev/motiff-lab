@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;
@@ -75,6 +76,48 @@ public class SourceLayersFacadeTests
         Assert.Equal(["notes:n_1"], Views(layers));
         Assert.Equal("here", Item(Call(facade, "sources.layers", """{"device": "web"}"""), "originals", "src_pdf").GetProperty("state").GetString());
         Assert.Equal("badRequest", Error(facade, "sources.layers", """{"device": "phone"}"""));
+    }
+
+    [Fact]
+    public void Notes_read_again_take_the_working_notes_corrections_and_say_so_and_none_without_any()
+    {
+        MusicCoreFacade facade = Opened();
+        ImportedPiece read = PieceImporter.Import("a.musicxml", Scanned()).Piece!;
+        Note first = read.Notes[0];
+        int bar = read.Meter.BarAt(first.Span.Onset).Number;
+        Assert.False(Call(facade, "sources.notes.recognise", Recognise()).TryGetProperty("carried", out _));
+        Call(facade, "corrections.set", $$"""{"bar": {{bar}}, "id": "{{first.Id}}", "pitch": {{first.Pitch.MidiNumber + 1}}}""");
+
+        JsonElement carried = Call(facade, "sources.notes.recognise", Recognise()).GetProperty("carried");
+
+        Assert.Equal((1, 0, 0), (carried.GetProperty("carried").GetInt32(), carried.GetProperty("byReading").GetInt32(), carried.GetProperty("notCarried").GetInt32()));
+        Assert.Equal("1 correction carried over", carried.GetProperty("text").GetString());
+        Call(facade, "sources.makeWorking", """{"id": "n_3"}""");
+        NoteEdit edit = Assert.Single(ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Edits.Edits);
+        Assert.Equal((first.Pitch.MidiNumber + 1, "g_1"), (edit.After!.Value.Pitch.MidiNumber, edit.Group));
+    }
+
+    [Fact]
+    public void A_correction_the_notes_read_again_read_otherwise_is_flagged_in_their_check_in_both_languages()
+    {
+        MusicCoreFacade facade = Opened();
+        byte[] scanned = Scanned();
+        Note first = PieceImporter.Import("a.musicxml", scanned).Piece!.Notes.OrderBy(static note => note.Span.Onset).ThenBy(static note => note.Pitch.MidiNumber).First();
+        int bar = PieceImporter.Import("a.musicxml", scanned).Piece!.Meter.BarAt(first.Span.Onset).Number;
+        Call(facade, "corrections.set", $$"""{"bar": {{bar}}, "id": "{{first.Id}}", "pitch": {{first.Pitch.MidiNumber + 1}}}""");
+        string xml = Encoding.UTF8.GetString(scanned);
+        int octave = xml.IndexOf("<octave>", StringComparison.Ordinal) + "<octave>".Length;
+        byte[] otherwise = Encoding.UTF8.GetBytes(string.Concat(xml.AsSpan(0, octave), ((char)(xml[octave] == '3' ? '2' : '3')).ToString(), xml.AsSpan(octave + 1)));
+        string request = JsonSerializer.Serialize(new { original = "src_pdf", musicXml = Convert.ToBase64String(otherwise), engine = "homr 0.8.0", pages = 1, now = "2026-11-15T10:00:00Z" });
+
+        JsonElement carried = Call(facade, "sources.notes.recognise", request).GetProperty("carried");
+        Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
+
+        Assert.Equal(1, carried.GetProperty("notCarried").GetInt32());
+        Assert.Equal([bar], carried.GetProperty("bars").EnumerateArray().Select(static each => each.GetInt32()));
+        Assert.Contains(ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Check!, flag => flag.Bar == bar && flag.Reason == CheckReason.CorrectionUnfit && !flag.Resolved);
+        Assert.Equal("Your correction did not fit", CheckFlag.NameOf(CheckReason.CorrectionUnfit, Words.English));
+        Assert.StartsWith("Ваше исправление не подошло к новому чтению", CheckFlag.Describe(CheckReason.CorrectionUnfit, Words.Russian), StringComparison.Ordinal);
     }
 
     [Fact]

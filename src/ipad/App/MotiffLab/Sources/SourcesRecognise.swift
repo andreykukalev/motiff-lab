@@ -106,3 +106,12 @@ struct SourcesRecognisePanel: View {
         }
     }
 }
+
+extension SourcesController {
+    /// The toast of notes recognised again: what was read, then music-core's line of what became of the player's
+    /// corrections on them («Как напечатано», step 2: "carried"'s "text"), when it says something.
+    nonisolated static func recognisedToast(_ read: String, carried: Any?) -> String {
+        guard let line = (carried as? [String: Any])?["text"] as? String, !line.isEmpty else { return read }
+        return "\(read) · \(line)"
+    }
+}

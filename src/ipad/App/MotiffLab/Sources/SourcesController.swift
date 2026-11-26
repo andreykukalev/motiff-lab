@@ -430,7 +430,7 @@ final class SourcesController: ObservableObject {
         fresh = id
         status = nil
         await save()
-        await tell(SourcesToast(text: read.toast), reopening: first)
+        await tell(SourcesToast(text: Self.recognisedToast(read.toast, carried: facadeObject(answer)?["carried"])), reopening: first)
         return nil
     }
 
