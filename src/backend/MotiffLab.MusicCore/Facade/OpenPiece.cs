@@ -6,10 +6,9 @@ using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Assistant;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Experiments;
+using MotiffLab.MusicCore.Facade.Sessions;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
-using MotiffLab.MusicCore.Invitations;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Notation;
 using MotiffLab.MusicCore.Performance;
@@ -22,21 +21,13 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// One open piece (0020): its project, the imported piece, the notes with the player's corrections,
-/// the phrases, the one primary selection (0013) with what was understood about it, and the
-/// variation chain a Try chip starts. The iPad app's orchestration of music-core, kept in one place.
+/// One open piece (0020): its project, the imported piece, the notes with the player's corrections and
+/// the phrases; the one primary selection (0013) with what was understood about it and the variation chain
+/// a Try chip starts are its <see cref="SelectionSession"/> (audit W1.7). The iPad app's orchestration of
+/// music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private static readonly KeepProperty[] s_defaultKeep = [KeepProperty.Pitches, KeepProperty.PitchOrder];
-
-    private InvitationContext? _understood;
-
-    /// <summary>The Check flags and notes <see cref="_understood"/> was read from.</summary>
-    private (IReadOnlyList<CheckFlag>? Check, IReadOnlyList<Note> Notes)? _understoodFor;
-    private TryChip? _chip;
-    private MotifSelectionKind _selectionKind = MotifSelectionKind.Range;
-
     private OpenPiece(Project project, ImportedPiece piece, IReadOnlyList<Note> notes, Words words)
     {
         Project = project;
@@ -44,7 +35,6 @@ internal sealed partial class OpenPiece
         Notes = notes;
         Words = words;
         ReadStructure(project.PhraseLevels);
-        Keep = [.. s_defaultKeep];
     }
 
     public Project Project { get; private set; }
@@ -73,17 +63,11 @@ internal sealed partial class OpenPiece
 
     public PhraseMap Phrases => Levels.Phrases;
 
-    /// <summary>The selection; since v0.6.4 (#614) it may hold no notes, when the iPad selected a passage of time ("empty").</summary>
-    public MotifSelection? Selection { get; private set; }
+    /// <summary>The selection and what is understood about it, the variation chain and the working motif (<see cref="SelectionSession"/>).</summary>
+    internal SelectionSession Selection { get; } = new();
 
-    /// <summary>The selection when it holds notes: what the analyses of the piece read about it.</summary>
-    private MotifSelection? NotedSelection => Selection is { NoteIds.Count: > 0 } selection ? selection : null;
-
-    public VariationChain? Chain { get; private set; }
-
-    public HashSet<KeepProperty> Keep { get; }
-
-    public string MotifId { get; private set; } = "m_0001";
+    /// <summary>The piece as the sessions read it now.</summary>
+    internal SessionPiece State => new(Project, Piece, Notes, Structure, Words);
 
     /// <summary>A new project for a file the player just imported.</summary>
     public static OpenPiece Import(string id, string fileName, byte[] data, Words words, DateTimeOffset now)
@@ -166,24 +150,12 @@ internal sealed partial class OpenPiece
         if (opened.Motifs.Count > 0)
         {
             Motif motif = opened.Motifs[0];
-            result.MotifId = motif.Id;
-            result.Selection = motif.Selection;
-            result._selectionKind = motif.Kind;
-            if (opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Chain is { } chain)
-            {
-                result.Keep.Clear();
-                result.Keep.UnionWith(chain.Context.Keep);
-                result.Chain = chain;
-            }
+            result.Selection.Start(motif, opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Chain);
         }
 
         result.StartLayer(opened);
         return result;
     }
-
-    /// <summary>The dna call: Piece DNA of the notes and the selection, "ideas": "musical" for the musical ideas.</summary>
-    private string DnaAnswer(Request request) =>
-        Answer.Write(json => Answer.Dna(json, Doubt().On(PieceDna.Build(Notes, Piece.Meter, Piece.Keys, Piece.End, NotedSelection, NotedSelection is null ? null : Understood().Structure, Words, Structure, musicalIdeas: request.Text("ideas") == "musical")), Words, Piece.End, Piece.Meter));
 
     /// <summary>What the assistant's tools read of the piece (<see cref="AssistantRequest.Calls"/>, corrections.acceptDraft).</summary>
     internal AssistantPiece Assistant => new(Piece, Notes, Project.Check ?? [], Words, Structure);
@@ -195,16 +167,16 @@ internal sealed partial class OpenPiece
         Answer.Piece(json, Piece, Notes, withNotes: false, Words);
         json.WriteEndObject();
         json.WriteString("language", Words.IsRussian ? "ru" : "en");
-        if (Selection is { } selection)
+        if (Selection.Current is { } selection)
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
+            SelectionAnswer(json, selection);
         }
         else
         {
             json.WriteNull("selection");
         }
 
-        json.WriteBoolean("hasVariation", Chain is not null);
+        json.WriteBoolean("hasVariation", Selection.Chain is not null);
         if (_layer != EditsLayer.Strict)
         {
             json.WriteStartObject("edits");
@@ -223,132 +195,9 @@ internal sealed partial class OpenPiece
     {
         Words = Words.For(request.Required("language"));
         ReadStructure();
-        _understood = null;
+        Selection.ForgetUnderstanding();
         return Answer.Write(json => json.WriteString("language", Words.IsRussian ? "ru" : "en"));
     }
-
-    /// <summary>The sentence map's facts about the selection: about the phrase it is, or the sentence it is; none for another range.</summary>
-    private IReadOnlyList<MotifFact> SentenceFacts()
-    {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        IReadOnlyList<MotifFact> facts = Levels.Phrases.Matching(selection.Span) is { } phrase ? Levels.Sentences.Facts(phrase)
-            : Levels.Sentences.Matching(selection.Span) is { } sentence ? Levels.Sentences.Facts(sentence)
-            : [];
-        return Doubt().On(facts, selection);
-    }
-
-    /// <summary>Sounds a Try chip (0018, section 7): one accepted step over the selection with the chip's Keep preset.</summary>
-    private string TryChip(Request request)
-    {
-        string id = request.Required("chip");
-        TryChip chip = TryChips.Find(id) ?? throw FacadeException.BadRequest($"There is no chip \"{id}\".");
-        VariationChain chain = TryChips.Start(chip, Understood(), out string? reason) ?? throw FacadeException.Unavailable(reason ?? "The chip cannot run on this selection.");
-        Keep.Clear();
-        Keep.UnionWith(chain.Context.Keep);
-        Chain = chain;
-        _chip = chip;
-        _hiddenVariation = null;
-        return ChainAnswer(chain);
-    }
-
-    private string Select(Request request)
-    {
-        SelectionFilter filter = request.Filter("filter");
-        MotifSelection selection;
-        MotifSelectionKind kind = MotifSelectionKind.Range;
-        if (request.Has("notes"))
-        {
-            // "picked": true (v0.6.2, #601, the iPad's selection by the place of the touch): one note or more, within the bars.
-            selection = request.Bool("picked") == true
-                ? MotifSelector.SelectPicked(Notes, Piece.Meter, request.Texts("notes"))
-                : MotifSelector.SelectNotes(Notes, Piece.Meter, request.Texts("notes"));
-            kind = MotifSelectionKind.Notes;
-        }
-        else if (request.Span("span") is { } span)
-        {
-            // "snap": "beat" (#349, within contract 12) takes the span out to whole beats, so it can start and end mid-bar.
-            TickSpan chosen = request.Text("snap") switch
-            {
-                null => span,
-                "beat" => MotifSelector.ToBeats(Piece.Meter, span),
-                _ => throw FacadeException.BadRequest("\"snap\" is \"beat\"."),
-            };
-            selection = MotifSelector.Select(Notes, Piece.Meter, chosen, filter);
-        }
-        else
-        {
-            Request bars = request.Object("bars");
-            int first = bars.Int("first") ?? throw FacadeException.BadRequest("Send \"bars\" {first, last}, \"span\" {onset, end} or \"notes\" [ids].");
-            int last = bars.Int("last") ?? first;
-            selection = MotifSelector.Select(Notes, Piece.Meter, MotifSelector.Bars(Piece.Meter, first, last, Piece.End), filter);
-        }
-
-        // "empty": true (v0.6.4, #614 item 4, the iPad's selection of time): a span or bars with no notes in them (rests, a
-        // hand resting, a place between notes) are selected as they are; the calls that read notes then answer NoNotes.
-        if (selection.NoteIds.Count == 0 && (kind == MotifSelectionKind.Notes || request.Bool("empty") != true))
-        {
-            throw NoNotes();
-        }
-
-        Selection = selection;
-        _selectionKind = kind;
-        _understood = null;
-        _chip = null;
-        Chain = null;
-        _hiddenVariation = null;
-        return Answer.Write(json => Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter));
-    }
-
-    /// <summary>The circle of fifths for the selection, from the key and chords music-core read for it.</summary>
-    private static KeyCircleView? Circle(InvitationContext context) =>
-        KeyCircle.For(context.Selection, context.Notes, context.Meter, context.Motif.Key, context.Harmony, context.Words);
-
-    /// <summary>The refusal of a passage with no notes, and of a call that reads the notes of a selection that holds none.</summary>
-    private static FacadeException NoNotes() => FacadeException.Unavailable("There are no notes in that passage.");
-
-    private InvitationContext Understood()
-    {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        if (selection.NoteIds.Count == 0)
-        {
-            throw NoNotes();
-        }
-
-        // Fixing a note or resolving a Check flag changes the doubt, so the understanding is read again (#352).
-        if (_understood is { } understood && _understoodFor is { } from && ReferenceEquals(from.Check, Project.Check) && ReferenceEquals(from.Notes, Notes))
-        {
-            return understood;
-        }
-
-        NoteDoubt doubt = Doubt();
-        KeySignature? key = KeySignature.InForce(Piece.Keys, selection.Span.Onset);
-        MotifAnalysis read = MotifAnalyzer.Analyze(Notes, Piece.Meter, selection, key, Piece.MusicXml?.AccentMarks, Phrases.Boundaries, Words);
-        HarmonyAnalysis harmony = doubt.On(HarmonyAnalyzer.Analyze(Notes, Piece.Meter, selection, read.Key?.Key, Words), selection);
-        MotifAnalysis motif = doubt.On(read, selection);
-        StructureAnalysis structure = doubt.On(StructureAnalyzer.Analyze(Notes, Piece.Meter, selection, Phrases.Boundaries, Words), selection);
-        IReadOnlyList<MotifFact> character = doubt.On(MotifAnalyzer.AnalyzeCharacter(Notes, Piece.Meter, selection, key, CharacterContext.FromPiece(Piece), Words), selection);
-        _understoodFor = (Project.Check, Notes);
-        return _understood = new InvitationContext(Notes, Piece.Meter, selection, motif, structure, character, Words) { Harmony = harmony };
-    }
-
-    /// <summary>The recognised notes still to check: in the bars with an open Check flag (#352).</summary>
-    private NoteDoubt Doubt() => NoteDoubt.Of(Notes, Piece.Meter, Project.OpenChecks.Select(static flag => flag.Bar), Words);
-
-    private string Clear()
-    {
-        Chain = null;
-        _chip = null;
-        return Answer.Write(json => json.WriteBoolean("cleared", true));
-    }
-
-    private string ChainAnswer(VariationChain chain) => Answer.Write(json =>
-    {
-        Answer.Chain(json, chain, Words);
-        // No call starts an experiment since contract 10; the field stays so that "try" and "variation" answer as before.
-        json.WriteNull("experiment");
-
-        json.WriteString("chip", _chip?.Id);
-    });
 
     /// <summary>
     /// Notation as MEI (0008): the piece, or the variation in place; and an excerpt of bars engraved on
@@ -386,7 +235,7 @@ internal sealed partial class OpenPiece
         }
         else if (of == "variation")
         {
-            Note[] notes = InPlace(Shown());
+            Note[] notes = InPlace(Selection.Shown());
             Tick end = notes.Length == 0 ? Piece.End : notes.Max(note => note.Span.End);
             notation = Generate(notes, end > Piece.End ? end : Piece.End, title, heard, readable, bars, ossias, reading);
         }
@@ -413,8 +262,7 @@ internal sealed partial class OpenPiece
                 throw FacadeException.BadRequest("Send \"bars\" {first, last} or \"selection\".");
             }
 
-            MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-            return BarRange.Of(Piece.Meter, selection.Span);
+            return BarRange.Of(Piece.Meter, Selection.Required().Span);
         }
 
         Request range = request.Object("bars");
@@ -458,7 +306,7 @@ internal sealed partial class OpenPiece
     {
         if (source == "variation")
         {
-            return new NotationOssia(Words.T("Variation", "Вариация"), Shown().Notes, AsHeard: heard && readable);
+            return new NotationOssia(Words.T("Variation", "Вариация"), Selection.Shown().Notes, AsHeard: heard && readable);
         }
 
         if (source == "asPlayed")
@@ -556,8 +404,8 @@ internal sealed partial class OpenPiece
         IEnumerable<Note>? notes = (request.Text("of") ?? "piece") switch
         {
             "piece" => Project.ChangesNotes || hand is not null ? Notes : null,
-            "heard" => (Chain ?? throw FacadeException.NoVariation()).Heard,
-            "inPlace" => InPlace(Shown()),
+            "heard" => Selection.Variation().Heard,
+            "inPlace" => InPlace(Selection.Shown()),
             "version" => VersionLayer(Performance(request), artefacts: false).Notes,
             _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\", \"inPlace\" or \"version\"."),
         };
@@ -580,13 +428,6 @@ internal sealed partial class OpenPiece
         });
     }
 
-    /// <summary>The variation the player sees and hears: the pending step's result, else the accepted chain's.</summary>
-    private Variation Shown()
-    {
-        VariationChain chain = Chain ?? throw FacadeException.NoVariation();
-        return chain.Pending?.Result ?? chain.Result ?? throw FacadeException.Unavailable("The variation has no step yet.");
-    }
-
     /// <summary>The piece's notes with the variation's in place of the ones it changed or removed.</summary>
     private Note[] InPlace(Variation variation)
     {
@@ -603,28 +444,7 @@ internal sealed partial class OpenPiece
         DateTimeOffset? now = request.Text("now") is { } text
             ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
             : null;
-        var motifs = Project.Motifs.Where(motif => motif.Id != MotifId).ToList();
-        var variations = Project.Variations.Where(variation => variation.MotifId != MotifId).ToList();
-        if (_layer == EditsLayer.Off)
-        {
-            // With the corrections off, the selection is over notes they would change: the motifs stay as they were (version 0.5).
-            motifs = [.. Project.Motifs];
-            variations = [.. Project.Variations];
-        }
-        // A pick of one note, or of more than a motif of single notes holds (the iPad, v0.6.2), is saved as no selection is.
-        else if (Selection is { NoteIds.Count: > 0 } selection && Motif.Holds(selection, _selectionKind))
-        {
-            motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, _selectionKind, MotifMode.Discovery, Notes)));
-            if (Chain is { Result: not null } chain)
-            {
-                variations.Insert(0, SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain));
-            }
-            else if (_hiddenVariation is { } hidden)
-            {
-                variations.Insert(0, hidden);
-            }
-        }
-
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: _layer == EditsLayer.Off);
         Project = Project.WithPhraseLevels(Levels.Edits) with
         {
             Motifs = motifs,

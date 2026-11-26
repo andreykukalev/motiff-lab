@@ -1,7 +1,6 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -43,12 +42,6 @@ internal sealed partial class OpenPiece
 
     /// <summary>The corrections laid one by one over the notes, for the log they were laid from.</summary>
     private (NoteEditLog Log, EditsApplied Applied)? _layered;
-
-    /// <summary>
-    /// The working motif's variation that could not be made again over the notes shown (the layer off, or a correction that
-    /// no longer fits): saving keeps it until the player picks another passage, idea or chip.
-    /// </summary>
-    private SavedVariation? _hiddenVariation;
 
     /// <summary>The ids of the motifs, variations and ideas left out when the piece opened, because they no longer fit the notes.</summary>
     private IReadOnlyList<string> _hidden = [];
@@ -102,17 +95,10 @@ internal sealed partial class OpenPiece
 
         if (opened.Motifs.Count == 0 && Project.Motifs.Count > 0)
         {
-            // Every motif is hidden: a passage picked now is saved beside them, never over one.
-            int number = 1;
-            while (Project.Motifs.Any(motif => motif.Id == $"m_{number:D4}"))
-            {
-                number++;
-            }
-
-            MotifId = $"m_{number:D4}";
+            Selection.SaveBeside(State);
         }
 
-        _hiddenVariation = Chain is null ? Project.Variations.FirstOrDefault(variation => variation.MotifId == MotifId && _hidden.Contains(variation.Id)) : null;
+        Selection.HideLeftOut(State, _hidden);
     }
 
     /// <summary>"on": true lays the corrections one by one, false leaves them out; the answer is the corrections of "bar" (else the first bar).</summary>
@@ -127,26 +113,12 @@ internal sealed partial class OpenPiece
         EditsLayer layer = on ? EditsLayer.Lenient : EditsLayer.Off;
         if (layer != _layer)
         {
-            SavedVariation? working = Chain is { Result: not null } chain ? SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain) : _hiddenVariation;
+            SavedVariation? working = Selection.WorkingVariation;
             _layer = layer;
             // The piece remembers it in its file (version 0.5), so it opens so again on any device.
             Project = Project with { EditsOff = layer == EditsLayer.Off };
             RefreshNotes();
-            Reselect();
-            Chain = null;
-            _chip = null;
-            _hiddenVariation = null;
-            if (working is not null && Selection is { } selection)
-            {
-                try
-                {
-                    Chain = OpenedProject.Restore(working, selection, Notes);
-                }
-                catch (ProjectFileException)
-                {
-                    _hiddenVariation = working;
-                }
-            }
+            Selection.FollowLayer(State, working);
         }
 
         return CorrectionsAnswer(LayerBar(request));
@@ -174,26 +146,11 @@ internal sealed partial class OpenPiece
             RefreshNotes();
             if (!before.SequenceEqual(Notes))
             {
-                Reselect();
-                Chain = null;
-                _chip = null;
+                Selection.FollowNotes(State);
             }
         }
 
         return CorrectionsAnswer(LayerBar(request));
-    }
-
-    /// <summary>
-    /// The selection's passage over the notes as they are now; none when no note is left there, unless it held none to begin
-    /// with (a passage of time, v0.6.4).
-    /// </summary>
-    private void Reselect()
-    {
-        if (Selection is { } selection)
-        {
-            MotifSelection again = MotifSelector.Select(Notes, Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
-            Selection = again.NoteIds.Count > 0 || selection.NoteIds.Count == 0 ? again : null;
-        }
     }
 
     /// <summary>The bar a layer call answers for: "bar" when sent, else the first bar.</summary>
