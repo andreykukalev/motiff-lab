@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.4 c-2):** contract 14 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-26, v1.4 c-5):** contract 15 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -219,6 +219,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 <!-- End of the calls. -->
 
 ## History
+
+### 15
+
+15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.
 
 ### 14
 
