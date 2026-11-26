@@ -1,0 +1,205 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "Nocturne.pdf",
+ "answers": [
+  {
+   "call": "document.ink.add",
+   "request": {
+    "strokes": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "page": 1,
+      "u": 0.1,
+      "v": 4,
+      "points": [
+       0,
+       0,
+       0.5,
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "right"
+     },
+     {
+      "id": "s2",
+      "tool": "pen",
+      "colour": "graphite",
+      "size": 2,
+      "page": 1,
+      "u": 0.2,
+      "v": 9,
+      "points": [
+       0,
+       0,
+       1,
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5
+     }
+    ]
+   },
+   "answer": {
+    "marks": {
+     "ink": [
+      {
+       "id": "s1",
+       "tool": "pen",
+       "colour": "carmine",
+       "size": 2,
+       "page": 1,
+       "u": 0.1,
+       "v": 4,
+       "points": [
+        0,
+        0,
+        0.5,
+        1,
+        1,
+        0.5
+       ],
+       "pressure": 0.5,
+       "margin": "right"
+      },
+      {
+       "id": "s2",
+       "tool": "pen",
+       "colour": "graphite",
+       "size": 2,
+       "page": 1,
+       "u": 0.2,
+       "v": 9,
+       "points": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        0.5
+       ],
+       "pressure": 0.5
+      }
+     ],
+     "bookmarks": [
+      {
+       "id": "pb_0001",
+       "page": 1,
+       "name": "Start"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "call": "document.marks",
+   "request": null,
+   "answer": {
+    "marks": {
+     "ink": [
+      {
+       "id": "s1",
+       "tool": "pen",
+       "colour": "carmine",
+       "size": 2,
+       "page": 1,
+       "u": 0.1,
+       "v": 4,
+       "points": [
+        0,
+        0,
+        0.5,
+        1,
+        1,
+        0.5
+       ],
+       "pressure": 0.5,
+       "margin": "right"
+      },
+      {
+       "id": "s2",
+       "tool": "pen",
+       "colour": "graphite",
+       "size": 2,
+       "page": 1,
+       "u": 0.2,
+       "v": 9,
+       "points": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        0.5
+       ],
+       "pressure": 0.5
+      }
+     ],
+     "bookmarks": [
+      {
+       "id": "pb_0001",
+       "page": 1,
+       "name": "Start"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "call": "project",
+   "request": null,
+   "answer": {
+    "project": {
+     "id": "p_answers",
+     "fileName": "Nocturne.pdf",
+     "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+     "lastOpened": "2026-11-15T09:02:00.0000000+00:00",
+     "origin": "imported",
+     "motifs": 0,
+     "variations": 0,
+     "corrections": 0,
+     "resumePoints": 0,
+     "ideas": 0,
+     "marks": 0,
+     "bookmarks": 0,
+     "openChecks": 0,
+     "title": "Nocturne",
+     "titleFrom": "fileName",
+     "composer": null,
+     "composerFrom": null,
+     "tags": [],
+     "playlists": [],
+     "checkBars": 0,
+     "hasNotes": false,
+     "document": true,
+     "originals": [
+      {
+       "id": "src_pdf",
+       "kind": "pdf",
+       "shown": "Nocturne.pdf",
+       "fileName": "Nocturne.pdf",
+       "folder": null,
+       "sha256": "4579fbf2740104b473bd355e10bad2bc7534f0496119a9390915199f1db01180",
+       "bytes": 51,
+       "pages": null,
+       "durationMs": null,
+       "inFile": true,
+       "kept": "file",
+       "held": []
+      }
+     ],
+     "partOf": null,
+     "pieceKeys": [
+      "4579fbf2740104b473bd355e10bad2bc7534f0496119a9390915199f1db01180"
+     ],
+     "latest": null
+    }
+   }
+  }
+ ]
+}

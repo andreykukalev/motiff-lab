@@ -110,9 +110,7 @@ internal static class SyncRequest
             json.WriteStartArray("groups");
             foreach (IReadOnlyList<string> group in groups)
             {
-                json.WriteStartArray();
-                group.ToList().ForEach(json.WriteStringValue);
-                json.WriteEndArray();
+                JsonWrite.Texts(json, null, group);
             }
 
             json.WriteEndArray();
@@ -137,13 +135,7 @@ internal static class SyncRequest
             {
                 json.WriteStartObject();
                 json.WriteNumber("keeper", piece.Keeper);
-                json.WriteStartArray("from");
-                foreach (int index in piece.Joined)
-                {
-                    json.WriteNumberValue(index);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Numbers(json, "from", piece.Joined);
                 json.WriteString("file", Text(piece.Project));
                 json.WriteEndObject();
             }

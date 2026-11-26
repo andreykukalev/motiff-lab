@@ -91,7 +91,7 @@ internal sealed partial class OpenPiece
         if (result.Piece is not { } piece)
         {
             ImportRejection rejection = result.Rejection!;
-            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = Answer.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
+            throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = JsonWrite.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
         return new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words);

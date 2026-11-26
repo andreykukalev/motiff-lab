@@ -1,0 +1,3765 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "ink.add",
+   "request": {
+    "strokes": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       0,
+       0,
+       0.5,
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ]
+   },
+   "answer": {
+    "ink": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "barNumber": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ],
+    "notes": [],
+    "highlights": [],
+    "fingering": []
+   }
+  },
+  {
+   "call": "note.add",
+   "request": {
+    "bars": {
+     "first": 1,
+     "last": 2
+    },
+    "text": "Lean into the E",
+    "now": "2026-11-15T10:00:00Z"
+   },
+   "answer": {
+    "ink": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "barNumber": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_0001",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "text": "Lean into the E",
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ],
+    "highlights": [],
+    "fingering": []
+   }
+  },
+  {
+   "call": "highlight.add",
+   "request": {
+    "bars": {
+     "first": 1,
+     "last": 1
+    },
+    "notes": []
+   },
+   "answer": {
+    "ink": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "barNumber": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_0001",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "text": "Lean into the E",
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ],
+    "highlights": [
+     {
+      "id": "h_0001",
+      "span": {
+       "onset": 240,
+       "end": 960
+      },
+      "bars": {
+       "first": 1,
+       "last": 1
+      },
+      "notes": [],
+      "colour": "amber"
+     }
+    ],
+    "fingering": []
+   }
+  },
+  {
+   "call": "fingering.set",
+   "request": {
+    "noteId": "n_0001",
+    "finger": 3
+   },
+   "answer": {
+    "ink": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "barNumber": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_0001",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "text": "Lean into the E",
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ],
+    "highlights": [
+     {
+      "id": "h_0001",
+      "span": {
+       "onset": 240,
+       "end": 960
+      },
+      "bars": {
+       "first": 1,
+       "last": 1
+      },
+      "notes": [],
+      "colour": "amber"
+     }
+    ],
+    "fingering": [
+     {
+      "noteId": "n_0001",
+      "finger": 3
+     }
+    ]
+   }
+  },
+  {
+   "call": "marks",
+   "request": null,
+   "answer": {
+    "ink": [
+     {
+      "id": "s1",
+      "tool": "pen",
+      "colour": "carmine",
+      "size": 2,
+      "bar": 0,
+      "barNumber": 0,
+      "u": 0.1,
+      "v": 0.2,
+      "points": [
+       1,
+       1,
+       0.5
+      ],
+      "pressure": 0.5,
+      "margin": "left"
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_0001",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "text": "Lean into the E",
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ],
+    "highlights": [
+     {
+      "id": "h_0001",
+      "span": {
+       "onset": 240,
+       "end": 960
+      },
+      "bars": {
+       "first": 1,
+       "last": 1
+      },
+      "notes": [],
+      "colour": "amber"
+     }
+    ],
+    "fingering": [
+     {
+      "noteId": "n_0001",
+      "finger": 3
+     }
+    ]
+   }
+  },
+  {
+   "call": "bookmark.add",
+   "request": {
+    "bars": {
+     "first": 1,
+     "last": 2
+    },
+    "title": "A",
+    "now": "2026-11-15T10:00:00Z"
+   },
+   "answer": {
+    "categories": [
+     {
+      "id": "practise",
+      "name": "Practise",
+      "ink": "carmine",
+      "builtIn": true,
+      "bookmarks": 1
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ink": "forest",
+      "builtIn": true,
+      "bookmarks": 0
+     },
+     {
+      "id": "structure",
+      "name": "Structure",
+      "ink": "graphite",
+      "builtIn": true,
+      "bookmarks": 0
+     },
+     {
+      "id": "teacher",
+      "name": "Teacher",
+      "ink": "ochre",
+      "builtIn": true,
+      "bookmarks": 0
+     }
+    ],
+    "bookmarks": [
+     {
+      "id": "b_0001",
+      "title": "A",
+      "category": "practise",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "fromPhrase": false,
+      "ideas": 0,
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "bookmarks",
+   "request": null,
+   "answer": {
+    "categories": [
+     {
+      "id": "practise",
+      "name": "Practise",
+      "ink": "carmine",
+      "builtIn": true,
+      "bookmarks": 1
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ink": "forest",
+      "builtIn": true,
+      "bookmarks": 0
+     },
+     {
+      "id": "structure",
+      "name": "Structure",
+      "ink": "graphite",
+      "builtIn": true,
+      "bookmarks": 0
+     },
+     {
+      "id": "teacher",
+      "name": "Teacher",
+      "ink": "ochre",
+      "builtIn": true,
+      "bookmarks": 0
+     }
+    ],
+    "bookmarks": [
+     {
+      "id": "b_0001",
+      "title": "A",
+      "category": "practise",
+      "span": {
+       "onset": 240,
+       "end": 1680
+      },
+      "bars": {
+       "first": 1,
+       "last": 2
+      },
+      "fromPhrase": false,
+      "ideas": 0,
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "resume.save",
+   "request": {
+    "name": "Coda",
+    "now": "2026-11-15T09:00:00Z"
+   },
+   "answer": {
+    "saved": {
+     "id": "r_0001",
+     "name": "Coda",
+     "at": 0,
+     "bar": 0,
+     "passage": null,
+     "focused": false,
+     "overlays": [],
+     "tempoPercent": 100,
+     "hands": "both",
+     "loop": false,
+     "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+     "lastActive": "2026-11-15T09:00:00.0000000+00:00"
+    },
+    "resumePoints": [
+     {
+      "id": "r_0001",
+      "name": "Coda",
+      "at": 0,
+      "bar": 0,
+      "passage": null,
+      "focused": false,
+      "overlays": [],
+      "tempoPercent": 100,
+      "hands": "both",
+      "loop": false,
+      "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+      "lastActive": "2026-11-15T09:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "resume.save",
+   "request": {
+    "id": "r_0001",
+    "passage": {
+     "span": {
+      "onset": 1920,
+      "end": 3840
+     },
+     "filter": {
+      "hand": "left"
+     }
+    },
+    "overlays": [
+     "insights",
+     "pianoRoll"
+    ],
+    "tempoPercent": 70,
+    "hands": "left",
+    "loop": true,
+    "focused": true,
+    "now": "2026-11-15T11:00:00Z"
+   },
+   "answer": {
+    "saved": {
+     "id": "r_0001",
+     "name": "Coda",
+     "at": 1920,
+     "bar": 3,
+     "passage": {
+      "span": {
+       "onset": 1920,
+       "end": 3840
+      },
+      "bars": {
+       "first": 3,
+       "last": 5
+      },
+      "filter": {
+       "hand": "left"
+      }
+     },
+     "focused": true,
+     "overlays": [
+      "pianoRoll",
+      "insights"
+     ],
+     "tempoPercent": 70,
+     "hands": "left",
+     "loop": true,
+     "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+     "lastActive": "2026-11-15T11:00:00.0000000+00:00"
+    },
+    "resumePoints": [
+     {
+      "id": "r_0001",
+      "name": "Coda",
+      "at": 1920,
+      "bar": 3,
+      "passage": {
+       "span": {
+        "onset": 1920,
+        "end": 3840
+       },
+       "bars": {
+        "first": 3,
+        "last": 5
+       },
+       "filter": {
+        "hand": "left"
+       }
+      },
+      "focused": true,
+      "overlays": [
+       "pianoRoll",
+       "insights"
+      ],
+      "tempoPercent": 70,
+      "hands": "left",
+      "loop": true,
+      "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+      "lastActive": "2026-11-15T11:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "resume",
+   "request": null,
+   "answer": {
+    "resumePoints": [
+     {
+      "id": "r_0001",
+      "name": "Coda",
+      "at": 1920,
+      "bar": 3,
+      "passage": {
+       "span": {
+        "onset": 1920,
+        "end": 3840
+       },
+       "bars": {
+        "first": 3,
+        "last": 5
+       },
+       "filter": {
+        "hand": "left"
+       }
+      },
+      "focused": true,
+      "overlays": [
+       "pianoRoll",
+       "insights"
+      ],
+      "tempoPercent": 70,
+      "hands": "left",
+      "loop": true,
+      "createdAt": "2026-11-15T09:00:00.0000000+00:00",
+      "lastActive": "2026-11-15T11:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "select",
+   "request": {
+    "bars": {
+     "first": 1,
+     "last": 4
+    }
+   },
+   "answer": {
+    "selection": {
+     "onset": 240,
+     "end": 3120,
+     "firstBar": 1,
+     "lastBar": 4,
+     "firstBeat": 1,
+     "lastBeat": 3,
+     "barCount": 4,
+     "filter": {},
+     "noteIds": [
+      "n_0003",
+      "n_0004",
+      "n_0005",
+      "n_0006",
+      "n_0007",
+      "n_0008",
+      "n_0009",
+      "n_0010",
+      "n_0011",
+      "n_0012",
+      "n_0013",
+      "n_0014",
+      "n_0015",
+      "n_0016",
+      "n_0017",
+      "n_0018",
+      "n_0019",
+      "n_0020",
+      "n_0021",
+      "n_0022",
+      "n_0023",
+      "n_0024",
+      "n_0025",
+      "n_0026",
+      "n_0027",
+      "n_0028",
+      "n_0029"
+     ],
+     "handInferred": false,
+     "keySignature": {
+      "at": 0,
+      "fifths": 0,
+      "mode": "minor"
+     }
+    }
+   }
+  },
+  {
+   "call": "try",
+   "request": {
+    "chip": "v11.passing"
+   },
+   "answer": {
+    "keep": [
+     "bass"
+    ],
+    "seed": 0,
+    "steps": [
+     {
+      "operation": "V11",
+      "parameters": {
+       "kind": "Passing",
+       "scope": "Melody"
+      },
+      "explanation": "Passing notes are added after 5 melody notes (C5 after B4, B4 after C5, D4 after C4, F4 after E4, …), in the second half of each; every main note keeps its pitch and onset. 5 notes are added. The pitch sequence is unchanged. 5 of 27 notes change length. Every note starts where it did. Unchanged: bass pitches."
+     }
+    ],
+    "pending": null,
+    "undone": 0,
+    "canUndo": true,
+    "canRedo": false,
+    "acceptDisabledReason": "There is no step to accept.",
+    "editDisabledReason": null,
+    "original": [
+     {
+      "id": "n_0003",
+      "pitch": 76,
+      "onset": 240,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0004",
+      "pitch": 75,
+      "onset": 360,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0005",
+      "pitch": 76,
+      "onset": 480,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0006",
+      "pitch": 71,
+      "onset": 600,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0007",
+      "pitch": 74,
+      "onset": 720,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0008",
+      "pitch": 72,
+      "onset": 840,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "onset": 960,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "onset": 960,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "onset": 1080,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "onset": 1200,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "onset": 1320,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "onset": 1440,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "onset": 1560,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0016",
+      "pitch": 40,
+      "onset": 1680,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0017",
+      "pitch": 71,
+      "onset": 1680,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0018",
+      "pitch": 52,
+      "onset": 1800,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0019",
+      "pitch": 56,
+      "onset": 1920,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0020",
+      "pitch": 64,
+      "onset": 2040,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0021",
+      "pitch": 68,
+      "onset": 2160,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0022",
+      "pitch": 71,
+      "onset": 2280,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0023",
+      "pitch": 45,
+      "onset": 2400,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0024",
+      "pitch": 72,
+      "onset": 2400,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0025",
+      "pitch": 52,
+      "onset": 2520,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0026",
+      "pitch": 57,
+      "onset": 2640,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0027",
+      "pitch": 64,
+      "onset": 2760,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0028",
+      "pitch": 76,
+      "onset": 2880,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0029",
+      "pitch": 75,
+      "onset": 3000,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     }
+    ],
+    "current": [
+     {
+      "id": "n_0003",
+      "pitch": 76,
+      "onset": 240,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0004",
+      "pitch": 75,
+      "onset": 360,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0005",
+      "pitch": 76,
+      "onset": 480,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0006",
+      "pitch": 71,
+      "onset": 600,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0006~p1",
+      "pitch": 72,
+      "onset": 660,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0007",
+      "pitch": 74,
+      "onset": 720,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0008",
+      "pitch": 72,
+      "onset": 840,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0008~p1",
+      "pitch": 71,
+      "onset": 900,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "onset": 960,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "onset": 960,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "onset": 1080,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "onset": 1200,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "onset": 1320,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0013~p1",
+      "pitch": 62,
+      "onset": 1380,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "onset": 1440,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "onset": 1560,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0016",
+      "pitch": 40,
+      "onset": 1680,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0017",
+      "pitch": 71,
+      "onset": 1680,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0018",
+      "pitch": 52,
+      "onset": 1800,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0019",
+      "pitch": 56,
+      "onset": 1920,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0020",
+      "pitch": 64,
+      "onset": 2040,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0020~p1",
+      "pitch": 65,
+      "onset": 2100,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0021",
+      "pitch": 68,
+      "onset": 2160,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0021~p1",
+      "pitch": 70,
+      "onset": 2220,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0022",
+      "pitch": 71,
+      "onset": 2280,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0023",
+      "pitch": 45,
+      "onset": 2400,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0024",
+      "pitch": 72,
+      "onset": 2400,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0025",
+      "pitch": 52,
+      "onset": 2520,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0026",
+      "pitch": 57,
+      "onset": 2640,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0027",
+      "pitch": 64,
+      "onset": 2760,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0028",
+      "pitch": 76,
+      "onset": 2880,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0029",
+      "pitch": 75,
+      "onset": 3000,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     }
+    ],
+    "heard": [
+     {
+      "id": "n_0003",
+      "pitch": 76,
+      "onset": 240,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0004",
+      "pitch": 75,
+      "onset": 360,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0005",
+      "pitch": 76,
+      "onset": 480,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0006",
+      "pitch": 71,
+      "onset": 600,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0006~p1",
+      "pitch": 72,
+      "onset": 660,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0007",
+      "pitch": 74,
+      "onset": 720,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0008",
+      "pitch": 72,
+      "onset": 840,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0008~p1",
+      "pitch": 71,
+      "onset": 900,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0009",
+      "pitch": 45,
+      "onset": 960,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0010",
+      "pitch": 69,
+      "onset": 960,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0011",
+      "pitch": 52,
+      "onset": 1080,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0012",
+      "pitch": 57,
+      "onset": 1200,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0013",
+      "pitch": 60,
+      "onset": 1320,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0013~p1",
+      "pitch": 62,
+      "onset": 1380,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0014",
+      "pitch": 64,
+      "onset": 1440,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0015",
+      "pitch": 69,
+      "onset": 1560,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0016",
+      "pitch": 40,
+      "onset": 1680,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0017",
+      "pitch": 71,
+      "onset": 1680,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0018",
+      "pitch": 52,
+      "onset": 1800,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0019",
+      "pitch": 56,
+      "onset": 1920,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0020",
+      "pitch": 64,
+      "onset": 2040,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0020~p1",
+      "pitch": 65,
+      "onset": 2100,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0021",
+      "pitch": 68,
+      "onset": 2160,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0021~p1",
+      "pitch": 70,
+      "onset": 2220,
+      "duration": 60,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "userEdited"
+     },
+     {
+      "id": "n_0022",
+      "pitch": 71,
+      "onset": 2280,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0023",
+      "pitch": 45,
+      "onset": 2400,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0024",
+      "pitch": 72,
+      "onset": 2400,
+      "duration": 240,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0025",
+      "pitch": 52,
+      "onset": 2520,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0026",
+      "pitch": 57,
+      "onset": 2640,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 5,
+      "hand": "left",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0027",
+      "pitch": 64,
+      "onset": 2760,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0028",
+      "pitch": 76,
+      "onset": 2880,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     },
+     {
+      "id": "n_0029",
+      "pitch": 75,
+      "onset": 3000,
+      "duration": 120,
+      "velocity": 80,
+      "track": 0,
+      "voice": 1,
+      "hand": "right",
+      "handInferred": false,
+      "provenance": "imported"
+     }
+    ],
+    "result": {
+     "operation": "V11",
+     "notes": [
+      {
+       "id": "n_0003",
+       "pitch": 76,
+       "onset": 240,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0004",
+       "pitch": 75,
+       "onset": 360,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0005",
+       "pitch": 76,
+       "onset": 480,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0006",
+       "pitch": 71,
+       "onset": 600,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0006~p1",
+       "pitch": 72,
+       "onset": 660,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0007",
+       "pitch": 74,
+       "onset": 720,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0008",
+       "pitch": 72,
+       "onset": 840,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0008~p1",
+       "pitch": 71,
+       "onset": 900,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0009",
+       "pitch": 45,
+       "onset": 960,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0010",
+       "pitch": 69,
+       "onset": 960,
+       "duration": 240,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0011",
+       "pitch": 52,
+       "onset": 1080,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0012",
+       "pitch": 57,
+       "onset": 1200,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0013",
+       "pitch": 60,
+       "onset": 1320,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0013~p1",
+       "pitch": 62,
+       "onset": 1380,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0014",
+       "pitch": 64,
+       "onset": 1440,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0015",
+       "pitch": 69,
+       "onset": 1560,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0016",
+       "pitch": 40,
+       "onset": 1680,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0017",
+       "pitch": 71,
+       "onset": 1680,
+       "duration": 240,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0018",
+       "pitch": 52,
+       "onset": 1800,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0019",
+       "pitch": 56,
+       "onset": 1920,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0020",
+       "pitch": 64,
+       "onset": 2040,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0020~p1",
+       "pitch": 65,
+       "onset": 2100,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0021",
+       "pitch": 68,
+       "onset": 2160,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0021~p1",
+       "pitch": 70,
+       "onset": 2220,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0022",
+       "pitch": 71,
+       "onset": 2280,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0023",
+       "pitch": 45,
+       "onset": 2400,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0024",
+       "pitch": 72,
+       "onset": 2400,
+       "duration": 240,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0025",
+       "pitch": 52,
+       "onset": 2520,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0026",
+       "pitch": 57,
+       "onset": 2640,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 5,
+       "hand": "left",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0027",
+       "pitch": 64,
+       "onset": 2760,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0028",
+       "pitch": 76,
+       "onset": 2880,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      },
+      {
+       "id": "n_0029",
+       "pitch": 75,
+       "onset": 3000,
+       "duration": 120,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "imported"
+      }
+     ],
+     "changes": [
+      {
+       "before": {
+        "id": "n_0003",
+        "pitch": 76,
+        "onset": 240,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0003",
+        "pitch": 76,
+        "onset": 240,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0004",
+        "pitch": 75,
+        "onset": 360,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0004",
+        "pitch": 75,
+        "onset": 360,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0005",
+        "pitch": 76,
+        "onset": 480,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0005",
+        "pitch": 76,
+        "onset": 480,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0006",
+        "pitch": 71,
+        "onset": 600,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0006",
+        "pitch": 71,
+        "onset": 600,
+        "duration": 60,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "userEdited"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0007",
+        "pitch": 74,
+        "onset": 720,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0007",
+        "pitch": 74,
+        "onset": 720,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0008",
+        "pitch": 72,
+        "onset": 840,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0008",
+        "pitch": 72,
+        "onset": 840,
+        "duration": 60,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "userEdited"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0009",
+        "pitch": 45,
+        "onset": 960,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0009",
+        "pitch": 45,
+        "onset": 960,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0010",
+        "pitch": 69,
+        "onset": 960,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0010",
+        "pitch": 69,
+        "onset": 960,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0011",
+        "pitch": 52,
+        "onset": 1080,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0011",
+        "pitch": 52,
+        "onset": 1080,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0012",
+        "pitch": 57,
+        "onset": 1200,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0012",
+        "pitch": 57,
+        "onset": 1200,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0013",
+        "pitch": 60,
+        "onset": 1320,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0013",
+        "pitch": 60,
+        "onset": 1320,
+        "duration": 60,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "userEdited"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0014",
+        "pitch": 64,
+        "onset": 1440,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0014",
+        "pitch": 64,
+        "onset": 1440,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0015",
+        "pitch": 69,
+        "onset": 1560,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0015",
+        "pitch": 69,
+        "onset": 1560,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0016",
+        "pitch": 40,
+        "onset": 1680,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0016",
+        "pitch": 40,
+        "onset": 1680,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0017",
+        "pitch": 71,
+        "onset": 1680,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0017",
+        "pitch": 71,
+        "onset": 1680,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0018",
+        "pitch": 52,
+        "onset": 1800,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0018",
+        "pitch": 52,
+        "onset": 1800,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0019",
+        "pitch": 56,
+        "onset": 1920,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0019",
+        "pitch": 56,
+        "onset": 1920,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0020",
+        "pitch": 64,
+        "onset": 2040,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0020",
+        "pitch": 64,
+        "onset": 2040,
+        "duration": 60,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "userEdited"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0021",
+        "pitch": 68,
+        "onset": 2160,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0021",
+        "pitch": 68,
+        "onset": 2160,
+        "duration": 60,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "userEdited"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0022",
+        "pitch": 71,
+        "onset": 2280,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0022",
+        "pitch": 71,
+        "onset": 2280,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0023",
+        "pitch": 45,
+        "onset": 2400,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0023",
+        "pitch": 45,
+        "onset": 2400,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0024",
+        "pitch": 72,
+        "onset": 2400,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0024",
+        "pitch": 72,
+        "onset": 2400,
+        "duration": 240,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0025",
+        "pitch": 52,
+        "onset": 2520,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0025",
+        "pitch": 52,
+        "onset": 2520,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0026",
+        "pitch": 57,
+        "onset": 2640,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0026",
+        "pitch": 57,
+        "onset": 2640,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 5,
+        "hand": "left",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0027",
+        "pitch": 64,
+        "onset": 2760,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0027",
+        "pitch": 64,
+        "onset": 2760,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0028",
+        "pitch": 76,
+        "onset": 2880,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0028",
+        "pitch": 76,
+        "onset": 2880,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      },
+      {
+       "before": {
+        "id": "n_0029",
+        "pitch": 75,
+        "onset": 3000,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       },
+       "after": {
+        "id": "n_0029",
+        "pitch": 75,
+        "onset": 3000,
+        "duration": 120,
+        "velocity": 80,
+        "track": 0,
+        "voice": 1,
+        "hand": "right",
+        "handInferred": false,
+        "provenance": "imported"
+       }
+      }
+     ],
+     "added": [
+      {
+       "id": "n_0006~p1",
+       "pitch": 72,
+       "onset": 660,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0008~p1",
+       "pitch": 71,
+       "onset": 900,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0013~p1",
+       "pitch": 62,
+       "onset": 1380,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0020~p1",
+       "pitch": 65,
+       "onset": 2100,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      },
+      {
+       "id": "n_0021~p1",
+       "pitch": 70,
+       "onset": 2220,
+       "duration": 60,
+       "velocity": 80,
+       "track": 0,
+       "voice": 1,
+       "hand": "right",
+       "handInferred": false,
+       "provenance": "userEdited"
+      }
+     ],
+     "removed": [],
+     "checks": [
+      {
+       "property": "bass",
+       "status": "kept"
+      }
+     ],
+     "properties": [
+      {
+       "property": "pitches",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "pitchOrder",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "contour",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "intervals",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "rhythm",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "melody",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "bass",
+       "status": "kept"
+      },
+      {
+       "property": "harmony",
+       "status": "noLongerKept"
+      },
+      {
+       "property": "register",
+       "status": "noLongerKept"
+      }
+     ],
+     "flags": [],
+     "explanation": "Passing notes are added after 5 melody notes (C5 after B4, B4 after C5, D4 after C4, F4 after E4, …), in the second half of each; every main note keeps its pitch and onset. 5 notes are added. The pitch sequence is unchanged. 5 of 27 notes change length. Every note starts where it did. Unchanged: bass pitches."
+    },
+    "operations": [
+     {
+      "id": "V1",
+      "name": "Rhythm reshape",
+      "disabledReason": null
+     },
+     {
+      "id": "V13",
+      "name": "Articulation",
+      "disabledReason": null
+     },
+     {
+      "id": "V7",
+      "name": "Density and rests",
+      "disabledReason": null
+     },
+     {
+      "id": "V8",
+      "name": "Accent shift",
+      "disabledReason": null
+     },
+     {
+      "id": "V4",
+      "name": "Melodic sequence",
+      "disabledReason": "Melodic sequence repeats the motif at another pitch level, so it is off while Keep bass is on."
+     },
+     {
+      "id": "V2",
+      "name": "Accompaniment pattern",
+      "disabledReason": "Accompaniment pattern changes how the chords are played, so it is off while Keep bass is on."
+     },
+     {
+      "id": "V12",
+      "name": "Bass pattern",
+      "disabledReason": "Bass pattern changes the bass line, so it is off while Keep bass is on."
+     },
+     {
+      "id": "V3",
+      "name": "Voicing and register",
+      "disabledReason": null
+     },
+     {
+      "id": "V6",
+      "name": "Simplify",
+      "disabledReason": "Simplify plays fewer, easier notes, so it is off while Keep bass is on."
+     },
+     {
+      "id": "V9",
+      "name": "Interval reshape",
+      "disabledReason": null
+     },
+     {
+      "id": "V10",
+      "name": "Change direction",
+      "disabledReason": null
+     },
+     {
+      "id": "V11",
+      "name": "Passing and neighbour notes",
+      "disabledReason": null
+     },
+     {
+      "id": "V14",
+      "name": "Ornament",
+      "disabledReason": null
+     },
+     {
+      "id": "V15",
+      "name": "Reharmonise",
+      "disabledReason": "Reharmonise changes the chords under the melody, so it is off while Keep bass is on."
+     },
+     {
+      "id": "E7",
+      "name": "Edit by hand",
+      "disabledReason": null
+     }
+    ],
+    "experiment": null,
+    "chip": "v11.passing"
+   }
+  },
+  {
+   "call": "idea.keep",
+   "request": {
+    "name": "Half time",
+    "now": "2026-11-15T10:00:00Z"
+   },
+   "answer": {
+    "ideas": [
+     {
+      "id": "o_0001",
+      "name": "Half time",
+      "note": null,
+      "phrase": {
+       "span": {
+        "onset": 240,
+        "end": 3120
+       },
+       "bars": {
+        "first": 1,
+        "last": 4
+       },
+       "filter": {}
+      },
+      "experiment": null,
+      "factId": null,
+      "hasVariation": true,
+      "steps": [
+       "V11"
+      ],
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "ideas",
+   "request": null,
+   "answer": {
+    "ideas": [
+     {
+      "id": "o_0001",
+      "name": "Half time",
+      "note": null,
+      "phrase": {
+       "span": {
+        "onset": 240,
+        "end": 3120
+       },
+       "bars": {
+        "first": 1,
+        "last": 4
+       },
+       "filter": {}
+      },
+      "experiment": null,
+      "factId": null,
+      "hasVariation": true,
+      "steps": [
+       "V11"
+      ],
+      "createdAt": "2026-11-15T10:00:00.0000000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "call": "check",
+   "request": null,
+   "answer": {
+    "flags": [],
+    "open": 0,
+    "lengths": [],
+    "pages": [],
+    "origin": "imported",
+    "engine": null,
+    "fingerprint": "f7d871c5bfe65977a28d8c493b4854f907ca7d5c14635219fda1cd8168752ae5"
+   }
+  },
+  {
+   "call": "settings",
+   "request": null,
+   "answer": {
+    "settings": [
+     {
+      "id": "level.player",
+      "section": "level",
+      "kind": "choice",
+      "choices": [
+       "beginner",
+       "intermediate",
+       "advanced"
+      ],
+      "default": "intermediate",
+      "presets": null,
+      "scope": "account"
+     },
+     {
+      "id": "guidance.brackets",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.insightsStrip",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.hints",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": {
+       "learning": "on",
+       "practising": "off",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.focusSuggestion",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": {
+       "learning": "on",
+       "practising": "off",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.assistantHints",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": {
+       "learning": "on",
+       "practising": "off",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.transportPill",
+      "section": "guidance",
+      "kind": "choice",
+      "choices": [
+       "selection",
+       "playing"
+      ],
+      "default": "selection",
+      "presets": {
+       "learning": "selection",
+       "practising": "selection",
+       "clean": "playing"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.barFade",
+      "section": "guidance",
+      "kind": "choice",
+      "choices": [
+       "1",
+       "2"
+      ],
+      "default": "2",
+      "presets": {
+       "learning": "2",
+       "practising": "2",
+       "clean": "1"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "guidance.proOffers",
+      "section": "guidance",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "phrases.granularity",
+      "section": "score",
+      "kind": "choice",
+      "choices": [
+       "short",
+       "phrases",
+       "sentences"
+      ],
+      "default": "phrases",
+      "presets": {
+       "learning": "short",
+       "practising": "phrases",
+       "clean": "phrases"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "score.layout",
+      "section": "score",
+      "kind": "choice",
+      "choices": [
+       "pages",
+       "strip"
+      ],
+      "default": "pages",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "score.noteNames",
+      "section": "score",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "score.evenBars",
+      "section": "score",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "layers.ink",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "on"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.notes",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.bookmarks",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "on"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.analysis",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.check",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.performance",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": {
+       "learning": "on",
+       "practising": "on",
+       "clean": "off"
+      },
+      "scope": "piece"
+     },
+     {
+      "id": "layers.extra",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "piece"
+     },
+     {
+      "id": "layers.taken",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "piece"
+     },
+     {
+      "id": "layers.version",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "piece"
+     },
+     {
+      "id": "layers.artefacts",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "piece"
+     },
+     {
+      "id": "pen.pencilOnly",
+      "section": "marksAndLayers",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "pen.ink",
+      "section": "marksAndLayers",
+      "kind": "choice",
+      "choices": [
+       "graphite",
+       "carmine",
+       "forest",
+       "ochre"
+      ],
+      "default": "graphite",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "dna.chords",
+      "section": "score",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "dna.degrees",
+      "section": "score",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "dna.functions",
+      "section": "score",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "playback.metronome",
+      "section": "playback",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "playback.countIn",
+      "section": "playback",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "playback.follow",
+      "section": "playback",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "roll.followPlayback",
+      "section": "pianoRoll",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "roll.noteNames",
+      "section": "pianoRoll",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "on",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "notes.naming",
+      "section": "pianoRoll",
+      "kind": "choice",
+      "choices": [
+       "auto",
+       "letters",
+       "syllables"
+      ],
+      "default": "auto",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "roll.colour",
+      "section": "pianoRoll",
+      "kind": "choice",
+      "choices": [
+       "hand",
+       "track",
+       "voice"
+      ],
+      "default": "hand",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "assistant.answers",
+      "section": "assistant",
+      "kind": "choice",
+      "choices": [
+       "onRequest",
+       "offered"
+      ],
+      "default": "onRequest",
+      "presets": {
+       "learning": "offered",
+       "practising": "onRequest",
+       "clean": "onRequest"
+      },
+      "scope": "account"
+     },
+     {
+      "id": "appearance.theme",
+      "section": "appearance",
+      "kind": "choice",
+      "choices": [
+       "auto",
+       "daylight",
+       "night",
+       "slate"
+      ],
+      "default": "auto",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "appearance.language",
+      "section": "appearance",
+      "kind": "choice",
+      "choices": [
+       "en",
+       "ru"
+      ],
+      "default": "en",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "account.saveOnline",
+      "section": "account",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "account.analytics",
+      "section": "account",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "scan.engine",
+      "section": "experimental",
+      "kind": "choice",
+      "choices": [
+       "homr",
+       "copisteria",
+       "auto"
+      ],
+      "default": "homr",
+      "presets": null,
+      "scope": "device"
+     },
+     {
+      "id": "experimental.scanJobs",
+      "section": "experimental",
+      "kind": "switch",
+      "choices": [
+       "on",
+       "off"
+      ],
+      "default": "off",
+      "presets": null,
+      "scope": "device"
+     }
+    ],
+    "presets": [
+     "learning",
+     "practising",
+     "clean"
+    ],
+    "overrides": {}
+   }
+  },
+  {
+   "call": "project.metadata",
+   "request": {
+    "title": "Für Elise",
+    "composer": "Beethoven",
+    "tags": [
+     "practise"
+    ]
+   },
+   "answer": {
+    "project": {
+     "id": "p_answers",
+     "fileName": "FurElise.musicxml",
+     "createdAt": "2026-11-15T08:00:00.0000000+00:00",
+     "lastOpened": "2026-11-15T08:00:00.0000000+00:00",
+     "origin": "imported",
+     "motifs": 0,
+     "variations": 0,
+     "corrections": 0,
+     "resumePoints": 1,
+     "ideas": 1,
+     "marks": 4,
+     "bookmarks": 1,
+     "openChecks": 0,
+     "title": "Für Elise",
+     "titleFrom": "player",
+     "composer": "Beethoven",
+     "composerFrom": "player",
+     "tags": [
+      "practise"
+     ],
+     "playlists": [],
+     "checkBars": 0,
+     "hasNotes": true,
+     "document": false,
+     "originals": [
+      {
+       "id": "src_file",
+       "kind": "musicxml",
+       "shown": "FurElise.musicxml",
+       "fileName": "FurElise.musicxml",
+       "folder": null,
+       "sha256": null,
+       "bytes": 205244,
+       "pages": null,
+       "durationMs": null,
+       "inFile": true,
+       "kept": "file",
+       "held": []
+      }
+     ],
+     "partOf": null,
+     "pieceKeys": [
+      "f7d871c5bfe65977a28d8c493b4854f907ca7d5c14635219fda1cd8168752ae5"
+     ],
+     "latest": {
+      "id": "r_0001",
+      "name": "Coda",
+      "at": 1920,
+      "lastActive": "2026-11-15T11:00:00.0000000+00:00"
+     }
+    }
+   }
+  }
+ ]
+}

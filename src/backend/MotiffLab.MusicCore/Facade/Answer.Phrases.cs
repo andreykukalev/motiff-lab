@@ -33,7 +33,7 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
-        json.WriteString("evidence", Name(levels.Phrases.Evidence));
+        json.WriteString("evidence", JsonWrite.Name(levels.Phrases.Evidence));
         LevelEdits(json, "edits", levels.Edits);
 
         json.WriteStartArray("units");
@@ -110,7 +110,7 @@ internal static partial class Answer
 
         json.WriteStartObject("start");
         json.WriteNumber("at", unit.Span.Onset.Value);
-        Texts(json, "evidence", unit.Evidence);
+        JsonWrite.Texts(json, "evidence", unit.Evidence);
         Attribution(json, unit.Start);
         json.WriteString("description", unit.Description);
         if (unit.Level == PhraseLevel.Phrase)
@@ -149,7 +149,7 @@ internal static partial class Answer
 
         if (levels.CloseBefore(phrase) is { } close)
         {
-            json.WriteString("close", Name(close));
+            json.WriteString("close", JsonWrite.Name(close));
         }
         else
         {
@@ -195,8 +195,8 @@ internal static partial class Answer
         foreach (PhraseLevel level in PhraseLevels.All)
         {
             json.WriteStartObject(PhraseLevels.Name(level));
-            Ticks(json, "added", edits[level].Added);
-            Ticks(json, "removed", edits[level].Removed);
+            JsonWrite.Numbers(json, "added", edits[level].Added.Select(static tick => tick.Value));
+            JsonWrite.Numbers(json, "removed", edits[level].Removed.Select(static tick => tick.Value));
             json.WriteEndObject();
         }
 

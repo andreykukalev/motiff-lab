@@ -43,13 +43,7 @@ internal static class PerformanceCodec
         }
 
         json.WriteEndArray();
-        json.WriteStartArray("dismissed");
-        foreach (int bar in performance.Dismissed)
-        {
-            json.WriteNumberValue(bar);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Numbers(json, "dismissed", performance.Dismissed);
         json.WriteStartArray("taken");
         foreach (TakenBar bar in performance.Taken)
         {
@@ -100,13 +94,7 @@ internal static class PerformanceCodec
     {
         json.WriteStartObject();
         json.WriteNumber("bar", bar.Bar);
-        json.WriteStartArray("removed");
-        foreach (string id in bar.Removed)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "removed", bar.Removed);
         json.WriteStartArray("added");
         foreach (TakenNote note in bar.Added)
         {

@@ -1,0 +1,143 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "library.plan",
+   "request": {
+    "files": [
+     {
+      "path": "Бах/Prelude.musicxml",
+      "bytes": 500,
+      "musicXml": "PD94bWwgdmVyc2lvbj0iMS4wIj8+PHNjb3JlLXBhcnR3aXNlIHZlcnNpb249IjQuMCI+PHdvcms+PHdvcmstdGl0bGU+UHJlbHVkZSBpbiBDPC93b3JrLXRpdGxlPjwvd29yaz48aWRlbnRpZmljYXRpb24+PGNyZWF0b3IgdHlwZT0iY29tcG9zZXIiPkouIFMuIEJhY2g8L2NyZWF0b3I+PC9pZGVudGlmaWNhdGlvbj48cGFydC1saXN0Lz48L3Njb3JlLXBhcnR3aXNlPg=="
+     },
+     {
+      "path": "Шопен/Chopin - Ballade No. 1.pdf",
+      "bytes": 1000,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "pages": 24
+     },
+     {
+      "path": "Концерт/Ballade.pdf",
+      "bytes": 1000,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "path": "readme.txt",
+      "bytes": 3
+     }
+    ],
+    "library": [],
+    "folders": "playlists"
+   },
+   "answer": {
+    "files": [
+     {
+      "path": "readme.txt",
+      "status": "unsupported",
+      "sameAs": null,
+      "project": null,
+      "provisional": false,
+      "title": null,
+      "composer": null,
+      "playlists": [],
+      "tags": [],
+      "collection": false,
+      "possiblySame": {
+       "files": [],
+       "pieces": []
+      }
+     },
+     {
+      "path": "Бах/Prelude.musicxml",
+      "status": "new",
+      "sameAs": null,
+      "project": null,
+      "provisional": false,
+      "title": {
+       "value": "Prelude in C",
+       "from": "scoreHeader",
+       "provenance": "inferred",
+       "confidence": 0.9
+      },
+      "composer": {
+       "value": "J. S. Bach",
+       "from": "scoreHeader",
+       "provenance": "inferred",
+       "confidence": 0.9
+      },
+      "playlists": [
+       "Бах"
+      ],
+      "tags": [],
+      "collection": false,
+      "possiblySame": {
+       "files": [],
+       "pieces": []
+      }
+     },
+     {
+      "path": "Концерт/Ballade.pdf",
+      "status": "new",
+      "sameAs": null,
+      "project": null,
+      "provisional": false,
+      "title": {
+       "value": "Ballade",
+       "from": "fileName",
+       "provenance": "inferred",
+       "confidence": 0.6
+      },
+      "composer": null,
+      "playlists": [
+       "Концерт",
+       "Шопен"
+      ],
+      "tags": [],
+      "collection": false,
+      "possiblySame": {
+       "files": [],
+       "pieces": []
+      }
+     },
+     {
+      "path": "Шопен/Chopin - Ballade No. 1.pdf",
+      "status": "duplicate",
+      "sameAs": "Концерт/Ballade.pdf",
+      "project": null,
+      "provisional": false,
+      "title": {
+       "value": "Ballade No. 1",
+       "from": "fileName",
+       "provenance": "inferred",
+       "confidence": 0.6
+      },
+      "composer": {
+       "value": "Chopin",
+       "from": "fileName",
+       "provenance": "inferred",
+       "confidence": 0.6
+      },
+      "playlists": [
+       "Шопен"
+      ],
+      "tags": [],
+      "collection": true,
+      "possiblySame": {
+       "files": [],
+       "pieces": []
+      }
+     }
+    ],
+    "fingerprint": [],
+    "counts": {
+     "found": 4,
+     "new": 2,
+     "inLibrary": 0,
+     "duplicates": 1,
+     "unsuitable": 1
+    }
+   }
+  }
+ ]
+}

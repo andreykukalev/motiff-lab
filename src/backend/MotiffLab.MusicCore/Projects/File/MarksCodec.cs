@@ -8,7 +8,6 @@ using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.SpanCodec;
 using static MotiffLab.MusicCore.Projects.File.UnknownEntities;
 
@@ -21,14 +20,27 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// </summary>
 internal static class MarksCodec
 {
-    internal static void WriteStroke(Utf8JsonWriter json, InkStroke stroke)
+    /// <summary>
+    /// One stroke in the pencil layer's shape. The facade (0020) answers strokes in it too, with the place the stroke starts
+    /// written by <paramref name="place"/>: "page" on a PDF's pages, "bar" with its "barNumber" on the score; the file
+    /// writes "bar", the tick of its bar.
+    /// </summary>
+    internal static void WriteStroke(Utf8JsonWriter json, InkStroke stroke, Action<Utf8JsonWriter, InkStroke>? place = null)
     {
         json.WriteStartObject();
         json.WriteString("id", stroke.Id);
-        json.WriteString("tool", Lower(stroke.Tool));
-        json.WriteString("colour", Lower(stroke.Colour));
+        json.WriteString("tool", JsonWrite.Name(stroke.Tool));
+        json.WriteString("colour", JsonWrite.Name(stroke.Colour));
         json.WriteNumber("size", stroke.Size);
-        json.WriteNumber("bar", stroke.Bar.Value);
+        if (place is null)
+        {
+            json.WriteNumber("bar", stroke.Bar.Value);
+        }
+        else
+        {
+            place(json, stroke);
+        }
+
         json.WriteNumber("u", stroke.U);
         json.WriteNumber("v", stroke.V);
         json.WriteStartArray("points");
@@ -81,7 +93,7 @@ internal static class MarksCodec
     {
         if (margin is { } side)
         {
-            json.WriteString("margin", Lower(side));
+            json.WriteString("margin", JsonWrite.Name(side));
         }
     }
 
@@ -167,7 +179,7 @@ internal static class MarksCodec
             json.WriteStartObject();
             json.WriteString("id", highlight.Id);
             WriteSpan(json, highlight.Span);
-            WriteNoteIds(json, highlight.NoteIds);
+            JsonWrite.Texts(json, "noteIds", highlight.NoteIds);
             json.WriteString("colour", highlight.Colour.ToString());
             json.WriteEndObject();
         });
@@ -354,13 +366,7 @@ internal static class MarksCodec
             }
 
             json.WriteBoolean("focused", point.Focused);
-            json.WriteStartArray("overlays");
-            foreach (Overlay overlay in point.Overlays)
-            {
-                json.WriteStringValue(overlay.ToString());
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "overlays", point.Overlays.Select(static overlay => overlay.ToString()));
             json.WriteNumber("tempoPercent", point.TempoPercent);
             if (point.Hands is { } hands)
             {

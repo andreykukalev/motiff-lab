@@ -45,7 +45,7 @@ internal static class DraftAssistantRequest
         {
             json.WriteString("draft", proposal.After.Id);
             json.WriteString("place", proposal.Place);
-            Answer.Numbers(json, "steps", [.. proposal.Steps.Select(static step => step.Number)]);
+            JsonWrite.Numbers(json, "steps", [.. proposal.Steps.Select(static step => step.Number)]);
             json.WriteBoolean("structure", proposal.Structure);
             if (proposal.Structure)
             {
