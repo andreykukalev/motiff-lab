@@ -247,6 +247,15 @@ extension SourcesController {
         return parts.joined(separator: " · ")
     }
 
+    /// The draft's view opening again after a step taken (`work`, a card's `reopen`), every other step held meanwhile
+    /// (`stepping`, as while a step is on its way): the cards still show the draft as it was, so a step sent from them
+    /// would act on the draft as it no longer is.
+    func reopening(_ work: @MainActor () async -> Void) async {
+        stepping = true
+        defer { stepping = false }
+        await work()
+    }
+
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
     /// (`toast`, with what went with it when `telling`: `told`) undoes it with `drafts.undo` (a change of the draft's
     /// structure too, while the piece is open). While one is on its way (`stepping`) another is not sent (a second tap):

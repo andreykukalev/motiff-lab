@@ -53,10 +53,11 @@ struct DraftRecordingRow: View {
     let draft: DraftViewAnswer.Draft
     @ObservedObject var owner: SourcesController
     let text: UIText
+    /// The place «Найти на записи» was tapped for, while music-core searches: the card's, which holds its other steps
+    /// meanwhile.
+    @Binding var asked: DraftViewAnswer.Place?
     let act: (@escaping @MainActor () async -> Bool) -> Void
     @State private var offer = DraftRecordingOffer.ready
-    /// The place «Найти на записи» was tapped for, while music-core searches.
-    @State private var asked: DraftViewAnswer.Place?
 
     var body: some View {
         let shown: DraftRecordingOffer = !owner.hasHeardNotes ? .noRecording : asked == nil ? offer : .searching
@@ -70,16 +71,20 @@ struct DraftRecordingRow: View {
                 Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             }
         }
-        // Tapped: the search, then the stretch found most put in through the card's `act`; a place changed meanwhile
-        // drops the answer.
+        // Tapped: the search, then the stretch found most put in through the card's `act`, the card's steps held until
+        // the step is answered; a place changed meanwhile drops the answer.
         .task(id: asked) {
             guard let asked else { return }
             let found = await owner.findOnRecording(asked.id, of: draft.id)
             guard !Task.isCancelled else { return }
             offer = found.adds == nil ? found : .ready
-            self.asked = nil
-            if let best = found.adds {
-                act { await owner.addFromRecording(best, to: asked.id, of: draft.id) }
+            guard let best = found.adds else {
+                self.asked = nil
+                return
+            }
+            act {
+                defer { self.asked = nil }
+                return await owner.addFromRecording(best, to: asked.id, of: draft.id)
             }
         }
         .onChange(of: place) { _, _ in

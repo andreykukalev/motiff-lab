@@ -78,7 +78,7 @@ struct DraftSeamContent: View {
                 return
             }
             score.seamsModel.close()
-            await reopen?(.tick(Double(seam.at)))
+            await owner.reopening { await reopen?(.tick(Double(seam.at))) }
         }
     }
 }

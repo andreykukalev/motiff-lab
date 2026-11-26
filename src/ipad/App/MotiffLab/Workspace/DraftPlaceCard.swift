@@ -20,9 +20,9 @@ struct DraftPlaceContent: View {
     @State private var asked: Asked?
     /// Why the last step was not taken: in the card's own words, or music-core's for a change of the draft's structure.
     @State private var refusal: String?
-    /// A step sent from the card, until the draft's view has opened again (or it was refused): the card holds its steps,
-    /// so none acts on the draft as it was.
-    @State private var acting = false
+    /// The place «Найти на записи» searches for (`DraftRecordingRow`), while it does: the card's other steps wait, so none
+    /// is sent in place of the stretch it puts in.
+    @State private var searching: DraftViewAnswer.Place?
 
     /// A step the card asks about first, as it drops what was taken from the variant (a new base, a variant moved out).
     private struct Asked {
@@ -38,7 +38,7 @@ struct DraftPlaceContent: View {
             ForEach(place.variants, id: \.id) { variant in
                 variantRow(variant)
             }
-            DraftRecordingRow(place: place, draft: draft, owner: owner, text: text) { take(told: true, $0) }
+            DraftRecordingRow(place: place, draft: draft, owner: owner, text: text, asked: $searching) { take(told: true, $0) }
             DraftLengthRow(place: place, draft: draft, owner: owner, text: text) { take(told: true, $0) }
             Button(text.format("drafts.takeSureCount", String(sure))) { take { await owner.takeSure(place, of: draft.id) } }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
@@ -47,9 +47,9 @@ struct DraftPlaceContent: View {
                 Text(refusal).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
         }
-        // A step on its way (`SourcesController.stepping`), or the view opening again after it (`acting`): the card's
-        // steps wait for it.
-        .disabled(owner.stepping || acting)
+        // A step on its way or the view opening again after it (`SourcesController.stepping`), or a search on the
+        // recordings: the card's steps wait for it.
+        .disabled(owner.stepping || searching != nil)
         .onChange(of: place) { _, _ in refusal = nil }
         .confirmationDialog(asked?.title ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }), titleVisibility: .visible, presenting: asked) { asked in
             Button(asked.button, role: .destructive) { take(asked.step) }
@@ -101,11 +101,10 @@ struct DraftPlaceContent: View {
     }
 
     /// A step on the draft: taken, the view opens again where the player is; refused, the card says so, in music-core's
-    /// words when `told` (a change of the draft's structure, v1.4). The card's steps are held meanwhile (`acting`).
+    /// words when `told` (a change of the draft's structure, v1.4). No other step goes until the view has opened again
+    /// (`reopening`).
     private func take(told: Bool = false, _ step: @escaping @MainActor () async -> Bool) {
-        acting = true
         Task {
-            defer { acting = false }
             let done = await step()
             guard done else {
                 refusal = owner.refusal(done, told: told, otherwise: text["drafts.refused"])
@@ -113,7 +112,7 @@ struct DraftPlaceContent: View {
             }
             refusal = nil
             taken()
-            await reopen?(.tick(await score.tickInView() ?? 0))
+            await owner.reopening { await reopen?(.tick(await score.tickInView() ?? 0)) }
         }
     }
 }

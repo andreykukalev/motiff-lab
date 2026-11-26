@@ -195,6 +195,33 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(seams?.seams.map(\.left), [true], "the seam kept as it was again")
     }
 
+    /// While the draft's view opens again after a step (`reopening`), the cards still show the draft as it was: a step sent
+    /// from them is not sent, nor told as refused, and the draft stays as it is; once it has opened, a step goes.
+    func testNoStepGoesWhileTheViewOpensAgain() async throws {
+        let sources = try await piece()
+        let draft = try await newDraft(sources, [1...4, 5...8])
+        let before = try await shown(draft, sources)
+        guard before.places.count == 2 else { return XCTFail("two places") }
+        var moved: Bool?
+        var refusal: String? = "not asked"
+        await sources.reopening {
+            XCTAssertTrue(sources.stepping, "held while it opens")
+            let sent = await sources.movePlace(before.places[1], to: 0, of: draft)
+            moved = sent
+            refusal = sources.refusal(sent, told: true, otherwise: "refused")
+        }
+        XCTAssertEqual(moved, false, "not sent while the view opens again")
+        XCTAssertNil(refusal, "a step not sent is not refused")
+        XCTAssertFalse(sources.stepping)
+        let unmoved = try await shown(draft, sources)
+        XCTAssertEqual(unmoved.places.map(\.id), before.places.map(\.id))
+
+        let after = await sources.movePlace(before.places[1], to: 0, of: draft)
+        XCTAssertTrue(after, sources.status ?? "")
+        let now = try await shown(draft, sources)
+        XCTAssertEqual(now.places.map(\.id), [before.places[1].id, before.places[0].id])
+    }
+
     /// A bridge place is not moved: music-core says why, in its words; nor is its length changed. A place moved past it
     /// takes it away, made for a seam that is no longer there, and the toast says so; Undo puts it back.
     func testABridgeIsNotMovedAndGoesWhenItsNeighboursChange() async throws {

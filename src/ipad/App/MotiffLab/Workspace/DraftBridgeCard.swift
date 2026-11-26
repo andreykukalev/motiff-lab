@@ -66,7 +66,7 @@ struct DraftBridgeContent: View {
                 return
             }
             score.seamsModel.close()
-            await reopen?(.tick(await score.tickInView() ?? 0))
+            await owner.reopening { await reopen?(.tick(await score.tickInView() ?? 0)) }
         }
     }
 }

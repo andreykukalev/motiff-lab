@@ -44,9 +44,6 @@ struct DraftMap: View {
     /// Why the last step was not taken: on the shelf in the map's own words, a place moved in music-core's (v1.4), said
     /// under that place's card.
     @State private var refusal: Refusal?
-    /// A step sent from the map, until the draft's view has opened again (or it was refused): the order and the shelf hold
-    /// their steps, so none acts on the draft as it was.
-    @State private var acting = false
 
     private struct Refusal {
         /// The place moved; nil for a step on the shelf.
@@ -117,7 +114,7 @@ struct DraftMap: View {
             DraftPlaceOrder(place: place, index: index, places: draft.places, text: text) { target in
                 take(place: place.id) { await owner.movePlace(place, to: target, of: draft.id) }
             }
-            .disabled(owner.stepping || acting)
+            .disabled(owner.stepping)
             if let refusal, refusal.place == place.id {
                 Text(refusal.words).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
@@ -194,26 +191,24 @@ struct DraftMap: View {
                     } label: {
                         DraftMenuLabel(icon: "plus", words: text["drafts.put"])
                     }
-                    .disabled(owner.stepping || acting)
+                    .disabled(owner.stepping)
                 }
             }
         }
     }
 
     /// A step on the draft: taken, the view opens again where the player is, the map still open; refused, the map says so,
-    /// under the place moved in music-core's words (`place`, v1.4), else at the shelf in its own. The order and the shelf
-    /// are held meanwhile (`acting`).
+    /// under the place moved in music-core's words (`place`, v1.4), else at the shelf in its own. No other step goes until
+    /// the view has opened again (`reopening`).
     private func take(place: String? = nil, _ step: @escaping @MainActor () async -> Bool) {
-        acting = true
         Task {
-            defer { acting = false }
             let taken = await step()
             guard taken else {
                 refusal = owner.refusal(taken, told: place != nil, otherwise: text["drafts.refused"]).map { Refusal(place: place, words: $0) }
                 return
             }
             refusal = nil
-            await reopen?(.tick(await score.tickInView() ?? 0))
+            await owner.reopening { await reopen?(.tick(await score.tickInView() ?? 0)) }
         }
     }
 }
