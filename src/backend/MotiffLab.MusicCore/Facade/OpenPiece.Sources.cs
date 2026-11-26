@@ -66,9 +66,9 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "musicXml" (base64) the scan server read from the PDF kept in this piece, "engine", "pages" and "name": the notes
     /// added as another version from the score (0022), and the PDF's pages linked to these bars by the bar numbers the scan
-    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version and the link are kept together or
-    /// not at all: a call refused, or failing while the version is added, leaves the piece as it was. Answers the comparison,
-    /// as performance.add does.
+    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version is added over the pages linked, and both
+    /// are kept together or not at all: a call refused, or failing while the version is added, leaves the piece as it was.
+    /// Answers the comparison, as performance.add does.
     /// </summary>
     private string AddDocumentNotes(Request request)
     {
@@ -77,17 +77,7 @@ internal sealed partial class OpenPiece
         Project linked = SourcesSession.WithPagesLinked(State, read.Read, request.Int("pages"));
         string name = SourcesSession.VersionName(State, request.Text("name"));
         string? engine = request.Text("engine");
-        Project before = Project;
-        Project = linked;
-        try
-        {
-            return AddVersion(name, read.Midi, PerformanceSource.Score, 0, engine);
-        }
-        catch
-        {
-            Project = before;
-            throw;
-        }
+        return AddVersion(State with { Project = linked }, name, read.Midi, PerformanceSource.Score, 0, engine);
     }
 
     /// <summary>

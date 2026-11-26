@@ -51,7 +51,7 @@ through the facade; the API references it.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
-  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections and the sources, `OpenPiece.Selection`, `OpenPiece.Corrections` and `OpenPiece.Sources`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections, the sources and the performances, `OpenPiece.Selection`, `OpenPiece.Corrections`, `OpenPiece.Sources` and `OpenPiece.Performance`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
   registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   the typed sessions (W1.7) in `Facade/Sessions`: `SelectionSession` (the selection, what was understood, the Try chip,
@@ -63,6 +63,9 @@ through the facade; the API references it.
   `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
   iPad's mark, «Распознать ещё раз», each answering the project it makes, the time taken as `now`) answers `KeptFile`,
   `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
+  `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
+  each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
+  notes again) answers the comparison (`Answer.Performance`) and `AddedVersion`; its adapter `OpenPiece.Performance` (`Calls.Performances`);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,

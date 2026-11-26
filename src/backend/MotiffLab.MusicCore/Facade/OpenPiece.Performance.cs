@@ -1,48 +1,51 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Facade.Sessions;
 using MotiffLab.MusicCore.Import.Midi;
-using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Performance;
+using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// The calls about performances compared with the piece (decision record 0022; contract 4): add one from MIDI,
-/// compare, take bars into the score or restore the print, mark a bar "not a difference", and rename. Since version 1.1
-/// (ADR 0034, section 8) a version is removed as Notes are (sources.notes.remove), and the merge draft is gone.
-/// The comparison is always against the printed notes with the player's corrections, never against bars
-/// already taken, so a taken bar can be restored and compared again.
+/// The JSON adapter of the performances session (<see cref="PerformancesSession"/>, audit W1.7): the other versions
+/// compared with the piece (decision record 0022; contract 4), added from MIDI, a recording heard in parts or another
+/// score's file, compared, bars taken into the score or the print restored, a bar marked "not a difference", and renamed.
+/// Since version 1.1 (ADR 0034, section 8) a version is removed as Notes are (sources.notes.remove), and the merge draft is
+/// gone. Each call's request read into typed values in the order it always was, the session asked with the printed notes
+/// (<see cref="Printed"/>), the project it makes kept, the notes read again when bars were taken or restored
+/// (<see cref="RefreshNotes"/>), and the version compared written as the answer. None of its calls reads the time; this file
+/// holds no state.
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    /// <summary>The printed notes with the player's corrections: what every performance is compared with.</summary>
-    private IReadOnlyList<Note> Printed => Corrections.Corrected(State);
-
-    private SavedPerformance Performance(Request request) =>
-        Project.FindPerformance(request.Required("id")) ?? throw new FacadeException("notFound", $"There is no performance {request.Required("id")}.");
-
-    private PerformanceComparison Compare(SavedPerformance performance) =>
-        PerformanceComparison.Compare(Printed, Piece.Meter, performance.Notes(), performance.Alignment());
-
-    /// <summary>
-    /// The version in the score's time for the comparison layer (0022, section 4): what agrees as printed, what it adds
-    /// on the grid, bars that do not line up empty. Its likely artefacts are left out unless asked for; the ids of the
-    /// notes it adds never include them.
-    /// </summary>
-    private PerformanceLayerNotes VersionLayer(SavedPerformance performance, bool artefacts)
+    internal static partial class Calls
     {
-        PerformanceLayerNotes layer = PerformanceLayer.Of(Compare(performance), performance.Notes(), Printed, Piece.Meter);
-        HashSet<string> likely = [.. layer.Artefacts];
-        IReadOnlyList<string> added = [.. layer.Added.Where(id => !likely.Contains(id))];
-        return artefacts ? layer with { Added = added } : new([.. layer.Notes.Where(note => !likely.Contains(note.Id))], added, []);
+        /// <summary>The performances.</summary>
+        public static readonly FacadeCall<OpenPiece>[] Performances =
+        [
+            new("performances", static (piece, _) => Answer.Write(json => Answer.Performances(json, piece.Project)), CallFlags.OpenFirst),
+            new("performance", static (piece, request) => piece.PerformanceAnswer(piece.Performance(request)), CallFlags.OpenFirst),
+            new("performance.add", static (piece, request) => piece.AddPerformance(request)),
+            new("performance.rename", static (piece, request) => piece.RenamePerformance(request)),
+            new("performance.dismiss", static (piece, request) => piece.DismissBar(request)),
+            new("performance.take", static (piece, request) => piece.TakeBars(request)),
+            new("performance.takeAll", static (piece, request) => piece.TakeAll(request)),
+            new("performance.restore", static (piece, request) => piece.RestoreBars(request)),
+        ];
     }
 
+    /// <summary>The version "id" (<see cref="PerformancesSession.Find"/>).</summary>
+    private SavedPerformance Performance(Request request) => PerformancesSession.Find(State, request.Required("id"));
+
+    /// <summary>The version compared with the printed notes (<see cref="PerformancesSession.Compare"/>) as the answer.</summary>
     private string PerformanceAnswer(SavedPerformance performance)
     {
-        PerformanceComparison comparison = Compare(performance);
-        return Answer.Write(json => Answer.Performance(json, performance, comparison, Printed.Count, Words, Piece.Meter));
+        IReadOnlyList<Note> printed = Printed;
+        PerformanceComparison comparison = PerformancesSession.Compare(State, printed, performance);
+        return Answer.Write(json => Answer.Performance(json, performance, comparison, printed.Count, Words, Piece.Meter));
     }
 
     /// <summary>
@@ -55,57 +58,34 @@ internal sealed partial class OpenPiece
     /// </summary>
     private string AddPerformance(Request request)
     {
-        (byte[] midi, PerformanceSource source) = request.Text("file") is { } file ? VersionOf(file, request.Required("fileName"))
+        (byte[] midi, PerformanceSource source) = request.Text("file") is { } file ? PerformancesSession.Version(request.Required("fileName"), Base64(file, "\"file\" is a MIDI or MusicXML file in base64."))
             : request.Has("parts") ? (JoinedParts(request), PerformanceSource.Recording)
-            : (MidiOf(request), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
+            : (Base64(request.Required("midi"), "\"midi\" is a MIDI file in base64."), request.Enum<PerformanceSource>("source") ?? PerformanceSource.Midi);
 
-        return AddVersion(request.Required("name"), midi, source, (request.Long("recordingStart") ?? 0) * 1000, request.Text("engine"));
+        return AddVersion(State, request.Required("name"), midi, source, (request.Long("recordingStart") ?? 0) * 1000, request.Text("engine"));
     }
 
-    /// <summary>A version added over the piece: lined up with the score, kept with its anchors, and for a scanned piece the Check flags it gives.</summary>
-    private string AddVersion(string name, byte[] midi, PerformanceSource source, long start, string? engine)
+    /// <summary>
+    /// A version added over <paramref name="piece"/> (<see cref="PerformancesSession.Add"/>), the project it makes kept, and
+    /// answered compared; the piece is left as it was when it is refused.
+    /// </summary>
+    private string AddVersion(SessionPiece piece, string name, byte[] midi, PerformanceSource source, long start, string? engine)
     {
-        IReadOnlyList<PlayedNote> played;
-        try
-        {
-            played = PlayedNotes.FromMidi(midi, start);
-        }
-        catch (Exception exception) when (exception is MidiImportException or ArgumentException or InvalidDataException or FormatException)
-        {
-            throw FacadeException.BadRequest($"The performance is not a MIDI file Motiff Lab can read: {exception.Message}");
-        }
-
-        if (played.Count == 0)
-        {
-            throw FacadeException.BadRequest("The performance has no notes.");
-        }
-
-        PerformanceAlignment alignment = PerformanceAlignment.Align(Printed, played);
-        SavedPerformance performance = new(Project.NextPerformanceId(), name, source, midi, start, alignment.Anchors)
-        {
-            Engine = engine,
-        };
-
-        Project = Project.AddPerformance(performance);
-        if (Project.Scan is not null)
-        {
-            PerformanceComparison comparison = PerformanceComparison.Compare(Printed, Piece.Meter, played, alignment);
-            IReadOnlyList<RecordingCorrection> corrections = RecordingCorrections.Find(Printed, Piece.Meter, ScanCheck.Of(Piece), comparison);
-            Project = Project.WithPerformanceChecks(corrections.SelectMany(correction => correction.Flags()));
-        }
-
-        return PerformanceAnswer(performance);
+        AddedVersion added = PerformancesSession.Add(piece, Printed, name, midi, source, start, engine);
+        Project = added.Project;
+        return PerformanceAnswer(added.Performance);
     }
 
-    private static byte[] MidiOf(Request request)
+    /// <summary>The bytes of <paramref name="text"/> in base64; refused with <paramref name="wrong"/> when it is not.</summary>
+    private static byte[] Base64(string text, string wrong)
     {
         try
         {
-            return Convert.FromBase64String(request.Required("midi"));
+            return Convert.FromBase64String(text);
         }
         catch (FormatException)
         {
-            throw FacadeException.BadRequest("\"midi\" is a MIDI file in base64.");
+            throw FacadeException.BadRequest(wrong);
         }
     }
 
@@ -160,49 +140,13 @@ internal sealed partial class OpenPiece
         }
     }
 
-    private static (byte[] Midi, PerformanceSource Source) VersionOf(string file, string fileName)
-    {
-        byte[] data;
-        try
-        {
-            data = Convert.FromBase64String(file);
-        }
-        catch (FormatException)
-        {
-            throw FacadeException.BadRequest("\"file\" is a MIDI or MusicXML file in base64.");
-        }
-
-        VersionFileResult read = VersionFile.Read(fileName, data);
-        return read switch
-        {
-            { Rejection: { } rejection } => throw FacadeException.BadRequest($"{rejection.Message} {rejection.Tip}".Trim()),
-            { Midi: { } midi } => (midi, read.Source),
-            _ => throw FacadeException.BadRequest("The version has no notes."),
-        };
-    }
-
     /// <summary>"id", "bars" (numbers) and "leaveOut" (ids of notes on either side the player unticked).</summary>
     private string TakeBars(Request request)
     {
         SavedPerformance performance = Performance(request);
-        PerformanceComparison comparison = Compare(performance);
-        IReadOnlyList<PlayedNote> played = performance.Notes();
         IReadOnlyList<string> leaveOut = request.Texts("leaveOut");
-        List<TakenBar> taken = [];
-        foreach (int bar in BarsOf(request))
-        {
-            BarComparison compared = comparison.Bars.FirstOrDefault(kept => kept.Bar == bar) ?? throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
-            try
-            {
-                taken.Add(PerformanceTake.Take(performance.Id, compared, played, comparison.Alignment, Piece.Meter, Printed, leaveOut));
-            }
-            catch (ArgumentException exception)
-            {
-                throw FacadeException.Unavailable(exception.Message);
-            }
-        }
-
-        return ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
+        IReadOnlyList<TakenBar> taken = PerformancesSession.Take(State, Printed, performance, BarsOf(request), leaveOut);
+        return Keep(PerformancesSession.WithBarsTaken(Project, performance.Id, taken), performance.Id, notesChange: true);
     }
 
     /// <summary>
@@ -212,32 +156,39 @@ internal sealed partial class OpenPiece
     private string TakeAll(Request request)
     {
         SavedPerformance performance = Performance(request);
-        int confidence = Math.Clamp(request.Int("confidence") ?? PerformanceTake.AutomaticConfidence, 0, 100);
-        IReadOnlyList<TakenBar> taken;
-        try
-        {
-            taken = PerformanceTake.TakeAll(performance, Compare(performance), Piece.Meter, Printed, confidence);
-        }
-        catch (ArgumentException exception)
-        {
-            throw FacadeException.Unavailable(exception.Message);
-        }
-
-        return taken.Count == 0 ? PerformanceAnswer(performance) : ChangePerformance(request, kept => kept.TakeBars(taken), notesChange: true);
+        IReadOnlyList<TakenBar> taken = PerformancesSession.TakeAll(State, Printed, performance, request.Int("confidence"));
+        return taken.Count == 0 ? PerformanceAnswer(performance) : Keep(PerformancesSession.WithBarsTaken(Project, performance.Id, taken), performance.Id, notesChange: true);
     }
 
-    private string ChangePerformance(Request request, Func<SavedPerformance, SavedPerformance> change, bool notesChange = false)
+    /// <summary>"id" and "bars": the print restored in those bars.</summary>
+    private string RestoreBars(Request request)
     {
         string id = Performance(request).Id;
-        try
-        {
-            Project = Project.ChangePerformance(id, change);
-        }
-        catch (ArgumentException exception)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
+        return Keep(PerformancesSession.Restored(Project, id, BarsOf(request)), id, notesChange: true);
+    }
 
+    /// <summary>"id", "bar" and "dismissed" (true unless sent): the bar marked "not a difference", or the mark taken back.</summary>
+    private string DismissBar(Request request)
+    {
+        string id = Performance(request).Id;
+        int bar = request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
+        return Keep(PerformancesSession.Dismissed(Project, id, bar, request.Bool("dismissed") ?? true), id);
+    }
+
+    /// <summary>"id" and "name".</summary>
+    private string RenamePerformance(Request request)
+    {
+        string id = Performance(request).Id;
+        return Keep(PerformancesSession.Renamed(Project, id, request.Required("name")), id);
+    }
+
+    /// <summary>
+    /// The <paramref name="project"/> a change of the version <paramref name="id"/> makes kept, the notes read again when
+    /// bars were taken or restored (<paramref name="notesChange"/>), and that version answered.
+    /// </summary>
+    private string Keep(Project project, string id, bool notesChange = false)
+    {
+        Project = project;
         if (notesChange)
         {
             RefreshNotes();
@@ -245,16 +196,6 @@ internal sealed partial class OpenPiece
 
         return PerformanceAnswer(Project.FindPerformance(id)!);
     }
-
-    /// <summary>The notes again after bars were taken or restored, and what was worked out from them.</summary>
-    private void RefreshNotes()
-    {
-        Notes = PerformanceTake.Apply(Printed, Project.TakenBars);
-        ReadStructure();
-        Selection.ForgetUnderstanding();
-    }
-
-    private static int BarOf(Request request) => request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
 
     private static IReadOnlyList<int> BarsOf(Request request)
     {
