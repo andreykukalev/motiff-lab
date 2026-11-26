@@ -118,7 +118,7 @@ final class Engraver {
                 artefacts: ossia["artefacts"] as? [String] ?? []
             )
         }
-        return .success(Engraving(pages: pages, timemap: engraver.timemap(), ossias: ossias))
+        return .success(Engraving(pages: pages, timemap: engraver.timemap(), ossias: ossias, appWrittenBars: Engraving.appWrittenBars(in: answer)))
     }
 
     private static func jsonString(_ text: String) -> String {
@@ -141,6 +141,14 @@ struct Engraving: Sendable {
     let pages: [String]
     let timemap: String
     var ossias: [Ossia] = []
+    /// «Как напечатано» (v1.4): how many bars the app wrote itself where the notes' source record did not fit; nil for
+    /// notes with no record (heard, MIDI, written as heard).
+    var appWrittenBars: Int?
+
+    /// The notation answer's "appWrittenBarCount" (facade contract 14): a count, or nil for its null.
+    static func appWrittenBars(in answer: [String: Any]) -> Int? {
+        (answer["appWrittenBarCount"] as? NSNumber)?.intValue
+    }
 }
 
 struct EngraveError: Error, Sendable {

@@ -397,7 +397,7 @@ struct ScoreScreenContent: View {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, marksModel: marksModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
-                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing, viewNote: sourcesModel.engraved.note(text),
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
@@ -828,6 +828,8 @@ struct ScoreBar: View {
     var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
     /// The read-only tag of a view shown over the piece; nil for the piece itself.
     var viewing: String? = nil
+    /// The view's note: how many bars the app wrote where the source's record did not fit (`SourcesModel.Engraved.note`).
+    var viewNote: String? = nil
     /// The bar's width, the screen's less its margins (TopBar).
     var width: CGFloat = 0
     let back: () -> Void
@@ -848,6 +850,10 @@ struct ScoreBar: View {
                 PdfNotesSwitch(onPdf: false, text: text) { pdf() }
             }
             if let viewing { Tag(text: viewing, kind: .assumed) }
+            // Within the title's share of the bar, on two lines where it is longer, so the bar's start keeps its room.
+            if let viewNote {
+                WidthCap(cap: BarFit.titleCap(barWidth: width)) { Tag(text: viewNote, kind: .assumed).lineLimit(2) }
+            }
         } actions: {
             actions(compact: false)
         } compact: {

@@ -151,6 +151,27 @@ final class SourcesModelTests: XCTestCase {
         guard case .restore(_)? = SourcesHandover.toast(for: file)?.undo else { return XCTFail("its Undo writes the file back") }
     }
 
+    /// The view's note («Как напечатано», v1.4, concept section 2): the bars the app wrote itself, counted in each
+    /// language's plural forms, only when there are some; none for notes with no record. Another piece starts with its own.
+    func testTheViewsNoteCountsTheBarsTheAppWrote() {
+        let russian = UIText(language: "ru")
+        XCTAssertNil(SourcesModel.Engraved(even: false, appWrittenBars: nil).note(text), "no record, no note")
+        XCTAssertNil(SourcesModel.Engraved(even: false, appWrittenBars: 0).note(text), "every bar as the source writes it")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 1).note(text), "As the source writes it, 1 bar written by the app")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 4).note(text), "As the source writes it, 4 bars written by the app")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 1).note(russian), "По записи источника, 1 такт записан приложением")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 4).note(russian), "По записи источника, 4 такта записаны приложением")
+        XCTAssertEqual(SourcesModel.Engraved(even: false, appWrittenBars: 5).note(russian), "По записи источника, 5 тактов записано приложением")
+
+        let model = SourcesModel(evenBars: false)
+        model.open(evenBars: false, appWrittenBars: 4)
+        XCTAssertEqual(model.engraved.note(text), "As the source writes it, 4 bars written by the app", "as the piece opened")
+        model.keepEngraved(SourcesModel.Engraved(even: false, appWrittenBars: 0))
+        XCTAssertNil(model.engraved.note(text), "engraved again after a correction: none left")
+        model.open(evenBars: false)
+        XCTAssertNil(model.engraved.appWrittenBars, "another piece has none of the last one's")
+    }
+
     func testThePiecesSourcesAreKeptAsReadUntilAnotherPiece() {
         let model = SourcesModel(evenBars: false)
         model.read(sources: #"{"base": "scan", "baseName": "Elise.pdf", "summary": "Read from a scan", "document": {"fileName": "elise.pdf", "pages": 2, "starts": [0, 1920]}}"#)
