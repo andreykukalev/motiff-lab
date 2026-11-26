@@ -38,7 +38,23 @@ internal sealed partial class OpenPiece
     internal SourcesSession Sources { get; } = new();
 
     /// <summary>This piece's project as the sources' calls that need no notes change it (<see cref="SourceRequest.Calls"/>), a PDF's pages shared over the bars.</summary>
-    internal SourceOwner HeldSources => new(() => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+    internal SourceOwner HeldSources => new(() => Project, KeepSources, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+
+    /// <summary>
+    /// The <paramref name="project"/> one of the sources' calls that need no notes makes, kept; when it took away a version
+    /// with bars taken from it (sources.notes.remove, sources.original.remove with its notes), the notes read again without
+    /// them, and the selection kept over them, as when the bars are restored.
+    /// </summary>
+    private void KeepSources(Project project)
+    {
+        bool takenChanged = !Project.TakenBars.SequenceEqual(project.TakenBars);
+        Project = project;
+        if (takenChanged)
+        {
+            RefreshNotes();
+            Selection.FollowNotes(State);
+        }
+    }
 
     /// <summary>The piece changed by one of the Sources sheet's operations, a draft's among them, answered as the sources with what <paramref name="more"/> adds.</summary>
     internal string Changed(Request request, Func<Project, Project> change, Action<Utf8JsonWriter> more) =>

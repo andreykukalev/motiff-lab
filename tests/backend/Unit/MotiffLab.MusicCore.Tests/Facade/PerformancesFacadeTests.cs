@@ -51,4 +51,17 @@ public class PerformancesFacadeTests
 
         Assert.Equal([5], Assert.Single(ProjectFile.Read(SavedAndOpened(facade)).Performances).Dismissed);
     }
+
+    [Fact]
+    public void A_version_removed_takes_the_bars_taken_from_it_out_of_the_open_notes()
+    {
+        MusicCoreFacade facade = WithVersion(replaced: false);
+        int printed = Call(facade, "piece").GetProperty("noteCount").GetInt32();
+        Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""");
+        Assert.Equal(printed + 3, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+
+        Call(facade, "sources.notes.remove", """{"id": "perf_1"}""");
+        Assert.Equal(printed, Call(facade, "piece").GetProperty("noteCount").GetInt32());
+        Assert.DoesNotContain("perf-perf_1", Call(facade, "roll").GetRawText(), StringComparison.Ordinal);
+    }
 }
