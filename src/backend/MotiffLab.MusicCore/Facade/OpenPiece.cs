@@ -23,8 +23,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// One open piece (0020): its project, the imported piece, the notes with the player's corrections and
 /// the phrases; the one primary selection (0013) with what was understood about it and the variation chain
-/// a Try chip starts are its <see cref="SelectionSession"/> (audit W1.7). The iPad app's orchestration of
-/// music-core, kept in one place.
+/// a Try chip starts are its <see cref="SelectionSession"/>, the corrections' draft and layer its
+/// <see cref="CorrectionsSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {
@@ -66,8 +66,30 @@ internal sealed partial class OpenPiece
     /// <summary>The selection and what is understood about it, the variation chain and the working motif (<see cref="SelectionSession"/>).</summary>
     internal SelectionSession Selection { get; } = new();
 
+    /// <summary>The corrections' draft, the draft accepted last and the layer they are laid with (<see cref="CorrectionsSession"/>).</summary>
+    internal CorrectionsSession Corrections { get; } = new();
+
+    /// <summary>
+    /// For Notes or a draft opened only to be shown (sources.notes.open, drafts.open): the piece they were opened from and
+    /// what is shown; null for a piece open to work on.
+    /// </summary>
+    internal ShownView? ShownFrom { get; private set; }
+
+    /// <summary>
+    /// True for Notes or a draft opened only to be shown: the facade answers the calls that show them and refuses every
+    /// other (<see cref="MusicCoreFacade"/>).
+    /// </summary>
+    internal bool ReadOnly => ShownFrom is not null;
+
     /// <summary>The piece as the sessions read it now.</summary>
     internal SessionPiece State => new(Project, Piece, Notes, Structure, Words);
+
+    /// <summary>This piece, open only to be shown from now on, as <paramref name="shown"/> says.</summary>
+    internal OpenPiece AsReadOnly(ShownView shown)
+    {
+        ShownFrom = shown;
+        return this;
+    }
 
     /// <summary>A new project for a file the player just imported.</summary>
     public static OpenPiece Import(string id, string fileName, byte[] data, Words words, DateTimeOffset now)
@@ -177,11 +199,11 @@ internal sealed partial class OpenPiece
         }
 
         json.WriteBoolean("hasVariation", Selection.Chain is not null);
-        if (_layer != EditsLayer.Strict)
+        if (Corrections.Laid(State) is { } laid)
         {
             json.WriteStartObject("edits");
             json.WriteNumber("count", Project.Edits.Edits.Count);
-            LayerFields(json);
+            Answer.Layer(json, laid, Words);
             json.WriteEndObject();
         }
     }
@@ -444,7 +466,7 @@ internal sealed partial class OpenPiece
         DateTimeOffset? now = request.Text("now") is { } text
             ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
             : null;
-        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: _layer == EditsLayer.Off);
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: Corrections.Layer == EditsLayer.Off);
         Project = Project.WithPhraseLevels(Levels.Edits) with
         {
             Motifs = motifs,
@@ -452,6 +474,6 @@ internal sealed partial class OpenPiece
             LastOpened = now ?? Project.LastOpened,
         };
         // Corrections made in the note editor are kept only once the player saves them (testing item 15).
-        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(_draftFrom is { } saved ? Project with { Edits = saved } : Project));
+        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project with { Edits = Corrections.Kept(State) }));
     }
 }

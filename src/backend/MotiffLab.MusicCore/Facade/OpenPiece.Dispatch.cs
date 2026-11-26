@@ -1,5 +1,4 @@
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -95,27 +94,6 @@ internal sealed partial class OpenPiece
             new("sources.relink", static (piece, request) => piece.RelinkDocument(request)),
             new("sources.held", static (piece, request) => piece.MarkHeld(request)),
             new("sources.notes.recognise", static (piece, request) => piece.RecogniseAgain(request)),
-        ];
-
-        /// <summary>The corrections.</summary>
-        public static readonly FacadeCall<OpenPiece>[] Corrections =
-        [
-            new("corrections", static (piece, request) => piece.CorrectionsAnswer(piece.CorrectionBar(request)), CallFlags.WhileCorrectionsOff | CallFlags.OpenFirst),
-            new("corrections.layer", static (piece, request) => piece.SwitchLayer(request), CallFlags.WhileCorrectionsOff),
-            new("corrections.drop", static (piece, request) => piece.DropUnfit(request), CallFlags.WhileCorrectionsOff),
-            new("corrections.begin", static (piece, request) => piece.BeginDraft(request)),
-            new("corrections.save", static (piece, request) => piece.EndDraft(request, keep: true)),
-            new("corrections.discard", static (piece, request) => piece.EndDraft(request, keep: false)),
-            new("corrections.reset", static (piece, request) => piece.Correct(request, _ => NoteEditLog.Empty)),
-            new("corrections.add", static (piece, request) => piece.AddNote(request)),
-            new("corrections.acceptDraft", static (piece, request) => piece.AcceptDraft(request)),
-            new("corrections.undoDraft", static (piece, request) => piece.UndoDraft(request)),
-            new("corrections.variant", static (piece, request) => piece.TakeVariant(request)),
-            new("corrections.set", static (piece, request) => piece.Correct(request, edits => edits.Change(piece.Piece.Notes, piece.CorrectableNote(request).Id, Set(piece.CorrectableNote(request), request)))),
-            new("corrections.change", static (piece, request) => piece.Correct(request, edits => edits.Change(piece.Piece.Notes, piece.CorrectableNote(request).Id, Changed(piece.CorrectableNote(request), request)))),
-            new("corrections.remove", static (piece, request) => piece.Correct(request, edits => edits.Remove(piece.Piece.Notes, piece.CorrectableNote(request).Id))),
-            new("corrections.revert", static (piece, request) => piece.Correct(request, edits => piece.RevertedFor(request.Required("id")).Aggregate(edits, static (log, id) => log.Revert(id)))),
-            new("corrections.undo", static (piece, request) => piece.UndoCorrection(request)),
         ];
     }
 }
