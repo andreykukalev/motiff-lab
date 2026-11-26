@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Playback;
 /// <c>Scripts/roll/roll-model.ts</c> in the web app, the same in the iPad app through the facade's <c>roll</c>): per note its onset, duration, pitch, track, voice, hand and
 /// what is inferred about it; per bar its onset, duration, beat length and number.
 /// </summary>
-public static class PianoRollData
+internal static class PianoRollData
 {
     public const int HandNone = 0;
     public const int HandLeft = 1;
@@ -101,11 +101,11 @@ public static class PianoRollData
         attribution.Provenance is Provenance.Imported or Provenance.UserConfirmed or Provenance.UserEdited;
 }
 
-public sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
+internal sealed record RollPayload(string[] Ids, long[] Notes, long[] Bars, long End);
 
 /// <summary>
 /// The names the roll writes: one per note, and per key signature (from its tick) one per row, MIDI 0 to 127; the same without
 /// the octave (<paramref name="Short"/>, <paramref name="ShortRows"/>), each octave's name in words, MIDI octave −1 first,
 /// and the voices named for a player (<paramref name="Voices"/>).
 /// </summary>
-public sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows, string[] Short, string[][] ShortRows, string[] Octaves, IReadOnlyList<VoiceName> Voices);
+internal sealed record RollNames(string[] Notes, long[] KeyTicks, string[][] Rows, string[] Short, string[][] ShortRows, string[] Octaves, IReadOnlyList<VoiceName> Voices);

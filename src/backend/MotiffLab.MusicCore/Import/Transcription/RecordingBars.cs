@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Import.Transcription;
 /// The bars of a recording (decision record 0016): found from its onsets (<see cref="Find"/>, and section by section for a
 /// live performance, <see cref="FindLive"/>), and applied to the piece (<see cref="Apply"/>). The grid found is a <see cref="BarGrid"/>. Everything is integer arithmetic and deterministic.
 /// </summary>
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>The fewest separate onsets a grid is fitted to.</summary>
     public const int MinOnsets = 16;

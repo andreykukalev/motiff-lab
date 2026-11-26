@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Settings;
 /// Clean leaves the score, the ink and the bookmarks. A setting's scope says whether its value stays on
 /// the device, travels with the account (Pro) or can be overridden for one piece in the project file.
 /// </summary>
-public static class SettingsCatalogue
+internal static class SettingsCatalogue
 {
     private static readonly string[] s_switch = [Setting.On, Setting.Off];
 

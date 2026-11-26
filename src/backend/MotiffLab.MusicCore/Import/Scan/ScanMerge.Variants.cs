@@ -1,21 +1,21 @@
 namespace MotiffLab.MusicCore.Import.Scan;
 
 /// <summary>A note of a variant: its onset in the bar, its pitch (MIDI) and its length within the bar, in ticks.</summary>
-public sealed record ScanVariantNote(long Onset, int Pitch, long Length);
+internal sealed record ScanVariantNote(long Onset, int Pitch, long Length);
 
 /// <summary>One staff of a variant: the part and the staff in it, from 1, and the notes the engines read there.</summary>
-public sealed record ScanVariantStaff(int Part, int Staff, IReadOnlyList<ScanVariantNote> Notes);
+internal sealed record ScanVariantStaff(int Part, int Staff, IReadOnlyList<ScanVariantNote> Notes);
 
 /// <summary>
 /// Another reading of a bar to check (ADR 0035, section 6; v1.3 i-2): what some engines read on the bar's staves to check,
 /// the same on each of them, and not what the merge took there. Only the bar itself: never another bar of the piece.
 /// </summary>
-public sealed record ScanVariant(IReadOnlyList<string> Engines, IReadOnlyList<ScanVariantStaff> Staves);
+internal sealed record ScanVariant(IReadOnlyList<string> Engines, IReadOnlyList<ScanVariantStaff> Staves);
 
 /// <summary>Where a bar is on its page: its box in the page image's pixels and the image it is in, as the evidence gives them.</summary>
-public sealed record ScanCrop(ScanBox Box, ScanImage Image);
+internal sealed record ScanCrop(ScanBox Box, ScanImage Image);
 
-public static partial class ScanMerge
+internal static partial class ScanMerge
 {
     /// <summary>
     /// The variants of a bar to check: each reading paired with the bar, grouped by its notes on the staves no two engines

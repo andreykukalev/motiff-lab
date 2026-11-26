@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Time;
 public sealed record MidiTimeBase
 {
     /// <summary>The largest PPQ a header can carry (15 bits).</summary>
-    public const int MaxTicksPerQuarter = 0x7FFF;
+    internal const int MaxTicksPerQuarter = 0x7FFF;
 
     public MidiTimeBase(int ticksPerQuarter)
     {

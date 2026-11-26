@@ -1,7 +1,7 @@
 namespace MotiffLab.MusicCore.Import.Vector;
 
 /// <summary>The notation symbols the vector reader understands (decision record 0029), named as SMuFL names them.</summary>
-public enum MusicGlyph
+internal enum MusicGlyph
 {
     /// <summary>A glyph of a music font the reader does not use: a text mark, an ornament, a pedal sign.</summary>
     Other,

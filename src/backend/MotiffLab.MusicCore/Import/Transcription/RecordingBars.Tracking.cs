@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>The shortest and longest beat the bass can mark: 300 ms and 2 s.</summary>
     private const long ShortestBassBeat = 300_000;

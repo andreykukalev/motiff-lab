@@ -40,19 +40,19 @@ public sealed record PageReport(
     int Measures)
 {
     /// <summary>Print fainter than this makes a poor page: on the 14 test photos the dim one had 58, the others 105–127.</summary>
-    public const int PoorContrast = 70;
+    internal const int PoorContrast = 70;
 
     /// <summary>Print fainter than this makes a weak page.</summary>
-    public const int WeakContrast = 95;
+    internal const int WeakContrast = 95;
 
     /// <summary>Edges softer than this make a poor page.</summary>
-    public const double PoorSharpness = 0.6;
+    internal const double PoorSharpness = 0.6;
 
     /// <summary>Edges softer than this make a weak page: on the test photos the readable pages had 0.86–1.28.</summary>
-    public const double WeakSharpness = 0.8;
+    internal const double WeakSharpness = 0.8;
 
     /// <summary>A page whose measures are fewer than its bar lines over this many lost bars on the way.</summary>
-    public const int BarLinesPerMeasure = 4;
+    internal const int BarLinesPerMeasure = 4;
 
     /// <summary>The page's quality: poor when it was not read or its print is very faint or soft, weak when less so.</summary>
     public PageQuality Quality =>

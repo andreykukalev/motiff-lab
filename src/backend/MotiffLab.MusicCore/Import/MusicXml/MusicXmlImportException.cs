@@ -1,12 +1,12 @@
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
 /// <summary>A MusicXML file that cannot be imported at all. The message is a plain reason for the player (N2).</summary>
-public sealed class MusicXmlImportException(MusicXmlImportFailure failure, string message) : Exception(message)
+internal sealed class MusicXmlImportException(MusicXmlImportFailure failure, string message) : Exception(message)
 {
     public MusicXmlImportFailure Failure { get; } = failure;
 }
 
-public enum MusicXmlImportFailure
+internal enum MusicXmlImportFailure
 {
     /// <summary>The bytes are not a MusicXML score.</summary>
     NotMusicXml,

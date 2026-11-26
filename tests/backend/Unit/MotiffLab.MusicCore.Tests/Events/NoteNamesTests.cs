@@ -33,12 +33,12 @@ public class NoteNamesTests
         Assert.Equal(name, NoteNames.Name(pitch, fifths, NoteNaming.Syllables));
 
     [Theory]
-    [InlineData(60, 0, NoteNaming.Letters, "C")]
-    [InlineData(66, -6, NoteNaming.Letters, "G♭")]
-    [InlineData(45, 0, NoteNaming.Syllables, "ля")]
-    [InlineData(75, 0, NoteNaming.Syllables, "ре♯")]
-    public void Without_the_octave_a_name_is_the_spelled_step_alone(int pitch, int fifths, NoteNaming naming, string name) =>
-        Assert.Equal(name, NoteNames.Name(pitch, fifths, naming, octave: false));
+    [InlineData(60, 0, nameof(NoteNaming.Letters), "C")]
+    [InlineData(66, -6, nameof(NoteNaming.Letters), "G♭")]
+    [InlineData(45, 0, nameof(NoteNaming.Syllables), "ля")]
+    [InlineData(75, 0, nameof(NoteNaming.Syllables), "ре♯")]
+    public void Without_the_octave_a_name_is_the_spelled_step_alone(int pitch, int fifths, string naming, string name) =>
+        Assert.Equal(name, NoteNames.Name(pitch, fifths, Enum.Parse<NoteNaming>(naming), octave: false));
 
     [Fact]
     public void Auto_follows_the_language_and_a_choice_wins_over_it()

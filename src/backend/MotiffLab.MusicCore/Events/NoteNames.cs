@@ -1,7 +1,7 @@
 namespace MotiffLab.MusicCore.Events;
 
 /// <summary>How note names are written: letters with the scientific octave, or the Russian syllables with the octave as Russian music schools write it.</summary>
-public enum NoteNaming
+internal enum NoteNaming
 {
     /// <summary>"C4", "F♯3", "B♭5": middle C is C4.</summary>
     Letters,
@@ -14,7 +14,7 @@ public enum NoteNaming
 /// The names the piano roll writes on its rows and notes (0018 section 4): spelled for the key in force, as the score spells
 /// them (<see cref="PitchSpeller"/>), so a note reads F♯ in G major and G♭ in D♭ major on the roll and on the score alike.
 /// </summary>
-public static class NoteNames
+internal static class NoteNames
 {
     /// <summary>The setting that chooses the naming (SettingsCatalogue): auto follows the interface language.</summary>
     public const string Setting = "notes.naming";

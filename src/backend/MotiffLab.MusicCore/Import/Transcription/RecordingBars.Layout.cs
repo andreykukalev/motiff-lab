@@ -1,6 +1,6 @@
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>Bar lines for one bar length, from where the bass falls.</summary>
     private sealed record Layout(int[] Starts, long Score, bool CompoundTwelve)

@@ -1,7 +1,7 @@
 namespace MotiffLab.MusicCore.Settings;
 
 /// <summary>The three presets of the Settings sheet (0018, section 10), and Custom once a switch departs from one.</summary>
-public enum Preset
+internal enum Preset
 {
     Learning,
     Practising,
@@ -10,7 +10,7 @@ public enum Preset
 }
 
 /// <summary>The sections of the Settings sheet, in its order.</summary>
-public enum SettingSection
+internal enum SettingSection
 {
     Level,
     Guidance,
@@ -30,7 +30,7 @@ public enum SettingSection
 }
 
 /// <summary>What a setting's value is.</summary>
-public enum SettingKind
+internal enum SettingKind
 {
     /// <summary>"on" or "off".</summary>
     Switch,
@@ -40,7 +40,7 @@ public enum SettingKind
 }
 
 /// <summary>Where a setting's value lives (0018, section 10; Andrei, 2026-10-31).</summary>
-public enum SettingScope
+internal enum SettingScope
 {
     /// <summary>A device feature: stays on the device and never travels.</summary>
     Device,
@@ -53,7 +53,7 @@ public enum SettingScope
 }
 
 /// <summary>What the three presets set a governed setting to; a setting with no preset values is not governed.</summary>
-public sealed record PresetValues(string Learning, string Practising, string Clean)
+internal sealed record PresetValues(string Learning, string Practising, string Clean)
 {
     public string For(Preset preset) => preset switch
     {
@@ -74,7 +74,7 @@ public sealed record PresetValues(string Learning, string Practising, string Cle
 /// <param name="Choices">The choices of a <see cref="SettingKind.Choice"/>; "on" and "off" for a switch.</param>
 /// <param name="Default">The value before any preset: the Practising preset's where one governs it.</param>
 /// <param name="Presets">What the presets set it to, or null when they leave it alone.</param>
-public sealed record Setting(string Id, SettingSection Section, SettingKind Kind, IReadOnlyList<string> Choices, string Default, PresetValues? Presets, SettingScope Scope)
+internal sealed record Setting(string Id, SettingSection Section, SettingKind Kind, IReadOnlyList<string> Choices, string Default, PresetValues? Presets, SettingScope Scope)
 {
     public const string On = "on";
     public const string Off = "off";

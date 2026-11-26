@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Playback;
 /// A note with no place in a MusicXML file (one the player added) says nothing of its staff. Pure: the same notes give
 /// the same names.
 /// </summary>
-public static class VoiceNames
+internal static class VoiceNames
 {
     public static IReadOnlyList<VoiceName> Of(IReadOnlyList<Note> notes, Words words)
     {
@@ -40,4 +40,4 @@ public static class VoiceNames
 }
 
 /// <summary>A voice of a track (<see cref="Note.Track"/>, <see cref="Note.Voice"/>) and the name a player understands.</summary>
-public sealed record VoiceName(int Track, int Voice, string Name);
+internal sealed record VoiceName(int Track, int Voice, string Name);

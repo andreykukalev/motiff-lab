@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Import;
 
 /// <summary>What the timing of an imported file says about how it was made (S1-I6, S1-R1, S1-R2).</summary>
-public enum TimingKind
+internal enum TimingKind
 {
     /// <summary>Too few notes to judge; nothing is offered.</summary>
     TooFewNotes,
@@ -31,7 +31,7 @@ public enum TimingKind
 /// Onsets by signed offset in bins of <see cref="PerformanceTiming.BinTicks"/>, from half a step
 /// early to half a step late; bin i holds offsets from −Step/2 + i·BinTicks, inclusive.
 /// </param>
-public sealed record GridFit(string Name, long Step, int Near, long TotalOffset, IReadOnlyList<int> Histogram)
+internal sealed record GridFit(string Name, long Step, int Near, long TotalOffset, IReadOnlyList<int> Histogram)
 {
     /// <summary>The mean distance to the grid in whole ticks, rounded to the nearest, for <paramref name="onsets"/> onsets.</summary>
     public long MeanOffset(int onsets) => onsets == 0 ? 0 : ((2 * TotalOffset) + onsets) / (2L * onsets);
@@ -52,7 +52,7 @@ public sealed record GridFit(string Name, long Step, int Near, long TotalOffset,
 /// <param name="OffGrid">Onsets more than <see cref="Tolerance"/> from both grids.</param>
 /// <param name="Grids">The 16th and the triplet-8th grid, in that order.</param>
 /// <param name="Swing">The offbeats' median position through the beat, when enough beats hold two onsets; null otherwise.</param>
-public sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid, IReadOnlyList<GridFit> Grids, SwingMeasure? Swing)
+internal sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid, IReadOnlyList<GridFit> Grids, SwingMeasure? Swing)
 {
     /// <summary>The fewest onsets the figures are judged on.</summary>
     public const int MinOnsets = 8;
@@ -167,7 +167,7 @@ public sealed record PerformanceTiming(TimingKind Kind, int Onsets, int OffGrid,
 /// <param name="Beats">The beats measured.</param>
 /// <param name="MedianOffbeat">The median position of the second onset, in ticks from the beat.</param>
 /// <param name="BeatTicks">The length of the beats measured; when the meter changes beat length, the most common.</param>
-public sealed record SwingMeasure(int Beats, long MedianOffbeat, long BeatTicks)
+internal sealed record SwingMeasure(int Beats, long MedianOffbeat, long BeatTicks)
 {
     internal static SwingMeasure? Measure(IReadOnlyList<Note> notes, MeterMap meter)
     {

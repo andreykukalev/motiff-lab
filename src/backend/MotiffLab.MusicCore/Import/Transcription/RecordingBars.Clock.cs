@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>Onsets this close together are one chord: 30 ms.</summary>
     private const long ChordMicroseconds = 30_000;

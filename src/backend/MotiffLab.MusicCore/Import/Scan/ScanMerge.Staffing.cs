@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// in order, the clefs (by staff) and the key changing where they are written, for the staff positions of each staff's
 /// heads under the reading's own clefs and the clef and key each bar starts with.
 /// </summary>
-public static partial class ScanMerge
+internal static partial class ScanMerge
 {
     internal sealed partial class Reading
     {

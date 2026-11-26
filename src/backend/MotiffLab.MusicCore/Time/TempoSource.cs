@@ -33,7 +33,7 @@ public enum TempoSource
 }
 
 /// <summary>The facade's and the apps' names of the sources.</summary>
-public static class TempoSources
+internal static class TempoSources
 {
     /// <summary>"assumed", "notated", "inferred", "player" or "default".</summary>
     public static string Name(this TempoSource source) => source switch

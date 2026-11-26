@@ -14,7 +14,7 @@ namespace MotiffLab.MusicCore.Import;
 /// <param name="Title">The piece's title as the name gives it, catalogue numbers included; null when the name gives none (a scan's "IMG_0042").</param>
 /// <param name="Composer">As written in the name; null when no part of it reads as a composer.</param>
 /// <param name="Catalogue">The catalogue numbers in the name, in their order, as one text; null when there is none.</param>
-public sealed partial record FileNameDetails(string? Title, string? Composer, string? Catalogue)
+internal sealed partial record FileNameDetails(string? Title, string? Composer, string? Catalogue)
 {
     public static FileNameDetails None { get; } = new(null, null, null);
 

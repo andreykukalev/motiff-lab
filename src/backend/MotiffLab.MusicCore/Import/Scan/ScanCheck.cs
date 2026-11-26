@@ -29,18 +29,18 @@ namespace MotiffLab.MusicCore.Import.Scan;
 public sealed record ScanCheck
 {
     /// <summary>The confidence of a note in a bar a check flagged: below the 0.6 that hints need (05-domain-architecture).</summary>
-    public const double FlaggedConfidence = 0.4;
+    internal const double FlaggedConfidence = 0.4;
 
     /// <summary>The confidence of a note in a bar no check flagged; it is still a reading, not a fact.</summary>
     public const double CleanConfidence = 0.7;
 
     /// <summary>The confidence of a note in a bar no check flagged on a weak page: below the 0.6 hints need, so it shows as unsure.</summary>
-    public const double WeakPageConfidence = 0.5;
+    internal const double WeakPageConfidence = 0.5;
 
     /// <summary>The lowest and highest keys of an 88-key piano, A0 and C8.</summary>
-    public const int LowestPianoKey = 21;
+    internal const int LowestPianoKey = 21;
 
-    public const int HighestPianoKey = 108;
+    internal const int HighestPianoKey = 108;
 
     private ScanCheck(IReadOnlyList<ScanBar> bars, IReadOnlyList<ScanPage> pages) => (Bars, Pages) = (bars, pages);
 
@@ -245,7 +245,7 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
     public IEnumerable<string> Reasons => ReasonsIn(Words.English);
 
     /// <summary><see cref="Reasons"/> in the player's language.</summary>
-    public IEnumerable<string> ReasonsIn(Words words) => Flags.Select(flag => Describe(flag, words));
+    internal IEnumerable<string> ReasonsIn(Words words) => Flags.Select(flag => Describe(flag, words));
 
     public static string Describe(ScanFlag flag) => Describe(flag, Words.English);
 

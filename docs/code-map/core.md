@@ -114,10 +114,13 @@ Only what another project uses, and the types its public signatures name; the re
 `MotiffLab.MusicCore.Tests` (`InternalsVisibleTo`). The API uses `Accounts`, `Assistant.Conversation`, `ProjectFile`
 (`ReadEnvelope`), `ProjectEnvelope`, `ProjectSummary` and `Words`; its tests also `Project.Create`, `ProjectFile.Write`
 and the assistant run in-process (`AssistantPiece`, `AssistantContext`, `TurnRunner`, `FactsDigest`, `PieceImporter`);
-`src/ipad/Core` and the acceptance tests `MusicCoreFacade`. W1.12 makes it so a layer at a time, top first: done for
-`Facade`, `Assistant`, `Analytics`, `Projects` (v1.5 c-12w), then `Experiments`, `Assembly`, `Notation`, `Variations`,
+`src/ipad/Core` and the acceptance tests `MusicCoreFacade`. W1.12 made it so (done, v1.5), a layer at a time, top
+first: `Facade`, `Assistant`, `Analytics`, `Projects` (c-12w), then `Experiments`, `Assembly`, `Notation`, `Variations`,
 `Invitations`, `Analysis`, `Performance` (c-12w2: public stay the analyses, facts, phrase levels, variations and saved
-performances the project and the assistant name); a new type there is `internal` unless one of these needs it. A theory
+performances the project and the assistant name), then `Import`, `Playback`, `Pieces`, `Motifs`, `Export`, `Events`,
+`Time`, `Settings` (c-12w3: public stay what the API's tests use, `PieceImporter` with its result, `ImportedPiece`,
+`Tick`, `TickSpan`, and the notes, motifs, imported records, marks, edit log and provenance the layers above name;
+`Playback`, `Export`, `Settings` are all internal); `Accounts` and the root stay public. A new type is `internal` unless one of these needs it. A theory
 test takes an internal enum by its name (`nameof`, parsed in the test), since xUnit runs public methods only.
 
 ## Rules not to break

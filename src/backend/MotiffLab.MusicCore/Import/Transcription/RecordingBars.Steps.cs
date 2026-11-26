@@ -2,7 +2,7 @@ using MotiffLab.MusicCore.Pieces;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>The 16th and phase in microseconds that leave the onsets closest to the grid, relative to its step.</summary>
     private static (long Step, long Phase) Search(long[] times) => Search(times, ShortestSearched, LongestSearched);

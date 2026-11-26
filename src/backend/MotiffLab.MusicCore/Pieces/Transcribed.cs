@@ -13,7 +13,7 @@ namespace MotiffLab.MusicCore.Pieces;
 /// (05-domain-architecture). Hands worked out from the notes stay inferred, as for any MIDI file.
 /// Corrections still go to the edit log and become user-edited. Pure and deterministic.
 /// </remarks>
-public static class Transcribed
+internal static class Transcribed
 {
     /// <summary>The confidence of a transcribed note: a draft for the player to check.</summary>
     public const double Confidence = 0.4;
