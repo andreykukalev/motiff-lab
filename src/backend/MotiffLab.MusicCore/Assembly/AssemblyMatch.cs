@@ -88,10 +88,12 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
             IReadOnlyList<Note> theirs = target is { } span ? notes.NotesIn(span.Onset, span.End) : [];
             int matched = 0;
             bool identical = found && mine.Count == theirs.Count;
-            foreach (Note note in mine)
+            Note?[] matches = Exact(mine, theirs, bar, target, used);
+            for (int n = 0; n < mine.Count; n++)
             {
+                Note note = mine[n];
                 Tick at = alignment.TickAt(note.Span.Onset.Value * 1000);
-                Note? match = theirs.Where(other => other.Pitch == note.Pitch && !used.Contains(other.Id) && Math.Abs(other.Span.Onset.Value - at.Value) <= Tolerance)
+                Note? match = matches[n] ?? theirs.Where(other => other.Pitch == note.Pitch && !used.Contains(other.Id) && Math.Abs(other.Span.Onset.Value - at.Value) <= Tolerance)
                     .OrderBy(other => Math.Abs(other.Span.Onset.Value - at.Value)).FirstOrDefault();
                 if (match is null)
                 {
@@ -116,6 +118,35 @@ public sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyList<
         }
 
         return new AssemblyMatch(sourceId, stamp, bars, RunsOf(source, bars)) { Alignment = alignment };
+    }
+
+    /// <summary>
+    /// The notes of a source bar found exactly where they stand in it, as the bar lands in the notes (<paramref name="target"/>:
+    /// its own position scaled to the target's length, in integers), each taken into <paramref name="used"/>; null for the
+    /// rest, which are looked for near their aligned tick. First, so a run of one pitch is never paired one note late, the
+    /// alignment's tick inside a bar being near but not exact even for the same music (v1.4 F6: the same passage taken
+    /// twice showed 92 %).
+    /// </summary>
+    private static Note?[] Exact(IReadOnlyList<Note> mine, IReadOnlyList<Note> theirs, TickSpan bar, TickSpan? target, HashSet<string> used)
+    {
+        var matches = new Note?[mine.Count];
+        if (target is not { } landed || bar.Duration == 0)
+        {
+            return matches;
+        }
+
+        for (int n = 0; n < mine.Count; n++)
+        {
+            Note note = mine[n];
+            long expected = landed.Onset.Value + ((note.Span.Onset.Value - bar.Onset.Value) * landed.Duration / bar.Duration);
+            matches[n] = theirs.FirstOrDefault(other => other.Pitch == note.Pitch && other.Span.Onset.Value == expected && !used.Contains(other.Id));
+            if (matches[n] is { } match)
+            {
+                used.Add(match.Id);
+            }
+        }
+
+        return matches;
     }
 
     /// <summary>

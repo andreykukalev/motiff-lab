@@ -106,19 +106,10 @@ internal static class DraftRequest
     {
         _ = request.Required("draft");
         (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(into, from, request);
-        Project changed;
-        try
-        {
-            changed = into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place));
-        }
-        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
-
+        Project changed = Refused(() => into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place)));
         return Answer.Write(json =>
         {
-            Added(json, draft.Id, place, variant.Id);
+            Added(json, draft!.Id, place, variant.Id);
             Answer.Project(json, "project", changed);
             json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(changed)));
         });
@@ -221,6 +212,23 @@ internal static class DraftRequest
         string place = request.Required("place");
         IReadOnlyList<DraftStep> dropped = draft.FindPlace(place)?.Base == variant ? [] : draft.StepsOf(place);
         return Restructured(owner, request, draft, place, variant, dropped, each => each.WithBase(place, variant));
+    }
+
+    /// <summary>
+    /// «Карта черновика: порядок мест» (version 1.4, F1): the place "place" of the draft "draft" moved to "index" among its
+    /// places, from 0, the others in their order (<see cref="Draft.WithPlaceAt"/>); a place moved where it is, or to an index
+    /// outside the places, is a bad request. Answers the sources with "draft", "place" and "dropped", the numbers of the
+    /// steps that kept a seam as it was («Оставить») where the place before it is another now, so that seam is a new one.
+    /// Undone as <see cref="Place"/> is.
+    /// </summary>
+    public static string Move(OpenPiece owner, Request request)
+    {
+        string id = request.Required("draft");
+        Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
+        string place = request.Required("place");
+        int index = request.RequiredInt("index");
+        IReadOnlyList<DraftStep> dropped = Refused(() => draft.SeamsLeftMoving(place, index));
+        return Restructured(owner, request, draft, place, null, dropped, each => each.WithPlaceAt(place, index));
     }
 
     /// <summary>
@@ -331,24 +339,15 @@ internal static class DraftRequest
 
     /// <summary>
     /// The draft's structure changed by <paramref name="change"/>, the draft as it was kept for drafts.undo; one the draft
-    /// cannot make (no such variant or place, a base moved, a variant put where it is) is a bad request. Answers the sources
-    /// with the ids, "dropped", the numbers of <paramref name="dropped"/>, and what <paramref name="more"/> writes.
+    /// cannot make (no such variant or place, a base moved, a variant or a place put where it is) is a bad request. Answers
+    /// the sources with the ids (no "variant" when <paramref name="variant"/> is null), "dropped", the numbers of
+    /// <paramref name="dropped"/>, and what <paramref name="more"/> writes.
     /// </summary>
-    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change, Action<Utf8JsonWriter>? more = null)
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, IReadOnlyList<DraftStep> dropped, Func<Draft, Draft> change, Action<Utf8JsonWriter>? more = null)
     {
         string answer = owner.Changed(
             request,
-            piece => piece.ChangeDraft(draft.Id, each =>
-            {
-                try
-                {
-                    return change(each);
-                }
-                catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
-                {
-                    throw FacadeException.BadRequest(exception.Message);
-                }
-            }),
+            piece => piece.ChangeDraft(draft.Id, each => Refused(() => change(each))),
             json =>
             {
                 Added(json, draft.Id, place, variant);
@@ -388,7 +387,20 @@ internal static class DraftRequest
         json.WriteEndObject();
     }
 
-    private static void Added(Utf8JsonWriter json, string draft, string? place, string variant)
+    /// <summary>What <paramref name="make"/> gives; what the draft cannot make (no such place or variant, one put where it is) is a bad request.</summary>
+    private static T Refused<T>(Func<T> make)
+    {
+        try
+        {
+            return make();
+        }
+        catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
+        {
+            throw FacadeException.BadRequest(exception.Message);
+        }
+    }
+
+    private static void Added(Utf8JsonWriter json, string draft, string? place, string? variant)
     {
         json.WriteString("draft", draft);
         if (place is null)
@@ -400,7 +412,10 @@ internal static class DraftRequest
             json.WriteString("place", place);
         }
 
-        json.WriteString("variant", variant);
+        if (variant is not null)
+        {
+            json.WriteString("variant", variant);
+        }
     }
 
     /// <summary>The music of the piece open and the span asked for: "span", "bars" {first, last} as select reads them, else the piece's selection.</summary>

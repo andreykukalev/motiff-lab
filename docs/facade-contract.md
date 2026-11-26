@@ -95,14 +95,17 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `document.replace` | pdf | NeedsPdf |
 | `drafts.accept` | piece |  |
 | `drafts.add` | piece |  |
+| `drafts.addFromRecording` | piece |  |
 | `drafts.anchor` | piece |  |
 | `drafts.base` | piece |  |
 | `drafts.bridge` | piece |  |
 | `drafts.call` | piece |  |
 | `drafts.context` | piece |  |
+| `drafts.findOnRecording` | piece |  |
 | `drafts.leave` | piece |  |
 | `drafts.leaveBridge` | piece |  |
 | `drafts.leaveSeam` | piece |  |
+| `drafts.movePlace` | piece |  |
 | `drafts.open` | piece |  |
 | `drafts.place` | piece |  |
 | `drafts.proposal` | piece |  |
@@ -228,6 +231,8 @@ Also within 14 (v1.3 i-1b, Andrei 2026-11-24): scan.insert puts a page no engine
 Also within 14 (version 1.4, c-2, the call registry): on a piece without notes, a name it does not hold answers
 "noNotes" whatever the request's fields; a name starting "sources." with a "language" that is not text answered
 "badRequest" before. No app sends such a call.
+
+Also within 14 (version 1.4, c-3, the plan's F1 and F2): drafts.movePlace moves a place of a draft to an index among its places, dropping the «Оставить» of a seam whose place has another before it now (`DraftRequest.Move`); drafts.findOnRecording answers the stretch of each of the piece's recordings that is a place's music and drafts.addFromRecording puts one in as a variant of the place, «Найти на записи» (`DraftRecordingRequest`, `OnRecording`); both changes of structure are undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
 
 ### 13
 
