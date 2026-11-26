@@ -53,20 +53,12 @@ to undo it), and each version note lists them under «Решено без вас
 
 ## Experiments
 
-Every new idea goes into the product first as an **experiment**: in its natural place in the existing flows, with a
-minimal UI, behind a switch in Settings, section «Экспериментальное» (off by default). Big features merge in parts behind
-the same switch, so `develop` always builds. Only an experiment Andrei tried and called «оставить» becomes a feature:
-finished UX, tests, switch removed, concept and decision log updated. «Убрать» removes its code from `develop` and work
-continues from the present state; the ideas bank keeps "tried, rejected, because …". No exceptions: no new idea goes
-straight into the product.
-
-Switches: the iPad has none since v0.6.5 (Andrei, 2026-11-16). When an experiment brings one back:
-
-- A switch chooses between two implementations at one seam in the composition, never by an `if` inside a shared path.
-- An approved behaviour (`docs/ux-baseline.md`) never depends on a switch being on.
-- The protected scenarios run with the defaults of a fresh install; the version note states every non-default state
-  Andrei is expected to set.
-- A switch not called «оставить» within two versions is removed with its code.
+No experimental switches (Andrei, 2026-11-25): never add an `experimental.*` switch or any other on/off toggle for new
+behaviour. A new idea is built only after Andrei says go on its plan, straight into its natural place in the existing
+flows, or into a normal setting where the player chooses. Big features merge in parts that each leave `develop` working.
+When Andrei tries it and says «убрать», its code leaves `develop` and work continues from the present state; the ideas
+bank keeps "tried, rejected, because …". An approved behaviour (`docs/ux-baseline.md`) never depends on a setting the
+player has to change; the protected scenarios run with the defaults of a fresh install.
 
 An idea that needs a shared change (saved data format, Music Core structure model) cannot hide behind a switch: it goes
 to Andrei (decision 3) and the architect first, and its first version is built without the format change where possible.
