@@ -7,6 +7,7 @@
 // neither, except that a new selection wholly out of view is brought into it, the zoom as it is. Pure; no DOM here.
 
 import type { Span } from "./roll-playhead.js";
+import { TICKS_PER_QUARTER } from "../score/score-timeline.js";
 
 /** How a selection shown differs from the one shown before: moved when it starts elsewhere or none was shown, changed when either end differs. */
 export function selectionShift(before: Span | null, start: number, end: number): { moved: boolean; changed: boolean } {
@@ -64,8 +65,6 @@ export function frameOf(value: unknown): ViewFrame | null {
     const frame = { zoom, rowScale, scroll, pitchTop } as ViewFrame;
     return frame.zoom > 0 && frame.rowScale > 0 ? frame : null;
 }
-
-const TICKS_PER_QUARTER = 480;
 
 /** The ticks a width of pixels shows at a zoom. */
 export function ticksIn(width: number, zoom: number): number {

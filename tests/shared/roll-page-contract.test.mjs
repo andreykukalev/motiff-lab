@@ -14,6 +14,8 @@ const root = new URL("../../", import.meta.url);
 const contract = JSON.parse(readFileSync(new URL("tests/contracts/roll-page.json", root), "utf8"));
 const page = readFileSync(new URL("src/ipad/App/Web/roll.js", root), "utf8");
 const roll = readFileSync(new URL("src/shared/Scripts/roll/piano-roll.ts", root), "utf8");
+/** PianoRoll and the parts that call its host for it: the note editor, the input router and its press under the modes. */
+const callers = ["piano-roll.ts", "roll-editor.ts", "roll-input.ts", "roll-rule-press.ts"].map((file) => readFileSync(new URL(`src/shared/Scripts/roll/${file}`, root), "utf8")).join("\n");
 const viewport = readFileSync(new URL("src/shared/Scripts/roll/roll-viewport.ts", root), "utf8");
 
 const sorted = (list) => [...list].sort();
@@ -88,7 +90,7 @@ test("the zoom's example has the fields PianoRoll reports (OnRollZoom, passed on
 test("roll.js passes on the host callbacks the contract lists and drops only the listed ones", () => {
     const passedOn = [...page.matchAll(/case\s+"(On\w+)"/g)].map((m) => m[1]);
     assert.deepEqual(sorted(passedOn), sorted(contract.hostCallbacks.passedOn));
-    const called = new Set([...roll.matchAll(/invokeMethodAsync\("(\w+)"/g)].map((m) => m[1]));
+    const called = new Set([...callers.matchAll(/(?:invokeMethodAsync|host\.post)\("(\w+)"/g)].map((m) => m[1]));
     assert.deepEqual(sorted(called), sorted([...contract.hostCallbacks.passedOn, ...contract.hostCallbacks.dropped]));
 });
 
