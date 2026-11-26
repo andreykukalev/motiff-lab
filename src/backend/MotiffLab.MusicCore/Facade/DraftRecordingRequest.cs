@@ -25,7 +25,7 @@ internal static class DraftRecordingRequest
     public static string Find(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        IReadOnlyList<Found> found = Search(owner.Project, draft, draft.FindPlace(placeId)!, draft.CreatedAt);
+        IReadOnlyList<Found> found = Search(owner.Project, draft, draft.FindPlace(placeId)!, draft.CreatedAt, null);
         return Answer.Write(json =>
         {
             json.WriteString("draft", draft.Id);
@@ -72,28 +72,33 @@ internal static class DraftRecordingRequest
     }
 
     /// <summary>
-    /// «Найти на записи»: the stretch found on the recording "notes" (else the one where the most is found) put in as a
-    /// variant of the place "place" of the draft "draft", "now" its time. Unavailable when no recording has the place's music
-    /// or the place has that stretch already. Answers as drafts.place does ("draft", "place", "variant", "dropped" empty),
+    /// «Найти на записи»: the stretch found on the recording "notes" (else the one where the most is found, the first of
+    /// drafts.findOnRecording's "found") put in as a variant of the place "place" of the draft "draft", "now" its time; only
+    /// that recording is searched when "notes" names it. Unavailable when no recording has the place's music, or the place
+    /// has that stretch already (another recording's is not taken in its stead). Answers as drafts.place does ("draft", "place", "variant", "dropped" empty),
     /// with "percent"; undone by drafts.undo, as a change of the draft's structure.
     /// </summary>
     public static string Add(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        string? notes = request.Text("notes");
-        Found[] found = [.. Search(owner.Project, draft, draft.FindPlace(placeId)!, SourceRequest.Now(request)).Where(each => notes is null || each.Variant.From.Notes == notes)];
-        Found chosen = found.FirstOrDefault(static each => each.Already is null)
-            ?? throw FacadeException.Unavailable(found.Length > 0
-                ? owner.Words.T("The place has this stretch of the recording already.", "Этот отрезок записи уже есть в месте.")
-                : owner.Words.T("The recording has no stretch of this place's music.", "На записи нет музыки этого места."));
+        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, SourceRequest.Now(request), request.Text("notes")).FirstOrDefault()
+            ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of this place's music.", "На записи нет музыки этого места."));
+        if (chosen.Already is not null)
+        {
+            throw FacadeException.Unavailable(owner.Words.T("The place has this stretch of the recording already.", "Этот отрезок записи уже есть в месте."));
+        }
+
         return DraftRequest.Restructured(owner, request, draft, placeId, chosen.Variant.Id, [], each => each.With(chosen.Variant, DraftDrop.Variant, placeId), json => json.WriteNumber("percent", chosen.Match.Percent));
     }
 
     /// <summary>What the search found on one recording: the variant it would put in (its id the draft's next, added at <c>at</c>), how much is found, and the place's variant of that stretch already.</summary>
     private sealed record Found(DraftVariant Variant, PlaceMatch Match, string? Already);
 
-    /// <summary>The stretch of each recording of <paramref name="project"/> that is the music of <paramref name="place"/>, the most found first, then in the Sources' order.</summary>
-    private static IReadOnlyList<Found> Search(Project project, Draft draft, DraftPlace place, DateTimeOffset at)
+    /// <summary>
+    /// The stretch of each recording of <paramref name="project"/> (only the Notes <paramref name="only"/> when it is given)
+    /// that is the music of <paramref name="place"/>, the most found first, then in the Sources' order.
+    /// </summary>
+    private static IReadOnlyList<Found> Search(Project project, Draft draft, DraftPlace place, DateTimeOffset at, string? only)
     {
         if (place.Bridge)
         {
@@ -101,7 +106,7 @@ internal static class DraftRecordingRequest
         }
 
         List<Found> found = [];
-        foreach (SourceNotes notes in PieceViews.Of(project, HoldingDevice.Ipad).Notes.Where(static each => each.Provenance.Op == NotesProvenance.AudioRecognition))
+        foreach (SourceNotes notes in PieceViews.Of(project, HoldingDevice.Ipad).Notes.Where(each => each.Provenance.Op == NotesProvenance.AudioRecognition && (only is null || each.Id == only)))
         {
             if (Heard(project, notes.Id) is not var (heard, piece, music) || OnRecording.Find(place, music) is not var (span, match))
             {
