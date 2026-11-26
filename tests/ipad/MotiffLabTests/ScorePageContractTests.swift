@@ -42,6 +42,13 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([start, end], [480, 1440])
     }
 
+    /// r-1: the mark a card shows under moved on the page (a scroll, a new layout): where its bottom left is now.
+    func testAMarkMovedCarriesItsPlace() {
+        let events = PageEvent.events(in: ["markMoved": ["left": 40.5, "bottom": 320]])
+        guard case let .markMoved(point)? = events.first else { return XCTFail("a mark moved: \(events)") }
+        XCTAssertEqual(point, CGPoint(x: 40.5, y: 320))
+    }
+
     func testAVersionMarkerCarriesItsPlace() {
         let events = PageEvent.events(in: ["performanceBar": 12, "left": 40.5, "bottom": 300])
         XCTAssertEqual(events.count, 1, "left and bottom belong to the marker")

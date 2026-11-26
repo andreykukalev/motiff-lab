@@ -13,6 +13,7 @@ import { colouring } from "./page-colouring.js";
 import { press } from "./page-playheads.js";
 import { cardTapped } from "./page-card.js";
 import { phraseMarkSwallowsClick } from "./page-phrase-drag.js";
+import { followMark } from "./page-mark-place.js";
 
 /** How far above or below a bar's staves a tap still lands on that bar, in pixels. */
 const BAR_REACH = 24;
@@ -122,6 +123,8 @@ function tapOnMark(target: Element | null): boolean {
         const seam = version.dataset.seam === undefined ? {} : { seam: version.dataset.seam };
         const anchor = version.dataset.anchor === undefined ? {} : { anchor: version.dataset.anchor };
         post({ performanceBar: Number(version.dataset.bar), left: box.left, bottom: box.bottom, ...technique, ...seam, ...anchor });
+        // Its card opens under it, and stays there as the page scrolls or is laid out again (r-1).
+        followMark(version, () => sameMarker(version.dataset));
         return true;
     }
     const marker = target?.closest<HTMLElement>(".marker");
@@ -135,6 +138,12 @@ function tapOnMark(target: Element | null): boolean {
         return true;
     }
     return false;
+}
+
+/** The label, number, diamond or anchor mark over a bar with these keys, as the page draws it now; null when it is gone. */
+function sameMarker({ bar, technique, seam, anchor }: DOMStringMap): Element | null {
+    const key = (name: string, value: string | undefined) => (value === undefined ? `:not([data-${name}])` : `[data-${name}="${CSS.escape(value)}"]`);
+    return document.querySelector(`.perf-marker${key("bar", bar)}${key("technique", technique)}${key("seam", seam)}${key("anchor", anchor)}`);
 }
 
 /**

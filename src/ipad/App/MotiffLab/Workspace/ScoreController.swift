@@ -385,6 +385,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             Task { await engraveCard() }
         case let .coloured(start, end):
             penModel.colour(start, end)
+        case .markMoved(let point):
+            moveCardAtMark(to: point)
         default:
             break
         }

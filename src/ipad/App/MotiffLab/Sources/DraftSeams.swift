@@ -74,6 +74,13 @@ final class DraftSeamsModel: ObservableObject {
         picked = nil
     }
 
+    /// The diamond or the label under the card shown on the page moved (`point`, its bottom left now): the card goes with it;
+    /// a seam's card on the draft's map stays where it is.
+    func moveCard(to point: CGPoint) {
+        if picked?.at != nil { picked?.at = point }
+        if let open = label { label = LabelPick(place: open.place, at: point) }
+    }
+
     /// The card goes, a seam's or a place's.
     func close() {
         picked = nil

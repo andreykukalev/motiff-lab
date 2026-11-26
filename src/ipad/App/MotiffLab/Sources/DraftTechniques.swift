@@ -121,6 +121,13 @@ final class DraftTechniquesModel: ObservableObject {
         return all[next]
     }
 
+    /// The number under the card shown moved on the page (`point`, its bottom left now): the card goes with it; none moves
+    /// while no card shows.
+    func moveCard(to point: CGPoint) {
+        guard picked?.at != nil else { return }
+        picked?.at = point
+    }
+
     /// The card goes; the occurrence stays the pill's current one.
     func closeCard() {
         picked?.at = nil

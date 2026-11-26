@@ -20,10 +20,12 @@ import { listenHandScroll, playing, writing } from "./page-sounding.js";
 import { focus, installCard, showCard } from "./page-card.js";
 import { input, listenPointerKind, listenTaps, mode, pen } from "./page-taps.js";
 import { highlight } from "./page-rings.js";
+import { listenMarkPress } from "./page-mark-place.js";
 import { firstTickOn, lineAt, outline, placeAt, reveal, showPage, showTick } from "./page-navigation.js";
 
 // The page's own listeners first, then the layers', each pointer's press reaching them in this order.
 listenPointerKind();
+listenMarkPress();
 listenScroll();
 installSelection();
 installColouring();

@@ -257,6 +257,8 @@ export interface PageEvents {
     leave: true;
     cardLayout: Record<string, unknown>;
     coloured: TickRange;
+    /** The mark whose card Swift shows (a `performanceBar` or `phraseHeld`) moved: where it is now, in window pixels (r-1). */
+    markMoved: { left: number; bottom: number };
 }
 
 /** Where a tapped label over a bar is, in window pixels, and a draft's приём number's, seam's or anchor's key. */

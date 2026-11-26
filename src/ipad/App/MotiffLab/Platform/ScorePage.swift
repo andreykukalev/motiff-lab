@@ -83,7 +83,7 @@ enum PageEvent {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
         case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved, motifMark
         case place, heads, drag, blank
-        case leave, cardLayout, coloured
+        case leave, cardLayout, coloured, markMoved
     }
 
     case pages(first: Int, last: Int, count: Int)
@@ -129,6 +129,9 @@ enum PageEvent {
     case cardLayout([String: Any])
     /// A passage the pen's colour bars coloured (finding 31), as Select would have selected it; the selection stays.
     case coloured(start: Double, end: Double)
+    /// The mark a card shows under (a `performanceBar` or a `phraseHeld`) moved on the page, a scroll or a new layout: where
+    /// its bottom left is now (r-1).
+    case markMoved(CGPoint)
 
     /// The events of one message, in the order of `Kind`; what does not decode is left out.
     static func events(in message: [String: Any]) -> [PageEvent] {
@@ -229,6 +232,8 @@ enum PageEvent {
             return fields.map { .cardLayout($0) }
         case .coloured:
             return span(fields).map { .coloured(start: $0.start, end: $0.end) }
+        case .markMoved:
+            return fields.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["bottom"]) ?? 0) } }.map { .markMoved($0) }
         default:
             return nil
         }

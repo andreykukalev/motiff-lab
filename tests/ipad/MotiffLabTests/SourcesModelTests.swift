@@ -76,6 +76,11 @@ final class SourcesModelTests: XCTestCase {
         score.versionPicked = { asked.append($0) }
         score.handle(.performanceBar(12, left: 40.5, bottom: 300))
         XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 40.5, bottom: 300))
+        // r-1: the page scrolled or was laid out again on a rotation: the popover stays under its marker, and a phrase's
+        // menu, none shown, does not open.
+        score.handle(.markMoved(CGPoint(x: 52, y: 120)))
+        XCTAssertEqual(score.sourcesModel.markerPick, SourcesModel.MarkerPick(bar: 12, left: 52, bottom: 120))
+        XCTAssertNil(score.phraseMenu)
         score.openSourcesFromMarker()
         XCTAssertNil(score.sourcesModel.markerPick)
         XCTAssertEqual(asked, [12])
