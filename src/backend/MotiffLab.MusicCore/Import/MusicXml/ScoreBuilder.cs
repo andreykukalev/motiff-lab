@@ -28,7 +28,7 @@ internal static class ScoreBuilder
         QuarterFraction[] starts = MeasureStarts(parts, times, measureCount);
         QuarterFraction At(int measureIndex, QuarterFraction offset) => starts[measureIndex] + offset;
 
-        (List<MusicXmlNote> sourceNotes, int[] noteCounts) = ScoreNotes.SourceNotes(parts, At, issues);
+        (List<MusicXmlNote> sourceNotes, int[] noteCounts, List<MusicXmlWrittenNote> written) = ScoreNotes.SourceNotes(parts, At, issues);
 
         // Grace notes and rests: source facts, not sounding notes; slurs and repeat signs: the source's phrase evidence (S1-I5).
         List<MusicXmlGraceNote> graceNotes = ScoreMarks.GraceNotes(parts, At);
@@ -49,13 +49,21 @@ internal static class ScoreBuilder
         string? version = XmlValues.Trimmed(root.Attribute("version")?.Value);
         ImportReport report = Report(version, parts.Count, sourceNotes.Count, meter.BarsBefore(end).Count(), issues);
 
-        return new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, slurs, repeats, measures, tempos, timeSignatures, meter, keys, end, report)
-        {
-            Barlines = ScoreMarks.Barlines(parts, starts),
-            Texts = ScoreMarks.Texts(parts, At),
-            EnginesDisagree = [.. measures.Where(measure => parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index].EnginesDisagree).Select(measure => measure.Index)],
-        };
+        return Beside(new MusicXmlImport(version, partInfos, events, sourceNotes, graceNotes, rests, slurs, repeats, measures, tempos, timeSignatures, meter, keys, end, report), parts, starts, At, written);
     }
+
+    /// <summary>
+    /// The import with what the score writes beside its notes: bar lines, texts, how the notes are written and the time
+    /// voices skip, and the measures a scan merge marked.
+    /// </summary>
+    private static MusicXmlImport Beside(MusicXmlImport import, List<PartReader> parts, QuarterFraction[] starts, Func<int, QuarterFraction, QuarterFraction> at, List<MusicXmlWrittenNote> written) => import with
+    {
+        Barlines = ScoreMarks.Barlines(parts, starts),
+        Texts = ScoreMarks.Texts(parts, at),
+        WrittenNotes = written,
+        Spaces = ScoreMarks.Spaces(parts, at),
+        EnginesDisagree = [.. import.Measures.Where(measure => parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index].EnginesDisagree).Select(measure => measure.Index)],
+    };
 
     /// <summary>
     /// Where each measure starts, exactly, and the end of the last: each lasts as long as its longest part, and one with no

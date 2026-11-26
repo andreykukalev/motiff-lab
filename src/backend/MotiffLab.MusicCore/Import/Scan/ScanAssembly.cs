@@ -30,19 +30,6 @@ internal static class ScanAssembly
     /// <summary>The least confidence of a symbol the assembly takes.</summary>
     public const double Sure = 0.5;
 
-    private static readonly Dictionary<string, QuarterFraction> s_values = new(StringComparer.Ordinal)
-    {
-        ["breve"] = QuarterFraction.FromQuarters(8),
-        ["whole"] = QuarterFraction.FromQuarters(4),
-        ["half"] = QuarterFraction.FromQuarters(2),
-        ["quarter"] = QuarterFraction.FromQuarters(1),
-        ["eighth"] = new(1, 2),
-        ["16th"] = new(1, 4),
-        ["32nd"] = new(1, 8),
-        ["64th"] = new(1, 16),
-        ["128th"] = new(1, 32),
-    };
-
     private static readonly Dictionary<string, QuarterFraction> s_rests = new(StringComparer.Ordinal)
     {
         ["restDoubleWhole"] = QuarterFraction.FromQuarters(8),
@@ -94,7 +81,7 @@ internal static class ScanAssembly
     private static List<ScanSymbol> Heads(ScanSymbol[] own, double space)
     {
         var kept = new List<ScanSymbol>();
-        foreach (ScanSymbol head in own.Where(symbol => symbol.IsHead && s_values.ContainsKey(symbol.Duration ?? "")).OrderByDescending(symbol => symbol.Confidence))
+        foreach (ScanSymbol head in own.Where(symbol => symbol.IsHead && NoteValue.Named.ContainsKey(symbol.Duration ?? "")).OrderByDescending(symbol => symbol.Confidence))
         {
             if (!kept.Any(other => Math.Abs(other.X - head.X) < 0.4 * space && Math.Abs(other.Y - head.Y) < 0.4 * space))
             {
@@ -250,9 +237,7 @@ internal static class ScanAssembly
             int dots = head.Dots > 0 ? head.Dots
                 : own.Any(dot => dot.Class == "augmentationDot" && dot.X > head.Right - (0.1 * space) && dot.X < head.Right + (1.3 * space)
                     && Math.Abs(dot.Y - head.Y) < 0.6 * space) ? 1 : 0;
-            QuarterFraction value = s_values[head.Duration!];
-            long half = 1L << dots;
-            return new Item(head, new QuarterFraction(value.Numerator * ((2 * half) - 1), value.Denominator * half));
+            return new Item(head, NoteValue.Dotted(NoteValue.Named[head.Duration!], dots));
         }
     }
 }

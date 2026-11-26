@@ -56,7 +56,7 @@ public class BarValuesTests
     [Fact]
     public void In_a_triplet_beat_three_values_take_the_time_of_two()
     {
-        TupletSpan triplet = new(480, 480, 3);
+        TupletSpan triplet = new(480, 480, 3, 2);
 
         (long Start, long Ticks, int Dur, TupletSpan? Tuplet)[] Pieces(long to) => [.. BarValues.Pieces(0, to, Grid(TimeSignature.CommonTime), [triplet])
             .Select(piece => (piece.Start, piece.Ticks, piece.Dur, piece.Tuplet))];

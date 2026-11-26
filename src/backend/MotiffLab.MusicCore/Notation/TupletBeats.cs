@@ -102,10 +102,10 @@ internal static class TupletBeats
         bool six = Fits(offsets, beat, beat / 6, beat / 24, sixths, sixteenths);
         if (three && (!six || thirds <= sixths + (offsets.Length * beat / 48)))
         {
-            return (new TupletSpan(start, beat, 3), offsets.Length);
+            return (new TupletSpan(start, beat, 3, 2), offsets.Length);
         }
 
-        return six ? (new TupletSpan(start, beat, 6), offsets.Length) : null;
+        return six ? (new TupletSpan(start, beat, 6, 4), offsets.Length) : null;
     }
 
     /// <summary>

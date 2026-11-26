@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Time;
+
 namespace MotiffLab.MusicCore.Import.Vector;
 
 /// <summary>
@@ -80,7 +82,7 @@ internal static class Tuplets
 
     private static bool Whole(List<VectorEvent> group, int actual)
     {
-        int total = group.Sum(item => BarTiming.Dotted(item.Written, item.Dots));
+        int total = group.Sum(item => NoteValue.Dotted(item.Written, item.Dots));
         return total % actual == 0 && (total / actual) is 30 or 60 or 120 or 240 or 480 or 960;
     }
 }

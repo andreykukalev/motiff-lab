@@ -240,6 +240,10 @@ Also within 14 (version 1.4, c-3, the plan's F1 and F2): drafts.movePlace moves 
 
 Also within 14 (version 1.4, c-3b, Andrei's answers of 2026-11-26): drafts.length answers how long a place is in the bars of its source and whether it can change, drafts.resize cuts its base again from those Notes over other bars, the steps and seams kept as they are outside the new span dropped (`DraftLengthRequest`, `PlaceLength`); drafts.carryPlaces answers where a приём of a place fits in the draft's other places and drafts.carry puts in, for one of them, a variant music-core builds with that приём (`DraftCarryRequest`, `TechniqueCarry`); drafts.movePlace also drops a bridge place whose neighbours change, and drafts.resize one whose seam's edge moved, its steps in "dropped", a bridge place itself is not moved (unavailable), and a bridge put in or left drops the «Оставить» of the seam after it; changes of structure undone by drafts.undo while the piece is open; calls added. The project file stays version 17.
 
+Also within 14 (version 1.4, c-4, «Как напечатано» step 1): notation writes notes with a source record (read from a PDF,
+or imported MusicXML) as the score prints them where the record fits, and answers "appWrittenBarCount", the bars the app
+wrote where it does not (null for notes without a record); a field added.
+
 ### 13
 
 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply, .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they answer unknownCall, and a performance no longer tells "mergedAt" and "mergeKept". A version is removed as other Notes are (sources.notes.remove). The project file stays version 17 and reads a performance's "taken" and "merge" and writes them back as before.

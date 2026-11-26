@@ -32,7 +32,8 @@ internal static class NotationPlan
     /// and the marks of the playing. Only the bars written get control events that end inside them. An ossia
     /// has only the staves that show notes in the bars written: a variation of the melody is one staff above the grand staff.
     /// </summary>
-    public static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia, PlayedMarks kind = PlayedMarks.All)
+    /// <param name="printed">The notes' source record, for the bars written as the score prints them (<see cref="PrintedBars"/>); null for none.</param>
+    public static PartPlan PlanPart(Note[] input, WrittenBars written, bool asHeard, IReadOnlyList<PlaybackTempo>? playedTempos, IEnumerable<TickSpan>? pedal, int firstStaff, bool ossia, PlayedMarks kind = PlayedMarks.All, PrintedNotation? printed = null)
     {
         Bar[] bars = written.Bars;
         var shown = input.Select(note => new ShownNote(note, NotationGenerator.Snap(note.Span.Onset.Value), NotationGenerator.Snap(note.Span.End.Value))).ToArray();
@@ -43,12 +44,18 @@ internal static class NotationPlan
         List<StaffPlan> staves = [.. planned.Select(staff => staff with { Tuplets = TupletBeats.Find(staff.Notes, bars) })];
         var heard = new HeardCounts();
         staves = Rhythm(staves, input, asHeard, heard);
+        if (printed is not null && !asHeard)
+        {
+            staves.ForEach(staff => (staff.Printed, staff.AsPrinted) = PrintedBars.Plan(staff, written, printed));
+        }
 
-        int approximated = staves.SelectMany(staff => staff.Notes).Count(note => note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value);
+        // A note written as printed is written exactly as the score writes it, so it is not approximated.
+        int approximated = staves.Sum(staff => staff.Notes.Count(note => !staff.AsPrinted.Contains(note.Note.Id) && (note.Onset != note.Note.Span.Onset.Value || note.End != note.Note.Span.End.Value)));
 
         bool significant = kind == PlayedMarks.Significant;
         PlayingMarks? marks = playedTempos is null ? null : significant ? PlayingMarks.Significant(input, bars, playedTempos) : PlayingMarks.Of(input, bars, playedTempos);
         HashSet<string> shortened = GiveVoices(staves, marks);
+        staves.ForEach(staff => shortened.ExceptWith(staff.AsPrinted));
         (ControlEvents[] controls, int slurCount, int pedalCount) = ControlPlan.Of(staves, written, marks, pedal, significant);
         return new PartPlan(staves, controls, marks, heard, shortened, approximated, slurCount, pedalCount);
     }
