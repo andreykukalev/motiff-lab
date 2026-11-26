@@ -6,9 +6,11 @@
 //
 // The port (step B5, decision record 0031 step 1b, #654): every call by name goes through PieceCore, and only its files
 // (`portFiles`) reach MusicCore.call, the one function that reaches `ml_call`. Anywhere else, MusicCore.call (spelled
-// `MusicCore.call`, or `Self.call`, `self.call` or `call` inside `enum`/`extension MusicCore`), `ml_call` or a port enum
-// of calls made from a name (`PieceCore.Call(rawValue:)`) fails, whatever it is called through; the features name a call
-// by a case of the port's enums. `MusicCore.run { … }` only runs work on the core's thread, `facadeRequest` only encodes
+// `MusicCore.call`, or `Self.call`, `self.call` or `call` inside `enum`/`extension MusicCore`), `ml_call`, MusicCore under
+// another name (a `typealias`, `MusicCore.self`), a port enum of calls made from a name (`PieceCore.Call(rawValue:)`, an
+// implicit `.init(rawValue:)`) or `PieceCore(piece: 0)` (an open piece's calls on piece 0) fails, whatever it is called
+// through; the features name a call by a case of the port's enums, each case written with its name as a literal raw
+// value and used outside the port. `MusicCore.run { … }` only runs work on the core's thread, `facadeRequest` only encodes
 // the request's fields, `MusicCore.open` and `MusicCore.close` are `ml_open` and `ml_close`, not calls by name.
 //
 // In the port, the name in MusicCore.call's name place is read as:
@@ -281,21 +283,45 @@ function camel(name, from = 0) {
     return name.split(".").slice(from).map((part, k) => (k === 0 ? part : part[0].toUpperCase() + part.slice(1))).join("");
 }
 
-/** The enums of calls a port file declares (`enum Call: String { case check = "check", … }`): name → its cases. */
+/**
+ * The enums of calls a port file declares (`enum Call: String { case check = "check", … }`): name → its cases, and each
+ * case written without a literal raw value (`case check`, `` case `default` ``, `case a = b`), whose name nothing checks.
+ */
 function callEnums(lexed) {
     const enums = new Map();
+    const unwritten = [];
     for (const match of lexed.code.matchAll(/\benum\s+([A-Za-z_]\w*)\s*:\s*String\b[^{]*\{/g)) {
         const open = match.index + match[0].length - 1;
         const end = closing(lexed.code, open);
         const cases = [];
-        for (const item of lexed.code.slice(open, end).matchAll(/(?:\bcase\b|,)\s*([A-Za-z_]\w*)\s*=\s*/g)) {
-            const at = open + item.index + item[0].length;
-            const literal = lexed.strings.find((s) => s.start === at && !s.interpolated);
-            if (literal) cases.push({ name: item[1], call: literal.text });
+        // Every `case` that declares (not `case .x:` or `case let` in a switch), each element of its comma list.
+        for (const item of lexed.code.slice(open, end).matchAll(/\bcase\b(?=\s*[A-Za-z_`])(?!\s*let\b)/g)) {
+            const from = open + item.index + item[0].length;
+            const line = /[;\n}]|$/.exec(lexed.code.slice(from)).index;
+            let at = from;
+            for (const text of splitAtDepth0(lexed.code.slice(from, from + line))) {
+                const element = /^(\s*)`?([A-Za-z_]\w*)`?\s*(=\s*)?/.exec(text);
+                const valueAt = at + (element ? element[0].length : 0);
+                const literal = element?.[3] ? literalAt(lexed, valueAt, at + text.trimEnd().length) : null;
+                if (literal !== null) cases.push({ name: element[2], call: literal });
+                else unwritten.push(`${match[1]}.${element?.[2] ?? text.trim()}`);
+                at += text.length + 1;
+            }
         }
         enums.set(match[1], cases);
     }
-    return enums;
+    return { enums, unwritten };
+}
+
+/** The parts of `text` between its commas outside brackets. */
+function splitAtDepth0(text) {
+    const parts = [];
+    let rest = text;
+    for (let comma = indexAtDepth0(rest, ","); comma >= 0; comma = indexAtDepth0(rest, ",")) {
+        parts.push(rest.slice(0, comma));
+        rest = rest.slice(comma + 1);
+    }
+    return [...parts, rest];
 }
 
 /**
@@ -306,9 +332,10 @@ function callEnums(lexed) {
 function sentNames(sources) {
     const files = Object.entries(sources).map(([file, text]) => ({ file, lexed: lex(text), port: portFiles.includes(basename(file)) }));
     const functions = files.flatMap(({ file, lexed }) => functionsIn(file, lexed));
-    const enums = new Map(files.filter((f) => f.port).flatMap((f) => [...callEnums(f.lexed)]));
+    const declared = files.filter((f) => f.port).map((f) => ({ file: f.file, ...callEnums(f.lexed) }));
+    const enums = new Map(declared.flatMap((d) => [...d.enums]));
     const sent = [];
-    const unread = [];
+    const unread = declared.flatMap((d) => d.unwritten.map((name) => `${basename(d.file)} › ${name} › no written name`));
     const outside = [];
     const carriers = new Set();
     const queue = [];
@@ -399,12 +426,26 @@ function sentNames(sources) {
             nameAt(file, lexed, nameArg, pieceAt(file, parts.find((p) => p.label === "piece")), "MusicCore.call");
         }
         if (port || basename(file) === "MusicCore.swift") continue;
-        for (const match of lexed.code.matchAll(/\bml_call\b/g)) outside.push(`${placeOf(file, match.index)} › ml_call`);
-        for (const match of lexed.code.matchAll(/\b([A-Za-z_]\w*)\s*(?:\.\s*init\s*)?\(\s*rawValue\s*:/g)) {
-            if (enums.has(match[1])) outside.push(`${placeOf(file, match.index)} › ${match[1]}(rawValue:)`);
+        const flag = (pattern, what) => {
+            for (const match of lexed.code.matchAll(pattern)) outside.push(`${placeOf(file, match.index)} › ${what(match)}`);
+        };
+        flag(/\bml_call\b/g, () => "ml_call");
+        // MusicCore under another name, whose `call` the reader would not know.
+        flag(/\btypealias\s+\w+\s*=\s*MusicCore\b|\bMusicCore\s*\.\s*self\b/g, () => "MusicCore under another name");
+        // A port enum made from a name: through its type, or an implicit `.init(rawValue:)` whose type the reader cannot tell.
+        for (const match of lexed.code.matchAll(/\b([A-Za-z_]\w*)\s*(?:\.\s*init\s*)?\(\s*rawValue\s*:|(?<![\w)\]?!"])\.\s*init\s*\(\s*rawValue\s*:/g)) {
+            if (match[1] === undefined || enums.has(match[1])) outside.push(`${placeOf(file, match.index)} › ${match[1] ?? ".init"}(rawValue:)`);
         }
+        // An open piece's calls sent to piece 0, which the piece check would read as an open piece.
+        flag(/\bPieceCore\s*\(\s*piece\s*:\s*0\s*\)/g, () => "PieceCore(piece: 0)");
     }
-
+    // Each case of the port's enums is named somewhere outside the port (`.check`, `Call.check`): a case no feature uses
+    // is a call the app no longer makes. Read by name, so a case that shares its name with another type's member counts
+    // as used.
+    const elsewhere = files.filter((f) => !f.port).map((f) => f.lexed.code).join("\n");
+    const unused = [...enums].flatMap(([type, cases]) => cases
+        .filter((c) => !new RegExp(`\\.\\s*${c.name}\\b`).test(elsewhere))
+        .map((c) => `${type}.${c.name}`));
     // The port's private helpers, followed in their own file until no new one turns up: reached unqualified or through
     // `self` or `Self`, never as a value, through another value, or beside another function of the same name.
     while (queue.length > 0) {
@@ -435,13 +476,13 @@ function sentNames(sources) {
         }
     }
 
-    return { sent, unread, outside, enums };
+    return { sent, unread, outside, enums, unused };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 const sources = Object.fromEntries(swiftFiles(swiftRoot).map((file) => [file, readFileSync(file, "utf8")]));
-const { sent, unread, outside, enums } = sentNames(sources);
+const { sent, unread, outside, enums, unused } = sentNames(sources);
 const calls = new Map(contract.calls.map((call) => [call.name, call]));
 
 test("every call name the Swift sends is one the facade answers", () => {
@@ -477,6 +518,10 @@ test("each case of the port's enums of calls is named after the call it sends", 
     assert.deepEqual(wrong, []);
 });
 
+test("each case of the port's enums of calls is used outside the port", () => {
+    assert.deepEqual(unused, [], "delete these cases: no feature makes their calls");
+});
+
 test("the reader still sees the Swift's calls", () => {
     // A floor, not a count: if the calls change form, this reader must follow it.
     assert.ok(sent.length >= 100, `only ${sent.length} sites read`);
@@ -495,7 +540,9 @@ test("the reader follows the port's literals, choices, locals, enums, helpers, l
                 enum Call: String { case aOne = "a.one", two = "a.two" }
                 enum NoPiece: String {
                     // case commented = "commented.out"
-                    case b = "b"
+                    case b = "b", bogus
+                    case \`default\`
+                    case aliased = Other.name
                 }
                 func literal() -> String { MusicCore.call(piece: piece, "c.literal") /* MusicCore.call(piece: 0, "block.comment") */ }
                 func choice(_ on: Bool) -> String { MusicCore.call(piece: piece, on ? "c.on" : "c.off", "{\\"x\\": \\"(y)\\"}") }
@@ -521,6 +568,9 @@ test("the reader follows the port's literals, choices, locals, enums, helpers, l
         "d.default@open", "d.helped@open", "d.zero@piece0",
     ]);
     assert.deepEqual(missed.sort(), [
+        "PieceCore.swift › NoPiece.aliased › no written name",
+        "PieceCore.swift › NoPiece.bogus › no written name",
+        "PieceCore.swift › NoPiece.default › no written name",
         "PieceCore.swift › again › another function is named again too",
         "PieceCore.swift › changed › name",
         'PieceCore.swift › built › "e.\\(part)"',
@@ -534,8 +584,8 @@ test("the reader follows the port's literals, choices, locals, enums, helpers, l
 test("outside the port, a call by name fails in every shape that once hid one (#654)", () => {
     // Each file is one of the shapes the reader of scattered calls could not see; none needs to be read now: the call by
     // name outside the port fails wherever the name comes from.
-    const { outside: found, sent: read } = sentNames({
-        "/x/Platform/PieceCore.swift": `struct PieceCore { enum Call: String { case check = "check" } }`,
+    const { outside: found, sent: read, unused } = sentNames({
+        "/x/Platform/PieceCore.swift": `struct PieceCore { enum Call: String { case check = "check", dead = "dead" } }`,
         // An overload with other argument labels hides a helper.
         "/x/A/Overload.swift": `
             final class Tool {
@@ -568,16 +618,28 @@ test("outside the port, a call by name fails in every shape that once hid one (#
             func keep(_ name: String) { _ = MusicCore.call(piece: 1, name) }
             extension MusicCore { static func ping() -> String { call(piece: 0, "x.ext") } }
             func raw() { _ = ml_call(0, nil, nil) }
-            func made(_ name: String) { _ = PieceCore.Call(rawValue: name) }`,
+            func made(_ name: String) { _ = PieceCore.Call(rawValue: name) }
+            func inferred(_ name: String) -> PieceCore.Call? { .init(rawValue: name) }
+            func used() -> String { PieceCore(piece: 0).send(.check) }`,
+        // MusicCore under another name.
+        "/x/A/Alias.swift": `
+            typealias Core = MusicCore
+            func viaAlias() -> String { Core.call(piece: 1, "x.alias") }
+            func viaType() -> Any { MusicCore.self }`,
     });
     assert.deepEqual(read, []);
+    assert.deepEqual(unused, ["Call.dead"]);
     assert.deepEqual(found.sort(), [
+        "Alias.swift › (top level) › MusicCore under another name",
+        "Alias.swift › viaType › MusicCore under another name",
         "ClassFunc.swift › f › MusicCore.call",
         "IfLet.swift › change › MusicCore.call",
         "Other.swift › keep › MusicCore.call",
+        "Other.swift › inferred › .init(rawValue:)",
         "Other.swift › made › Call(rawValue:)",
         "Other.swift › ping › MusicCore.call",
         "Other.swift › raw › ml_call",
+        "Other.swift › used › PieceCore(piece: 0)",
         "Overload.swift › change › MusicCore.call",
         "SameName.swift › send › MusicCore.call",
         "Value.swift › f › MusicCore.call",
