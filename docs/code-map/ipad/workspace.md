@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 ## Files
 
-`DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
+`DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `DraftStructureControls`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
 `ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
@@ -47,6 +47,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   place's chooser; `DraftProposalCard`, dashed plum, «▶ До» `hearDraft`, «▶ После» `hearProposal`, «Принять» by
   `SourcesController.acceptProposal` while `proposedAgain`);
   `ScoreWorkspaceDrafts.swift`, `draftOwner`, `draftSheet`, `newDraft` (no selection: a hint).
+  v1.4 i-3b: `DraftStructureControls.swift`, `DraftPlaceOrder` (the map's «Раньше», «Позже», past a bridge: `target`),
+  `DraftRecordingRow` («Найти на записи», searched on a tap) and `DraftLengthRow` (the place's bars, read when opened,
+  `PageStepper` of `Pdf/`) in `DraftPlaceContent`, `DraftCarryMenu` («Перенести приём…») in `DraftTechniqueCard`; each
+  hands its step to its card's `act`/`take`; every draft card opens the view again through `SourcesController.reopening`,
+  which holds every step (`stepping`) until it has.
 - `ScorePhraseMarks.swift` (v1.2 i-2, the phrases spec): `ScoreController`'s part of the phrases' marks: `phraseMarks`
   (what the page's `phraseMarks` draws, with the labels VoiceOver reads; none on a view only shown,
   `OpenPiece.shownOnly`: a draft's view, other Notes), `pickPhrase` and `pickSection` (a tap on a number

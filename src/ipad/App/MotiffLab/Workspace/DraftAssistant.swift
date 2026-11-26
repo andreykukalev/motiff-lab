@@ -205,7 +205,7 @@ struct DraftAssistantSection: View {
             let kept = await assistant.accept(proposal) {
                 await owner.acceptProposal(proposal.callFields, of: proposal.draft, words: proposal.words) { await proposal.proposedAgain(on: piece) }
             }
-            if kept { await reopen?(.tick(Double(place.onset))) }
+            if kept { await owner.reopening { await reopen?(.tick(Double(place.onset))) } }
         }
     }
 

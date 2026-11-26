@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 
 ## Files
 
-`DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
+`DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftStructure`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
 `OriginalsViews`, `OtherPieceDrafts`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
 `SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
 
@@ -19,7 +19,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`, `acceptProposal` (the assistant's «Принять», `drafts.accept`). Collage (v1.2):
   `OtherPieceDrafts.swift` (other files' drafts, `project.drafts` kept by bytes), `DraftChoice.Into.elsewhere`,
   `addToDraft` writes that file as music-core answers it (`drafts.add` with "file"), nothing here changes;
-  `addedElsewhere` and `DraftElsewhereToast` («Открыть»).
+  `addedElsewhere` and `DraftElsewhereToast` («Открыть»). v1.4 i-3b, the draft's structure: steps `movePlace`,
+  `addFromRecording`, `resize`, `carry` (the move's and the resize's toast tells what went, `told`: "dropped" steps, and
+  bridges by the places count), reads `findOnRecording` (on a tap; none searched without Notes `isHeard`), `length`,
+  `carryPlaces` (`PieceCore`); `refusal(_:told:otherwise:)`, music-core's words for these when "unavailable"
+  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи»: the stretch
+  found most, else the variant it is named) and `DraftLengthChoice` (bars within the Notes).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

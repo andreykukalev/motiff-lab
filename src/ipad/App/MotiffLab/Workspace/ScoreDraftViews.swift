@@ -7,18 +7,18 @@ import SwiftUI
 
 /// The card at a приём's number tapped (ds.css `.menu` surface, as a version marker's popover): its number and bar, its kind
 /// as the engine read it, how sure that is, «▶ Как в нотах» and «▶ Как на записи», «Взять везде · N», «Только здесь»,
-/// «Оставить», and one hand from its variant, each only where music-core takes it (`Spot.offer`), and since v1.2 «Не тот
-/// такт? Сопоставить…» (`DraftAnchorMatch`, an anchor). A tap elsewhere puts it away; once a step is taken the draft's view
-/// opens again at the occurrence (`reopen`).
+/// «Оставить», and one hand from its variant, each only where music-core takes it (`Spot.offer`), since v1.2 «Не тот
+/// такт? Сопоставить…» (`DraftAnchorMatch`, an anchor), and since v1.4 «Перенести приём…» (`DraftCarryMenu`). A tap
+/// elsewhere puts it away; once a step is taken the draft's view opens again at the occurrence (`reopen`).
 struct DraftTechniqueCard: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var model: DraftTechniquesModel
     let player: Player
-    let owner: SourcesController
+    @ObservedObject var owner: SourcesController
     let text: UIText
     let reopen: ((Landing) async -> Void)?
-    /// The last step was not taken: the card says so in its own words, never music-core's.
-    @State private var refused = false
+    /// Why the last step was not taken: in the card's own words, or music-core's for a приём carried (v1.4).
+    @State private var refusal: String?
     /// «Сопоставить…» tapped: the variant's bars show to pick the one that sounds here.
     @State private var matching = false
 
@@ -26,7 +26,7 @@ struct DraftTechniqueCard: View {
         if let pick = model.picked, let at = pick.at {
             DraftCardAtMark(at: at, close: { model.closeCard() }) { card(pick.spot) }
                 .onChange(of: pick.spot) { _, _ in
-                    refused = false
+                    refusal = nil
                     matching = false
                 }
         }
@@ -63,6 +63,7 @@ struct DraftTechniqueCard: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(!offer.hands)
             }
+            DraftCarryMenu(spot: spot, owner: owner, text: text) { act(told: true, $0) }
             if matching {
                 DraftAnchorMatch(score: score, spot: spot, text: text) { tick in act { await owner.anchor(spot, variantTick: tick) } }
             } else {
@@ -73,10 +74,13 @@ struct DraftTechniqueCard: View {
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(spot.heard(variant: false).span.isEmpty)
             }
-            if refused {
-                Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
+            if let refusal {
+                Text(refusal).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
         }
+        // A step on its way, or the view opening again after it (`SourcesController.stepping`): the card's steps wait for
+        // it, as the place's card's do.
+        .disabled(owner.stepping)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(DraftTechniquesModel.title(spot, text))
     }
@@ -90,17 +94,18 @@ struct DraftTechniqueCard: View {
     }
 
     /// A step on the draft: taken, the card goes and the draft's view opens again at the occurrence; refused, the card says
-    /// it was not taken.
-    private func act(_ step: @escaping () async -> Bool) {
+    /// it was not taken, in music-core's words when `told` (a приём carried, v1.4). No other step goes until the view has
+    /// opened again (`reopening`).
+    private func act(told: Bool = false, _ step: @escaping @MainActor () async -> Bool) {
         guard let spot = model.picked?.spot else { return }
         Task {
             let taken = await step()
             guard taken else {
-                refused = owner.refused(taken)
+                refusal = owner.refusal(taken, told: told, otherwise: text["drafts.refused"])
                 return
             }
             model.closeCard()
-            await reopen?(.tick(spot.span.lowerBound))
+            await owner.reopening { await reopen?(.tick(spot.span.lowerBound)) }
         }
     }
 }
@@ -226,8 +231,8 @@ struct DraftStepToast: View {
     var body: some View {
         if let toast = owner.toast, case .draftStep = toast.undo {
             SourcesToastView(sources: owner, toast: toast, text: text) {
-                // Where the player is in the draft now.
-                await reopen?(.tick(await score.tickInView() ?? 0))
+                // Where the player is in the draft now, no step sent until it has opened (`reopening`).
+                await owner.reopening { await reopen?(.tick(await score.tickInView() ?? 0)) }
             }
             .transition(.opacity)
         }

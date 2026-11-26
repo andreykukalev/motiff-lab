@@ -365,8 +365,9 @@ private struct PiecePartRowView: View {
     }
 }
 
-/// A page number with − and + at the size of a fingertip, adjustable as one element by VoiceOver.
-private struct PageStepper: View {
+/// A page number with − and + at the size of a fingertip, adjustable as one element by VoiceOver; since v1.4 also a
+/// draft's place's first and last bar (`DraftLengthRow`).
+struct PageStepper: View {
     let label: String
     let spoken: String
     let value: Int

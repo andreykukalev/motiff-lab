@@ -336,6 +336,79 @@ enum DraftAcceptance: Equatable, Sendable {
     case held
 }
 
+/// What «Найти на записи» finds for a place (`drafts.findOnRecording`, DraftRecordingRequest.Find, v1.4 c-3, F2), nothing
+/// changed: on each recording of the piece heard as notes, the stretch that is the place's music, the most found first:
+/// the recording's Notes, music-core's words for the variant it would make («Запись 9–16»), how much of it is in the
+/// place's base, and the place's variant made of that very stretch already (null when none). Empty when no recording has
+/// the place's music, and for a bridge place.
+struct DraftRecordingAnswer: Decodable, Equatable, Sendable {
+    struct Found: Decodable, Equatable, Sendable {
+        let notes: String
+        let label: String
+        let percent: Int
+        let variant: String?
+
+        private enum CodingKeys: String, CodingKey { case notes, label, percent, variant }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            notes = try fields.decode(String.self, forKey: .notes)
+            label = try fields.decode(String.self, forKey: .label)
+            percent = try fields.decode(Int.self, forKey: .percent)
+            variant = try fields.decodeNullable(String.self, forKey: .variant)
+        }
+    }
+
+    let draft: String
+    let place: String
+    let found: [Found]
+}
+
+/// A place's length (`drafts.length`, DraftLengthRequest.Length, v1.4 c-3b), nothing changed: the bars of its source its
+/// base was cut from ("bars", null when not known), the bars those Notes have ("most", null when they are not at hand),
+/// whether it can be made longer or shorter, and why not in music-core's words ("reason", null when it can).
+struct DraftLengthAnswer: Decodable, Equatable, Sendable {
+    struct Bars: Decodable, Equatable, Sendable {
+        let first: Int
+        let last: Int
+    }
+
+    let draft: String
+    let place: String
+    let bars: Bars?
+    let most: Bars?
+    let resizable: Bool
+    let reason: String?
+
+    private enum CodingKeys: String, CodingKey { case draft, place, bars, most, resizable, reason }
+
+    init(from decoder: Decoder) throws {
+        let fields = try decoder.container(keyedBy: CodingKeys.self)
+        draft = try fields.decode(String.self, forKey: .draft)
+        place = try fields.decode(String.self, forKey: .place)
+        bars = try fields.decodeNullable(Bars.self, forKey: .bars)
+        most = try fields.decodeNullable(Bars.self, forKey: .most)
+        resizable = try fields.decode(Bool.self, forKey: .resizable)
+        reason = try fields.decodeNullable(String.self, forKey: .reason)
+    }
+}
+
+/// Where a приём of a place can be carried (`drafts.carryPlaces`, DraftCarryRequest.Places, v1.4 c-3b), nothing changed:
+/// each other place of the draft that is not a bridge, in order, with its label as the map names it and its own bars
+/// (from 1) where the приём's shape fits, empty where it fits nowhere.
+struct DraftCarryPlacesAnswer: Decodable, Equatable, Sendable {
+    struct Place: Decodable, Equatable, Sendable {
+        let place: String
+        let label: String
+        let bars: [Int]
+    }
+
+    let draft: String
+    let place: String
+    let technique: Int
+    let places: [Place]
+}
+
 /// A fragment added to another piece's draft (`drafts.add` with "file", DraftRequest.AddTo, v1.2 collage): the draft, and
 /// "file", that piece's project file changed, to save in place of the one sent exactly as music-core wrote it.
 struct DraftAddedElsewhereAnswer: Decodable, Sendable {

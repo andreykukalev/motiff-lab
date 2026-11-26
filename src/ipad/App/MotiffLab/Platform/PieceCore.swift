@@ -81,26 +81,45 @@ struct PieceCore: Sendable {
         return Answer(text, of: "drafts.seams")
     }
 
+    /// `drafts.findOnRecording`: what «Найти на записи» finds on the piece's recordings for the place `place` of the draft
+    /// `draft` (v1.4, F2), nothing changed; asked on the piece the draft belongs to.
+    func draftRecording(draft: String, place: String) async -> Answer<DraftRecordingAnswer> {
+        await draftCall(["draft": draft, "place": place], call: "drafts.findOnRecording")
+    }
+
+    /// `drafts.length`: how long the place `place` of the draft `draft` is in the bars of its source, and whether that can
+    /// change (v1.4), nothing changed; asked on the piece the draft belongs to.
+    func draftLength(draft: String, place: String) async -> Answer<DraftLengthAnswer> {
+        await draftCall(["draft": draft, "place": place], call: "drafts.length")
+    }
+
+    /// `drafts.carryPlaces`: the draft's other places the приём `technique` of the place `place` (read at the place's bar
+    /// `bar`) can be carried to (v1.4), nothing changed; asked on the piece the draft belongs to.
+    func draftCarryPlaces(draft: String, place: String, technique: Int, bar: Int) async -> Answer<DraftCarryPlacesAnswer> {
+        await draftCall(["draft": draft, "place": place, "technique": technique, "bar": bar], call: "drafts.carryPlaces")
+    }
+
     /// `drafts.open`: the draft `draft` opened under a number of its own only to be shown ("readOnly"), with its places
     /// (v1.1, ADR 0034); asked on the piece it belongs to or on a view of it. The screen closes the number when it goes.
     func openDraft(_ draft: String) async -> Answer<DraftViewAnswer> {
-        await draftOpen(["draft": draft])
+        await draftCall(["draft": draft])
     }
 
     /// `drafts.open` with "variant": that variant of the draft alone, read-only (c-4b), as a приём is heard as the variant
     /// has it; the caller closes the number once heard.
     func openVariant(_ variant: String, of draft: String) async -> Answer<DraftVariantAnswer> {
-        await draftOpen(["draft": draft, "variant": variant])
+        await draftCall(["draft": draft, "variant": variant])
     }
 
     /// `drafts.proposal` (v1.2, the assistant in a draft): the draft as the assistant's proposal would leave it (`fields`:
     /// the draft, the place, the tool, its parameters and the role), opened under a number of its own only to be shown and
     /// answered as `drafts.open` («▶ После»); nothing is kept, and the caller closes the number once heard.
     func openProposal(_ fields: [String: Any]) async -> Answer<DraftViewAnswer> {
-        await draftOpen(fields, call: "drafts.proposal")
+        await draftCall(fields, call: "drafts.proposal")
     }
 
-    private func draftOpen<Value: Decodable & Sendable>(_ fields: [String: Any], call: String = "drafts.open") async -> Answer<Value> {
+    /// A drafts call on this piece (`call`, `drafts.open` unless named) and its typed answer.
+    private func draftCall<Value: Decodable & Sendable>(_ fields: [String: Any], call: String = "drafts.open") async -> Answer<Value> {
         let piece = piece
         let request = facadeRequest(fields)
         let text = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
