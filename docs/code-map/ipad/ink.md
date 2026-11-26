@@ -27,13 +27,16 @@ pieces left without drawing, then `ink.remove`); `undo` and `redo` go through `I
 (`InkQueue`). Setting `penOn` calls `PenScore.penTurned`, where the root applies the input rules, tells the roll, the
 page's `pen` and its mode, in that order. A change of `PenState.colouring` calls `PenScore.colouringChanged`; `colour`
 (a passage the page coloured) and the eraser's `uncoloured` go through the queue to `PenScore.colourBars` and
-`uncolourBars`, none of them a step of the Pen's history. Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
+`uncolourBars`, which answer the change made (`Recolouring`, Platform, by value). Since v1.4 (i-5, answer 4 (a)) it is
+the step's `InkStep.colouring` in the one Pen history: a passage coloured is a step, the colour a press of the eraser
+took is part of that press's step, and `undo` and `redo` send it, reversed or as it was, to `PenScore.recolour`; a
+change that changed nothing is no step (`record`). Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
 page stay the root's, which hands the points in in the page's pixels.
 
 ## The state it owns
 
 - `PenModel`: the pen (`PenState`, kept on the device by `PenMemory`), `penOn`, the pencil palette, the Pen's history
-  (`InkHistory`, `canUndo`, `canRedo`), the eraser's points waiting and the ink queue.
+  (`InkHistory`, `canUndo`, `canRedo`; on the score its strokes and its colours), the eraser's points waiting and the ink queue.
 
 - The Pencil's hover over a window (`WindowHover`, `PencilPalette.swift`): one recognizer on the window, put on it by
   the first score's screen that watches it and shared by the next ones, so the window keeps no recognizer per visit

@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 ## Files
 
 `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
-`OpenPiece`, `OriginalSounds`, `ScanReview`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
+`OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
@@ -46,6 +46,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `Design.swift` reads `design/kit/tokens.css`.
 - `HighlightInk.swift` (v0.10 d-5): the four inks a highlight is laid in and an ink's kit colour by name, the one list
   for the marks' shelf and bookmarks (Marks) and the pen's colour bars (Ink).
+- `Recolouring.swift` (v1.4 i-5): a change of the highlights by the colour bars or the eraser, by value (taken, laid,
+  `reversed`), worked out by `Marks/HighlightPaint` and kept in the Pen's history (`Ink/InkStep.colouring`).
 - `UIText.swift`: the words, the shared `src/shared/wwwroot/i18n/<language>.json` (in the app as `i18n/`), then every
   folder's `<Folder>/Words/<Folder>.<language>.json` (at the app's top) by name, merged; a key defined twice asserts in
   Debug. Which key goes where: `tests/shared/i18n.test.mjs` (B6). `UIText.current` is in the language picked in

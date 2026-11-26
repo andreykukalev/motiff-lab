@@ -5,7 +5,8 @@ import XCTest
 /// PenModel (S6, ADR 0031 section 3) against a fake score: a stroke is anchored on the page and kept through music-core as
 /// one step of the Pen's history, Undo and Redo take it back and do it again, a press of the eraser is sent as it moves and
 /// saved as one step when it lifts, and the Pen turned on or off goes to the score. What ScoreController did before the
-/// move, call for call. Since finding 31 (v0.10) the colour bars colour through the score and the eraser takes the colour.
+/// move, call for call. Since finding 31 (v0.10) the colour bars colour through the score and the eraser takes the colour;
+/// since v1.4 (i-5) each is a step of the same history, which Undo sends back reversed and Redo as it was.
 @MainActor
 final class PenModelTests: XCTestCase {
     /// The score as the pen sees it: a page that answers `anchor` and `rubEnd`, and the changes asked of the marks.
@@ -49,6 +50,10 @@ final class PenModelTests: XCTestCase {
         private(set) var turned: [Bool] = []
         private(set) var colouringChanges = 0
         private(set) var coloured: [String] = []
+        /// The changes Undo and Redo sent back.
+        private(set) var recoloured: [Recolouring] = []
+        /// What the colour bars changed, as the score answers it: nothing when it is empty, else the span laid in its colour.
+        var colourChanges = true
         var changed: (() -> Void)?
 
         func changeMarks(_ piece: Int32, _ call: String, _ request: [String: Any], draws: Bool) async {
@@ -64,13 +69,20 @@ final class PenModelTests: XCTestCase {
             colouringChanges += 1
         }
 
-        func colourBars(_ span: Range<Double>, in colour: String) async {
+        func colourBars(_ span: Range<Double>, in colour: String) async -> Recolouring {
             coloured.append("\(colour) \(Int(span.lowerBound))-\(Int(span.upperBound))")
             changed?()
+            return colourChanges ? Recolouring(laid: [Recolouring.Highlight(onset: span.lowerBound, end: span.upperBound, colour: colour)]) : Recolouring()
         }
 
-        func uncolourBars(_ spans: [Range<Double>]) async {
+        func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring {
             coloured.append("off " + spans.map { "\(Int($0.lowerBound))-\(Int($0.upperBound))" }.joined(separator: " "))
+            changed?()
+            return Recolouring(taken: spans.map { Recolouring.Highlight(onset: $0.lowerBound, end: $0.upperBound, colour: "amber") })
+        }
+
+        func recolour(_ change: Recolouring) async {
+            if !change.isEmpty { recoloured.append(change) }
             changed?()
         }
     }
@@ -99,6 +111,15 @@ final class PenModelTests: XCTestCase {
         guard score.coloured.count < count else { return }
         let done = expectation(description: "\(count) colourings")
         score.changed = { if score.coloured.count == count { done.fulfill() } }
+        await fulfillment(of: [done], timeout: 5)
+        score.changed = nil
+    }
+
+    /// Waits until Undo and Redo have sent `count` changes of the highlights back in all.
+    private func recoloured(_ score: FakeScore, _ count: Int) async {
+        guard score.recoloured.count < count else { return }
+        let done = expectation(description: "\(count) changes sent back")
+        score.changed = { if score.recoloured.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
     }
@@ -174,7 +195,52 @@ final class PenModelTests: XCTestCase {
         await coloured(score, 1)
         XCTAssertEqual(score.coloured, ["forest 480-960"], "nothing with the pencil, nor for a passage of no length")
         XCTAssertEqual(score.changes, [], "the score keeps the highlights, the pen writes no stroke")
-        XCTAssertFalse(model.canUndo, "no step of the Pen's history")
+        XCTAssertTrue(model.canUndo, "a step of the Pen's history (v1.4 i-5)")
+    }
+
+    /// Answer 4 (a) of the plan of 1.4: the Pen's Undo and Redo take back and do again what the colour bars coloured, in
+    /// the one history with the strokes, newest first, and its buttons follow.
+    func testUndoAndRedoTakeBackAndDoAgainWhatTheColourBarsColoured() async {
+        let (model, score) = made()
+        model.keep(points, in: 7) {}
+        model.pen.choose(.colour)
+        model.pen.setBarColour(.forest)
+        model.colour(480, 960)
+        await coloured(score, 1)
+        let laid = Recolouring(laid: [Recolouring.Highlight(onset: 480, end: 960, colour: "forest")])
+        model.undo()
+        await recoloured(score, 1)
+        XCTAssertEqual(score.recoloured, [laid.reversed], "the newest step first: the colour, not the stroke")
+        XCTAssertEqual(score.changes.count, 1, "the stroke is still there")
+        XCTAssertTrue(model.canUndo)
+        XCTAssertTrue(model.canRedo)
+        model.redo()
+        await recoloured(score, 2)
+        XCTAssertEqual(score.recoloured, [laid.reversed, laid], "Redo colours it again")
+        XCTAssertFalse(model.canRedo)
+        model.undo()
+        model.undo()
+        await changes(score, 2)
+        XCTAssertEqual(score.changes[1].call, "ink.remove", "then the stroke before it")
+        XCTAssertFalse(model.canUndo)
+        XCTAssertTrue(model.canRedo)
+        model.redo()
+        await changes(score, 3)
+        model.colour(0, 480)
+        await coloured(score, 2)
+        XCTAssertFalse(model.canRedo, "a new colouring drops what Redo had")
+    }
+
+    func testAColouringThatChangedNothingIsNoStep() async {
+        let (model, score) = made()
+        score.colourChanges = false
+        model.pen.choose(.colour)
+        model.colour(0, 1920)
+        await coloured(score, 1)
+        let settled = expectation(description: "the queue's turn is over")
+        model.keep(points, in: 7) { settled.fulfill() }
+        await fulfillment(of: [settled], timeout: 5)
+        XCTAssertFalse(model.canUndo, "nothing to take back: nothing was coloured, and a stroke written with the colour bars is not kept")
     }
 
     func testTheScoreHearsWhenTheColourBarsComeOrGoOrChangeColour() {
@@ -196,7 +262,25 @@ final class PenModelTests: XCTestCase {
         await coloured(score, 1)
         XCTAssertEqual(score.coloured, ["off 240-360 600-720"], "a stretch of no length is left out")
         XCTAssertEqual(score.changes, [], "no ink was cut")
-        XCTAssertFalse(model.canUndo)
+        XCTAssertTrue(model.canUndo, "the colour it took is a step (v1.4 i-5)")
+    }
+
+    /// A press of the eraser that cut a stroke and took a colour is one step: Undo puts back both, Redo takes both again.
+    func testAPressThatCutInkAndTookAColourIsOneStep() async {
+        let (model, score) = made()
+        score.page.rubbed = ["removed": [["id": "a"]], "uncoloured": [["start": 0, "end": 480]]]
+        model.rub([["x": 1, "y": 2]], lifted: true, in: 7)
+        await coloured(score, 1)
+        let taken = Recolouring(taken: [Recolouring.Highlight(onset: 0, end: 480, colour: "amber")])
+        model.undo()
+        await recoloured(score, 1)
+        XCTAssertEqual(score.changes.map(\.call), ["ink.remove", "ink.add"], "the stroke cut comes back")
+        XCTAssertEqual(score.recoloured, [taken.reversed], "and the colour, in the same Undo")
+        XCTAssertFalse(model.canUndo, "one step")
+        model.redo()
+        await recoloured(score, 2)
+        XCTAssertEqual(score.changes.map(\.call), ["ink.remove", "ink.add", "ink.remove"])
+        XCTAssertEqual(score.recoloured, [taken.reversed, taken])
     }
 
     func testThePenTurnedOnOrOffGoesToTheScore() {
