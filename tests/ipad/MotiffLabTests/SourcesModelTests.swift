@@ -93,6 +93,27 @@ final class SourcesModelTests: XCTestCase {
         XCTAssertEqual(asked, [12])
     }
 
+    /// r-1: a card at a mark closes by its own cover, which the page never hears; the next `markMoved` finds no card and
+    /// tells the page to stop following the mark (`markForgotten`), so a scroll (playback turning the line) posts nothing.
+    func testAMarkMovedWithNoCardOpenTellsThePageToForgetTheMark() async {
+        let score = ScoreController()
+        let page = RecordingScorePage()
+        var sent: [PageCommand] = []
+        let forgotten = expectation(description: "the page told to forget the mark")
+        page.called = { command, _ in
+            sent.append(command)
+            if command == .markForgotten { forgotten.fulfill() }
+        }
+        score.scorePage = page
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300))
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 200)))
+        score.closeMarker()
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 100)))
+        await fulfillment(of: [forgotten], timeout: 5)
+        XCTAssertEqual(sent.filter { $0 == .markForgotten }.count, 1, "only once no card shows; the popover moved before")
+        XCTAssertNil(score.sourcesModel.markerPick, "and none opens")
+    }
+
     /// «Переименовать…» on a version's row: music-core keeps the new name, the list shows it and the version shown stays the
     /// one shown; a blank name sends nothing and a refusal says why.
     func testAVersionIsRenamedAndStaysShown() async throws {

@@ -16,7 +16,7 @@ import { markPicked, keepTuplets, selection } from "./page-selection.js";
 import { drawHeads, reportPlace } from "./page-playheads.js";
 import { forgetSounding, heard } from "./page-sounding.js";
 import { drawCardHeads, layoutCard, placeOssias, reportCardWidth } from "./page-card.js";
-import { tellMarkMoved } from "./page-mark-place.js";
+import { forgetMark, tellMarkMoved } from "./page-mark-place.js";
 
 /** What each engraved page holds, read when it is shown. */
 let engraved: PageGeometry[] = [];
@@ -29,6 +29,8 @@ export function show({ pages, timemap, dark }: Parameters<PageCommands["show"]>[
     }
     reported = "";
     forgetRings();
+    // Other pages: no card shows at a mark of the ones before (r-1).
+    forgetMark();
     forgetSounding("page");
     const host = document.getElementById("pages") as HTMLElement;
     host.innerHTML = pages.map((svg, index) => `<div class="page" data-page="${index + 1}">${svg}</div>`).join("");

@@ -295,7 +295,7 @@ final class DraftsTests: XCTestCase {
         screen.score.handle(.markMoved(CGPoint(x: 10, y: 260)))
         XCTAssertEqual(model.picked?.at, CGPoint(x: 10, y: 260), "the page scrolled: the card stays under its number (r-1)")
         XCTAssertEqual(model.step(1), spot, "the last stays the current one")
-        model.moveCard(to: CGPoint(x: 1, y: 2))
+        XCTAssertFalse(model.moveCard(to: CGPoint(x: 1, y: 2)))
         XCTAssertNil(model.picked?.at, "stepping shows no card, and none moves")
         XCTAssertTrue(screen.score.canHear(spot, variant: false), "the base's own notes there")
         XCTAssertNil(spot.occurrence.recording, "not heard from a recording")

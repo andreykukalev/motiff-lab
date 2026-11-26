@@ -215,6 +215,8 @@ export interface PageCommands {
     practice(shown: PracticeShown): void;
     selectionControls(shown: boolean): void;
     writing(stroke: { on: boolean }): void;
+    /** No card shows at the mark the page follows any more (r-1): it stops telling where the mark is (`markMoved`). */
+    markForgotten(): void;
 }
 
 /** Each message the page posts, by its kind (its one key), and what that key carries: the app's PageEvent.Kind. */
@@ -257,11 +259,11 @@ export interface PageEvents {
     leave: true;
     cardLayout: Record<string, unknown>;
     coloured: TickRange;
-    /** The mark whose card Swift shows (a `performanceBar` or `phraseHeld`) moved: where it is now, in window pixels (r-1). */
+    /** The mark whose card Swift shows (a `performanceBar` or `phraseHeld`) moved: where it is now, in the web view's points (r-1). */
     markMoved: { left: number; bottom: number };
 }
 
-/** Where a tapped label over a bar is, in window pixels, and a draft's приём number's, seam's or anchor's key. */
+/** Where a tapped label over a bar is, in the web view's points (`windowPoint`), and a draft's приём number's, seam's or anchor's key. */
 export interface MarkerTap {
     left: number;
     bottom: number;

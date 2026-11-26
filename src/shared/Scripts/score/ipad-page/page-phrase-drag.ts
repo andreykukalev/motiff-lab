@@ -10,7 +10,7 @@ import { MarkPress, barBeatCaption, nearestOnset, neighbourSpans } from "../phra
 import { token } from "../../layout/tokens.js";
 import { documentPoint, post, state } from "./page-state.js";
 import { phraseDragContext } from "./page-phrases.js";
-import { followMark } from "./page-mark-place.js";
+import { followMark, windowPoint } from "./page-mark-place.js";
 
 /** The mark held: its phrase's number, the tick its phrase starts at, and where the press came down. */
 let held: { number: number; from: number; at: PressPoint } | null = null;
@@ -106,11 +106,11 @@ function dragMark(point: PressPoint): void {
 function openMenu(): void {
     const selector = held === null ? null : `body > .phrase-ink.number[data-phrase="${held.number}"]:not(.ghost)`;
     const number = selector === null ? null : document.querySelector(selector);
-    const box = number?.getBoundingClientRect();
-    if (held !== null && selector !== null && number !== null && box !== undefined) {
-        post({ phraseHeld: held.number, left: box.left, bottom: box.bottom });
+    if (held !== null && selector !== null && number !== null) {
+        const place = windowPoint(number.getBoundingClientRect());
+        post({ phraseHeld: held.number, ...place });
         // The menu stays under the number as the page scrolls or is laid out again (r-1).
-        followMark(number, () => document.querySelector(selector));
+        followMark(number, () => document.querySelector(selector), place);
     }
     putBack();
 }

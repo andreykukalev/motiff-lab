@@ -42,7 +42,8 @@
     "playheads",
     "practice",
     "selectionControls",
-    "writing"
+    "writing",
+    "markForgotten"
   ],
   "events": [
     "pages",

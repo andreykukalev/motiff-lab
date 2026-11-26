@@ -12,7 +12,7 @@ enum PageCommand: String, CaseIterable {
     case show, layout, anchor, erase, eraseAlong, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved
     case menuClosed, pen, beats, focus, card, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick
     case firstTickOn, placeAt, lineAt, reveal, notes, checks, performance, phraseMarks, layers, playing, returnToPlayhead
-    case mode, playheads, practice, selectionControls, writing
+    case mode, playheads, practice, selectionControls, writing, markForgotten
 }
 
 /// Calls the page's functions. `run` waits for the answer; `post` does not (the playhead, many times a second).
