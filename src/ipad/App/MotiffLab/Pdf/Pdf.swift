@@ -88,7 +88,7 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
         #if DEBUG
         ScreensProbe.pdf = self
         #endif
-        let answers = await MusicCore.run { (MusicCore.call(piece: piece, "document"), MusicCore.call(piece: piece, "project")) }
+        let answers = await MusicCore.run { (PieceCore(piece: piece).send(.document), PieceCore(piece: piece).send(.project)) }
         ProbeCounts.shared.mark("document")
         guard let object = facadeObject(answers.0), object["error"] == nil,
               let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64),
@@ -139,28 +139,28 @@ final class PdfController: NSObject, ObservableObject, PenHolder {
     func toggleBookmark() async {
         guard page > 0 else { return }
         if let bookmark = currentBookmark {
-            await change("document.bookmark.remove", ["id": bookmark.id])
+            await change(.documentBookmarkRemove, ["id": bookmark.id])
         } else {
-            await change("document.bookmark.add", ["page": page, "now": ISO8601DateFormatter().string(from: Date())])
+            await change(.documentBookmarkAdd, ["page": page, "now": ISO8601DateFormatter().string(from: Date())])
         }
     }
 
     func rename(_ bookmark: PageBookmarkEntry, _ name: String) async {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed != (bookmark.name ?? "") else { return }
-        await change("document.bookmark.rename", ["id": bookmark.id, "name": trimmed])
+        await change(.documentBookmarkRename, ["id": bookmark.id, "name": trimmed])
     }
 
     func remove(_ bookmark: PageBookmarkEntry) async {
-        await change("document.bookmark.remove", ["id": bookmark.id])
+        await change(.documentBookmarkRemove, ["id": bookmark.id])
     }
 
     /// A change through music-core; the pages are drawn from its answer unless `draws` is false, for the first of two calls
     /// that make one change, so they never show it half done.
-    func change(_ call: String, _ fields: [String: Any], draws: Bool = true) async {
+    func change(_ call: PieceCore.Call, _ fields: [String: Any], draws: Bool = true) async {
         let request = facadeRequest(fields)
         let piece = piece
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, call, request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(call, request) }
         guard let object = facadeObject(answer) else { return }
         if object["error"] != nil {
             problem = object["message"] as? String

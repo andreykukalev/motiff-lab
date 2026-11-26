@@ -81,7 +81,7 @@ extension ScoreWorkspace {
         // From the PDF in PDF | Notes the notes open at the page the player came from instead.
         guard piece.landing == nil else { return }
         let id = piece.id
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume") }
+        let answer = await MusicCore.run { PieceCore(piece: id).send(.resume) }
         guard let place = ResumePlace(answer: answer) else { return }
         resumeId = place.id
         player.tempoPercent = place.tempoPercent
@@ -113,7 +113,7 @@ extension ScoreWorkspace {
         let request = ResumePlace.saveRequest(
             id: resumeId, passage: now.passage, at: at, focused: now.focused, tempoPercent: now.tempoPercent, hands: now.hands, loop: now.loop, now: Date()
         )
-        let answer = await MusicCore.run { MusicCore.call(piece: id, "resume.save", request) }
+        let answer = await MusicCore.run { PieceCore(piece: id).send(.resumeSave, request) }
         if let saved = facadeObject(answer)?["saved"] as? [String: Any], let point = ResumePlace(point: saved) {
             resumeId = point.id
         }

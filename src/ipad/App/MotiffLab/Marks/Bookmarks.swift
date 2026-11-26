@@ -121,7 +121,7 @@ final class ContentsController: ObservableObject {
 
     func load(piece: Int32) async {
         self.piece = piece
-        await call("bookmarks", [:])
+        await call(.bookmarks, [:])
     }
 
     /// Bookmark in the menu: the card over the selection, its title pre-filled.
@@ -146,29 +146,29 @@ final class ContentsController: ObservableObject {
         if let id = draft.id {
             var request: [String: Any] = ["id": id, "category": draft.category]
             if !title.isEmpty { request["title"] = title }
-            await call("bookmark.change", request)
+            await call(.bookmarkChange, request)
         } else if let selection {
             lastCategory = draft.category
             let span: [String: Any] = ["onset": Int(selection.onset), "end": Int(selection.end)]
-            await call("bookmark.add", ["span": span, "title": title.isEmpty ? defaultTitle : title, "category": draft.category, "now": Self.now()])
+            await call(.bookmarkAdd, ["span": span, "title": title.isEmpty ? defaultTitle : title, "category": draft.category, "now": Self.now()])
         }
     }
 
     func delete(_ id: String) async {
         draft = nil
-        await call("bookmark.remove", ["id": id])
+        await call(.bookmarkRemove, ["id": id])
     }
 
     /// Add Structure bookmarks: one for each section of the form music-core found, named and placed by it, as Piece DNA adds them.
     func addStructure() async {
-        await call("bookmark.form", ["now": Self.now()])
+        await call(.bookmarkForm, ["now": Self.now()])
     }
 
     /// Add Structure bookmarks from Piece DNA (testing item 22): one per section of the form, "Section A′, bars 17–32";
     /// answers how many were added, or nil with no piece open or when music-core refused (`problem` says why).
     func addForm() async -> Int? {
         let before = shelf?.bookmarks.count ?? 0
-        await call("bookmark.form", ["now": Self.now()])
+        await call(.bookmarkForm, ["now": Self.now()])
         return piece == nil || problem != nil ? nil : (shelf?.bookmarks.count ?? 0) - before
     }
 
@@ -204,14 +204,14 @@ final class ContentsController: ObservableObject {
     /// The detected sections of the form, read from the map of the piece without changing the level the score shows.
     func loadSections() async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, "dna") }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.dna) }
         sections = DnaMap(answer: answer)?.form ?? []
     }
 
-    private func call(_ name: String, _ request: [String: Any]) async {
+    private func call(_ name: PieceCore.Call, _ request: [String: Any]) async {
         guard let piece else { return }
         let body = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece, name, body) }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(name, body) }
         guard let read = BookmarkShelf(answer: answer) else {
             problem = facadeObject(answer)?["message"] as? String
             return

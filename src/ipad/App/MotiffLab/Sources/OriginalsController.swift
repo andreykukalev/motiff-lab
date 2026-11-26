@@ -83,7 +83,7 @@ final class OriginalsController: ObservableObject {
     /// The originals again, as music-core has them now.
     func refresh() async {
         guard let piece else { return }
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources") }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.sources) }
         read(answer)
     }
 
@@ -129,7 +129,7 @@ final class OriginalsController: ObservableObject {
         var fields: [String: Any] = ["pdf": picked.data.base64EncodedString(), "now": ISO8601DateFormatter().string(from: Date())]
         if let pages = PDFDocument(data: picked.data)?.pageCount, pages > 0 { fields["pages"] = pages }
         let request = facadeRequest(fields)
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.relink", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.sourcesRelink, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status[picked.id] = facadeObject(answer)?["message"] as? String ?? text["originals.unreadable"]
             return
@@ -273,7 +273,7 @@ final class OriginalsController: ObservableObject {
         guard let piece, let now = originals.first(where: { $0.id == original.id }), !now.inFile,
               now.held.contains("ipad") != held else { return }
         let request = facadeRequest(["id": original.id, "held": held, "now": ISO8601DateFormatter().string(from: Date())])
-        let answer = await MusicCore.run { MusicCore.call(piece: piece.id, "sources.held", request) }
+        let answer = await MusicCore.run { PieceCore(piece: piece.id).send(.sourcesHeld, request) }
         if read(answer) { await save() }
     }
 

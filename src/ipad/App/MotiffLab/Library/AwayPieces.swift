@@ -134,7 +134,7 @@ enum LibraryLink {
             "device": "ipad", "now": ISO8601DateFormatter().string(from: Date()),
         ]
         if let pages, pages > 0 { request["pages"] = pages }
-        return await call("library.linked", request)
+        return await call(.libraryLinked, request)
     }
 
     /// The project file with its PDF at `folder`/`fileName`; with `changed`, the fingerprint, size and pages of a changed
@@ -146,12 +146,12 @@ enum LibraryLink {
             request["bytes"] = changed.bytes
             if let pages = changed.pages, pages > 0 { request["pages"] = pages }
         }
-        return await call("library.link", request)
+        return await call(.libraryLink, request)
     }
 
-    private static func call(_ name: String, _ request: [String: Any]) async -> String? {
+    private static func call(_ name: PieceCore.NoPiece, _ request: [String: Any]) async -> String? {
         let json = facadeRequest(request)
-        let answer = await MusicCore.run { MusicCore.call(piece: 0, name, json) }
+        let answer = await MusicCore.run { PieceCore.sendWithoutPiece(name, json) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
         return object["file"] as? String
     }

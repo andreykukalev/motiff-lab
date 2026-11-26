@@ -1,10 +1,10 @@
 import Foundation
 
-/// The port to music-core for an open piece (decision record 0031 step 1b, blueprint 5.4, step B5): the calls the features
-/// make whose answers are typed, each run through `MusicCore.run` and `MusicCore.call` and decoded once into its typed answer
-/// (PieceAnswers.swift) by `FacadeAnswer.decode`, which reports an answer that cannot be read. The calls it makes are named
-/// here and nowhere else in the app (tests/shared/facade-calls-contract.test.mjs); the others move here with their typed
-/// answers, one answer at a time.
+/// The port to music-core for an open piece (decision record 0031 step 1b, blueprint 5.4, step B5, #654): every call the app
+/// makes by name is named here or in PieceCoreCalls.swift and nowhere else (tests/shared/facade-calls-contract.test.mjs).
+/// The calls whose answers are typed run through `MusicCore.run` and `MusicCore.call` and are decoded once into their
+/// typed answer (PieceAnswers.swift) by `FacadeAnswer.decode`, which reports an answer that cannot be read; the others
+/// (PieceCoreCalls.swift) answer the text, and move here with their typed answers, one answer at a time.
 struct PieceCore: Sendable {
     /// The piece's number in the facade.
     let piece: Int32
@@ -127,55 +127,26 @@ struct PieceCore: Sendable {
     }
 
     /// The corrections calls (OpenPiece.Corrections.cs and OpenPiece.EditsLayer.cs), every one answered with a bar's notes
-    /// as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without one).
-    enum Correction: Sendable {
+    /// as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without one). The raw value is the
+    /// call's name.
+    enum Correction: String, Sendable {
         /// `corrections`: the bar's notes to correct.
-        case bar
+        case bar = "corrections"
         /// Fix notes in Check: a note stepped, taken out, put back as imported; the last correction undone (in the note
         /// editor, its last edit).
-        case change, remove, revert, undo
+        case change = "corrections.change", remove = "corrections.remove", revert = "corrections.revert", undo = "corrections.undo"
         /// The assistant's draft accepted, and undone whole (so is a scan's variant put in, `variant(_:)`).
-        case acceptDraft, undoDraft
+        case acceptDraft = "corrections.acceptDraft", undoDraft = "corrections.undoDraft"
         /// «Мои правки»: the layer on or off; the corrections that no longer fit taken out.
-        case layer, drop
+        case layer = "corrections.layer", drop = "corrections.drop"
         /// The roll's note editor: the draft begun, a note set or added, every correction taken out, Cancel and Save.
-        case begin, set, add, reset, discard, save
+        case begin = "corrections.begin", set = "corrections.set", add = "corrections.add", reset = "corrections.reset"
+        case discard = "corrections.discard", save = "corrections.save"
     }
 
     /// `corrections` and `corrections.*`: the bar's notes, or a correction made and the bar's notes as they are then.
     func corrections(_ call: Correction, _ request: String) async -> Answer<CorrectionsAnswer> {
-        switch call {
-        case .bar:
-            return await correctionsCall("corrections", request)
-        case .change:
-            return await correctionsCall("corrections.change", request)
-        case .remove:
-            return await correctionsCall("corrections.remove", request)
-        case .revert:
-            return await correctionsCall("corrections.revert", request)
-        case .undo:
-            return await correctionsCall("corrections.undo", request)
-        case .acceptDraft:
-            return await correctionsCall("corrections.acceptDraft", request)
-        case .undoDraft:
-            return await correctionsCall("corrections.undoDraft", request)
-        case .layer:
-            return await correctionsCall("corrections.layer", request)
-        case .drop:
-            return await correctionsCall("corrections.drop", request)
-        case .begin:
-            return await correctionsCall("corrections.begin", request)
-        case .set:
-            return await correctionsCall("corrections.set", request)
-        case .add:
-            return await correctionsCall("corrections.add", request)
-        case .reset:
-            return await correctionsCall("corrections.reset", request)
-        case .discard:
-            return await correctionsCall("corrections.discard", request)
-        case .save:
-            return await correctionsCall("corrections.save", request)
-        }
+        await correctionsCall(call.rawValue, request)
     }
 
     /// `corrections.variant` (v1.3 i-2): another engine's reading of a scan's bar to check put in that bar as the player's
@@ -184,7 +155,7 @@ struct PieceCore: Sendable {
         await correctionsCall("corrections.variant", request)
     }
 
-    // Each name written where the call is made, one per case (the facade call scan reads them here).
+    /// A corrections call by its name and its typed answer.
     private func correctionsCall(_ name: String, _ request: String) async -> Answer<CorrectionsAnswer> {
         let piece = piece
         let text = await MusicCore.run { MusicCore.call(piece: piece, name, request) }
