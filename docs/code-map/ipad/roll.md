@@ -12,6 +12,8 @@ roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
   typed from `PieceCore.roll` (`RollAnswer`, B7); every call into the page
   goes through its `RollPage` (`Platform/RollPage.swift`) and every message comes in decoded as `RollEvent`s
   (`received` → the callbacks `picked`, `cleared`, `spanPicked`, `notesPicked`, `playheadMoved`, `noteEdited`, …).
+  A load that failed and showed nothing is `failed` (`problem`, cleared by the next load that shows notes): `RollSurface`
+  (`RollTools.swift`) says so in the roll's place (v1.4 r-1b, `RollLoadTests`).
   `frame()` (the zoom and view for the "Notes" view) is its, since B7. `page` is settable: a workspace scenario
   (`tests/ipad/Baseline/WorkspaceSession.swift`) puts a recording `RollPage` there.
 - `RollTools.swift`: `RollPick` (bars or beats from a `RollRange`, by `byBeats`), the zoom's words on `RollZoom`, the
