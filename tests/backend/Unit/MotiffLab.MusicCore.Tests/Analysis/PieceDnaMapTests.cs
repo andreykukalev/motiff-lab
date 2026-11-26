@@ -92,10 +92,14 @@ public class PieceDnaMapTests
         IdeaOccurrence[] At(params int[] bars) => [.. bars.Select(bar => new IdeaOccurrence(
             bar == bars[0] ? OccurrenceKind.Original : OccurrenceKind.Exact, MeterMap.Default.GetBar(bar).Span, bar, bar, 0, []))];
 
-        Assert.Equal("Heard 4 times, always exactly. Opens A 3 times and B.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.English));
-        Assert.Equal("Звучит 4 раза, всегда точно. Открывает A 3 раза и B.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.Russian));
+        Assert.Equal("Heard 4 times, always exactly. Opens A 3 times and B once.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 4 раза, всегда точно. Открывает A 3 раза и B один раз.", IdeaFinder.Summary(At(1, 2, 3, 4), MeterMap.Default, sections, Words.Russian));
         Assert.Equal("Heard twice, always exactly. Opens A twice.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.English));
         Assert.Equal("Звучит 2 раза, всегда точно. Открывает A дважды.", IdeaFinder.Summary(At(1, 3), MeterMap.Default, sections, Words.Russian));
+
+        // No letter opened twice: the letters alone.
+        Assert.Equal("Heard twice, always exactly. Opens A and B.", IdeaFinder.Summary(At(1, 2), MeterMap.Default, sections, Words.English));
+        Assert.Equal("Звучит 2 раза, всегда точно. Открывает A и B.", IdeaFinder.Summary(At(1, 2), MeterMap.Default, sections, Words.Russian));
     }
 
     [Fact]

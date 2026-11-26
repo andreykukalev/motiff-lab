@@ -133,8 +133,9 @@ public static class IdeaFinder
     }
 
     /// <summary>
-    /// "Heard 7 times: 5 exactly, 2 higher. Opens A twice and B."; "Звучит 7 раз: 5 точно, 2 выше. Открывает A дважды и B.":
-    /// each letter once, in the order the sections come, with how many sections of that letter the idea opens.
+    /// "Heard 7 times: 5 exactly, 2 higher. Opens A twice and B once."; "Звучит 7 раз: 5 точно, 2 выше. Открывает A дважды и
+    /// B один раз.": each letter once, in the order the sections come, with how many sections of that letter the idea opens
+    /// when it opens more than one of any letter ("Opens A and B" otherwise).
     /// </summary>
     internal static string Summary(IReadOnlyList<IdeaOccurrence> occurrences, MeterMap meter, IReadOnlyList<DnaSection> sections, Words w)
     {
@@ -153,8 +154,9 @@ public static class IdeaFinder
         string[] opens = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < meter.GetBar(section.FirstBar).Span.End))
             .Select(section => section.Label)];
-        string[] letters = [.. opens.GroupBy(label => label, StringComparer.Ordinal)
-            .Select(label => label.Count() == 1 ? label.Key : $"{label.Key} {(label.Count() == 2 ? w.T("twice", "дважды") : w.Times(label.Count()))}")];
+        IGrouping<string, string>[] byLetter = [.. opens.GroupBy(label => label, StringComparer.Ordinal)];
+        bool counted = byLetter.Any(letter => letter.Count() > 1);
+        string[] letters = [.. byLetter.Select(letter => counted ? $"{letter.Key} {HowOften(letter.Count(), w)}" : letter.Key)];
         string[] within = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < section.Span.End))
             .Select(section => section.Label)
@@ -174,4 +176,12 @@ public static class IdeaFinder
 
         return summary;
     }
+
+    /// <summary>"once", "twice", "3 times"; "один раз", "дважды", "3 раза".</summary>
+    private static string HowOften(int count, Words w) => count switch
+    {
+        1 => w.T("once", "один раз"),
+        2 => w.T("twice", "дважды"),
+        _ => w.Times(count),
+    };
 }
