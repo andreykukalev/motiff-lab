@@ -95,3 +95,26 @@ test("the piano roll's button is in the pill only", () => {
     assert.doesNotMatch(between("struct SelectionMenu", "struct ClearSelectionButton"), rollButton);
     assert.doesNotMatch(between("struct ScoreBar", "struct Pill"), rollButton);
 });
+
+// Andrei's answer 15 of 1.4 (2026-11-26 10:16 UTC, built in 1.5): a − or + that steps a number repeats while held, faster
+// the longer it is held, as the platform's steppers do (SwiftUI's `buttonRepeatBehavior`), so a place of a 300-bar piece is
+// not 300 taps: the counters of a draft's place's length and of the PDF's pages (`PageStepper`) and the tempo's pace.
+test("every − and + that steps a number on the iPad steps on while held", () => {
+    const steppers = [
+        ["src/ipad/App/MotiffLab/Pdf/PiecePartsSheet.swift", "struct PageStepper"],
+        ["src/ipad/App/MotiffLab/Playback/Tempo.swift", "struct TempoControl"],
+    ];
+    for (const [path, owner] of steppers) {
+        const source = read(path).toString();
+        const from = source.indexOf(owner);
+        assert.ok(from >= 0, `${owner} in ${path}`);
+        const at = source.indexOf("private func stepButton(", from);
+        assert.ok(at >= 0, `${owner}'s stepButton`);
+        const next = source.indexOf("\n    }\n", at);
+        assert.match(source.slice(at, next), /\.buttonRepeatBehavior\(\.enabled\)/, `${owner}'s − and + repeat while held`);
+    }
+    const app = new URL("src/ipad/App/MotiffLab/", root);
+    const files = readdirSync(app, { recursive: true }).filter((name) => name.endsWith(".swift"));
+    const named = files.filter((name) => /func stepButton\(/.test(readFileSync(new URL(name, app)).toString()));
+    assert.deepEqual(named.sort(), ["Pdf/PiecePartsSheet.swift", "Playback/Tempo.swift"], "a new stepper is listed here, so it repeats too");
+});
