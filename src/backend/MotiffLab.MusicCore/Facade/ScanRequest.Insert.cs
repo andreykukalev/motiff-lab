@@ -27,15 +27,7 @@ internal static partial class ScanRequest
     public static string Insert(Request fields)
     {
         Words words = Words.For(fields.Text("language"));
-        Project project;
-        try
-        {
-            project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
-        }
-        catch (ProjectFileException exception)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
+        Project project = MusicCoreFacade.ProjectIn(fields);
 
         int page = fields.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", the page's place among the notes' pages, from 1.");
         Dictionary<int, ScanMergedPage> merged = [];

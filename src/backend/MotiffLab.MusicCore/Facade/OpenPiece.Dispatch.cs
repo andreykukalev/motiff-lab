@@ -71,29 +71,5 @@ internal sealed partial class OpenPiece
             new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, Now(request), request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
             new("tempo", static (piece, _) => Answer.Write(json => TempoRequest.Write(json, piece.Project, piece.Piece, piece.Words))),
         ];
-
-        /// <summary>The performances.</summary>
-        public static readonly FacadeCall<OpenPiece>[] Performances =
-        [
-            new("performances", static (piece, _) => Answer.Write(json => Answer.Performances(json, piece.Project)), CallFlags.OpenFirst),
-            new("performance", static (piece, request) => piece.PerformanceAnswer(piece.Performance(request)), CallFlags.OpenFirst),
-            new("performance.add", static (piece, request) => piece.AddPerformance(request)),
-            new("performance.rename", static (piece, request) => piece.ChangePerformance(request, performance => performance with { Name = request.Required("name") })),
-            new("performance.dismiss", static (piece, request) => piece.ChangePerformance(request, performance => performance.Dismiss(BarOf(request), request.Bool("dismissed") ?? true))),
-            new("performance.take", static (piece, request) => piece.TakeBars(request)),
-            new("performance.takeAll", static (piece, request) => piece.TakeAll(request)),
-            new("performance.restore", static (piece, request) => piece.ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true)),
-        ];
-
-        /// <summary>The sources that need the notes (those that need none: <see cref="SourceRequest.Calls"/>).</summary>
-        public static readonly FacadeCall<OpenPiece>[] Sources =
-        [
-            new("sources.document", static (piece, request) => piece.KeepDocument(request)),
-            new("sources.documentNotes", static (piece, request) => piece.AddDocumentNotes(request)),
-            new("sources.pdf", static (piece, request) => request.Text("id") is { } id && id != PieceOriginal.DocumentId ? piece.OriginalBytes(id) : piece.DocumentBytes()),
-            new("sources.relink", static (piece, request) => piece.RelinkDocument(request)),
-            new("sources.held", static (piece, request) => piece.MarkHeld(request)),
-            new("sources.notes.recognise", static (piece, request) => piece.RecogniseAgain(request)),
-        ];
     }
 }

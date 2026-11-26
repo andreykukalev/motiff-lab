@@ -108,7 +108,9 @@ final class PlayerInterruptionTests: XCTestCase {
     }
 
     /// v1.4 a-1: a metronome clicking with the piece stops with a pause the system makes (here the headphones gone) rather
-    /// than click on by itself from the speaker; a pause the player makes leaves it on, as before.
+    /// than click on by itself from the speaker; a pause the player makes leaves it on, as before. Since v1.5 the
+    /// metronome's own keeper stops it too, so this holds whichever keeper hears the system first; the order
+    /// `Metronome.stopWithSystemPause` keeps (no click as the pause unlocks it) cannot be seen from here.
     func testAMetronomeWithThePieceStopsWithASystemPauseOnly() async throws {
         let (player, piece) = try await playing(0.0..<7680.0)
         let metronome = Metronome.shared
@@ -132,6 +134,34 @@ final class PlayerInterruptionTests: XCTestCase {
         let stopped = player.state
         XCTAssertEqual(stopped, .stopped)
         XCTAssertFalse(bySystem, "paused by the system: the metronome stops with the piece")
+    }
+
+    /// v1.5 a-2, answer 29: the metronome clicking on its own, with no piece playing, stops as the app goes to the background
+    /// (the screen locked too) and as the headphones go, as the music does; an output only added leaves it clicking.
+    func testTheMetronomeOnItsOwnStopsInTheBackgroundAndWithTheHeadphonesGone() async {
+        let metronome = Metronome()
+        defer { metronome.stop() }
+        metronome.start()
+        let clicking = metronome.running
+        XCTAssertTrue(clicking)
+        routeChanges(.newDeviceAvailable)
+        await Task.yield()
+        let pluggedIn = metronome.running
+        XCTAssertTrue(pluggedIn, "an output added: it clicks on")
+        routeChanges(.oldDeviceUnavailable)
+        await Task.yield()
+        let unplugged = metronome.running
+        XCTAssertFalse(unplugged, "the headphones gone: stopped, not on from the speaker")
+
+        metronome.start()
+        let again = metronome.running
+        XCTAssertTrue(again, "its button starts it again")
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        await Task.yield()
+        let away = metronome.running
+        let beat = metronome.beat
+        XCTAssertFalse(away, "the app gone to the background: stopped")
+        XCTAssertEqual(beat, -1, "no beat shown lit")
     }
 
     /// v1.4 a-1: the Reference's music paused by the system (the app gone to the background) shows stopped on its sheet.

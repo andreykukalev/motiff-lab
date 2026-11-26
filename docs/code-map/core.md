@@ -26,7 +26,8 @@ through the facade; the API references it.
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
+- `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
+  voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
   `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`).
 - The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
@@ -52,7 +53,7 @@ through the facade; the API references it.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
-  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection and the corrections, `OpenPiece.Selection` and `OpenPiece.Corrections`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections, the sources and the performances, `OpenPiece.Selection`, `OpenPiece.Corrections`, `OpenPiece.Sources` and `OpenPiece.Performance`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
   registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   the typed sessions (W1.7) in `Facade/Sessions`: `SelectionSession` (the selection, what was understood, the Try chip,
@@ -61,8 +62,14 @@ through the facade; the API references it.
   `CorrectionsSession` (the note editor's draft, the draft or variant accepted last, the corrections' layer; each
   correction answers the edit log, which the open piece keeps) answers `BarCorrections` (`Answer.Corrections`), its
   adapter `OpenPiece.Corrections` (`Calls.Corrections`, every call's bar read before anything changes);
+  `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
+  iPad's mark, «Распознать ещё раз», each answering the project it makes, the time taken as `now`) answers `KeptFile`,
+  `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
+  `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
+  each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
+  notes again) answers the comparison (`Answer.Performance`) and `AddedVersion`; its adapter `OpenPiece.Performance` (`Calls.Performances`);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
-  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
+  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
   `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:

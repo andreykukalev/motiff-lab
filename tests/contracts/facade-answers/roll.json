@@ -9741,6 +9741,18 @@
       "octave 7",
       "octave 8",
       "octave 9"
+     ],
+     "voices": [
+      {
+       "track": 0,
+       "voice": 1,
+       "name": "upper voice"
+      },
+      {
+       "track": 0,
+       "voice": 5,
+       "name": "lower voice"
+      }
      ]
     }
    }

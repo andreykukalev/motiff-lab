@@ -33,6 +33,15 @@ export interface RollPayload {
     notes: number[];
     bars: number[];
     end: number;
+    /** The voices music-core names for a player (`names.voices` of its `roll`: upper and lower where the file says which). */
+    voices?: readonly RollVoice[];
+}
+
+/** A voice of a track and the name music-core gives it. */
+export interface RollVoice {
+    track: number;
+    voice: number;
+    name: string;
 }
 
 export interface RollNote {
@@ -156,6 +165,8 @@ export function laneKey(note: RollNote, by: ColourBy): number {
 export interface RollLabels {
     track: string;
     trackVoice: string;
+    /** A track and the name music-core gives one of its voices ("{1}", #330). */
+    trackVoiceNamed: string;
     noVoice: string;
     rightHand: string;
     leftHand: string;
@@ -185,6 +196,7 @@ export interface RollLabels {
 export const ENGLISH_ROLL_LABELS: RollLabels = {
     track: "Track {0}",
     trackVoice: "{0}, voice {1}",
+    trackVoiceNamed: "{0}, {1}",
     noVoice: "none",
     rightHand: "Right hand",
     leftHand: "Left hand",
@@ -225,8 +237,10 @@ export class RollModel {
     readonly onsets: readonly number[];
     private readonly longest: number;
     private readonly indexById: Map<string, number>;
+    /** The names music-core gives voices, by their lane key in the voice colouring. */
+    private readonly voiceNames: Map<number, string>;
 
-    private constructor(notes: RollNote[], bars: RollBar[], end: number) {
+    private constructor(notes: RollNote[], bars: RollBar[], end: number, voices: readonly RollVoice[] = []) {
         notes.sort((a, b) => a.onset - b.onset || a.pitch - b.pitch || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         this.notes = notes;
         this.bars = bars;
@@ -235,6 +249,7 @@ export class RollModel {
         this.highest = notes.reduce((high, note) => Math.max(high, note.pitch), notes.length > 0 ? 0 : 72);
         this.longest = notes.reduce((longest, note) => Math.max(longest, note.end - note.onset), 0);
         this.indexById = new Map(notes.map((note, index) => [note.id, index]));
+        this.voiceNames = new Map(voices.map((voice) => [voice.track * 1000 + voice.voice, voice.name]));
         this.onsets = notes.map((note) => note.onset).filter((onset, index, all) => index === 0 || onset !== all[index - 1]);
     }
 
@@ -265,7 +280,7 @@ export class RollModel {
                 number: payload.bars[at + 3],
             });
         }
-        return new RollModel(notes, bars, payload.end);
+        return new RollModel(notes, bars, payload.end, payload.voices);
     }
 
     indexOf(id: string): number | undefined {
@@ -338,17 +353,23 @@ export class RollModel {
         for (const note of this.notes) {
             const key = laneKey(note, by);
             if (!keys.has(key)) {
-                const track = fill(labels.track, note.track + 1);
-                const label =
-                    by === "hand"
-                        ? [labels.rightHand, labels.leftHand, labels.noHand][key]
-                        : by === "voice" && voiced.has(note.track)
-                          ? fill(labels.trackVoice, track, note.voice > 0 ? note.voice : labels.noVoice)
-                          : track;
-                keys.set(key, { key, label });
+                keys.set(key, { key, label: this.laneLabel(note, key, by, labels, voiced.has(note.track)) });
             }
         }
         return [...keys.values()].sort((a, b) => a.key - b.key);
+    }
+
+    /** A lane's name: the hand, else the track, with its voice in a track of voices: music-core's name where it gives one (#330), else its number. */
+    private laneLabel(note: RollNote, key: number, by: ColourBy, labels: RollLabels, voiced: boolean): string {
+        if (by === "hand") {
+            return [labels.rightHand, labels.leftHand, labels.noHand][key];
+        }
+        const track = fill(labels.track, note.track + 1);
+        if (by !== "voice" || !voiced) {
+            return track;
+        }
+        const named = this.voiceNames.get(key);
+        return named !== undefined ? fill(labels.trackVoiceNamed, track, named) : fill(labels.trackVoice, track, note.voice > 0 ? note.voice : labels.noVoice);
     }
 
     /** The note before or after the given one in time order, for moving the selection with the arrow keys. */
