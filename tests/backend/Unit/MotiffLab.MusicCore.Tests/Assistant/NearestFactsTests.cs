@@ -38,6 +38,10 @@ public class NearestFactsTests
         Assert.Equal("form.section_2", section[0]);
         Assert.Equal(section, Cited(AssistantContext.OfPiece(s_russian), Words.Russian, "Что происходит в части B?"));
         Assert.Equal("form.section_4", Cited(context, Words.English, "What happens in section C?")[0]);
+
+        // An apostrophe stands for the prime: Ode to Joy's consequent is A′.
+        JsonElement ode = AssistantContext.OfPiece(Open(Analysis.PieceDnaMapTests.OdeToJoy()));
+        Assert.Equal("form.section_2", Cited(ode, Words.English, "Is part A' the same as A?")[0]);
     }
 
     [Fact]

@@ -20,9 +20,10 @@ through the facade; the API references it.
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`;
   `.Writing`: how each note is written, `WrittenNotes`, `Spaces`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
-- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA (its form: `FormAnalyzer`, the returns of the opening or the sentences, #365), the circle of fifths; `.Phrasing`: the
-  phrase levels, one edit algebra (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`,
-  `PutBack`, `Replaced`, `OwnCount`) and `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
+- `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA (its form: `FormAnalyzer`, the returns of
+  the opening or the sentences, #365), the circle of fifths; `.Phrasing`: the phrase levels, one edit algebra
+  (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
+  `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:

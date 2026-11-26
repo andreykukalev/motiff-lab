@@ -38,6 +38,21 @@ public class MusicalIdeasTests
     }
 
     [Fact]
+    public void The_theme_of_a_rondo_names_the_refrain_it_opens_once_with_how_many_times()
+    {
+        (Note[] notes, PhraseLevels levels) = FormAnalyzerTests.Rondo();
+        var structure = PieceStructure.Of(notes, MeterMap.Default, levels);
+        Assert.Equal(["A", "B", "A", "C", "A", "D", "A"], structure.Sections.Select(section => section.Label));
+
+        DnaIdea english = MusicalIdeas.Find(notes, MeterMap.Default, structure, [], Words.English)[0];
+        DnaIdea russian = MusicalIdeas.Find(notes, MeterMap.Default, PieceStructure.Of(notes, MeterMap.Default, levels, Words.Russian), [], Words.Russian)[0];
+
+        Assert.Equal(IdeaKind.Theme, english.Kind);
+        Assert.EndsWith(" Its opening comes back 3 times and opens A 3 times.", english.Summary);
+        Assert.EndsWith(" Её начало возвращается 3 раза и открывает A 3 раза.", russian.Summary);
+    }
+
+    [Fact]
     public void Fur_Elise_gives_its_theme_the_contrast_of_B_a_motif_of_its_refrain_and_the_highest_point()
     {
         PieceDna dna = Dna(FurElise());

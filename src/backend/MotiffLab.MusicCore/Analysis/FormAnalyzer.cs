@@ -16,9 +16,9 @@ namespace MotiffLab.MusicCore.Analysis;
 /// opening never comes back, the sections are the sentences (<see cref="SentenceMap"/>), or the phrases when the piece
 /// reads as one sentence. A section whose line repeats, bar by bar from its start, at least half the bars of an earlier
 /// section takes that section's letter: the same letter when it brings no material of its own, every bar of its line
-/// repeating exactly a bar of that section's (a pickup bar it starts within and a close that leaves out a written
-/// ending's lead-in aside), with a prime (A′, A″) when it comes back changed; any other section takes the next letter.
-/// Inferred, never read from the file.
+/// repeating exactly a bar of the first section with that letter (a pickup bar it starts within and a close that leaves
+/// out a written ending's lead-in aside), with a prime (A′, A″) when it comes back changed; any other section takes the
+/// next letter. Inferred, never read from the file.
 /// </summary>
 /// <remarks>
 /// Lines are the highest note at each onset of all the notes, compared as <see cref="StructureAnalyzer"/> compares bars
@@ -60,7 +60,8 @@ public static class FormAnalyzer
         Sentence[] parts = Joined(ByReturns(phrases, closed, bars) ?? (sentences.Sentences.Count > 1 ? [.. sentences.Sentences] : phrases));
         var sections = new List<(Sentence Sentence, int Group, string Label)>();
         var own = new List<List<(string Pitches, string Shape)>>();
-        var groups = new List<int>();
+        // Each letter's first section, which a return is unchanged against, and how many times it came back changed.
+        var groups = new List<(Sentence First, int Returns)>();
         foreach (Sentence sentence in parts)
         {
             int group = -1;
@@ -68,14 +69,14 @@ public static class FormAnalyzer
             bool unchanged = false;
             for (int i = 0; i < sections.Count; i++)
             {
-                (Sentence earlier, int g, _) = sections[i];
+                int g = sections[i].Group;
                 double share = Compare(own[i], sentence, bars);
                 if (share < SameMaterial)
                 {
                     continue;
                 }
 
-                bool same = Unchanged(earlier, sentence, bars, openings, meter);
+                bool same = Unchanged(groups[g].First, sentence, bars, openings, meter);
                 if (share > best || (share == best && same && !unchanged))
                 {
                     (group, best, unchanged) = (g, share, same);
@@ -85,13 +86,13 @@ public static class FormAnalyzer
             own.Add(Own(sentence, own.SelectMany(bars => bars), bars));
             if (group < 0)
             {
-                groups.Add(0);
+                groups.Add((sentence, 0));
                 sections.Add((sentence, groups.Count - 1, Letter(groups.Count - 1)));
                 continue;
             }
 
-            int returns = groups[group] + (unchanged ? 0 : 1);
-            groups[group] = returns;
+            int returns = groups[group].Returns + (unchanged ? 0 : 1);
+            groups[group] = groups[group] with { Returns = returns };
             sections.Add((sentence, group, unchanged ? Letter(group) : Letter(group) + Primes(returns)));
         }
 
@@ -281,10 +282,10 @@ public static class FormAnalyzer
     }
 
     /// <summary>
-    /// Whether the later section brings the earlier one back unchanged, with no material of its own: every bar of its line
-    /// repeats exactly a bar of the earlier one's, except a first bar it starts within (its pickup, which holds the end of
-    /// the section before) and a last bar that plays only the opening of one (the close, without the lead-in a written
-    /// ending adds), so a refrain heard without its pickup or its repeat comes back the same.
+    /// Whether the later section brings the earlier one, the first with its letter, back unchanged, with no material of its
+    /// own: every bar of its line repeats exactly a bar of the earlier one's, except a first bar it starts within (its
+    /// pickup, which holds the end of the section before) and a last bar that plays only the opening of one (the close,
+    /// without the lead-in a written ending adds), so a refrain heard without its pickup or its repeat comes back the same.
     /// </summary>
     private static bool Unchanged(Sentence earlier, Sentence later, Dictionary<int, (string Pitches, string Shape)?> bars, Dictionary<int, string[]> openings, MeterMap meter)
     {

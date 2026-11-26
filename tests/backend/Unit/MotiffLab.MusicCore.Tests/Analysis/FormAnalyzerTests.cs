@@ -34,6 +34,9 @@ public class FormAnalyzerTests
 
     private static readonly int[] s_f = [48, 50, 52, 48, 53, 52, 50, 47, 48, 55, 52, 55, 48];
 
+    /// <summary>a's first two bars, then two bars of its own: a changed a.</summary>
+    private static readonly int[] s_aChanged = [.. s_a[..8], 69, 72, 71, 74, 72];
+
     [Fact]
     public void A_return_of_the_opening_inside_a_sentence_starts_a_section_a_b_a_c_a()
     {
@@ -97,6 +100,18 @@ public class FormAnalyzerTests
     }
 
     [Fact]
+    public void A_return_is_unchanged_only_against_the_first_section_with_its_letter()
+    {
+        // The changed a comes back twice: the second time it repeats the first changed a exactly, yet half its bars are
+        // still new against the first A, so it keeps its prime.
+        (Note[] notes, SentenceMap sentences) = Piece(s_a, s_b, s_aChanged, s_c, s_aChanged);
+
+        IReadOnlyList<DnaSection> form = FormAnalyzer.Sections(notes, MeterMap.Default, sentences);
+
+        Assert.Equal([("A", 1, 4), ("B", 5, 8), ("A′", 9, 12), ("C", 13, 16), ("A″", 17, 20)], form.Select(section => (section.Label, section.FirstBar, section.LastBar)));
+    }
+
+    [Fact]
     public void A_refrain_heard_again_and_again_is_a_return_each_time()
     {
         // (a a b) three times, then a: each return of a a is a refrain of its own, not one refrain twice as long; the last
@@ -129,8 +144,18 @@ public class FormAnalyzerTests
         Assert.Empty(FormAnalyzer.Sections([], MeterMap.Default, sentences));
     }
 
+    /// <summary>The rondo a b a c a d a, for the cards of its ideas.</summary>
+    internal static (Note[] Notes, PhraseLevels Levels) Rondo() => Built(s_a, s_b, s_a, s_c, s_a, s_d, s_a);
+
     /// <summary>The phrases one after another, four bars each from bar 1, and the sentences the piece is read in.</summary>
     private static (Note[] Notes, SentenceMap Sentences) Piece(params int[][] phrases)
+    {
+        (Note[] notes, PhraseLevels levels) = Built(phrases);
+        return (notes, levels.Sentences);
+    }
+
+    /// <summary>The phrases one after another, four bars each from bar 1, and the levels the piece is read in.</summary>
+    private static (Note[] Notes, PhraseLevels Levels) Built(params int[][] phrases)
     {
         Note[] notes = [.. phrases.SelectMany((phrase, number) => phrase.Select((pitch, i) => (Pitch: pitch, At: (number * 16) + i, Last: i == phrase.Length - 1)))
             .Select((note, i) => new Note
@@ -143,6 +168,6 @@ public class FormAnalyzerTests
                 Attribution = Attribution.Imported,
             })];
         Tick end = new(phrases.Length * 16 * Quarter);
-        return (notes, PhraseLevels.Suggest(notes, MeterMap.Default, PhraseMarks.None, end, null).Sentences);
+        return (notes, PhraseLevels.Suggest(notes, MeterMap.Default, PhraseMarks.None, end, null));
     }
 }

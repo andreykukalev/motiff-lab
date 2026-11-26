@@ -154,9 +154,7 @@ public static class IdeaFinder
         string[] opens = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < meter.GetBar(section.FirstBar).Span.End))
             .Select(section => section.Label)];
-        IGrouping<string, string>[] byLetter = [.. opens.GroupBy(label => label, StringComparer.Ordinal)];
-        bool counted = byLetter.Any(letter => letter.Count() > 1);
-        string[] letters = [.. byLetter.Select(letter => counted ? $"{letter.Key} {HowOften(letter.Count(), w)}" : letter.Key)];
+        string[] letters = w.Tallied(opens);
         string[] within = [.. sections
             .Where(section => occurrences.Any(occurrence => occurrence.Span.Onset >= section.Span.Onset && occurrence.Span.Onset < section.Span.End))
             .Select(section => section.Label)
@@ -176,12 +174,4 @@ public static class IdeaFinder
 
         return summary;
     }
-
-    /// <summary>"once", "twice", "3 times"; "один раз", "дважды", "3 раза".</summary>
-    private static string HowOften(int count, Words w) => count switch
-    {
-        1 => w.T("once", "один раз"),
-        2 => w.T("twice", "дважды"),
-        _ => w.Times(count),
-    };
 }

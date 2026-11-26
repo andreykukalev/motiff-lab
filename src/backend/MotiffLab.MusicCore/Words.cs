@@ -71,6 +71,26 @@ public readonly record struct Words(TextLanguage Language)
         };
 
     /// <summary>
+    /// Each item once, in the order it first comes; when any of them comes more than once, each with how often: "A 3 times
+    /// and B once"; "A 3 раза и B один раз". Otherwise the items alone: "A and B".
+    /// </summary>
+    public string[] Tallied(IEnumerable<string> items)
+    {
+        IGrouping<string, string>[] groups = [.. items.GroupBy(item => item, StringComparer.Ordinal)];
+        bool counted = groups.Any(group => group.Count() > 1);
+        Words words = this;
+        return [.. groups.Select(group => counted ? $"{group.Key} {words.HowOften(group.Count())}" : group.Key)];
+    }
+
+    /// <summary>As <see cref="Times"/>, with the Russian words for once and twice: "один раз", "дважды".</summary>
+    private string HowOften(int count) => (IsRussian, count) switch
+    {
+        (true, 1) => "один раз",
+        (true, 2) => "дважды",
+        _ => Times(count),
+    };
+
+    /// <summary>
     /// The Russian form for a count: <paramref name="one"/> for 1, 21, 31…; <paramref name="few"/>
     /// for 2–4, 22–24…; <paramref name="many"/> for 0, 5–20, 25–30…
     /// </summary>
