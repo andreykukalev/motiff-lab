@@ -38,31 +38,48 @@ public class MusicalIdeasTests
     }
 
     [Fact]
-    public void Fur_Elise_gives_its_theme_the_contrast_of_B_a_motif_of_C_and_the_highest_point()
+    public void The_theme_of_a_rondo_names_the_refrain_it_opens_once_with_how_many_times()
+    {
+        (Note[] notes, PhraseLevels levels) = FormAnalyzerTests.Rondo();
+        var structure = PieceStructure.Of(notes, MeterMap.Default, levels);
+        Assert.Equal(["A", "B", "A", "C", "A", "D", "A"], structure.Sections.Select(section => section.Label));
+
+        DnaIdea english = MusicalIdeas.Find(notes, MeterMap.Default, structure, [], Words.English)[0];
+        DnaIdea russian = MusicalIdeas.Find(notes, MeterMap.Default, PieceStructure.Of(notes, MeterMap.Default, levels, Words.Russian), [], Words.Russian)[0];
+
+        Assert.Equal(IdeaKind.Theme, english.Kind);
+        Assert.EndsWith(" Its opening comes back 3 times and opens A 3 times.", english.Summary);
+        Assert.EndsWith(" Её начало возвращается 3 раза и открывает A 3 раза.", russian.Summary);
+    }
+
+    [Fact]
+    public void Fur_Elise_gives_its_theme_the_contrast_of_B_a_motif_of_its_refrain_and_the_highest_point()
     {
         PieceDna dna = Dna(FurElise());
 
         Assert.Equal([IdeaKind.Theme, IdeaKind.Contrast, IdeaKind.Motif, IdeaKind.Peak], dna.Ideas.Select(idea => idea.Kind));
         Assert.Equal(["idea_1", "idea_2", "idea_3", "idea_4"], dna.Ideas.Select(idea => idea.Id));
 
-        // The theme: a, then a again closing on the tonic; its opening returns in B, C and A′.
+        // The theme: a, then a again closing on the tonic; its opening comes back in every refrain and opens the second A
+        // (the last A starts on the theme's first full bar, straight out of the chromatic run, so its opening with the upbeat
+        // is not heard there).
         DnaIdea theme = dna.Ideas[0];
         Assert.Equal("Theme · bars 0–7", theme.Title);
         Assert.StartsWith("The first two phrases begin alike; the first ends on a half close, the second on a full one", theme.Summary);
         int returns = theme.Occurrences.Count - 1;
-        Assert.EndsWith($" Its opening comes back {returns} times.", theme.Summary);
+        Assert.EndsWith($" Its opening comes back {returns} times and opens A.", theme.Summary);
         Assert.All(theme.Occurrences.Skip(1), place => Assert.Equal(OccurrenceKind.Exact, place.Kind));
 
-        // B's first phrase, which climbs to the E above the theme's top.
+        // The first episode, B: the F major phrase, busier and higher than the theme.
         DnaIdea contrast = dna.Ideas[1];
-        Assert.Equal("Contrast · B · bars 9–15", contrast.Title);
-        Assert.Equal("Section B begins here, with material not heard in A: reaching an octave higher.", contrast.Summary);
+        Assert.Equal("Contrast · B · bars 24–31", contrast.Title);
+        Assert.Equal("Section B begins here, with material not heard in A: denser (3.9 notes a beat against 2.2) and reaching 6 semitones higher.", contrast.Summary);
         Assert.Equal(dna.Form.Single(section => section.Label == "B").Span.Onset, contrast.Span.Onset);
 
-        // The figure of C heard twice, outside the theme's places.
+        // The figure that opens the refrain's middle (the second ending), heard in every refrain, outside the theme's places, so only in A.
         DnaIdea motif = dna.Ideas[2];
-        Assert.Equal("Motif · bar 32", motif.Title);
-        Assert.Equal("Heard twice, always exactly. Only in C.", motif.Summary);
+        Assert.Equal("Motif · bar 9", motif.Title);
+        Assert.Equal("Heard 4 times, always exactly. Only in A.", motif.Summary);
 
         // The arpeggio that climbs to the top E before the return.
         DnaIdea peak = dna.Ideas[3];
@@ -82,8 +99,9 @@ public class MusicalIdeasTests
 
         Assert.Equal("Тема · такты 0–7", dna.Ideas[0].Title);
         Assert.StartsWith("Первые две фразы начинаются одинаково; первая кончается половинным кадансом, вторая полным", dna.Ideas[0].Summary);
-        Assert.Equal("Здесь начинается раздел B, с материалом, которого не было в A: поднимается на октаву выше.", dna.Ideas[1].Summary);
-        Assert.Equal("Мотив · такт 32", dna.Ideas[2].Title);
+        Assert.Equal("Здесь начинается раздел B, с материалом, которого не было в A: плотнее (3,9 ноты на долю против 2,2) и поднимается на 6 полутонов выше.", dna.Ideas[1].Summary);
+        Assert.Equal("Мотив · такт 9", dna.Ideas[2].Title);
+        Assert.Equal("Звучит 4 раза, всегда точно. Только в A.", dna.Ideas[2].Summary);
         Assert.Equal("Здесь самая высокая нота пьесы, в такте 81, на 2 октавы выше всего в теме.", dna.Ideas[3].Summary);
     }
 

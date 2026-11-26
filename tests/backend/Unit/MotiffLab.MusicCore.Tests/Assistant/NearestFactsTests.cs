@@ -23,8 +23,8 @@ public class NearestFactsTests
         JsonElement russian = AssistantContext.OfPiece(s_russian);
         JsonElement english = AssistantContext.OfPiece(s_english);
 
-        Assert.Equal(["chords.section_3", "phrase.6", "new.24", "form.section_3"], Cited(russian, Words.Russian, "Какие аккорды в такте 30?"));
-        Assert.Equal(["chords.section_3", "phrase.6", "new.24", "form.section_3"], Cited(english, Words.English, "Which chords are in bar 30?"));
+        Assert.Equal(["chords.section_2", "phrase.6", "new.24", "form.section_2"], Cited(russian, Words.Russian, "Какие аккорды в такте 30?"));
+        Assert.Equal(["chords.section_2", "phrase.6", "new.24", "form.section_2"], Cited(english, Words.English, "Which chords are in bar 30?"));
         Assert.Equal(["density.32", "density.34", "density.33", "density.35"], Cited(russian, Words.Russian, "Почему такты 32–35 такие трудные?"));
     }
 
@@ -37,7 +37,11 @@ public class NearestFactsTests
 
         Assert.Equal("form.section_2", section[0]);
         Assert.Equal(section, Cited(AssistantContext.OfPiece(s_russian), Words.Russian, "Что происходит в части B?"));
-        Assert.Equal("form.section_4", Cited(context, Words.English, "Is part A' the same as A?")[0]);
+        Assert.Equal("form.section_4", Cited(context, Words.English, "What happens in section C?")[0]);
+
+        // An apostrophe stands for the prime: Ode to Joy's consequent is A′.
+        JsonElement ode = AssistantContext.OfPiece(Open(Analysis.PieceDnaMapTests.OdeToJoy()));
+        Assert.Equal("form.section_2", Cited(ode, Words.English, "Is part A' the same as A?")[0]);
     }
 
     [Fact]
