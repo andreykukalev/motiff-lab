@@ -117,6 +117,19 @@ public class NoteDoubtFacadeTests
     }
 
     [Fact]
+    public void Looks_right_on_a_recording_bar_takes_its_length_marks_away_and_check_again_brings_them_back()
+    {
+        MusicCoreFacade facade = Heard();
+        JsonElement check = Call(facade, "check");
+        int[] flagged = [.. check.GetProperty("flags").EnumerateArray().Select(flag => flag.GetProperty("bar").GetInt32())];
+        static int[] Lengths(JsonElement answer) => [.. answer.GetProperty("lengths").EnumerateArray().Select(bar => bar.GetProperty("bar").GetInt32())];
+        int bar = Lengths(check).First(flagged.Contains);
+
+        Assert.DoesNotContain(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}}""")));
+        Assert.Contains(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}, "resolved": false}""")));
+    }
+
+    [Fact]
     public void Imported_notes_answer_without_doubt_or_uncertain_lengths()
     {
         var facade = new MusicCoreFacade();

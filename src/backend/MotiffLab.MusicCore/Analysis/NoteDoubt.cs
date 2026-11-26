@@ -12,7 +12,8 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <remarks>
 /// <para>
 /// A note is doubtful when it was recognised (<see cref="Provenance.Detected"/>: read from a scan or heard in a
-/// recording) and starts in a bar with an open Check flag. Fixing the note makes it user-edited, and "Looks right"
+/// recording) and starts in a bar with an open Check flag about the notes (a flag that only the hands were guessed is
+/// not: chords, keys and facts do not rest on the hands). Fixing the note makes it user-edited, and "Looks right"
 /// resolves the bar's flags (for a scan its notes become user-confirmed); either way it is no longer doubtful, so the
 /// doubt goes from everything that rested on it. Imported notes are never doubtful: a piece without recognised notes
 /// reads exactly as before.
@@ -50,7 +51,7 @@ public sealed class NoteDoubt
     /// The doubtful notes of a piece: the recognised ones that start in a bar with an open Check flag.
     /// </summary>
     /// <param name="notes">The piece's notes as the player has them now, corrections applied.</param>
-    /// <param name="openBars">The bars with an open Check flag.</param>
+    /// <param name="openBars">The bars with an open Check flag about the notes (<c>CheckFlag.DoubtfulBars</c>).</param>
     public static NoteDoubt Of(IReadOnlyList<Note> notes, MeterMap meter, IEnumerable<int> openBars, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(notes);

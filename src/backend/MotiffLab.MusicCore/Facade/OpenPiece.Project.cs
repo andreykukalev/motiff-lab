@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
@@ -77,7 +78,7 @@ internal sealed partial class OpenPiece
     /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
     private void CheckAnswer(Utf8JsonWriter json)
     {
-        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
+        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes, CheckFlag.CheckedBars(Project.Check)),
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps

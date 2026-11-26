@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Time;
 
@@ -151,6 +152,20 @@ public class NoteDoubtTests
             Assert.Equal(dna.Harmony.Single(read => read.Bar == chord.Bar).Clear && chord.Bar != second, chord.Clear);
         });
         Assert.Same(dna, NoteDoubt.None.On(dna));
+    }
+
+    [Fact]
+    public void A_flag_that_only_the_hands_were_guessed_makes_no_note_doubtful()
+    {
+        Note[] notes = Heard();
+        int second = BarOf(notes.Single(note => note.Id == "f1"));
+        CheckFlag hands = new(second, CheckSource.Transcription, CheckReason.HandsGuessed, Resolved: false);
+        CheckFlag seam = new(second, CheckSource.Transcription, CheckReason.PartSeam, Resolved: false);
+
+        Assert.Empty(CheckFlag.DoubtfulBars([hands]));
+        Assert.True(NoteDoubt.Of(notes, MeterMap.Default, CheckFlag.DoubtfulBars([hands])).IsEmpty);
+        Assert.Equal([second], CheckFlag.DoubtfulBars([hands, seam]));
+        Assert.Empty(CheckFlag.DoubtfulBars([hands, seam with { Resolved = true }]));
     }
 
     [Fact]
