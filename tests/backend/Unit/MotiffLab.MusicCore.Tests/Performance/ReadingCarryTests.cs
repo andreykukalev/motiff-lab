@@ -122,6 +122,27 @@ public class ReadingCarryTests
     }
 
     [Fact]
+    public void A_correction_not_carried_is_told_by_its_bar_in_the_new_reading()
+    {
+        ImportedPiece before = Reading("E4 F4 G4 A4 | B4 C5 D5 E5"), after = Reading("C4 C4 C4 C4 | E4 F4 G4 A4 | B4 D4 D5 E5");
+
+        ReadingCarry carry = Carry(before, Raised(before, 5), after);
+
+        Assert.Equal((CarryOutcome.NotCarried, 3), (Assert.Single(carry.Corrections).Outcome, carry.Corrections[0].Bar));
+        Assert.Equal([3], carry.NotCarriedBars);
+        Assert.Equal("not carried: 1 (bar 3)", carry.Text(Words.English));
+    }
+
+    [Fact]
+    public void A_confirmed_bar_follows_its_music_past_a_bar_the_new_reading_has_more()
+    {
+        ImportedPiece before = Reading("E4 F4 G4 A4 | B4 C5 D5 E5"), after = Reading("C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5");
+
+        Assert.Equal([2, 3], Carry(before, NoteEditLog.Empty, after, 1, 2).ConfirmedBars);
+        Assert.Equal([2], Carry(before, NoteEditLog.Empty, Reading("C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 F5"), 1, 2).ConfirmedBars);
+    }
+
+    [Fact]
     public void A_removed_note_is_removed_again_where_it_is_read_again_and_left_where_it_is_not()
     {
         ImportedPiece before = Reading("C4 D4 E4 F4");

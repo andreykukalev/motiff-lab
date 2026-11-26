@@ -143,7 +143,7 @@ final class OriginalsTests: XCTestCase {
         let carried: [String: Any] = ["carried": 2, "text": "2 corrections carried over · not carried: 1 (bar 3)"]
         XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: carried), "Notes recognised · 1 page · 2 corrections carried over · not carried: 1 (bar 3)")
         XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: nil), "Notes recognised · 1 page")
-        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: ["carried": 0, "text": NSNull()]), "Notes recognised · 1 page")
+        XCTAssertEqual(SourcesController.recognisedToast("Notes recognised · 1 page", carried: ["carried": 0, "text": NSNull()] as [String: Any]), "Notes recognised · 1 page")
     }
 
     /// v0.10 s-3: the hint is the working notes' first bar as music-core writes a signature, with the tempo the player set

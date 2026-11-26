@@ -19,7 +19,7 @@ public enum CarryOutcome
 
 /// <summary>One correction of the earlier reading and what became of it on the new one.</summary>
 /// <param name="NoteId">The note it names on the earlier reading.</param>
-/// <param name="Bar">The bar it is in on the earlier reading, as the workspace shows it.</param>
+/// <param name="Bar">The bar of its place in the new reading, as the workspace shows it (its music matched, so a bar the new reading has more or less before it moves it).</param>
 /// <param name="Corrected">The values the player gave the note; null when the player removed it.</param>
 /// <param name="Read">What the new reading gives at its place: the note carried to, or the nearest in pitch that starts there; null for none.</param>
 public sealed record CarriedCorrection(string NoteId, int Bar, CarryOutcome Outcome, NoteValues? Corrected, NoteValues? Read);
@@ -44,7 +44,7 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
 {
     public int Count(CarryOutcome outcome) => Corrections.Count(correction => correction.Outcome == outcome);
 
-    /// <summary>The bars of the earlier reading with a correction not carried, in order, each once.</summary>
+    /// <summary>The bars of the new reading with a correction not carried, in order, each once.</summary>
     public IReadOnlyList<int> NotCarriedBars => [.. Corrections.Where(static correction => correction.Outcome == CarryOutcome.NotCarried).Select(static correction => correction.Bar).Distinct().Order()];
 
     /// <summary>
@@ -103,7 +103,7 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
             }
         }
 
-        made.AddRange(was.Unfit.Select(unfit => (unfit.Index, new CarriedCorrection(unfit.Edit.NoteId, carry.BarBefore(unfit.Edit.Before ?? unfit.Edit.After), CarryOutcome.NotCarried, unfit.Edit.After, null), (Func<NoteEditLog, NoteEditLog>?)null)));
+        made.AddRange(was.Unfit.Select(unfit => (unfit.Index, new CarriedCorrection(unfit.Edit.NoteId, carry.BarAfter(unfit.Edit.Before ?? unfit.Edit.After), CarryOutcome.NotCarried, unfit.Edit.After, null), (Func<NoteEditLog, NoteEditLog>?)null)));
         made.Sort(static (a, b) => a.Index.CompareTo(b.Index));
         NoteEditLog carried = made.Select(static each => each.Edit).OfType<Func<NoteEditLog, NoteEditLog>>().Aggregate(NoteEditLog.Empty, static (log, edit) => edit(log));
         carried = new NoteEditLog(carried.Edits.Select(edit => edit with { Group = group }));
@@ -145,7 +145,8 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
             }
         }
 
-        public int BarBefore(NoteValues? values) => _before.Meter.BarAt(values?.Span.Onset ?? Tick.Zero).Number;
+        /// <summary>The bar of the new reading where values of the earlier lie.</summary>
+        public int BarAfter(NoteValues? values) => _after.Meter.BarAt(values is { } found ? Placed(found).Span.Onset : Tick.Zero).Number;
 
         /// <summary>The correction of the note <paramref name="id"/> as it lies on the earlier reading, and the edit that carries it; null when it changes nothing.</summary>
         public (CarriedCorrection Correction, Func<NoteEditLog, NoteEditLog>? Edit)? Correction(string id, EditsApplied was, string? origin)
@@ -158,7 +159,7 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
                 return null;
             }
 
-            int bar = BarBefore(before ?? after);
+            int bar = BarAfter(before ?? after);
             if (before is not { } replaced)
             {
                 return Added(id, bar, after!.Value, now!, origin);
@@ -189,21 +190,30 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
         }
 
         /// <summary>
-        /// The bars of <paramref name="confirmed"/> whose notes, as corrected, are the same in the new reading: the bar of that
-        /// number has the same length there, and its notes the same pitches, places in the bar and lengths.
+        /// The bars of the new reading that take the confirmation of the bars <paramref name="confirmed"/> of the earlier: the
+        /// bar where an earlier bar's music lies (moved as its first onset matched, else as the onsets before it), starting
+        /// there and as long, with the same notes, as corrected on both, at the same places in the bar.
         /// </summary>
         public IReadOnlyList<int> Confirmed(IReadOnlyCollection<int> confirmed, IReadOnlyList<Note> was, IReadOnlyList<Note> now) =>
-            [.. confirmed.Distinct().Order().Where(number =>
-            {
-                if (number < _before.Meter.FirstBarNumber || number < _after.Meter.FirstBarNumber)
-                {
-                    return false;
-                }
+            [.. confirmed.Distinct().Order()
+                .Where(number => number >= _before.Meter.FirstBarNumber)
+                .Select(number => _before.Meter.GetBar(number))
+                .Where(earlier => earlier.Span.Onset < _before.End)
+                .Select(earlier => (Earlier: earlier, Later: Moved(earlier)))
+                .Where(bar => bar.Later is { } later && later.Span.Onset < _after.End && later.Span.Duration == bar.Earlier.Span.Duration
+                    && InBar(was, bar.Earlier).SequenceEqual(InBar(now, later)))
+                .Select(static bar => bar.Later!.Value.Number)
+                .Distinct()];
 
-                Bar earlier = _before.Meter.GetBar(number), later = _after.Meter.GetBar(number);
-                return earlier.Span.Onset < _before.End && later.Span.Onset < _after.End && earlier.Span.Duration == later.Span.Duration
-                    && InBar(was, earlier).SequenceEqual(InBar(now, later));
-            })];
+        /// <summary>The bar of the new reading an earlier bar's music starts in, when it starts a bar there; else null.</summary>
+        private Bar? Moved(Bar earlier)
+        {
+            (long From, long To)[] first = [.. _onsets.Where(pair => earlier.Span.Contains(new Tick(pair.From))).Take(1)];
+            long start = earlier.Span.Onset.Value;
+            long at = Math.Max(0, start + (first.Length == 1 ? first[0].To - first[0].From : Shift(start)));
+            Bar later = _after.Meter.BarAt(new Tick(at));
+            return later.Span.Onset.Value == at ? later : null;
+        }
 
         private static IEnumerable<(int Pitch, long At, long Duration)> InBar(IReadOnlyList<Note> notes, Bar bar) => notes
             .Where(note => bar.Span.Contains(note.Span.Onset))
@@ -229,18 +239,20 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
             return (new CarriedCorrection(id, bar, CarryOutcome.Carried, values, null), Carry);
         }
 
-        /// <summary>Values of the earlier reading at their place in the new one: moved by as much as the onsets matched at or before them.</summary>
-        private NoteValues Placed(NoteValues values)
+        /// <summary>Values of the earlier reading at their place in the new one (<see cref="Shift"/>).</summary>
+        private NoteValues Placed(NoteValues values) =>
+            values with { Span = new TickSpan(new Tick(Math.Max(0, values.Span.Onset.Value + Shift(values.Span.Onset.Value))), values.Span.Duration) };
+
+        /// <summary>How far an onset of the earlier reading lies in the new one: as far as the onsets matched at or before it, else the first matched.</summary>
+        private long Shift(long onset)
         {
-            long onset = values.Span.Onset.Value;
             (long From, long To)? at = _onsets.Count > 0 ? _onsets[0] : null;
             foreach ((long From, long To) pair in _onsets.TakeWhile(pair => pair.From <= onset))
             {
                 at = pair;
             }
 
-            long shift = at is { } matched ? matched.To - matched.From : 0;
-            return values with { Span = new TickSpan(new Tick(Math.Max(0, onset + shift)), values.Span.Duration) };
+            return at is { } matched ? matched.To - matched.From : 0;
         }
 
         /// <summary>The note of the new reading no earlier note is paired with that has these pitch, onset and length; the same track first, then the lower id.</summary>
