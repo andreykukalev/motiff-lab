@@ -65,7 +65,7 @@ internal static class LibraryRequest
     /// </summary>
     public static string Confirm(Request fields)
     {
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project project = MusicCoreFacade.ProjectIn(fields);
         project = project with
         {
             Metadata = LibraryImport.Confirmed(project.Metadata, fields.Text("title"), fields.Text("composer"), fields.Texts("tags"), fields.Texts("playlists")),
@@ -160,7 +160,7 @@ internal static class LibraryRequest
     /// </summary>
     public static string Link(Request fields)
     {
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project project = MusicCoreFacade.ProjectIn(fields);
         try
         {
             project = project.RelinkedAt(

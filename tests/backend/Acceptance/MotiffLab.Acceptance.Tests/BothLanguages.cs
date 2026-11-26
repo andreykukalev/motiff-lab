@@ -23,11 +23,7 @@ public class BothLanguages
     [Fact(DisplayName = "l2. The refusal of a project file of a newer version is in English for a player who reads English")]
     public void The_refusal_of_a_newer_file_is_in_English() => AssertNewerFileRefusedIn("en");
 
-    /// <summary>
-    /// Known defect: the message comes from the project file reader in English only, whatever the language
-    /// (ProjectFile.Read, "This project was saved by a newer version of Motiff Lab."). The task that fixes it removes Skip.
-    /// </summary>
-    [Fact(DisplayName = "l2. The refusal of a project file of a newer version is in Russian for a player who reads Russian", Skip = KnownDefect.NewerFileMessageInRussian)]
+    [Fact(DisplayName = "l2. The refusal of a project file of a newer version is in Russian for a player who reads Russian")]
     public void The_refusal_of_a_newer_file_is_in_Russian() => AssertNewerFileRefusedIn("ru");
 
     [Theory(DisplayName = "l3. The explanation of a variation is in the player's language")]

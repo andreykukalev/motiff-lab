@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// reader): it holds a value a later build added to one of the file's enums, or it belongs with such an entity (a motif
 /// and its variations, a bookmark category and its bookmarks). The project's own lists do not hold it, so it takes no part
 /// in playback, analysis or variations and an app never meets it; <see cref="ProjectFile.Write"/> writes it back unchanged
-/// where it stood. docs/project-file.md, "Unknown enum values", says which entities are kept this way.
+/// where it stood. docs/project-file.md, "Unknown values", says which entities are kept this way.
 /// </summary>
 /// <param name="List">The array of the file it stands in, as a path: "motifs", "marks.ink", "bookmarks.items".</param>
 /// <param name="Index">Its place in that array as the file held it.</param>

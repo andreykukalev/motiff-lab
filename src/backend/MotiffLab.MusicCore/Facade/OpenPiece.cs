@@ -166,7 +166,7 @@ internal sealed partial class OpenPiece
         }
         catch (ProjectFileException exception)
         {
-            throw new FacadeException("import", exception.Message) { Data = { ["reason"] = "damaged" } };
+            throw new FacadeException("import", exception.Text(words)) { Data = { ["reason"] = "damaged" } };
         }
 
         var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words);

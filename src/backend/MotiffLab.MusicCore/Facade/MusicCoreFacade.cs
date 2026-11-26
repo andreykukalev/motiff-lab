@@ -196,7 +196,7 @@ public sealed partial class MusicCoreFacade
         new("settings.state", static (_, fields) => OpenPiece.SettingsState(fields)),
         new("project.summary", static (_, fields) => ProjectSummary(fields)),
         new("project.metadata", static (_, fields) => ProjectMetadata(fields)),
-        new("project.drafts", static (_, fields) => DraftRequest.Of(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), Words.For(fields.Text("language")))),
+        new("project.drafts", static (_, fields) => DraftRequest.Of(ProjectIn(fields), Words.For(fields.Text("language")))),
         new("project.online", static (_, fields) => SyncRequest.Online(fields)),
         new("project.sync", static (_, fields) => SyncRequest.Next(fields)),
         new("project.pulled", static (_, fields) => SyncRequest.Pulled(fields)),
@@ -335,8 +335,7 @@ public sealed partial class MusicCoreFacade
     /// </summary>
     private static string ProjectSummary(Request fields)
     {
-        string file = fields.Required("file");
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+        Project project = ProjectIn(fields);
         return Answer.Write(json => Answer.Project(json, "project", project));
     }
 
@@ -348,12 +347,29 @@ public sealed partial class MusicCoreFacade
     /// </summary>
     private static string ProjectMetadata(Request fields)
     {
-        Project project = MetadataRequest.Apply(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), fields);
+        Project project = MetadataRequest.Apply(ProjectIn(fields), fields);
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", project);
             json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
         });
+    }
+
+    /// <summary>
+    /// The project in the request's "file", the project file's text, for every call that reads one without opening it; a file
+    /// the reader refuses answers "badRequest" with its reason in the request's "language" where the reader gives one in both
+    /// (a newer version, #363).
+    /// </summary>
+    internal static Project ProjectIn(Request fields)
+    {
+        try
+        {
+            return ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        }
+        catch (ProjectFileException exception)
+        {
+            throw FacadeException.BadRequest(exception.Text(Words.For(fields.Text("language"))));
+        }
     }
 
     /// <summary>

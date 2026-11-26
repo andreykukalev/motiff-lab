@@ -258,8 +258,11 @@ internal static class MarksCodec
     internal static void WriteBookmarks(Utf8JsonWriter json, Project project)
     {
         json.WriteStartObject("bookmarks");
-        List<UnknownEntity> unknownCategories = KeptUnknown(project.Unknown, "bookmarks.categories", project.Categories.Select(static category => category.Id), null, out HashSet<string> replacedCategories);
-        WriteList(json, "categories", project.Categories, unknownCategories, category =>
+        // A built-in category read with an ink this build does not know is written back as the file held it while its
+        // stand-in is as read (#364); renamed, the stand-in takes its place.
+        List<BookmarkCategory> categories = [.. project.Categories.Where(category => !project.Unknown.Any(entity => entity.List == "bookmarks.categories" && entity.Id == category.Id && category.IsBuiltIn && StandIn(entity) == category))];
+        List<UnknownEntity> unknownCategories = KeptUnknown(project.Unknown, "bookmarks.categories", categories.Select(static category => category.Id), null, out HashSet<string> replacedCategories);
+        WriteList(json, "categories", categories, unknownCategories, category =>
         {
             json.WriteStartObject();
             json.WriteString("id", category.Id);
@@ -272,7 +275,7 @@ internal static class MarksCodec
             json.WriteEndObject();
         });
 
-        WriteList(json, "items", project.Bookmarks, KeptUnknown(project.Unknown, "bookmarks.items", project.Bookmarks.Select(static bookmark => bookmark.Id), replacedCategories, out _), bookmark =>
+        WriteList(json, "items", project.Bookmarks, KeptUnknown(project.Unknown, "bookmarks.items", project.Bookmarks.Select(static bookmark => (bookmark.Id, bookmark.CategoryId)), replacedCategories), bookmark =>
         {
             json.WriteStartObject();
             json.WriteString("id", bookmark.Id);
@@ -289,30 +292,22 @@ internal static class MarksCodec
 
     internal static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks, Unknowns unknowns)
     {
-        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", category =>
-        {
-            Expect(category, JsonValueKind.Object, "bookmark categories");
-            try
-            {
-                return new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, Name<InkColour>(category, "ink"));
-            }
-            catch (ArgumentException)
-            {
-                throw Damaged("bookmark categories");
-            }
-        }, unknowns);
+        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", static category => ReadCategory(category), unknowns);
 
-        // The four built-in categories are always there, under their own name when the file does not name them; one the file
-        // holds with an ink this build does not know stays unknown, written back as it was, rather than taken by the built-in.
-        HashSet<string> unknownCategories = [.. Project.UnknownIds(unknowns.Kept, "bookmarks.categories")];
+        // The four built-in categories are always there, so bookmarks can be added to them (#364): under their own name when
+        // the file does not name them; one the file holds with an ink this build does not know is kept unknown, written back
+        // as it was, and stands in as StandIn shows it, its bookmarks read as known.
         for (int i = 0; i < BookmarkCategory.BuiltIn.Count; i++)
         {
             BookmarkCategory builtIn = BookmarkCategory.BuiltIn[i];
-            if (categories.All(category => category.Id != builtIn.Id) && !unknownCategories.Contains(builtIn.Id))
+            if (categories.All(category => category.Id != builtIn.Id))
             {
-                categories.Insert(Math.Min(i, categories.Count), builtIn);
+                UnknownEntity? kept = unknowns.Kept.FirstOrDefault(entity => entity.List == "bookmarks.categories" && entity.Id == builtIn.Id);
+                categories.Insert(Math.Min(i, categories.Count), kept is null ? builtIn : StandIn(kept));
             }
         }
+
+        HashSet<string> unknownCategories = [.. Project.UnknownIds(unknowns.Kept, "bookmarks.categories").Where(static id => !BookmarkCategory.IsBuiltInId(id))];
 
         if (categories.Select(static category => category.Id).Distinct(StringComparer.Ordinal).Count() != categories.Count)
         {
@@ -332,6 +327,30 @@ internal static class MarksCodec
             && items.All(bookmark => categories.Any(category => category.Id == bookmark.CategoryId))
             ? (categories, items)
             : throw Damaged("bookmarks");
+    }
+
+    /// <param name="ink">The ink it is read in, in place of its own (<see cref="StandIn"/>).</param>
+    private static BookmarkCategory ReadCategory(JsonElement category, InkColour? ink = null)
+    {
+        Expect(category, JsonValueKind.Object, "bookmark categories");
+        try
+        {
+            return new BookmarkCategory(Text(category, "id"), category.TryGetProperty("name", out _) ? Text(category, "name") : null, ink ?? Name<InkColour>(category, "ink"));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("bookmark categories");
+        }
+    }
+
+    /// <summary>
+    /// A built-in category kept unknown for its ink, as this build shows it (#364): under the name the file gives it, in the
+    /// built-in's own ink, never one this build does not have.
+    /// </summary>
+    private static BookmarkCategory StandIn(UnknownEntity category)
+    {
+        using JsonDocument kept = JsonDocument.Parse(category.Json);
+        return ReadCategory(kept.RootElement, BookmarkCategory.BuiltIn.Single(builtIn => builtIn.Id == category.Id).Ink);
     }
 
     private static Bookmark ReadBookmark(JsonElement bookmark)
