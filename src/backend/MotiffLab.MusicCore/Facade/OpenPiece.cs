@@ -24,7 +24,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// One open piece (0020): its project, the imported piece, the notes with the player's corrections and
 /// the phrases; the one primary selection (0013) with what was understood about it and the variation chain
 /// a Try chip starts are its <see cref="SelectionSession"/>, the corrections' draft and layer its
-/// <see cref="CorrectionsSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
+/// <see cref="CorrectionsSession"/>, the drafts kept for drafts.undo and the rules of its sources its
+/// <see cref="SourcesSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {

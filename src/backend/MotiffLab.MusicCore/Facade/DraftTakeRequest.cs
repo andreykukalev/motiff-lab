@@ -116,7 +116,7 @@ internal static class DraftTakeRequest
 
     /// <summary>
     /// Undo in a draft: its last change goes. A change of its structure made while the piece is open (drafts.place,
-    /// drafts.base: <see cref="OpenPiece.DraftBefore"/>) puts the draft back as it was, the steps that change dropped with
+    /// drafts.base: <see cref="Sessions.SourcesSession.TakeDraftBefore"/>) puts the draft back as it was, the steps that change dropped with
     /// it, and answers "structure": true; else its last step goes, with the steps accepted with it. Answers the sources with
     /// "draft", "undone" (the steps' numbers that went, none for a change of structure) and "structure".
     /// </summary>
@@ -129,7 +129,7 @@ internal static class DraftTakeRequest
             request,
             piece => piece.ChangeDraft(id, each =>
             {
-                if (owner.DraftBefore(each) is { } before)
+                if (owner.Sources.TakeDraftBefore(each) is { } before)
                 {
                     structure = true;
                     return before;
