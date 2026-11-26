@@ -1,9 +1,10 @@
 key.1 | key | detected | A minor, bars 0–105 | 0–105
-summary | summary | inferred | Form A B C A′ · A minor · 3 full closes, 11 half closes · busiest in bar 32
-form.section_1 | form | inferred | A, bars 0–8, shares material with A′ (bars 78–105) | 0–8
-form.section_2 | form | inferred | B, bars 9–23 | 9–23
-form.section_3 | form | inferred | C, bars 24–77 | 24–77
-form.section_4 | form | inferred | A′, bars 78–105, shares material with A (bars 0–8) | 78–105
+summary | summary | inferred | Form A B A′ C A″ · A minor · 3 full closes, 11 half closes · busiest in bar 32
+form.section_1 | form | inferred | A, bars 0–23, shares material with A′ (bars 39–60) and A″ (bars 84–105) | 0–23
+form.section_2 | form | inferred | B, bars 24–39 | 24–39
+form.section_3 | form | inferred | A′, bars 39–60, shares material with A (bars 0–23) and A″ (bars 84–105) | 39–60
+form.section_4 | form | inferred | C, bars 61–83 | 61–83
+form.section_5 | form | inferred | A″, bars 84–105, shares material with A (bars 0–23) and A′ (bars 39–60) | 84–105
 piece.tempo.profile | tempo | detected | Tempo: a quarter at 72 BPM throughout.
 range.L | range | detected | L: 388 notes from A1 to E5
 range.R | range | detected | R: 514 notes from A3 to E7
@@ -44,10 +45,11 @@ sentence.1 | sentence | inferred | Sentence 1, bars 0–8: phrases 1–2 | 0–8
 sentence.2 | sentence | inferred | Sentence 2, bars 9–23: phrases 3–5 | 9–23
 sentence.3 | sentence | inferred | Sentence 3, bars 24–77: phrases 6–15 | 24–77
 sentence.4 | sentence | inferred | Sentence 4, bars 78–105: phrases 16–21 | 78–105
-chords.section_1 | chords | inferred | Chords of section A (bars 0–8), bars each: Am (i) 4, E (V) 2 | 0–8
-chords.section_2 | chords | inferred | Chords of section B (bars 9–23), bars each: Am (i) 6, E (V) 3, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 9–23
-chords.section_3 | chords | inferred | Chords of section C (bars 24–77), bars each: Am (i) 11, E (V) 5, Dm/A (iv) 4, C (III) 3, Emaj7 (Vmaj7) 3, F (VI) 2, and 16 more | 24–77
-chords.section_4 | chords | inferred | Chords of section A′ (bars 78–105), bars each: Am (i) 12, E (V) 6, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 78–105
+chords.section_1 | chords | inferred | Chords of section A (bars 0–23), bars each: Am (i) 10, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 0–23
+chords.section_2 | chords | inferred | Chords of section B (bars 24–39), bars each: F (VI) 2, C (III) 2, Cmaj7 (IIImaj7) 2, Am (i) 1, D+ (IV+) 1, Fmaj7 (VImaj7) 1, and 4 more | 24–39
+chords.section_3 | chords | inferred | Chords of section A′ (bars 39–60), bars each: Am (i) 8, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 39–60
+chords.section_4 | chords | inferred | Chords of section C (bars 61–83), bars each: Am (i) 6, Dm/A (iv) 4, A7 (I7) 2, A♯ (♭II) 2, Dm (iv) 1, D♯dim7 (♯iv°7) 1, and 5 more | 61–83
+chords.section_5 | chords | inferred | Chords of section A″ (bars 84–105), bars each: Am (i) 8, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 84–105
 cadence.4 | cadence | inferred | half close in bar 4 | 4–4
 cadence.8 | cadence | inferred | full close in bar 8 | 8–8
 cadence.19 | cadence | inferred | half close in bar 19 | 19–19

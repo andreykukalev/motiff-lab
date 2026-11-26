@@ -7,7 +7,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Form A B C A′ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
+    "summary": "Form A B A′ C A″ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -127,63 +127,83 @@
        "label": "A",
        "passage": {
         "onset": 0,
-        "end": 5760,
+        "end": 16560,
         "firstBar": 0,
-        "lastBar": 8
+        "lastBar": 23
        },
        "selectable": {
         "onset": 0,
-        "end": 5760
+        "end": 16560
        },
        "sharesWith": [
-        "section_4"
+        "section_3",
+        "section_5"
        ]
       },
       {
        "id": "section_2",
        "label": "B",
        "passage": {
-        "onset": 5760,
-        "end": 16560,
-        "firstBar": 9,
-        "lastBar": 23
+        "onset": 16560,
+        "end": 27840,
+        "firstBar": 24,
+        "lastBar": 39
        },
        "selectable": {
-        "onset": 5760,
-        "end": 16560
+        "onset": 16560,
+        "end": 27840
        },
        "sharesWith": []
       },
       {
        "id": "section_3",
-       "label": "C",
+       "label": "A′",
        "passage": {
-        "onset": 16560,
-        "end": 55440,
-        "firstBar": 24,
-        "lastBar": 77
+        "onset": 27840,
+        "end": 43200,
+        "firstBar": 39,
+        "lastBar": 60
        },
        "selectable": {
-        "onset": 16560,
-        "end": 39600
+        "onset": 27840,
+        "end": 43200
+       },
+       "sharesWith": [
+        "section_1",
+        "section_5"
+       ]
+      },
+      {
+       "id": "section_4",
+       "label": "C",
+       "passage": {
+        "onset": 43200,
+        "end": 59760,
+        "firstBar": 61,
+        "lastBar": 83
+       },
+       "selectable": {
+        "onset": 43200,
+        "end": 59760
        },
        "sharesWith": []
       },
       {
-       "id": "section_4",
-       "label": "A′",
+       "id": "section_5",
+       "label": "A″",
        "passage": {
-        "onset": 55440,
+        "onset": 59760,
         "end": 75600,
-        "firstBar": 78,
+        "firstBar": 84,
         "lastBar": 105
        },
        "selectable": {
-        "onset": 55440,
+        "onset": 59760,
         "end": 75600
        },
        "sharesWith": [
-        "section_1"
+        "section_1",
+        "section_3"
        ]
       }
      ]
@@ -195,7 +215,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Idea 1 · bars 0–1",
-       "summary": "Heard 11 times, always exactly. Opens A.",
+       "summary": "Heard 11 times, always exactly. Opens A and A′.",
        "passage": {
         "onset": 0,
         "end": 960,
@@ -439,7 +459,7 @@
        "id": "idea_2",
        "fromSelection": false,
        "title": "Idea 2 · bar 9",
-       "summary": "Heard 4 times, always exactly. Opens B.",
+       "summary": "Heard 4 times, always exactly.",
        "passage": {
         "onset": 5760,
         "end": 6480,
@@ -533,7 +553,7 @@
        "id": "idea_3",
        "fromSelection": false,
        "title": "Idea 3 · bar 32",
-       "summary": "Heard twice, always exactly. Only in C.",
+       "summary": "Heard twice, always exactly. Only in B.",
        "passage": {
         "onset": 22320,
         "end": 23040,
@@ -609,7 +629,7 @@
        "id": "idea_4",
        "fromSelection": false,
        "title": "Idea 4 · bar 61",
-       "summary": "Heard twice, always exactly. Only in C.",
+       "summary": "Heard twice, always exactly. Opens C.",
        "passage": {
         "onset": 43200,
         "end": 43920,
@@ -1377,7 +1397,7 @@
        "bar": 8,
        "at": 5520,
        "kind": "full",
-       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest. Then section B."
+       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest."
       },
       {
        "bar": 19,
@@ -1413,7 +1433,7 @@
        "bar": 60,
        "at": 43080,
        "kind": "half",
-       "explanation": "Bar 60 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on."
+       "explanation": "Bar 60 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on. Then section C."
       },
       {
        "bar": 68,
@@ -1425,7 +1445,7 @@
        "bar": 77,
        "at": 54720,
        "kind": "full",
-       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest. Then section A′."
+       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest."
       },
       {
        "bar": 87,
@@ -1459,9 +1479,9 @@
       "label": "A",
       "passage": {
        "onset": 0,
-       "end": 5760,
+       "end": 16560,
        "firstBar": 0,
-       "lastBar": 8
+       "lastBar": 23
       },
       "circle": {
        "key": {
@@ -1650,6 +1670,76 @@
            "n_0022"
           ]
          }
+        },
+        {
+         "number": 3,
+         "symbol": "C",
+         "degree": "III",
+         "position": 0,
+         "ring": "major",
+         "function": "none",
+         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "C, from bar 10",
+          "onset": 6480,
+          "end": 6960,
+          "noteIds": [
+           "n_0061",
+           "n_0062",
+           "n_0063",
+           "n_0064",
+           "n_0065"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "G",
+         "degree": "VII",
+         "position": 1,
+         "ring": "major",
+         "function": "none",
+         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "G, from bar 11",
+          "onset": 7200,
+          "end": 7440,
+          "noteIds": [
+           "n_0068",
+           "n_0069",
+           "n_0070"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "Emaj7",
+         "degree": "Vmaj7",
+         "position": 4,
+         "ring": "major",
+         "function": "none",
+         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "Emaj7, from bar 14, beat 2",
+          "onset": 9600,
+          "end": 11280,
+          "noteIds": [
+           "n_0091",
+           "n_0092",
+           "n_0093",
+           "n_0094",
+           "n_0095",
+           "n_0096",
+           "n_0097",
+           "n_0098",
+           "n_0099",
+           "n_0100",
+           "n_0101",
+           "n_0102",
+           "n_0103",
+           "n_0104"
+          ]
+         }
         }
        ],
        "scale": [
@@ -1707,7 +1797,7 @@
        "lines": [
         "A minor: no sharps or flats, the same as its relative key, C major.",
         "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: Am (i) → E (V)."
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
@@ -1729,353 +1819,10 @@
       "id": "section_2",
       "label": "B",
       "passage": {
-       "onset": 5760,
-       "end": 16560,
-       "firstBar": 9,
-       "lastBar": 23
-      },
-      "circle": {
-       "key": {
-        "name": "A minor",
-        "fifths": 0,
-        "mode": "minor"
-       },
-       "name": "A minor",
-       "certainty": "detected",
-       "position": 0,
-       "sectors": [
-        {
-         "position": 0,
-         "fifths": 0,
-         "major": "C",
-         "minor": "Am",
-         "signature": "0"
-        },
-        {
-         "position": 1,
-         "fifths": 1,
-         "major": "G",
-         "minor": "Em",
-         "signature": "1♯"
-        },
-        {
-         "position": 2,
-         "fifths": 2,
-         "major": "D",
-         "minor": "Bm",
-         "signature": "2♯"
-        },
-        {
-         "position": 3,
-         "fifths": 3,
-         "major": "A",
-         "minor": "F♯m",
-         "signature": "3♯"
-        },
-        {
-         "position": 4,
-         "fifths": 4,
-         "major": "E",
-         "minor": "C♯m",
-         "signature": "4♯"
-        },
-        {
-         "position": 5,
-         "fifths": 5,
-         "major": "B",
-         "minor": "G♯m",
-         "signature": "5♯"
-        },
-        {
-         "position": 6,
-         "fifths": 6,
-         "major": "F♯",
-         "minor": "D♯m",
-         "signature": "6♯"
-        },
-        {
-         "position": 7,
-         "fifths": -5,
-         "major": "D♭",
-         "minor": "B♭m",
-         "signature": "5♭"
-        },
-        {
-         "position": 8,
-         "fifths": -4,
-         "major": "A♭",
-         "minor": "Fm",
-         "signature": "4♭"
-        },
-        {
-         "position": 9,
-         "fifths": -3,
-         "major": "E♭",
-         "minor": "Cm",
-         "signature": "3♭"
-        },
-        {
-         "position": 10,
-         "fifths": -2,
-         "major": "B♭",
-         "minor": "Gm",
-         "signature": "2♭"
-        },
-        {
-         "position": 11,
-         "fifths": -1,
-         "major": "F",
-         "minor": "Dm",
-         "signature": "1♭"
-        }
-       ],
-       "neighbours": [
-        {
-         "relation": "dominant",
-         "key": {
-          "name": "E minor",
-          "fifths": 1,
-          "mode": "minor"
-         },
-         "position": 1,
-         "name": "E minor",
-         "label": "dominant"
-        },
-        {
-         "relation": "subdominant",
-         "key": {
-          "name": "D minor",
-          "fifths": -1,
-          "mode": "minor"
-         },
-         "position": 11,
-         "name": "D minor",
-         "label": "subdominant"
-        },
-        {
-         "relation": "relative",
-         "key": {
-          "name": "C major",
-          "fifths": 0,
-          "mode": "major"
-         },
-         "position": 0,
-         "name": "C major",
-         "label": "relative key"
-        },
-        {
-         "relation": "parallel",
-         "key": {
-          "name": "A major",
-          "fifths": 3,
-          "mode": "major"
-         },
-         "position": 3,
-         "name": "A major",
-         "label": "parallel key"
-        }
-       ],
-       "chords": [
-        {
-         "number": 1,
-         "symbol": "Am",
-         "degree": "i",
-         "position": 0,
-         "ring": "minor",
-         "function": "tonic",
-         "role": "Am: i in A minor, the tonic.",
-         "place": {
-          "label": "Am, from bar 8",
-          "onset": 5280,
-          "end": 6000,
-          "noteIds": [
-           "n_0050",
-           "n_0051",
-           "n_0052",
-           "n_0053",
-           "n_0054",
-           "n_0055",
-           "n_0056"
-          ]
-         }
-        },
-        {
-         "number": 2,
-         "symbol": "C",
-         "degree": "III",
-         "position": 0,
-         "ring": "major",
-         "function": "none",
-         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "C, from bar 10",
-          "onset": 6480,
-          "end": 6960,
-          "noteIds": [
-           "n_0061",
-           "n_0062",
-           "n_0063",
-           "n_0064",
-           "n_0065"
-          ]
-         }
-        },
-        {
-         "number": 3,
-         "symbol": "G",
-         "degree": "VII",
-         "position": 1,
-         "ring": "major",
-         "function": "none",
-         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "G, from bar 11",
-          "onset": 7200,
-          "end": 7440,
-          "noteIds": [
-           "n_0068",
-           "n_0069",
-           "n_0070"
-          ]
-         }
-        },
-        {
-         "number": 4,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 13",
-          "onset": 8640,
-          "end": 9600,
-          "noteIds": [
-           "n_0082",
-           "n_0083",
-           "n_0084",
-           "n_0085",
-           "n_0086",
-           "n_0087",
-           "n_0088",
-           "n_0089",
-           "n_0090"
-          ]
-         }
-        },
-        {
-         "number": 5,
-         "symbol": "Emaj7",
-         "degree": "Vmaj7",
-         "position": 4,
-         "ring": "major",
-         "function": "none",
-         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "Emaj7, from bar 14, beat 2",
-          "onset": 9600,
-          "end": 11280,
-          "noteIds": [
-           "n_0091",
-           "n_0092",
-           "n_0093",
-           "n_0094",
-           "n_0095",
-           "n_0096",
-           "n_0097",
-           "n_0098",
-           "n_0099",
-           "n_0100",
-           "n_0101",
-           "n_0102",
-           "n_0103",
-           "n_0104"
-          ]
-         }
-        }
-       ],
-       "scale": [
-        57,
-        59,
-        60,
-        62,
-        64,
-        65,
-        67,
-        69
-       ],
-       "scaleNotes": [
-        {
-         "pitch": 57,
-         "onset": 5760,
-         "end": 6240
-        },
-        {
-         "pitch": 59,
-         "onset": 6240,
-         "end": 6720
-        },
-        {
-         "pitch": 60,
-         "onset": 6720,
-         "end": 7200
-        },
-        {
-         "pitch": 62,
-         "onset": 7200,
-         "end": 7680
-        },
-        {
-         "pitch": 64,
-         "onset": 7680,
-         "end": 8160
-        },
-        {
-         "pitch": 65,
-         "onset": 8160,
-         "end": 8640
-        },
-        {
-         "pitch": 67,
-         "onset": 8640,
-         "end": 9120
-        },
-        {
-         "pitch": 69,
-         "onset": 9120,
-         "end": 10080
-        }
-       ],
-       "lines": [
-        "A minor: no sharps or flats, the same as its relative key, C major.",
-        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: Am (i) → C (III) → G (VII) → E (V) → Emaj7 (Vmaj7)."
-       ],
-       "zones": [
-        "tonic",
-        "dominant",
-        "near",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "near",
-        "subdominant"
-       ]
-      }
-     },
-     {
-      "id": "section_3",
-      "label": "C",
-      "passage": {
        "onset": 16560,
-       "end": 55440,
+       "end": 27840,
        "firstBar": 24,
-       "lastBar": 77
+       "lastBar": 39
       },
       "circle": {
        "key": {
@@ -2410,234 +2157,6 @@
            "n_0333"
           ]
          }
-        },
-        {
-         "number": 10,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 42",
-          "onset": 29520,
-          "end": 30240,
-          "noteIds": [
-           "n_0369",
-           "n_0370",
-           "n_0371",
-           "n_0372",
-           "n_0373",
-           "n_0374",
-           "n_0375"
-          ]
-         }
-        },
-        {
-         "number": 11,
-         "symbol": "G",
-         "degree": "VII",
-         "position": 1,
-         "ring": "major",
-         "function": "none",
-         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "G, from bar 49",
-          "onset": 34560,
-          "end": 34800,
-          "noteIds": [
-           "n_0417",
-           "n_0418",
-           "n_0419"
-          ]
-         }
-        },
-        {
-         "number": 12,
-         "symbol": "Emaj7",
-         "degree": "Vmaj7",
-         "position": 4,
-         "ring": "major",
-         "function": "none",
-         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "Emaj7, from bar 52, beat 2",
-          "onset": 36960,
-          "end": 38640,
-          "noteIds": [
-           "n_0440",
-           "n_0441",
-           "n_0442",
-           "n_0443",
-           "n_0444",
-           "n_0445",
-           "n_0446",
-           "n_0447",
-           "n_0448",
-           "n_0449",
-           "n_0450",
-           "n_0451",
-           "n_0452",
-           "n_0453"
-          ]
-         }
-        },
-        {
-         "number": 13,
-         "symbol": "A7",
-         "degree": "I7",
-         "position": 3,
-         "ring": "major",
-         "function": "none",
-         "role": "A7: I7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "A7, from bar 62",
-          "onset": 43920,
-          "end": 44640,
-          "noteIds": [
-           "n_0504",
-           "n_0505",
-           "n_0506",
-           "n_0507",
-           "n_0508",
-           "n_0509",
-           "n_0510",
-           "n_0511",
-           "n_0512",
-           "n_0513"
-          ]
-         }
-        },
-        {
-         "number": 14,
-         "symbol": "Dm/A",
-         "degree": "iv",
-         "position": 11,
-         "ring": "minor",
-         "function": "subdominant",
-         "role": "Dm/A: iv in A minor, the subdominant.",
-         "place": {
-          "label": "Dm/A, from bar 63",
-          "onset": 44640,
-          "end": 45120,
-          "noteIds": [
-           "n_0514",
-           "n_0515",
-           "n_0516",
-           "n_0517",
-           "n_0518",
-           "n_0519",
-           "n_0520"
-          ]
-         }
-        },
-        {
-         "number": 15,
-         "symbol": "D♯dim7",
-         "degree": null,
-         "position": 6,
-         "ring": "minor",
-         "function": "none",
-         "role": "D♯dim7: ♯iv°7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "D♯dim7, from bar 67",
-          "onset": 47520,
-          "end": 48240,
-          "noteIds": [
-           "n_0566",
-           "n_0567",
-           "n_0568",
-           "n_0569",
-           "n_0570",
-           "n_0571",
-           "n_0572",
-           "n_0573",
-           "n_0574",
-           "n_0575",
-           "n_0576",
-           "n_0577",
-           "n_0578",
-           "n_0579",
-           "n_0580",
-           "n_0581",
-           "n_0582"
-          ]
-         }
-        },
-        {
-         "number": 16,
-         "symbol": "A♯",
-         "degree": null,
-         "position": 10,
-         "ring": "major",
-         "function": "none",
-         "role": "A♯: ♭II in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "A♯, from bar 73",
-          "onset": 51840,
-          "end": 52560,
-          "noteIds": [
-           "n_0643",
-           "n_0644",
-           "n_0645",
-           "n_0646",
-           "n_0647",
-           "n_0648",
-           "n_0649",
-           "n_0650"
-          ]
-         }
-        },
-        {
-         "number": 17,
-         "symbol": "D♯/A♯",
-         "degree": null,
-         "position": 9,
-         "ring": "major",
-         "function": "none",
-         "role": "D♯/A♯: ♯IV in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "D♯/A♯, from bar 74",
-          "onset": 52560,
-          "end": 53040,
-          "noteIds": [
-           "n_0651",
-           "n_0652",
-           "n_0653",
-           "n_0654",
-           "n_0655",
-           "n_0656"
-          ]
-         }
-        },
-        {
-         "number": 18,
-         "symbol": "Bdim7",
-         "degree": "ii°7",
-         "position": 2,
-         "ring": "minor",
-         "function": "subdominant",
-         "role": "Bdim7: ii°7 in A minor, the subdominant.",
-         "place": {
-          "label": "Bdim7, from bar 76",
-          "onset": 54000,
-          "end": 54720,
-          "noteIds": [
-           "n_0675",
-           "n_0676",
-           "n_0677",
-           "n_0678",
-           "n_0679",
-           "n_0680",
-           "n_0681",
-           "n_0682",
-           "n_0683",
-           "n_0684",
-           "n_0685",
-           "n_0686"
-          ]
-         }
         }
        ],
        "scale": [
@@ -2714,12 +2233,779 @@
       }
      },
      {
-      "id": "section_4",
+      "id": "section_3",
       "label": "A′",
       "passage": {
-       "onset": 55440,
+       "onset": 27840,
+       "end": 43200,
+       "firstBar": 39,
+       "lastBar": 60
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 41",
+          "onset": 28800,
+          "end": 29520,
+          "noteIds": [
+           "n_0362",
+           "n_0363",
+           "n_0364",
+           "n_0365",
+           "n_0366",
+           "n_0367",
+           "n_0368"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 42",
+          "onset": 29520,
+          "end": 30240,
+          "noteIds": [
+           "n_0369",
+           "n_0370",
+           "n_0371",
+           "n_0372",
+           "n_0373",
+           "n_0374",
+           "n_0375"
+          ]
+         }
+        },
+        {
+         "number": 3,
+         "symbol": "C",
+         "degree": "III",
+         "position": 0,
+         "ring": "major",
+         "function": "none",
+         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "C, from bar 48",
+          "onset": 33840,
+          "end": 34320,
+          "noteIds": [
+           "n_0410",
+           "n_0411",
+           "n_0412",
+           "n_0413",
+           "n_0414"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "G",
+         "degree": "VII",
+         "position": 1,
+         "ring": "major",
+         "function": "none",
+         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "G, from bar 49",
+          "onset": 34560,
+          "end": 34800,
+          "noteIds": [
+           "n_0417",
+           "n_0418",
+           "n_0419"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "Emaj7",
+         "degree": "Vmaj7",
+         "position": 4,
+         "ring": "major",
+         "function": "none",
+         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "Emaj7, from bar 52, beat 2",
+          "onset": 36960,
+          "end": 38640,
+          "noteIds": [
+           "n_0440",
+           "n_0441",
+           "n_0442",
+           "n_0443",
+           "n_0444",
+           "n_0445",
+           "n_0446",
+           "n_0447",
+           "n_0448",
+           "n_0449",
+           "n_0450",
+           "n_0451",
+           "n_0452",
+           "n_0453"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 27840,
+         "end": 28320
+        },
+        {
+         "pitch": 59,
+         "onset": 28320,
+         "end": 28800
+        },
+        {
+         "pitch": 60,
+         "onset": 28800,
+         "end": 29280
+        },
+        {
+         "pitch": 62,
+         "onset": 29280,
+         "end": 29760
+        },
+        {
+         "pitch": 64,
+         "onset": 29760,
+         "end": 30240
+        },
+        {
+         "pitch": 65,
+         "onset": 30240,
+         "end": 30720
+        },
+        {
+         "pitch": 67,
+         "onset": 30720,
+         "end": 31200
+        },
+        {
+         "pitch": 69,
+         "onset": 31200,
+         "end": 32160
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_4",
+      "label": "C",
+      "passage": {
+       "onset": 43200,
+       "end": 59760,
+       "firstBar": 61,
+       "lastBar": 83
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "A7",
+         "degree": "I7",
+         "position": 3,
+         "ring": "major",
+         "function": "none",
+         "role": "A7: I7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "A7, from bar 62",
+          "onset": 43920,
+          "end": 44640,
+          "noteIds": [
+           "n_0504",
+           "n_0505",
+           "n_0506",
+           "n_0507",
+           "n_0508",
+           "n_0509",
+           "n_0510",
+           "n_0511",
+           "n_0512",
+           "n_0513"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "Dm/A",
+         "degree": "iv",
+         "position": 11,
+         "ring": "minor",
+         "function": "subdominant",
+         "role": "Dm/A: iv in A minor, the subdominant.",
+         "place": {
+          "label": "Dm/A, from bar 63",
+          "onset": 44640,
+          "end": 45120,
+          "noteIds": [
+           "n_0514",
+           "n_0515",
+           "n_0516",
+           "n_0517",
+           "n_0518",
+           "n_0519",
+           "n_0520"
+          ]
+         }
+        },
+        {
+         "number": 3,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 65",
+          "onset": 46080,
+          "end": 46800,
+          "noteIds": [
+           "n_0539",
+           "n_0540",
+           "n_0541",
+           "n_0542",
+           "n_0543",
+           "n_0544",
+           "n_0545",
+           "n_0546",
+           "n_0547"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "D♯dim7",
+         "degree": null,
+         "position": 6,
+         "ring": "minor",
+         "function": "none",
+         "role": "D♯dim7: ♯iv°7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "D♯dim7, from bar 67",
+          "onset": 47520,
+          "end": 48240,
+          "noteIds": [
+           "n_0566",
+           "n_0567",
+           "n_0568",
+           "n_0569",
+           "n_0570",
+           "n_0571",
+           "n_0572",
+           "n_0573",
+           "n_0574",
+           "n_0575",
+           "n_0576",
+           "n_0577",
+           "n_0578",
+           "n_0579",
+           "n_0580",
+           "n_0581",
+           "n_0582"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "A♯",
+         "degree": null,
+         "position": 10,
+         "ring": "major",
+         "function": "none",
+         "role": "A♯: ♭II in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "A♯, from bar 73",
+          "onset": 51840,
+          "end": 52560,
+          "noteIds": [
+           "n_0643",
+           "n_0644",
+           "n_0645",
+           "n_0646",
+           "n_0647",
+           "n_0648",
+           "n_0649",
+           "n_0650"
+          ]
+         }
+        },
+        {
+         "number": 6,
+         "symbol": "D♯/A♯",
+         "degree": null,
+         "position": 9,
+         "ring": "major",
+         "function": "none",
+         "role": "D♯/A♯: ♯IV in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "D♯/A♯, from bar 74",
+          "onset": 52560,
+          "end": 53040,
+          "noteIds": [
+           "n_0651",
+           "n_0652",
+           "n_0653",
+           "n_0654",
+           "n_0655",
+           "n_0656"
+          ]
+         }
+        },
+        {
+         "number": 7,
+         "symbol": "Bdim7",
+         "degree": "ii°7",
+         "position": 2,
+         "ring": "minor",
+         "function": "subdominant",
+         "role": "Bdim7: ii°7 in A minor, the subdominant.",
+         "place": {
+          "label": "Bdim7, from bar 76",
+          "onset": 54000,
+          "end": 54720,
+          "noteIds": [
+           "n_0675",
+           "n_0676",
+           "n_0677",
+           "n_0678",
+           "n_0679",
+           "n_0680",
+           "n_0681",
+           "n_0682",
+           "n_0683",
+           "n_0684",
+           "n_0685",
+           "n_0686"
+          ]
+         }
+        },
+        {
+         "number": 8,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 78",
+          "onset": 55440,
+          "end": 55680,
+          "noteIds": [
+           "n_0691",
+           "n_0692",
+           "n_0693",
+           "n_0694"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 43200,
+         "end": 43680
+        },
+        {
+         "pitch": 59,
+         "onset": 43680,
+         "end": 44160
+        },
+        {
+         "pitch": 60,
+         "onset": 44160,
+         "end": 44640
+        },
+        {
+         "pitch": 62,
+         "onset": 44640,
+         "end": 45120
+        },
+        {
+         "pitch": 64,
+         "onset": 45120,
+         "end": 45600
+        },
+        {
+         "pitch": 65,
+         "onset": 45600,
+         "end": 46080
+        },
+        {
+         "pitch": 67,
+         "onset": 46080,
+         "end": 46560
+        },
+        {
+         "pitch": 69,
+         "onset": 46560,
+         "end": 47520
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: A7 (I7) → Dm/A (iv) → Am (i) → D♯dim7 → A♯ → D♯/A♯ …."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_5",
+      "label": "A″",
+      "passage": {
+       "onset": 59760,
        "end": 75600,
-       "firstBar": 78,
+       "firstBar": 84,
        "lastBar": 105
       },
       "circle": {
@@ -2866,26 +3152,6 @@
        "chords": [
         {
          "number": 1,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 78",
-          "onset": 55440,
-          "end": 55680,
-          "noteIds": [
-           "n_0691",
-           "n_0692",
-           "n_0693",
-           "n_0694"
-          ]
-         }
-        },
-        {
-         "number": 2,
          "symbol": "Am",
          "degree": "i",
          "position": 0,
@@ -2893,59 +3159,40 @@
          "function": "tonic",
          "role": "Am: i in A minor, the tonic.",
          "place": {
-          "label": "Am, from bar 79",
-          "onset": 56160,
-          "end": 58560,
+          "label": "Am, from bar 85",
+          "onset": 60480,
+          "end": 61200,
           "noteIds": [
-           "n_0695",
-           "n_0696",
-           "n_0697",
-           "n_0698",
-           "n_0699",
-           "n_0700",
-           "n_0701",
-           "n_0702",
-           "n_0703",
-           "n_0704",
-           "n_0705",
-           "n_0706",
-           "n_0707",
-           "n_0708",
-           "n_0709",
-           "n_0710",
-           "n_0711",
-           "n_0712",
-           "n_0713",
-           "n_0714",
-           "n_0715",
-           "n_0716",
-           "n_0717",
-           "n_0718",
-           "n_0719",
-           "n_0720",
-           "n_0721",
-           "n_0722",
-           "n_0723",
-           "n_0724",
-           "n_0725",
-           "n_0726",
-           "n_0727",
-           "n_0728",
-           "n_0729",
-           "n_0730",
-           "n_0731",
-           "n_0732",
-           "n_0733",
-           "n_0734",
-           "n_0735",
-           "n_0736",
-           "n_0737",
-           "n_0738",
-           "n_0739",
-           "n_0740",
-           "n_0741",
-           "n_0742",
-           "n_0743"
+           "n_0765",
+           "n_0766",
+           "n_0767",
+           "n_0768",
+           "n_0769",
+           "n_0770",
+           "n_0771"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 86",
+          "onset": 61200,
+          "end": 61920,
+          "noteIds": [
+           "n_0772",
+           "n_0773",
+           "n_0774",
+           "n_0775",
+           "n_0776",
+           "n_0777",
+           "n_0778"
           ]
          }
         },
@@ -3033,49 +3280,49 @@
        "scaleNotes": [
         {
          "pitch": 57,
-         "onset": 55440,
-         "end": 55920
+         "onset": 59760,
+         "end": 60240
         },
         {
          "pitch": 59,
-         "onset": 55920,
-         "end": 56400
+         "onset": 60240,
+         "end": 60720
         },
         {
          "pitch": 60,
-         "onset": 56400,
-         "end": 56880
+         "onset": 60720,
+         "end": 61200
         },
         {
          "pitch": 62,
-         "onset": 56880,
-         "end": 57360
+         "onset": 61200,
+         "end": 61680
         },
         {
          "pitch": 64,
-         "onset": 57360,
-         "end": 57840
+         "onset": 61680,
+         "end": 62160
         },
         {
          "pitch": 65,
-         "onset": 57840,
-         "end": 58320
+         "onset": 62160,
+         "end": 62640
         },
         {
          "pitch": 67,
-         "onset": 58320,
-         "end": 58800
+         "onset": 62640,
+         "end": 63120
         },
         {
          "pitch": 69,
-         "onset": 58800,
-         "end": 59760
+         "onset": 63120,
+         "end": 64080
         }
        ],
        "lines": [
         "A minor: no sharps or flats, the same as its relative key, C major.",
         "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: E (V) → Am (i) → C (III) → G (VII) → Emaj7 (Vmaj7)."
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
@@ -7001,7 +7248,7 @@
    },
    "answer": {
     "status": "partial",
-    "summary": "Form A B C A′ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
+    "summary": "Form A B A′ C A″ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -7121,63 +7368,83 @@
        "label": "A",
        "passage": {
         "onset": 0,
-        "end": 5760,
+        "end": 16560,
         "firstBar": 0,
-        "lastBar": 8
+        "lastBar": 23
        },
        "selectable": {
         "onset": 0,
-        "end": 5760
+        "end": 16560
        },
        "sharesWith": [
-        "section_4"
+        "section_3",
+        "section_5"
        ]
       },
       {
        "id": "section_2",
        "label": "B",
        "passage": {
-        "onset": 5760,
-        "end": 16560,
-        "firstBar": 9,
-        "lastBar": 23
+        "onset": 16560,
+        "end": 27840,
+        "firstBar": 24,
+        "lastBar": 39
        },
        "selectable": {
-        "onset": 5760,
-        "end": 16560
+        "onset": 16560,
+        "end": 27840
        },
        "sharesWith": []
       },
       {
        "id": "section_3",
-       "label": "C",
+       "label": "A′",
        "passage": {
-        "onset": 16560,
-        "end": 55440,
-        "firstBar": 24,
-        "lastBar": 77
+        "onset": 27840,
+        "end": 43200,
+        "firstBar": 39,
+        "lastBar": 60
        },
        "selectable": {
-        "onset": 16560,
-        "end": 39600
+        "onset": 27840,
+        "end": 43200
+       },
+       "sharesWith": [
+        "section_1",
+        "section_5"
+       ]
+      },
+      {
+       "id": "section_4",
+       "label": "C",
+       "passage": {
+        "onset": 43200,
+        "end": 59760,
+        "firstBar": 61,
+        "lastBar": 83
+       },
+       "selectable": {
+        "onset": 43200,
+        "end": 59760
        },
        "sharesWith": []
       },
       {
-       "id": "section_4",
-       "label": "A′",
+       "id": "section_5",
+       "label": "A″",
        "passage": {
-        "onset": 55440,
+        "onset": 59760,
         "end": 75600,
-        "firstBar": 78,
+        "firstBar": 84,
         "lastBar": 105
        },
        "selectable": {
-        "onset": 55440,
+        "onset": 59760,
         "end": 75600
        },
        "sharesWith": [
-        "section_1"
+        "section_1",
+        "section_3"
        ]
       }
      ]
@@ -7450,117 +7717,215 @@
       {
        "id": "idea_2",
        "fromSelection": false,
-       "title": "Contrast · B · bars 9–15",
-       "summary": "Section B begins here, with material not heard in A: reaching an octave higher.",
+       "title": "Contrast · B · bars 24–31",
+       "summary": "Section B begins here, with material not heard in A: denser (3.9 notes a beat against 2.2) and reaching 6 semitones higher.",
        "passage": {
-        "onset": 5760,
-        "end": 10560,
-        "firstBar": 9,
-        "lastBar": 15
+        "onset": 16560,
+        "end": 22320,
+        "firstBar": 24,
+        "lastBar": 31
        },
        "noteIds": [
-        "n_0054",
-        "n_0055",
-        "n_0056",
-        "n_0057",
-        "n_0058",
-        "n_0059",
-        "n_0060",
-        "n_0061",
-        "n_0062",
-        "n_0063",
-        "n_0064",
-        "n_0065",
-        "n_0066",
-        "n_0067",
-        "n_0068",
-        "n_0069",
-        "n_0070",
-        "n_0071",
-        "n_0072",
-        "n_0073",
-        "n_0074",
-        "n_0075",
-        "n_0076",
-        "n_0077",
-        "n_0078",
-        "n_0079",
-        "n_0080",
-        "n_0081",
-        "n_0082",
-        "n_0083",
-        "n_0084",
-        "n_0085",
-        "n_0086",
-        "n_0087",
-        "n_0088",
-        "n_0089",
-        "n_0090",
-        "n_0091",
-        "n_0092",
-        "n_0093",
-        "n_0094",
-        "n_0095",
-        "n_0096",
-        "n_0097",
-        "n_0098"
+        "n_0155",
+        "n_0156",
+        "n_0157",
+        "n_0158",
+        "n_0159",
+        "n_0160",
+        "n_0161",
+        "n_0162",
+        "n_0163",
+        "n_0164",
+        "n_0165",
+        "n_0166",
+        "n_0167",
+        "n_0168",
+        "n_0169",
+        "n_0170",
+        "n_0171",
+        "n_0172",
+        "n_0173",
+        "n_0174",
+        "n_0175",
+        "n_0176",
+        "n_0177",
+        "n_0178",
+        "n_0179",
+        "n_0180",
+        "n_0181",
+        "n_0182",
+        "n_0183",
+        "n_0184",
+        "n_0185",
+        "n_0186",
+        "n_0187",
+        "n_0188",
+        "n_0189",
+        "n_0190",
+        "n_0191",
+        "n_0192",
+        "n_0193",
+        "n_0194",
+        "n_0195",
+        "n_0196",
+        "n_0197",
+        "n_0198",
+        "n_0199",
+        "n_0200",
+        "n_0201",
+        "n_0202",
+        "n_0203",
+        "n_0204",
+        "n_0205",
+        "n_0206",
+        "n_0207",
+        "n_0208",
+        "n_0209",
+        "n_0210",
+        "n_0211",
+        "n_0212",
+        "n_0213",
+        "n_0214",
+        "n_0215",
+        "n_0216",
+        "n_0217",
+        "n_0218",
+        "n_0219",
+        "n_0220",
+        "n_0221",
+        "n_0222",
+        "n_0223",
+        "n_0224",
+        "n_0225",
+        "n_0226",
+        "n_0227",
+        "n_0228",
+        "n_0229",
+        "n_0230",
+        "n_0231",
+        "n_0232",
+        "n_0233",
+        "n_0234",
+        "n_0235",
+        "n_0236",
+        "n_0237",
+        "n_0238",
+        "n_0239",
+        "n_0240",
+        "n_0241",
+        "n_0242",
+        "n_0243",
+        "n_0244",
+        "n_0245",
+        "n_0246",
+        "n_0247",
+        "n_0248"
        ],
        "occurrences": [
         {
          "kind": "original",
          "passage": {
-          "onset": 5760,
-          "end": 10560,
-          "firstBar": 9,
-          "lastBar": 15
+          "onset": 16560,
+          "end": 22320,
+          "firstBar": 24,
+          "lastBar": 31
          },
          "transposition": 0,
          "noteIds": [
-          "n_0054",
-          "n_0055",
-          "n_0056",
-          "n_0057",
-          "n_0058",
-          "n_0059",
-          "n_0060",
-          "n_0061",
-          "n_0062",
-          "n_0063",
-          "n_0064",
-          "n_0065",
-          "n_0066",
-          "n_0067",
-          "n_0068",
-          "n_0069",
-          "n_0070",
-          "n_0071",
-          "n_0072",
-          "n_0073",
-          "n_0074",
-          "n_0075",
-          "n_0076",
-          "n_0077",
-          "n_0078",
-          "n_0079",
-          "n_0080",
-          "n_0081",
-          "n_0082",
-          "n_0083",
-          "n_0084",
-          "n_0085",
-          "n_0086",
-          "n_0087",
-          "n_0088",
-          "n_0089",
-          "n_0090",
-          "n_0091",
-          "n_0092",
-          "n_0093",
-          "n_0094",
-          "n_0095",
-          "n_0096",
-          "n_0097",
-          "n_0098"
+          "n_0155",
+          "n_0156",
+          "n_0157",
+          "n_0158",
+          "n_0159",
+          "n_0160",
+          "n_0161",
+          "n_0162",
+          "n_0163",
+          "n_0164",
+          "n_0165",
+          "n_0166",
+          "n_0167",
+          "n_0168",
+          "n_0169",
+          "n_0170",
+          "n_0171",
+          "n_0172",
+          "n_0173",
+          "n_0174",
+          "n_0175",
+          "n_0176",
+          "n_0177",
+          "n_0178",
+          "n_0179",
+          "n_0180",
+          "n_0181",
+          "n_0182",
+          "n_0183",
+          "n_0184",
+          "n_0185",
+          "n_0186",
+          "n_0187",
+          "n_0188",
+          "n_0189",
+          "n_0190",
+          "n_0191",
+          "n_0192",
+          "n_0193",
+          "n_0194",
+          "n_0195",
+          "n_0196",
+          "n_0197",
+          "n_0198",
+          "n_0199",
+          "n_0200",
+          "n_0201",
+          "n_0202",
+          "n_0203",
+          "n_0204",
+          "n_0205",
+          "n_0206",
+          "n_0207",
+          "n_0208",
+          "n_0209",
+          "n_0210",
+          "n_0211",
+          "n_0212",
+          "n_0213",
+          "n_0214",
+          "n_0215",
+          "n_0216",
+          "n_0217",
+          "n_0218",
+          "n_0219",
+          "n_0220",
+          "n_0221",
+          "n_0222",
+          "n_0223",
+          "n_0224",
+          "n_0225",
+          "n_0226",
+          "n_0227",
+          "n_0228",
+          "n_0229",
+          "n_0230",
+          "n_0231",
+          "n_0232",
+          "n_0233",
+          "n_0234",
+          "n_0235",
+          "n_0236",
+          "n_0237",
+          "n_0238",
+          "n_0239",
+          "n_0240",
+          "n_0241",
+          "n_0242",
+          "n_0243",
+          "n_0244",
+          "n_0245",
+          "n_0246",
+          "n_0247",
+          "n_0248"
          ]
         }
        ]
@@ -8443,7 +8808,7 @@
        "bar": 8,
        "at": 5520,
        "kind": "full",
-       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest. Then section B."
+       "explanation": "Bar 8 · Am. A full close: the phrase's melody comes to the tonic (A3), and the music comes to rest."
       },
       {
        "bar": 19,
@@ -8479,7 +8844,7 @@
        "bar": 60,
        "at": 43080,
        "kind": "half",
-       "explanation": "Bar 60 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on."
+       "explanation": "Bar 60 · E. A half close: the phrase's melody stops on B4, not on the tonic, and the music waits to go on. Then section C."
       },
       {
        "bar": 68,
@@ -8491,7 +8856,7 @@
        "bar": 77,
        "at": 54720,
        "kind": "full",
-       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest. Then section A′."
+       "explanation": "Bar 77 · Am/C. A full close: the phrase's melody comes to the tonic (A4), and the music comes to rest."
       },
       {
        "bar": 87,
@@ -8525,9 +8890,9 @@
       "label": "A",
       "passage": {
        "onset": 0,
-       "end": 5760,
+       "end": 16560,
        "firstBar": 0,
-       "lastBar": 8
+       "lastBar": 23
       },
       "circle": {
        "key": {
@@ -8716,6 +9081,76 @@
            "n_0022"
           ]
          }
+        },
+        {
+         "number": 3,
+         "symbol": "C",
+         "degree": "III",
+         "position": 0,
+         "ring": "major",
+         "function": "none",
+         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "C, from bar 10",
+          "onset": 6480,
+          "end": 6960,
+          "noteIds": [
+           "n_0061",
+           "n_0062",
+           "n_0063",
+           "n_0064",
+           "n_0065"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "G",
+         "degree": "VII",
+         "position": 1,
+         "ring": "major",
+         "function": "none",
+         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "G, from bar 11",
+          "onset": 7200,
+          "end": 7440,
+          "noteIds": [
+           "n_0068",
+           "n_0069",
+           "n_0070"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "Emaj7",
+         "degree": "Vmaj7",
+         "position": 4,
+         "ring": "major",
+         "function": "none",
+         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "Emaj7, from bar 14, beat 2",
+          "onset": 9600,
+          "end": 11280,
+          "noteIds": [
+           "n_0091",
+           "n_0092",
+           "n_0093",
+           "n_0094",
+           "n_0095",
+           "n_0096",
+           "n_0097",
+           "n_0098",
+           "n_0099",
+           "n_0100",
+           "n_0101",
+           "n_0102",
+           "n_0103",
+           "n_0104"
+          ]
+         }
         }
        ],
        "scale": [
@@ -8773,7 +9208,7 @@
        "lines": [
         "A minor: no sharps or flats, the same as its relative key, C major.",
         "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: Am (i) → E (V)."
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
@@ -8795,353 +9230,10 @@
       "id": "section_2",
       "label": "B",
       "passage": {
-       "onset": 5760,
-       "end": 16560,
-       "firstBar": 9,
-       "lastBar": 23
-      },
-      "circle": {
-       "key": {
-        "name": "A minor",
-        "fifths": 0,
-        "mode": "minor"
-       },
-       "name": "A minor",
-       "certainty": "detected",
-       "position": 0,
-       "sectors": [
-        {
-         "position": 0,
-         "fifths": 0,
-         "major": "C",
-         "minor": "Am",
-         "signature": "0"
-        },
-        {
-         "position": 1,
-         "fifths": 1,
-         "major": "G",
-         "minor": "Em",
-         "signature": "1♯"
-        },
-        {
-         "position": 2,
-         "fifths": 2,
-         "major": "D",
-         "minor": "Bm",
-         "signature": "2♯"
-        },
-        {
-         "position": 3,
-         "fifths": 3,
-         "major": "A",
-         "minor": "F♯m",
-         "signature": "3♯"
-        },
-        {
-         "position": 4,
-         "fifths": 4,
-         "major": "E",
-         "minor": "C♯m",
-         "signature": "4♯"
-        },
-        {
-         "position": 5,
-         "fifths": 5,
-         "major": "B",
-         "minor": "G♯m",
-         "signature": "5♯"
-        },
-        {
-         "position": 6,
-         "fifths": 6,
-         "major": "F♯",
-         "minor": "D♯m",
-         "signature": "6♯"
-        },
-        {
-         "position": 7,
-         "fifths": -5,
-         "major": "D♭",
-         "minor": "B♭m",
-         "signature": "5♭"
-        },
-        {
-         "position": 8,
-         "fifths": -4,
-         "major": "A♭",
-         "minor": "Fm",
-         "signature": "4♭"
-        },
-        {
-         "position": 9,
-         "fifths": -3,
-         "major": "E♭",
-         "minor": "Cm",
-         "signature": "3♭"
-        },
-        {
-         "position": 10,
-         "fifths": -2,
-         "major": "B♭",
-         "minor": "Gm",
-         "signature": "2♭"
-        },
-        {
-         "position": 11,
-         "fifths": -1,
-         "major": "F",
-         "minor": "Dm",
-         "signature": "1♭"
-        }
-       ],
-       "neighbours": [
-        {
-         "relation": "dominant",
-         "key": {
-          "name": "E minor",
-          "fifths": 1,
-          "mode": "minor"
-         },
-         "position": 1,
-         "name": "E minor",
-         "label": "dominant"
-        },
-        {
-         "relation": "subdominant",
-         "key": {
-          "name": "D minor",
-          "fifths": -1,
-          "mode": "minor"
-         },
-         "position": 11,
-         "name": "D minor",
-         "label": "subdominant"
-        },
-        {
-         "relation": "relative",
-         "key": {
-          "name": "C major",
-          "fifths": 0,
-          "mode": "major"
-         },
-         "position": 0,
-         "name": "C major",
-         "label": "relative key"
-        },
-        {
-         "relation": "parallel",
-         "key": {
-          "name": "A major",
-          "fifths": 3,
-          "mode": "major"
-         },
-         "position": 3,
-         "name": "A major",
-         "label": "parallel key"
-        }
-       ],
-       "chords": [
-        {
-         "number": 1,
-         "symbol": "Am",
-         "degree": "i",
-         "position": 0,
-         "ring": "minor",
-         "function": "tonic",
-         "role": "Am: i in A minor, the tonic.",
-         "place": {
-          "label": "Am, from bar 8",
-          "onset": 5280,
-          "end": 6000,
-          "noteIds": [
-           "n_0050",
-           "n_0051",
-           "n_0052",
-           "n_0053",
-           "n_0054",
-           "n_0055",
-           "n_0056"
-          ]
-         }
-        },
-        {
-         "number": 2,
-         "symbol": "C",
-         "degree": "III",
-         "position": 0,
-         "ring": "major",
-         "function": "none",
-         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "C, from bar 10",
-          "onset": 6480,
-          "end": 6960,
-          "noteIds": [
-           "n_0061",
-           "n_0062",
-           "n_0063",
-           "n_0064",
-           "n_0065"
-          ]
-         }
-        },
-        {
-         "number": 3,
-         "symbol": "G",
-         "degree": "VII",
-         "position": 1,
-         "ring": "major",
-         "function": "none",
-         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "G, from bar 11",
-          "onset": 7200,
-          "end": 7440,
-          "noteIds": [
-           "n_0068",
-           "n_0069",
-           "n_0070"
-          ]
-         }
-        },
-        {
-         "number": 4,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 13",
-          "onset": 8640,
-          "end": 9600,
-          "noteIds": [
-           "n_0082",
-           "n_0083",
-           "n_0084",
-           "n_0085",
-           "n_0086",
-           "n_0087",
-           "n_0088",
-           "n_0089",
-           "n_0090"
-          ]
-         }
-        },
-        {
-         "number": 5,
-         "symbol": "Emaj7",
-         "degree": "Vmaj7",
-         "position": 4,
-         "ring": "major",
-         "function": "none",
-         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "Emaj7, from bar 14, beat 2",
-          "onset": 9600,
-          "end": 11280,
-          "noteIds": [
-           "n_0091",
-           "n_0092",
-           "n_0093",
-           "n_0094",
-           "n_0095",
-           "n_0096",
-           "n_0097",
-           "n_0098",
-           "n_0099",
-           "n_0100",
-           "n_0101",
-           "n_0102",
-           "n_0103",
-           "n_0104"
-          ]
-         }
-        }
-       ],
-       "scale": [
-        57,
-        59,
-        60,
-        62,
-        64,
-        65,
-        67,
-        69
-       ],
-       "scaleNotes": [
-        {
-         "pitch": 57,
-         "onset": 5760,
-         "end": 6240
-        },
-        {
-         "pitch": 59,
-         "onset": 6240,
-         "end": 6720
-        },
-        {
-         "pitch": 60,
-         "onset": 6720,
-         "end": 7200
-        },
-        {
-         "pitch": 62,
-         "onset": 7200,
-         "end": 7680
-        },
-        {
-         "pitch": 64,
-         "onset": 7680,
-         "end": 8160
-        },
-        {
-         "pitch": 65,
-         "onset": 8160,
-         "end": 8640
-        },
-        {
-         "pitch": 67,
-         "onset": 8640,
-         "end": 9120
-        },
-        {
-         "pitch": 69,
-         "onset": 9120,
-         "end": 10080
-        }
-       ],
-       "lines": [
-        "A minor: no sharps or flats, the same as its relative key, C major.",
-        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: Am (i) → C (III) → G (VII) → E (V) → Emaj7 (Vmaj7)."
-       ],
-       "zones": [
-        "tonic",
-        "dominant",
-        "near",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "far",
-        "near",
-        "subdominant"
-       ]
-      }
-     },
-     {
-      "id": "section_3",
-      "label": "C",
-      "passage": {
        "onset": 16560,
-       "end": 55440,
+       "end": 27840,
        "firstBar": 24,
-       "lastBar": 77
+       "lastBar": 39
       },
       "circle": {
        "key": {
@@ -9476,234 +9568,6 @@
            "n_0333"
           ]
          }
-        },
-        {
-         "number": 10,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 42",
-          "onset": 29520,
-          "end": 30240,
-          "noteIds": [
-           "n_0369",
-           "n_0370",
-           "n_0371",
-           "n_0372",
-           "n_0373",
-           "n_0374",
-           "n_0375"
-          ]
-         }
-        },
-        {
-         "number": 11,
-         "symbol": "G",
-         "degree": "VII",
-         "position": 1,
-         "ring": "major",
-         "function": "none",
-         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "G, from bar 49",
-          "onset": 34560,
-          "end": 34800,
-          "noteIds": [
-           "n_0417",
-           "n_0418",
-           "n_0419"
-          ]
-         }
-        },
-        {
-         "number": 12,
-         "symbol": "Emaj7",
-         "degree": "Vmaj7",
-         "position": 4,
-         "ring": "major",
-         "function": "none",
-         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "Emaj7, from bar 52, beat 2",
-          "onset": 36960,
-          "end": 38640,
-          "noteIds": [
-           "n_0440",
-           "n_0441",
-           "n_0442",
-           "n_0443",
-           "n_0444",
-           "n_0445",
-           "n_0446",
-           "n_0447",
-           "n_0448",
-           "n_0449",
-           "n_0450",
-           "n_0451",
-           "n_0452",
-           "n_0453"
-          ]
-         }
-        },
-        {
-         "number": 13,
-         "symbol": "A7",
-         "degree": "I7",
-         "position": 3,
-         "ring": "major",
-         "function": "none",
-         "role": "A7: I7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "A7, from bar 62",
-          "onset": 43920,
-          "end": 44640,
-          "noteIds": [
-           "n_0504",
-           "n_0505",
-           "n_0506",
-           "n_0507",
-           "n_0508",
-           "n_0509",
-           "n_0510",
-           "n_0511",
-           "n_0512",
-           "n_0513"
-          ]
-         }
-        },
-        {
-         "number": 14,
-         "symbol": "Dm/A",
-         "degree": "iv",
-         "position": 11,
-         "ring": "minor",
-         "function": "subdominant",
-         "role": "Dm/A: iv in A minor, the subdominant.",
-         "place": {
-          "label": "Dm/A, from bar 63",
-          "onset": 44640,
-          "end": 45120,
-          "noteIds": [
-           "n_0514",
-           "n_0515",
-           "n_0516",
-           "n_0517",
-           "n_0518",
-           "n_0519",
-           "n_0520"
-          ]
-         }
-        },
-        {
-         "number": 15,
-         "symbol": "D♯dim7",
-         "degree": null,
-         "position": 6,
-         "ring": "minor",
-         "function": "none",
-         "role": "D♯dim7: ♯iv°7 in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "D♯dim7, from bar 67",
-          "onset": 47520,
-          "end": 48240,
-          "noteIds": [
-           "n_0566",
-           "n_0567",
-           "n_0568",
-           "n_0569",
-           "n_0570",
-           "n_0571",
-           "n_0572",
-           "n_0573",
-           "n_0574",
-           "n_0575",
-           "n_0576",
-           "n_0577",
-           "n_0578",
-           "n_0579",
-           "n_0580",
-           "n_0581",
-           "n_0582"
-          ]
-         }
-        },
-        {
-         "number": 16,
-         "symbol": "A♯",
-         "degree": null,
-         "position": 10,
-         "ring": "major",
-         "function": "none",
-         "role": "A♯: ♭II in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "A♯, from bar 73",
-          "onset": 51840,
-          "end": 52560,
-          "noteIds": [
-           "n_0643",
-           "n_0644",
-           "n_0645",
-           "n_0646",
-           "n_0647",
-           "n_0648",
-           "n_0649",
-           "n_0650"
-          ]
-         }
-        },
-        {
-         "number": 17,
-         "symbol": "D♯/A♯",
-         "degree": null,
-         "position": 9,
-         "ring": "major",
-         "function": "none",
-         "role": "D♯/A♯: ♯IV in A minor, outside the tonic, subdominant and dominant.",
-         "place": {
-          "label": "D♯/A♯, from bar 74",
-          "onset": 52560,
-          "end": 53040,
-          "noteIds": [
-           "n_0651",
-           "n_0652",
-           "n_0653",
-           "n_0654",
-           "n_0655",
-           "n_0656"
-          ]
-         }
-        },
-        {
-         "number": 18,
-         "symbol": "Bdim7",
-         "degree": "ii°7",
-         "position": 2,
-         "ring": "minor",
-         "function": "subdominant",
-         "role": "Bdim7: ii°7 in A minor, the subdominant.",
-         "place": {
-          "label": "Bdim7, from bar 76",
-          "onset": 54000,
-          "end": 54720,
-          "noteIds": [
-           "n_0675",
-           "n_0676",
-           "n_0677",
-           "n_0678",
-           "n_0679",
-           "n_0680",
-           "n_0681",
-           "n_0682",
-           "n_0683",
-           "n_0684",
-           "n_0685",
-           "n_0686"
-          ]
-         }
         }
        ],
        "scale": [
@@ -9780,12 +9644,779 @@
       }
      },
      {
-      "id": "section_4",
+      "id": "section_3",
       "label": "A′",
       "passage": {
-       "onset": 55440,
+       "onset": 27840,
+       "end": 43200,
+       "firstBar": 39,
+       "lastBar": 60
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 41",
+          "onset": 28800,
+          "end": 29520,
+          "noteIds": [
+           "n_0362",
+           "n_0363",
+           "n_0364",
+           "n_0365",
+           "n_0366",
+           "n_0367",
+           "n_0368"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 42",
+          "onset": 29520,
+          "end": 30240,
+          "noteIds": [
+           "n_0369",
+           "n_0370",
+           "n_0371",
+           "n_0372",
+           "n_0373",
+           "n_0374",
+           "n_0375"
+          ]
+         }
+        },
+        {
+         "number": 3,
+         "symbol": "C",
+         "degree": "III",
+         "position": 0,
+         "ring": "major",
+         "function": "none",
+         "role": "C: III in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "C, from bar 48",
+          "onset": 33840,
+          "end": 34320,
+          "noteIds": [
+           "n_0410",
+           "n_0411",
+           "n_0412",
+           "n_0413",
+           "n_0414"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "G",
+         "degree": "VII",
+         "position": 1,
+         "ring": "major",
+         "function": "none",
+         "role": "G: VII in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "G, from bar 49",
+          "onset": 34560,
+          "end": 34800,
+          "noteIds": [
+           "n_0417",
+           "n_0418",
+           "n_0419"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "Emaj7",
+         "degree": "Vmaj7",
+         "position": 4,
+         "ring": "major",
+         "function": "none",
+         "role": "Emaj7: Vmaj7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "Emaj7, from bar 52, beat 2",
+          "onset": 36960,
+          "end": 38640,
+          "noteIds": [
+           "n_0440",
+           "n_0441",
+           "n_0442",
+           "n_0443",
+           "n_0444",
+           "n_0445",
+           "n_0446",
+           "n_0447",
+           "n_0448",
+           "n_0449",
+           "n_0450",
+           "n_0451",
+           "n_0452",
+           "n_0453"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 27840,
+         "end": 28320
+        },
+        {
+         "pitch": 59,
+         "onset": 28320,
+         "end": 28800
+        },
+        {
+         "pitch": 60,
+         "onset": 28800,
+         "end": 29280
+        },
+        {
+         "pitch": 62,
+         "onset": 29280,
+         "end": 29760
+        },
+        {
+         "pitch": 64,
+         "onset": 29760,
+         "end": 30240
+        },
+        {
+         "pitch": 65,
+         "onset": 30240,
+         "end": 30720
+        },
+        {
+         "pitch": 67,
+         "onset": 30720,
+         "end": 31200
+        },
+        {
+         "pitch": 69,
+         "onset": 31200,
+         "end": 32160
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_4",
+      "label": "C",
+      "passage": {
+       "onset": 43200,
+       "end": 59760,
+       "firstBar": 61,
+       "lastBar": 83
+      },
+      "circle": {
+       "key": {
+        "name": "A minor",
+        "fifths": 0,
+        "mode": "minor"
+       },
+       "name": "A minor",
+       "certainty": "detected",
+       "position": 0,
+       "sectors": [
+        {
+         "position": 0,
+         "fifths": 0,
+         "major": "C",
+         "minor": "Am",
+         "signature": "0"
+        },
+        {
+         "position": 1,
+         "fifths": 1,
+         "major": "G",
+         "minor": "Em",
+         "signature": "1♯"
+        },
+        {
+         "position": 2,
+         "fifths": 2,
+         "major": "D",
+         "minor": "Bm",
+         "signature": "2♯"
+        },
+        {
+         "position": 3,
+         "fifths": 3,
+         "major": "A",
+         "minor": "F♯m",
+         "signature": "3♯"
+        },
+        {
+         "position": 4,
+         "fifths": 4,
+         "major": "E",
+         "minor": "C♯m",
+         "signature": "4♯"
+        },
+        {
+         "position": 5,
+         "fifths": 5,
+         "major": "B",
+         "minor": "G♯m",
+         "signature": "5♯"
+        },
+        {
+         "position": 6,
+         "fifths": 6,
+         "major": "F♯",
+         "minor": "D♯m",
+         "signature": "6♯"
+        },
+        {
+         "position": 7,
+         "fifths": -5,
+         "major": "D♭",
+         "minor": "B♭m",
+         "signature": "5♭"
+        },
+        {
+         "position": 8,
+         "fifths": -4,
+         "major": "A♭",
+         "minor": "Fm",
+         "signature": "4♭"
+        },
+        {
+         "position": 9,
+         "fifths": -3,
+         "major": "E♭",
+         "minor": "Cm",
+         "signature": "3♭"
+        },
+        {
+         "position": 10,
+         "fifths": -2,
+         "major": "B♭",
+         "minor": "Gm",
+         "signature": "2♭"
+        },
+        {
+         "position": 11,
+         "fifths": -1,
+         "major": "F",
+         "minor": "Dm",
+         "signature": "1♭"
+        }
+       ],
+       "neighbours": [
+        {
+         "relation": "dominant",
+         "key": {
+          "name": "E minor",
+          "fifths": 1,
+          "mode": "minor"
+         },
+         "position": 1,
+         "name": "E minor",
+         "label": "dominant"
+        },
+        {
+         "relation": "subdominant",
+         "key": {
+          "name": "D minor",
+          "fifths": -1,
+          "mode": "minor"
+         },
+         "position": 11,
+         "name": "D minor",
+         "label": "subdominant"
+        },
+        {
+         "relation": "relative",
+         "key": {
+          "name": "C major",
+          "fifths": 0,
+          "mode": "major"
+         },
+         "position": 0,
+         "name": "C major",
+         "label": "relative key"
+        },
+        {
+         "relation": "parallel",
+         "key": {
+          "name": "A major",
+          "fifths": 3,
+          "mode": "major"
+         },
+         "position": 3,
+         "name": "A major",
+         "label": "parallel key"
+        }
+       ],
+       "chords": [
+        {
+         "number": 1,
+         "symbol": "A7",
+         "degree": "I7",
+         "position": 3,
+         "ring": "major",
+         "function": "none",
+         "role": "A7: I7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "A7, from bar 62",
+          "onset": 43920,
+          "end": 44640,
+          "noteIds": [
+           "n_0504",
+           "n_0505",
+           "n_0506",
+           "n_0507",
+           "n_0508",
+           "n_0509",
+           "n_0510",
+           "n_0511",
+           "n_0512",
+           "n_0513"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "Dm/A",
+         "degree": "iv",
+         "position": 11,
+         "ring": "minor",
+         "function": "subdominant",
+         "role": "Dm/A: iv in A minor, the subdominant.",
+         "place": {
+          "label": "Dm/A, from bar 63",
+          "onset": 44640,
+          "end": 45120,
+          "noteIds": [
+           "n_0514",
+           "n_0515",
+           "n_0516",
+           "n_0517",
+           "n_0518",
+           "n_0519",
+           "n_0520"
+          ]
+         }
+        },
+        {
+         "number": 3,
+         "symbol": "Am",
+         "degree": "i",
+         "position": 0,
+         "ring": "minor",
+         "function": "tonic",
+         "role": "Am: i in A minor, the tonic.",
+         "place": {
+          "label": "Am, from bar 65",
+          "onset": 46080,
+          "end": 46800,
+          "noteIds": [
+           "n_0539",
+           "n_0540",
+           "n_0541",
+           "n_0542",
+           "n_0543",
+           "n_0544",
+           "n_0545",
+           "n_0546",
+           "n_0547"
+          ]
+         }
+        },
+        {
+         "number": 4,
+         "symbol": "D♯dim7",
+         "degree": null,
+         "position": 6,
+         "ring": "minor",
+         "function": "none",
+         "role": "D♯dim7: ♯iv°7 in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "D♯dim7, from bar 67",
+          "onset": 47520,
+          "end": 48240,
+          "noteIds": [
+           "n_0566",
+           "n_0567",
+           "n_0568",
+           "n_0569",
+           "n_0570",
+           "n_0571",
+           "n_0572",
+           "n_0573",
+           "n_0574",
+           "n_0575",
+           "n_0576",
+           "n_0577",
+           "n_0578",
+           "n_0579",
+           "n_0580",
+           "n_0581",
+           "n_0582"
+          ]
+         }
+        },
+        {
+         "number": 5,
+         "symbol": "A♯",
+         "degree": null,
+         "position": 10,
+         "ring": "major",
+         "function": "none",
+         "role": "A♯: ♭II in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "A♯, from bar 73",
+          "onset": 51840,
+          "end": 52560,
+          "noteIds": [
+           "n_0643",
+           "n_0644",
+           "n_0645",
+           "n_0646",
+           "n_0647",
+           "n_0648",
+           "n_0649",
+           "n_0650"
+          ]
+         }
+        },
+        {
+         "number": 6,
+         "symbol": "D♯/A♯",
+         "degree": null,
+         "position": 9,
+         "ring": "major",
+         "function": "none",
+         "role": "D♯/A♯: ♯IV in A minor, outside the tonic, subdominant and dominant.",
+         "place": {
+          "label": "D♯/A♯, from bar 74",
+          "onset": 52560,
+          "end": 53040,
+          "noteIds": [
+           "n_0651",
+           "n_0652",
+           "n_0653",
+           "n_0654",
+           "n_0655",
+           "n_0656"
+          ]
+         }
+        },
+        {
+         "number": 7,
+         "symbol": "Bdim7",
+         "degree": "ii°7",
+         "position": 2,
+         "ring": "minor",
+         "function": "subdominant",
+         "role": "Bdim7: ii°7 in A minor, the subdominant.",
+         "place": {
+          "label": "Bdim7, from bar 76",
+          "onset": 54000,
+          "end": 54720,
+          "noteIds": [
+           "n_0675",
+           "n_0676",
+           "n_0677",
+           "n_0678",
+           "n_0679",
+           "n_0680",
+           "n_0681",
+           "n_0682",
+           "n_0683",
+           "n_0684",
+           "n_0685",
+           "n_0686"
+          ]
+         }
+        },
+        {
+         "number": 8,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 78",
+          "onset": 55440,
+          "end": 55680,
+          "noteIds": [
+           "n_0691",
+           "n_0692",
+           "n_0693",
+           "n_0694"
+          ]
+         }
+        }
+       ],
+       "scale": [
+        57,
+        59,
+        60,
+        62,
+        64,
+        65,
+        67,
+        69
+       ],
+       "scaleNotes": [
+        {
+         "pitch": 57,
+         "onset": 43200,
+         "end": 43680
+        },
+        {
+         "pitch": 59,
+         "onset": 43680,
+         "end": 44160
+        },
+        {
+         "pitch": 60,
+         "onset": 44160,
+         "end": 44640
+        },
+        {
+         "pitch": 62,
+         "onset": 44640,
+         "end": 45120
+        },
+        {
+         "pitch": 64,
+         "onset": 45120,
+         "end": 45600
+        },
+        {
+         "pitch": 65,
+         "onset": 45600,
+         "end": 46080
+        },
+        {
+         "pitch": 67,
+         "onset": 46080,
+         "end": 46560
+        },
+        {
+         "pitch": 69,
+         "onset": 46560,
+         "end": 47520
+        }
+       ],
+       "lines": [
+        "A minor: no sharps or flats, the same as its relative key, C major.",
+        "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
+        "The chords of the section: A7 (I7) → Dm/A (iv) → Am (i) → D♯dim7 → A♯ → D♯/A♯ …."
+       ],
+       "zones": [
+        "tonic",
+        "dominant",
+        "near",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "far",
+        "near",
+        "subdominant"
+       ]
+      }
+     },
+     {
+      "id": "section_5",
+      "label": "A″",
+      "passage": {
+       "onset": 59760,
        "end": 75600,
-       "firstBar": 78,
+       "firstBar": 84,
        "lastBar": 105
       },
       "circle": {
@@ -9932,26 +10563,6 @@
        "chords": [
         {
          "number": 1,
-         "symbol": "E",
-         "degree": "V",
-         "position": 4,
-         "ring": "major",
-         "function": "dominant",
-         "role": "E: V in A minor, the dominant.",
-         "place": {
-          "label": "E, from bar 78",
-          "onset": 55440,
-          "end": 55680,
-          "noteIds": [
-           "n_0691",
-           "n_0692",
-           "n_0693",
-           "n_0694"
-          ]
-         }
-        },
-        {
-         "number": 2,
          "symbol": "Am",
          "degree": "i",
          "position": 0,
@@ -9959,59 +10570,40 @@
          "function": "tonic",
          "role": "Am: i in A minor, the tonic.",
          "place": {
-          "label": "Am, from bar 79",
-          "onset": 56160,
-          "end": 58560,
+          "label": "Am, from bar 85",
+          "onset": 60480,
+          "end": 61200,
           "noteIds": [
-           "n_0695",
-           "n_0696",
-           "n_0697",
-           "n_0698",
-           "n_0699",
-           "n_0700",
-           "n_0701",
-           "n_0702",
-           "n_0703",
-           "n_0704",
-           "n_0705",
-           "n_0706",
-           "n_0707",
-           "n_0708",
-           "n_0709",
-           "n_0710",
-           "n_0711",
-           "n_0712",
-           "n_0713",
-           "n_0714",
-           "n_0715",
-           "n_0716",
-           "n_0717",
-           "n_0718",
-           "n_0719",
-           "n_0720",
-           "n_0721",
-           "n_0722",
-           "n_0723",
-           "n_0724",
-           "n_0725",
-           "n_0726",
-           "n_0727",
-           "n_0728",
-           "n_0729",
-           "n_0730",
-           "n_0731",
-           "n_0732",
-           "n_0733",
-           "n_0734",
-           "n_0735",
-           "n_0736",
-           "n_0737",
-           "n_0738",
-           "n_0739",
-           "n_0740",
-           "n_0741",
-           "n_0742",
-           "n_0743"
+           "n_0765",
+           "n_0766",
+           "n_0767",
+           "n_0768",
+           "n_0769",
+           "n_0770",
+           "n_0771"
+          ]
+         }
+        },
+        {
+         "number": 2,
+         "symbol": "E",
+         "degree": "V",
+         "position": 4,
+         "ring": "major",
+         "function": "dominant",
+         "role": "E: V in A minor, the dominant.",
+         "place": {
+          "label": "E, from bar 86",
+          "onset": 61200,
+          "end": 61920,
+          "noteIds": [
+           "n_0772",
+           "n_0773",
+           "n_0774",
+           "n_0775",
+           "n_0776",
+           "n_0777",
+           "n_0778"
           ]
          }
         },
@@ -10099,49 +10691,49 @@
        "scaleNotes": [
         {
          "pitch": 57,
-         "onset": 55440,
-         "end": 55920
+         "onset": 59760,
+         "end": 60240
         },
         {
          "pitch": 59,
-         "onset": 55920,
-         "end": 56400
+         "onset": 60240,
+         "end": 60720
         },
         {
          "pitch": 60,
-         "onset": 56400,
-         "end": 56880
+         "onset": 60720,
+         "end": 61200
         },
         {
          "pitch": 62,
-         "onset": 56880,
-         "end": 57360
+         "onset": 61200,
+         "end": 61680
         },
         {
          "pitch": 64,
-         "onset": 57360,
-         "end": 57840
+         "onset": 61680,
+         "end": 62160
         },
         {
          "pitch": 65,
-         "onset": 57840,
-         "end": 58320
+         "onset": 62160,
+         "end": 62640
         },
         {
          "pitch": 67,
-         "onset": 58320,
-         "end": 58800
+         "onset": 62640,
+         "end": 63120
         },
         {
          "pitch": 69,
-         "onset": 58800,
-         "end": 59760
+         "onset": 63120,
+         "end": 64080
         }
        ],
        "lines": [
         "A minor: no sharps or flats, the same as its relative key, C major.",
         "Its neighbours on the circle differ by one sharp or flat: E minor (dominant) and D minor (subdominant).",
-        "The chords of the section: E (V) → Am (i) → C (III) → G (VII) → Emaj7 (Vmaj7)."
+        "The chords of the section: Am (i) → E (V) → C (III) → G (VII) → Emaj7 (Vmaj7)."
        ],
        "zones": [
         "tonic",
