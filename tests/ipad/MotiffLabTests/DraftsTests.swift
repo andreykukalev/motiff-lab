@@ -395,10 +395,12 @@ final class DraftsTests: XCTestCase {
     func testAStepOnItsWayHoldsASecondOne() async throws {
         let (workspace, _) = try await sourced()
         let sources = workspace.sources
-        XCTAssertNotNil(await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"]), sources.status ?? "")
+        let added = await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
+        XCTAssertNotNil(added, sources.status ?? "")
         let draft = try XCTUnwrap(sources.layers.drafts.first)
         let shelf: [String: Any] = ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "shelf", "now": "2026-11-20T10:01:00Z"]
-        XCTAssertNotNil(await sources.change("drafts.add", shelf), sources.status ?? "")
+        let shelvedNow = await sources.change("drafts.add", shelf)
+        XCTAssertNotNil(shelvedNow, sources.status ?? "")
         let before = try await draftView(draft, sources)
         let shelved = try XCTUnwrap(before.draft?.shelf.first)
         let place = try XCTUnwrap(before.draft?.places.first)
