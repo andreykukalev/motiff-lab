@@ -81,23 +81,24 @@ internal static class MarksSession
     public static Project WithBookmark(SessionPiece piece, TickSpan span, bool phraseNamed, string? title, string? category, DateTimeOffset now) =>
         Changed(() => piece.Project.AddBookmark(new Bookmark(piece.Project.NextBookmarkId(), title ?? BarsTitle(piece, span), category ?? BookmarkCategory.PractiseId, span, FromPhrase(piece, span, phraseNamed), now)));
 
-    /// <summary>The bookmark <paramref name="id"/>; refused when there is none.</summary>
-    public static Bookmark Bookmark(SessionPiece piece, string id) =>
-        piece.Project.FindBookmark(id) ?? throw FacadeException.BadRequest($"There is no bookmark {id}.");
-
     /// <summary>
-    /// The project with the <paramref name="bookmark"/> retitled, put in another category or moved to another
+    /// The project with the bookmark <paramref name="id"/> retitled, put in another category or moved to another
     /// <paramref name="span"/> (from a phrase as <see cref="WithBookmark"/> says), what is not given kept; its id, its place
-    /// in the order and when it was made stay.
+    /// in the order and when it was made stay; refused when there is no such bookmark. The new title and category are
+    /// <paramref name="named"/> only once the bookmark is found, so a change of one that is not there is refused as that first.
     /// </summary>
-    public static Project WithBookmarkChanged(SessionPiece piece, Bookmark bookmark, string? title, string? category, TickSpan? span, bool phraseNamed) =>
-        Changed(() => piece.Project.ChangeBookmark(bookmark.Id, kept => new Bookmark(
-            kept.Id,
-            title ?? kept.Title,
-            category ?? kept.CategoryId,
-            span ?? kept.Span,
-            span is { } moved ? FromPhrase(piece, moved, phraseNamed) : kept.FromPhrase,
-            kept.CreatedAt)));
+    public static Project WithBookmarkChanged(SessionPiece piece, string id, TickSpan? span, bool phraseNamed, Func<(string? Title, string? Category)> named) =>
+        Changed(() => piece.Project.ChangeBookmark(id, kept =>
+        {
+            (string? title, string? category) = named();
+            return new Bookmark(
+                kept.Id,
+                title ?? kept.Title,
+                category ?? kept.CategoryId,
+                span ?? kept.Span,
+                span is { } moved ? FromPhrase(piece, moved, phraseNamed) : kept.FromPhrase,
+                kept.CreatedAt);
+        }));
 
     /// <summary>The project with the bookmark <paramref name="id"/> at <paramref name="index"/> in the player's order.</summary>
     public static Project WithBookmarkMoved(SessionPiece piece, string id, int index) => Changed(() => piece.Project.MoveBookmark(id, index));

@@ -1,7 +1,6 @@
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade.Sessions;
-using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -135,15 +134,12 @@ internal sealed partial class OpenPiece
         return KeepBookmarks(MarksSession.WithBookmark(State, span, phraseNamed, title, category, request.Now()));
     }
 
-    /// <summary>"id", and any of a new place (<see cref="Span"/>), "title" and "category" (<see cref="MarksSession.WithBookmarkChanged"/>).</summary>
+    /// <summary>"id", and any of a new place (<see cref="Span"/>), "title" and "category", read once the bookmark is found (<see cref="MarksSession.WithBookmarkChanged"/>).</summary>
     private string ChangeBookmark(Request request)
     {
         string id = request.Required("id");
         TickSpan? span = request.Has("span") || request.Has("bars") || request.Has("phrase") ? Span(request) : null;
-        Bookmark bookmark = MarksSession.Bookmark(State, id);
-        string? title = request.Text("title");
-        string? category = request.Text("category");
-        return KeepBookmarks(MarksSession.WithBookmarkChanged(State, bookmark, title, category, span, request.Has("phrase")));
+        return KeepBookmarks(MarksSession.WithBookmarkChanged(State, id, span, request.Has("phrase"), () => (request.Text("title"), request.Text("category"))));
     }
 
     /// <summary>"id" and "index", the place in the player's order.</summary>

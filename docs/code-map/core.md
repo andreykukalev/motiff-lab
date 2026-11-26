@@ -72,7 +72,7 @@ through the facade; the API references it.
   bookmarks, a bookmark's default title by its bars, each answering the project it makes, the time taken as `now`); its
   adapter `OpenPiece.Marks` (`Calls.Marks`; the resume points, ideas, settings and Check stay in `OpenPiece.Project`);
   the time of a call is read once, `Request.Now` («now», else the clock) and `Request.SentNow` (project.save), by the
-  adapters only (D15);
+  adapters only (D15); the one exception is sync.online's «now», read as its other times are (`SyncRequest.Time`);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,

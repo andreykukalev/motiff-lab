@@ -8,8 +8,8 @@ namespace MotiffLab.MusicCore.Tests.Facade.Sessions;
 
 /// <summary>
 /// The marks session typed (audit W1.7): marks, bookmarks and categories each answer the project they make, made at the
-/// time handed in, with no request, no JSON and no clock; the time is read once, by <c>Request.Now</c> (audit D15). What the
-/// iPad reads of the same calls is pinned by tests/contracts/facade-answers (FacadeAnswersContractTests).
+/// time handed in, with no request, no JSON and no clock (the time is read by the adapter, <see cref="RequestTests"/>). What
+/// the iPad reads of the same calls is pinned by tests/contracts/facade-answers (FacadeAnswersContractTests).
 /// </summary>
 public class MarksSessionTests
 {
@@ -61,11 +61,11 @@ public class MarksSessionTests
         Assert.False(with.Project.Bookmarks[1].FromPhrase);
         Assert.Equal("такты 3–4", MarksSession.BarsTitle(piece, bars));
 
-        Project moved = MarksSession.WithBookmarkChanged(with, MarksSession.Bookmark(with, "b_0002"), null, null, bars, phraseNamed: true);
+        Project moved = MarksSession.WithBookmarkChanged(with, "b_0002", bars, phraseNamed: true, () => (null, null));
         Bookmark changed = moved.FindBookmark("b_0002")!;
         Assert.Equal(("Трудное место", BookmarkCategory.PerformanceId, true, Now), (changed.Title, changed.CategoryId, changed.FromPhrase, changed.CreatedAt));
         Assert.Equal("b_0002", MarksSession.WithBookmarkMoved(with, "b_0002", 0).Bookmarks[0].Id);
-        Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => MarksSession.Bookmark(with, "b_0009")).Code);
+        Assert.Equal("badRequest", Refused(() => MarksSession.WithBookmarkChanged(with, "b_0009", null, phraseNamed: false, () => throw new InvalidOperationException("read only once the bookmark is found"))));
         Assert.Equal("badRequest", Refused(() => MarksSession.WithBookmark(piece, bars, phraseNamed: false, null, "c_0009", Now)));
         Assert.Equal("badRequest", Refused(() => MarksSession.WithBookmarkMoved(with, "b_0001", 5)));
     }
@@ -87,22 +87,5 @@ public class MarksSessionTests
         Assert.Equal(BookmarkCategory.PractiseId, Assert.Single(removed.Bookmarks).CategoryId);
         Assert.Equal("badRequest", Refused(() => MarksSession.WithoutCategory(piece, BookmarkCategory.StructureId)));
         Assert.Equal("badRequest", Refused(() => MarksSession.WithCategoryRenamed(piece, "c_0009", "x")));
-    }
-
-    [Fact]
-    public void The_time_of_a_call_is_its_now_else_the_clock_and_a_save_keeps_it_only_when_sent()
-    {
-        using Request sent = Request.Parse("""{"now": "2026-11-26T12:30:00+03:00"}""");
-        Assert.Equal(new DateTimeOffset(2026, 11, 26, 12, 30, 0, TimeSpan.FromHours(3)), sent.Now());
-        Assert.Equal(sent.Now(), sent.SentNow());
-
-        using Request wrong = Request.Parse("""{"now": "yesterday"}""");
-        Assert.Equal("\"now\" must be an ISO 8601 time.", Assert.Throws<FacadeException>(() => wrong.Now()).Message);
-        Assert.Throws<FacadeException>(() => wrong.SentNow());
-
-        DateTimeOffset before = DateTimeOffset.UtcNow;
-        DateTimeOffset clock = Request.Empty.Now();
-        Assert.InRange(clock, before, DateTimeOffset.UtcNow);
-        Assert.Null(Request.Empty.SentNow());
     }
 }
