@@ -1,6 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
-using MotiffLab.MusicCore.Experiments;
 using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -9,28 +8,21 @@ namespace MotiffLab.MusicCore.Facade;
 internal sealed partial class OpenPiece
 {
     /// <summary>The piece's calls by name, each with its handler here and its flags, a list to a feature.</summary>
-    internal static class Calls
+    internal static partial class Calls
     {
-        /// <summary>The piece and its selection.</summary>
+        /// <summary>The piece: its phrases, notation, playback, roll, tempo and saving.</summary>
         public static readonly FacadeCall<OpenPiece>[] Piece =
         [
             new("piece", static (piece, _) => Answer.Write(json => Answer.Piece(json, piece.Piece, piece.Notes, withNotes: true, piece.Words)), CallFlags.Showing | CallFlags.OpenFirst),
             new("language", static (piece, request) => piece.Language(request), CallFlags.Showing),
             new("phrases", static (piece, request) => Answer.Write(json => Answer.Phrases(json, piece.Levels, piece.Structure.Sections, LevelOf(request) ?? piece.Level, piece.Words, piece.Piece.Meter)), CallFlags.Showing | CallFlags.OpenFirst),
             new("phrases.edit", static (piece, request) => piece.EditPhrases(request)),
-            new("select", static (piece, request) => piece.Select(request), CallFlags.Showing | CallFlags.OpenFirst),
-            new("understand", static (piece, _) => Answer.Write(json => Answer.Understanding(json, piece.Understood(), piece.SentenceFacts(), fact => TryChips.Offer(fact.Id, piece.Understood()))), CallFlags.OpenFirst),
-            new("circle", static (piece, _) => Answer.Write(json => Answer.Circle(json, Circle(piece.Understood()), piece.Understood().Selection.Span.Onset, piece.Piece.End)), CallFlags.OpenFirst),
-            new("try", static (piece, request) => piece.TryChip(request), CallFlags.OpenFirst),
-            new("variation", static (piece, _) => piece.ChainAnswer(piece.Chain ?? throw FacadeException.NoVariation())),
-            new("variation.clear", static (piece, _) => piece.Clear()),
             new("notation", static (piece, request) => piece.Notation(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("playback", static (piece, request) => piece.Playback(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("tempo.set", static (piece, request) => piece.SetTempo(request)),
             new("roll", static (piece, request) => piece.Roll(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("project.save", static (piece, request) => piece.Save(request)),
             new("reference.key", static (piece, request) => ReferenceRequest.Key(request, PieceDna.OpeningKey(piece.Notes, piece.Piece.Meter, piece.Piece.Keys, piece.Piece.End))),
-            new("dna", static (piece, request) => piece.DnaAnswer(request), CallFlags.Showing | CallFlags.OpenFirst),
         ];
 
         /// <summary>What the project keeps with the piece: marks, bookmarks, resume points, ideas, settings, Check, pieces, tempo.</summary>

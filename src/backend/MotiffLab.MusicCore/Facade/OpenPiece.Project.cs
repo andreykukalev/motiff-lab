@@ -237,8 +237,8 @@ internal sealed partial class OpenPiece
     /// </summary>
     private string KeepIdea(Request request)
     {
-        MotifSelection selection = Selection ?? throw FacadeException.NoSelection();
-        VariationChain? chain = Chain is { Result: not null } ? Chain : null;
+        MotifSelection selection = Selection.Required();
+        VariationChain? chain = Selection.Chain is { Result: not null } heard ? heard : null;
         string? note = request.Text("note");
         if (chain is null && note is null)
         {
@@ -275,20 +275,10 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        Selection = selection;
-        _selectionKind = MotifSelectionKind.Range;
-        _understood = null;
-        Chain = chain;
-        _hiddenVariation = null;
-        if (chain is not null)
-        {
-            Keep.Clear();
-            Keep.UnionWith(chain.Context.Keep);
-        }
-
+        Selection.Open(selection, chain);
         return Answer.Write(json =>
         {
-            Answer.Selection(json, "selection", selection, KeySignature.InForce(Piece.Keys, selection.Span.Onset), Piece.Meter);
+            SelectionAnswer(json, selection);
             json.WriteBoolean("hasVariation", chain is not null);
             if (chain is not null)
             {

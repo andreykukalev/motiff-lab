@@ -291,9 +291,7 @@ internal sealed partial class OpenPiece
             Project = Project with { Edits = edits };
             RefreshNotes();
             // The selection keeps its passage over the corrected notes; a variation in progress was made from the old ones.
-            Reselect();
-            Chain = null;
-            _chip = null;
+            Selection.FollowNotes(State);
         }
 
         return CorrectionsAnswer(bar, added?.Invoke());

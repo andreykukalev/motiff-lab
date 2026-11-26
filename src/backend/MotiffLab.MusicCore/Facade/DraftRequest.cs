@@ -431,7 +431,7 @@ internal static class DraftRequest
         Request bars = request.Object("bars");
         TickSpan span = request.Span("span")
             ?? (bars.Int("first") is { } first ? MotifSelector.Bars(piece.Meter, first, bars.Int("last") ?? first, piece.End) : (TickSpan?)null)
-            ?? open.Selection?.Span
+            ?? open.Selection.Current?.Span
             ?? throw FacadeException.NoSelection();
         return (SourceMusic.OfPiece(piece, open.Notes), span);
     }

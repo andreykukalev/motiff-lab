@@ -50,10 +50,13 @@ through the facade; the API references it.
   `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
-  gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Dispatch`, a nested
-  class that reaches its handlers; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
+  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, `OpenPiece.Selection`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
   registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
+  the typed sessions (W1.7) in `Facade/Sessions`: `SelectionSession` (the selection, what was understood, the Try chip,
+  the chain, the working motif) owns its state, reads the piece through `SessionPiece` (`OpenPiece.State`), takes typed
+  values and returns typed results, no request, JSON or clock; its JSON adapter is `OpenPiece.Selection` (`Calls.Selection`);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
@@ -92,6 +95,7 @@ reads as a namespace.
 - No other project, web, cloud or AI package; no floating point for time.
 - Every note keeps its provenance and confidence; what is inferred says so. Variations are pure: same input and seed,
   same notes and diff. A phrase edit keeps the player's boundaries as saved and never moves the selection or a bookmark.
+- A session's state is written only by the session's own methods; its adapter reads the request and writes the answer.
 - A call is a registry entry in its feature's list, never a name compared elsewhere; a new one goes into
   `facade-calls.json` and `docs/facade-contract.md` (written again as above, its history line by hand); a change to the project file or to an answer the app reads is Andrei's
   decision 3 (`ProjectFile.Version`, `Contract`).

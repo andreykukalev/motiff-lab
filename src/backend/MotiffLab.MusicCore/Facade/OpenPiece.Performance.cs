@@ -251,7 +251,7 @@ internal sealed partial class OpenPiece
     {
         Notes = PerformanceTake.Apply(Printed, Project.TakenBars);
         ReadStructure();
-        _understood = null;
+        Selection.ForgetUnderstanding();
     }
 
     private static int BarOf(Request request) => request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
