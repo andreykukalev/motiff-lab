@@ -1,4 +1,5 @@
 import CoreGraphics
+import SwiftUI
 import XCTest
 
 @testable import MotiffLab
@@ -91,6 +92,35 @@ final class SourcesModelTests: XCTestCase {
         score.closeMarker()
         XCTAssertNil(score.sourcesModel.markerPick)
         XCTAssertEqual(asked, [12])
+    }
+
+    /// v1.4 a-1, answer 14: the page tells how high the mark is with its place (a tap, a move), for a card opened above it;
+    /// once the mark has left the visible part of the page (`markAway`: playback turned the page), its card closes, and
+    /// with it the cover that would catch the next tap.
+    func testACardAtAMarkKnowsItsHeightAndClosesOnceItLeavesSight() {
+        let score = ScoreController()
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300, top: 276))
+        XCTAssertEqual(score.markHeight, 24)
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 200), top: 152))
+        XCTAssertEqual(score.markHeight, 48, "zoomed in: as the page lays it out now")
+        XCTAssertNotNil(score.sourcesModel.markerPick)
+        score.handle(.markAway)
+        XCTAssertNil(score.sourcesModel.markerPick, "out of sight: the popover goes")
+        score.phraseMenu = PhraseMarkPick(number: 1, at: CGPoint(x: 10, y: 20))
+        score.handle(.markAway)
+        XCTAssertNil(score.phraseMenu, "and a phrase's menu")
+    }
+
+    /// v1.4 a-1, answer 14: a card at a mark opens under it where it fits there, else above it, else as low as it stays on
+    /// the screen.
+    func testACardAtAMarkOpensAboveItWhereItDoesNotFitUnderIt() {
+        typealias Card = DraftCardAtMark<EmptyView>
+        let gap = CGFloat.ds("s-1")
+        let margin = CGFloat.ds("s-3")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 100), mark: 24, card: 200, area: 800), 100 + gap, "room under the mark")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 700), mark: 24, card: 200, area: 800), 700 - 24 - gap - 200, "none under it: above it")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 700, area: 800), 800 - margin - 700, "room neither way: on the screen")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 900, area: 800), margin, "taller than the screen: from its top")
     }
 
     /// r-1: a card at a mark closes by its own cover, which the page never hears; the next `markMoved` finds no card and

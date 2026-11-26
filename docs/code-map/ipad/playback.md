@@ -23,7 +23,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
   `Player.heard`, at most `heardAhead` past the last report, so a playhead never runs on once the audio stopped (the
   background, a locked screen, a call: v1.4 r-1b); an interruption shows the transport stopped at once (the reports
   rendered before it dropped), and Play starts an engine the system stopped (`EngineKeeper.restart`, then `running`; a
-  Play it cannot start is dropped). A sound that cannot load is `problem`, `playback.failed` (ru, en). Tests:
+  Play it cannot start is dropped). The app gone to the background or the headphones gone pause it as an interruption
+  does (`EngineKeeper`, v1.4 a-1; the Reference's too, not the metronome's own clicks). A sound that cannot load is `problem`, `playback.failed` (ru, en). Tests:
   `MotiffLabTests/PlayerHeardTests`, `PlayerInterruptionTests`.
 - `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two
   switches under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).

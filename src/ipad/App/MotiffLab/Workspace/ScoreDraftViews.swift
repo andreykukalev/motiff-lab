@@ -24,7 +24,7 @@ struct DraftTechniqueCard: View {
 
     var body: some View {
         if let pick = model.picked, let at = pick.at {
-            DraftCardAtMark(at: at, close: { model.closeCard() }) { card(pick.spot) }
+            DraftCardAtMark(at: at, mark: score.markHeight, close: { model.closeCard() }) { card(pick.spot) }
                 .onChange(of: pick.spot) { _, _ in
                     refusal = nil
                     matching = false
@@ -110,13 +110,17 @@ struct DraftTechniqueCard: View {
     }
 }
 
-/// A card of a draft's view at its mark on the page (`at`, the mark's bottom left), on ds.css's `.menu` surface as a
-/// version marker's popover, kept on the screen; a tap elsewhere puts it away (`close`). A phrase's mark's menu is one too
-/// (ScorePhraseEdits.swift).
+/// A card at its mark on the page (`at`, the mark's bottom left; `mark`, how high the mark is), on ds.css's `.menu`
+/// surface, kept on the screen: under the mark, or above it where it does not fit under it (v1.4 a-1, answer 14); a tap
+/// elsewhere puts it away (`close`). A draft's cards, a version marker's popover and a phrase's mark's menu
+/// (ScorePhraseEdits.swift) are each one.
 struct DraftCardAtMark<Content: View>: View {
     let at: CGPoint
+    let mark: CGFloat
     let close: @MainActor () -> Void
     @ViewBuilder let content: Content
+    /// The card's height as laid out, for where it fits.
+    @State private var height: CGFloat = 0
 
     var body: some View {
         GeometryReader { area in
@@ -128,9 +132,26 @@ struct DraftCardAtMark<Content: View>: View {
                     .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
                     .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
                     .dsShadow("shadow-menu")
-                    .offset(x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")), y: at.y + CGFloat.ds("s-1"))
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+                    .offset(
+                        x: min(max(at.x, CGFloat.ds("s-3")), area.size.width - ScoreScreen.popoverWidth - CGFloat.ds("s-3")),
+                        y: Self.top(at: at, mark: mark, card: height, area: area.size.height)
+                    )
             }
         }
+    }
+
+    /// Where the card's top goes: just under the mark (`at`, its bottom left) where the card (`card` high) fits there
+    /// above the area's bottom edge (`area` high), else just above the mark (`mark` high) where it fits there; where it
+    /// fits neither way, as low as it stays on the screen, no higher than the area's top.
+    static func top(at: CGPoint, mark: CGFloat, card: CGFloat, area: CGFloat) -> CGFloat {
+        let gap = CGFloat.ds("s-1")
+        let margin = CGFloat.ds("s-3")
+        let below = at.y + gap
+        if below + card <= area - margin { return below }
+        let above = at.y - mark - gap - card
+        if above >= margin { return above }
+        return max(margin, min(below, area - margin - card))
     }
 }
 

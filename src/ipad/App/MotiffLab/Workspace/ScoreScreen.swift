@@ -346,18 +346,15 @@ struct ScoreScreenContent: View {
             // Put away, the menu forgets where the player dragged it (#582 item 7).
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) {
-                // A version's marker tapped (testing item 33): the popover under it; a tap elsewhere puts it away.
+                // A version's marker tapped (testing item 33): the popover at it, as every card at a mark (v1.4 a-1); a tap
+                // elsewhere puts it away.
                 if let pick = sourcesModel.markerPick, !focusModel.focused {
-                    GeometryReader { area in
-                        ZStack(alignment: .topLeading) {
-                            Color.clear.contentShape(Rectangle()).onTapGesture { score.closeMarker() }
-                            MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
-                                .offset(x: min(max(CGFloat(pick.left), CGFloat.ds("s-3")), area.size.width - 312), y: CGFloat(pick.bottom) + CGFloat.ds("s-1"))
-                        }
+                    DraftCardAtMark(at: CGPoint(x: pick.left, y: pick.bottom), mark: score.markHeight, close: { score.closeMarker() }) {
+                        MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
                     }
                 } else if let pick = score.phraseMenu, let unit = selectionModel.phrases?.unit(pick.number), !focusModel.focused {
                     // A phrase's number held (v1.2): its mark's menu under it (ScorePhraseEdits.swift).
-                    DraftCardAtMark(at: pick.at, close: { score.closePhraseMenu() }) {
+                    DraftCardAtMark(at: pick.at, mark: score.markHeight, close: { score.closePhraseMenu() }) {
                         PhraseMarkMenu(score: score, unit: unit, first: unit.number == selectionModel.phrases?.units.first?.number, text: text)
                     }
                 } else if let draft = piece.draft, let owner = pieceUnder, !focusModel.focused {

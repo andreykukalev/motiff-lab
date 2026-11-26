@@ -97,11 +97,11 @@ struct DraftViewCards: View {
 
     var body: some View {
         if let pick = seams.picked, let at = pick.at {
-            DraftCardAtMark(at: at, close: { seams.close() }) {
+            DraftCardAtMark(at: at, mark: score.markHeight, close: { seams.close() }) {
                 DraftSeamContent(score: score, seam: pick.seam, draft: draft, owner: owner, text: text, reopen: reopen)
             }
         } else if let pick = seams.label, let place = draft.places.first(where: { $0.id == pick.place }) {
-            DraftCardAtMark(at: pick.at, close: { seams.close() }) {
+            DraftCardAtMark(at: pick.at, mark: score.markHeight, close: { seams.close() }) {
                 if place.bridge {
                     DraftBridgeContent(score: score, place: place, draft: draft, owner: owner, text: text, reopen: reopen)
                 } else {
@@ -115,7 +115,7 @@ struct DraftViewCards: View {
                 }
             }
         } else if let pick = anchors.picked {
-            DraftCardAtMark(at: pick.at, close: { anchors.close() }) {
+            DraftCardAtMark(at: pick.at, mark: score.markHeight, close: { anchors.close() }) {
                 DraftAnchorContent(score: score, mark: pick.mark, draft: draft, owner: owner, text: text, reopen: reopen)
             }
         } else {

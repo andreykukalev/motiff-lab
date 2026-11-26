@@ -146,7 +146,7 @@ enum VersionFiles {
 }
 
 /// A marker tapped on the score (testing item 33): how the bar differs, heard as the version plays it, and the way to the
-/// version in Sources; nothing is taken from the score here.
+/// version in Sources; nothing is taken from the score here. Its card at the marker is `DraftCardAtMark`'s (v1.4 a-1).
 struct MarkerPopover: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var sourcesModel: SourcesModel
@@ -169,11 +169,6 @@ struct MarkerPopover: View {
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }
         }
-        .padding(CGFloat.ds("s-3"))
-        .frame(width: 300, alignment: .leading)
-        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        .dsShadow("shadow-menu")
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text.format("merge.markerTitle", String(pick.bar), sourcesModel.versions.shown?.name ?? ""))
     }

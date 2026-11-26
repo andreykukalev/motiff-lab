@@ -1,4 +1,5 @@
 import AVFoundation
+import UIKit
 import XCTest
 
 @testable import MotiffLab
@@ -15,22 +16,37 @@ final class PlayerInterruptionTests: XCTestCase {
         )
     }
 
-    func testAnInterruptionShowsTheMusicPausedAtOnceAndPlayGoesOnFromThere() async throws {
+    private func routeChanges(_ reason: AVAudioSession.RouteChangeReason) {
+        NotificationCenter.default.post(
+            name: AVAudioSession.routeChangeNotification, object: nil, userInfo: [AVAudioSessionRouteChangeReasonKey: reason.rawValue]
+        )
+    }
+
+    /// The kit's piece opened and its sound loaded, playing round `loop`; the caller shuts the player down and closes the
+    /// piece (`piece`).
+    private func playing(_ loop: Range<Double>) async throws -> (player: Player, piece: Int32) {
         let example = try XCTUnwrap(KitPiece.example)
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
-        defer { _ = MusicCore.close(piece: piece.id) }
         let player = Player()
-        defer { player.shutdown() }
         await player.load(piece: piece.id)
         let ready = player.ready
         let problem = player.problem ?? ""
         XCTAssertTrue(ready, "the sound loaded: \(problem)")
-        let loop = 0.0..<7680.0
         player.setLoop(loop, play: false)
         player.toggle()
         await until { player.state == .playing && player.tick > 480 }
-        let playing = player.state
-        XCTAssertEqual(playing, .playing)
+        let started = player.state
+        XCTAssertEqual(started, .playing)
+        return (player, piece.id)
+    }
+
+    func testAnInterruptionShowsTheMusicPausedAtOnceAndPlayGoesOnFromThere() async throws {
+        let loop = 0.0..<7680.0
+        let (player, piece) = try await playing(loop)
+        defer {
+            player.shutdown()
+            _ = MusicCore.close(piece: piece)
+        }
 
         interruptionBegins()
         // The keeper hears it on the main queue, posted from it: at once.
@@ -55,6 +71,48 @@ final class PlayerInterruptionTests: XCTestCase {
         let from = player.tick
         XCTAssertEqual(again, .playing)
         XCTAssertEqual(from, waited, accuracy: Player.heardAhead * 960, "Play goes on from where it paused, not from the loop's start")
+    }
+
+    /// v1.4 a-1, answers 17 and 19: the app gone to the background (the screen locked too) and the headphones gone pause
+    /// the music at once and keep it paused, the loop kept; an output only added (headphones plugged in) plays on.
+    func testTheBackgroundAndTheHeadphonesGonePauseTheMusicAndKeepItPaused() async throws {
+        let loop = 0.0..<7680.0
+        let (player, piece) = try await playing(loop)
+        defer {
+            player.shutdown()
+            _ = MusicCore.close(piece: piece)
+        }
+
+        routeChanges(.newDeviceAvailable)
+        await Task.yield()
+        let pluggedIn = player.state
+        XCTAssertEqual(pluggedIn, .playing, "an output added: the music plays on")
+        routeChanges(.oldDeviceUnavailable)
+        await Task.yield()
+        let unplugged = player.state
+        XCTAssertEqual(unplugged, .stopped, "the headphones gone: paused at once, not on from the speaker")
+
+        player.toggle()
+        await until { player.state == .playing }
+        let again = player.state
+        XCTAssertEqual(again, .playing)
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        await Task.yield()
+        let away = player.state
+        XCTAssertEqual(away, .stopped, "the app gone to the background: paused at once")
+        try await Task.sleep(for: .milliseconds(300))
+        let back = player.state
+        let kept = player.loop
+        XCTAssertEqual(back, .stopped, "still paused when the player comes back")
+        XCTAssertEqual(kept, loop, "the loop kept")
+    }
+
+    /// A route change says the output played through went only for `oldDeviceUnavailable`.
+    func testOnlyAnOutputGoneIsADeviceGone() {
+        XCTAssertTrue(EngineKeeper.deviceGone([AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue]))
+        XCTAssertFalse(EngineKeeper.deviceGone([AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.newDeviceAvailable.rawValue]))
+        XCTAssertFalse(EngineKeeper.deviceGone([AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.categoryChange.rawValue]))
+        XCTAssertFalse(EngineKeeper.deviceGone(nil))
     }
 
     /// A node that renders silence, made outside the main actor: its block runs on the audio thread (as Player.sourceNode).

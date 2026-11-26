@@ -167,7 +167,7 @@ final class Metronome: ObservableObject {
             try AVAudioSession.sharedInstance().setActive(true)
             let engine = try self.engine ?? makeEngine()
             if self.engine == nil {
-                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }) { [weak self] in self?.stop() }
+                keeper = EngineKeeper(engine, wanted: { [weak self] in self?.running == true }, pausesWhenAway: false) { [weak self] in self?.stop() }
             }
             self.engine = engine
             running = true

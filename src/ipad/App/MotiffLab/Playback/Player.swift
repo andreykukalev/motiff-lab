@@ -85,7 +85,8 @@ final class Player: ObservableObject {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
-            // An interruption pauses the music where it is; the engine starts again after it, and after a route change.
+            // An interruption, the app gone to the background and the headphones gone pause the music where it is; the engine
+            // starts again after an interruption, and after a route change.
             keeper = EngineKeeper(audio) { [weak self] in self?.interrupted() }
 
             let piano = Task.detached(priority: .userInitiated) { try Piano.load() }
@@ -451,8 +452,9 @@ final class Player: ObservableObject {
         if hearingAlone && started && state == .stopped { setLoop(nil) }
     }
 
-    /// A call, Siri or another app's sound took the audio (EngineKeeper): the engine pauses as it starts again, and the
-    /// views show it paused now, where it was heard, not playing on from the last report until then.
+    /// A call, Siri or another app's sound took the audio, the app went to the background or the headphones went
+    /// (EngineKeeper): the engine pauses as it starts again, and the views show it paused now, where it was heard, not
+    /// playing on from the last report until then.
     private func interrupted() {
         send(.pause)
         // The reports still waiting were rendered before it: none may show the music playing again.
