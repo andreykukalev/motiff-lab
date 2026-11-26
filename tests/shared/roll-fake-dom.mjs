@@ -242,7 +242,8 @@ class FakeCanvas extends FakeElement {
 /**
  * Puts a fake page on the global object and returns it: the host the roll is made in (`width` by `height`, filling its
  * panel as roll.html's does, data-fill), the device's pixel ratio, a clock (`now`), and `frame(ms)`, which moves the clock
- * on and runs the frames asked for. `practice` sets practice view on the body ("off", "on" or "reveal").
+ * on, runs the timers due by then (a hold, a span kept until its answer) in the order they fall due, then the frames asked
+ * for. `practice` sets practice view on the body ("off", "on" or "reveal").
  */
 export function fakePage({ width = 480, height = 320, ratio = 2 } = {}) {
     const listeners = new Map();
@@ -259,8 +260,14 @@ export function fakePage({ width = 480, height = 320, ratio = 2 } = {}) {
         now: 1000,
         frames: [],
         resizers: [],
+        timers: [],
         frame(ms = 16) {
             page.now += ms;
+            const due = page.timers.filter((timer) => timer.at <= page.now).sort((a, b) => a.at - b.at || a.id - b.id);
+            page.timers = page.timers.filter((timer) => timer.at > page.now);
+            for (const timer of due) {
+                timer.run();
+            }
             for (const run of page.frames.splice(0)) {
                 run(page.now);
             }
@@ -286,7 +293,18 @@ export function fakePage({ width = 480, height = 320, ratio = 2 } = {}) {
         removeEventListener: (type, listener) => listeners.set(type, (listeners.get(type) ?? []).filter((each) => each !== listener)),
         dispatchEvent: (event) => (listeners.get(event.type) ?? []).forEach((listener) => listener(event)),
     };
-    globalThis.window = { devicePixelRatio: ratio, setTimeout: () => 0, clearTimeout: () => {} };
+    let timerId = 0;
+    const setTimer = (run, ms = 0) => {
+        page.timers.push({ id: ++timerId, at: page.now + ms, run });
+        return timerId;
+    };
+    const clearTimer = (id) => {
+        page.timers = page.timers.filter((timer) => timer.id !== id);
+    };
+    // The roll's timers run on the page's clock, the window's and the global ones alike (playback/hold-place.ts calls the global).
+    globalThis.window = { devicePixelRatio: ratio, setTimeout: setTimer, clearTimeout: clearTimer };
+    globalThis.setTimeout = setTimer;
+    globalThis.clearTimeout = clearTimer;
     globalThis.getComputedStyle = () => ({ getPropertyValue: (name) => TOKENS[name.replace(/^--/, "")] ?? "" });
     globalThis.ResizeObserver = class {
         constructor(run) {
