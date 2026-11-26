@@ -69,14 +69,17 @@ public class PerformancesSessionTests
     }
 
     [Fact]
-    public void A_bar_is_dismissed_and_a_version_renamed_but_never_to_an_empty_name()
+    public void A_bar_of_the_piece_is_dismissed_and_a_version_renamed_but_never_to_an_empty_name()
     {
         SessionPiece piece = Example();
-        Project project = PerformancesSession.Add(piece, piece.Notes, "Live", PlayedWithAddedNotes(piece), PerformanceSource.Midi, 0, null).Project;
+        AddedVersion added = PerformancesSession.Add(piece, piece.Notes, "Live", PlayedWithAddedNotes(piece), PerformanceSource.Midi, 0, null);
+        Project project = added.Project;
+        SessionPiece with = piece with { Project = project };
 
-        Project dismissed = PerformancesSession.Dismissed(project, "perf_1", 5, dismissed: true);
+        Project dismissed = PerformancesSession.Dismissed(with, with.Notes, added.Performance, 5, dismissed: true);
         Assert.Equal([5], dismissed.FindPerformance("perf_1")!.Dismissed);
-        Assert.Empty(PerformancesSession.Dismissed(dismissed, "perf_1", 5, dismissed: false).FindPerformance("perf_1")!.Dismissed);
+        Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => PerformancesSession.Dismissed(with, with.Notes, added.Performance, -2, dismissed: true)).Code);
+        Assert.Empty(PerformancesSession.Dismissed(with with { Project = dismissed }, with.Notes, dismissed.FindPerformance("perf_1")!, 5, dismissed: false).FindPerformance("perf_1")!.Dismissed);
 
         Assert.Equal("Concert", PerformancesSession.Renamed(project, "perf_1", " Concert ").FindPerformance("perf_1")!.Name);
         Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => PerformancesSession.Renamed(project, "perf_1", "  ")).Code);

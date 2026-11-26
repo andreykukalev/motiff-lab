@@ -170,9 +170,10 @@ internal sealed partial class OpenPiece
     /// <summary>"id", "bar" and "dismissed" (true unless sent): the bar marked "not a difference", or the mark taken back.</summary>
     private string DismissBar(Request request)
     {
-        string id = Performance(request).Id;
+        SavedPerformance performance = Performance(request);
         int bar = request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
-        return Keep(PerformancesSession.Dismissed(Project, id, bar, request.Bool("dismissed") ?? true), id);
+        bool dismissed = request.Bool("dismissed") ?? true;
+        return Keep(PerformancesSession.Dismissed(State, Printed, performance, bar, dismissed), performance.Id);
     }
 
     /// <summary>"id" and "name".</summary>

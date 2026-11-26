@@ -140,8 +140,15 @@ internal static class PerformancesSession
     /// <summary><paramref name="project"/> with the print restored in the <paramref name="bars"/> taken from the version <paramref name="id"/>.</summary>
     public static Project Restored(Project project, string id, IReadOnlyList<int> bars) => Changed(project, id, performance => performance.Restore(bars));
 
-    /// <summary><paramref name="project"/> with the version <paramref name="id"/>'s <paramref name="bar"/> marked "not a difference", or the mark taken back.</summary>
-    public static Project Dismissed(Project project, string id, int bar, bool dismissed) => Changed(project, id, performance => performance.Dismiss(bar, dismissed));
+    /// <summary>
+    /// The project with the <paramref name="performance"/>'s <paramref name="bar"/> marked "not a difference", or the mark
+    /// taken back; refused, as a bar to take is, when the bar is not one the version is compared in (a bar the file cannot
+    /// keep would leave the piece unable to open).
+    /// </summary>
+    public static Project Dismissed(SessionPiece piece, IReadOnlyList<Note> printed, SavedPerformance performance, int bar, bool dismissed) =>
+        Compare(piece, printed, performance).Bars.Any(compared => compared.Bar == bar)
+            ? Changed(piece.Project, performance.Id, kept => kept.Dismiss(bar, dismissed))
+            : throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
 
     /// <summary><paramref name="project"/> with the version <paramref name="id"/> named <paramref name="name"/>; refused when the name is empty.</summary>
     public static Project Renamed(Project project, string id, string name) => Changed(project, id, performance => performance with { Name = name });
