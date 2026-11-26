@@ -134,6 +134,27 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
         return Changed([.. Places.Take(index), place, .. Places.Skip(index)], Shelf, Steps);
     }
 
+    /// <summary>
+    /// «Карта черновика: порядок мест»: the place <paramref name="placeId"/> moved to <paramref name="index"/> among the places
+    /// (from 0), the others in their order; its variants, marks and steps go with it. A seam kept as it is («Оставить», a
+    /// <see cref="DraftLeave"/> with <see cref="DraftLeave.Seam"/>) is the seam before its place, so where a place has another
+    /// place before it now, that seam is a new one and its leave goes (<see cref="SeamsLeftMoving"/>).
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">No such place.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">An index outside the places.</exception>
+    /// <exception cref="ArgumentException">The place is at that index already.</exception>
+    public Draft WithPlaceAt(string placeId, int index)
+    {
+        IReadOnlyList<DraftPlace> places = Reordered(placeId, index);
+        return Changed(places, Shelf, [.. Steps.Except(SeamsLeftIn(places))]);
+    }
+
+    /// <summary>The steps that keep a seam as it is that <see cref="WithPlaceAt"/> with the same place and index removes: each names a place with another place before it then.</summary>
+    /// <exception cref="KeyNotFoundException">No such place.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">An index outside the places.</exception>
+    /// <exception cref="ArgumentException">The place is at that index already.</exception>
+    public IReadOnlyList<DraftStep> SeamsLeftMoving(string placeId, int index) => SeamsLeftIn(Reordered(placeId, index));
+
     /// <summary>The draft without the place <paramref name="placeId"/>: its variants go with it, and the steps that name it.</summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     public Draft WithoutPlace(string placeId)
@@ -210,6 +231,35 @@ public sealed record Draft(string Id, string Name, DateTimeOffset CreatedAt, IRe
     public string NextVariantId() => Project.NextId("v_", Ids);
 
     private DraftPlace Place(string? id) => (id is null ? null : FindPlace(id)) ?? throw new KeyNotFoundException($"The draft has no place {id}.");
+
+    /// <summary>The places with <paramref name="placeId"/> moved to <paramref name="index"/>, the others in their order.</summary>
+    private List<DraftPlace> Reordered(string placeId, int index)
+    {
+        DraftPlace place = Place(placeId);
+        if (index < 0 || index >= Places.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"A place moves to a position from 0 to {Places.Count - 1}.");
+        }
+
+        if (Places[index].Id == placeId)
+        {
+            throw new ArgumentException($"The place {placeId} is there already.", nameof(index));
+        }
+
+        List<DraftPlace> places = [.. Places.Where(each => each.Id != placeId)];
+        places.Insert(index, place);
+        return places;
+    }
+
+    /// <summary>The steps that keep the seam before a place as it is, of each place that has another place before it in <paramref name="places"/> than it has now.</summary>
+    private IReadOnlyList<DraftStep> SeamsLeftIn(IReadOnlyList<DraftPlace> places)
+    {
+        static string? Before(IReadOnlyList<DraftPlace> order, string id) =>
+            order.Zip(order.Skip(1)).FirstOrDefault(pair => pair.Second.Id == id).First?.Id;
+
+        HashSet<string> moved = [.. places.Select(static place => place.Id).Where(id => Before(places, id) != Before(Places, id))];
+        return [.. Steps.Where(step => step is DraftLeave { Seam: true } && moved.Contains(step.Place))];
+    }
 
     private Draft WithPlace(DraftPlace place) => Changed([.. Places.Select(each => each.Id == place.Id ? place : each)], Shelf, Steps);
 

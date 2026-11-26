@@ -1,0 +1,310 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "drafts.findOnRecording",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "found": [
+     {
+      "notes": "n_2",
+      "label": "Recording 0–2",
+      "percent": 77,
+      "span": {
+       "onset": 0,
+       "end": 3840
+      },
+      "bars": {
+       "first": 0,
+       "last": 2
+      },
+      "ms": {
+       "from": 30500,
+       "to": 34500
+      },
+      "variant": null
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.addFromRecording",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "now": "2026-11-20T10:50:00Z"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "variant": "v_0002",
+    "dropped": [],
+    "percent": 77,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "nowhere",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "audioRecognition",
+      "engine": "transkun",
+      "at": "2026-11-20T11:00:00.0000000+00:00",
+      "original": "src_rec",
+      "state": "nowhere",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "audioRecognition"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes and the recording",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.findOnRecording",
+   "request": {
+    "draft": "d_0001",
+    "place": "pl_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "place": "pl_0001",
+    "found": [
+     {
+      "notes": "n_2",
+      "label": "Recording 0–2",
+      "percent": 77,
+      "span": {
+       "onset": 0,
+       "end": 3840
+      },
+      "bars": {
+       "first": 0,
+       "last": 2
+      },
+      "ms": {
+       "from": 30500,
+       "to": 34500
+      },
+      "variant": "v_0002"
+     }
+    ]
+   }
+  },
+  {
+   "call": "drafts.undo",
+   "request": {
+    "device": "ipad",
+    "here": [],
+    "draft": "d_0001"
+   },
+   "answer": {
+    "draft": "d_0001",
+    "undone": [],
+    "structure": true,
+    "working": "n_1",
+    "originals": [
+     {
+      "id": "src_file",
+      "kind": "musicxml",
+      "shown": "FurElise.musicxml",
+      "fileName": "FurElise.musicxml",
+      "name": null,
+      "state": "here",
+      "removedAt": null,
+      "kept": "file",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_1"
+      ],
+      "pageMarks": 0
+     },
+     {
+      "id": "src_rec",
+      "kind": "audio",
+      "shown": "Live.m4a",
+      "fileName": "Live.m4a",
+      "name": null,
+      "state": "nowhere",
+      "removedAt": null,
+      "kept": "device",
+      "pages": null,
+      "durationMs": null,
+      "hidden": false,
+      "notes": [
+       "n_2"
+      ],
+      "pageMarks": 0
+     }
+    ],
+    "notes": [
+     {
+      "id": "n_1",
+      "role": "working",
+      "name": null,
+      "op": "import",
+      "engine": null,
+      "at": null,
+      "original": "src_file",
+      "state": "here",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     },
+     {
+      "id": "n_2",
+      "role": "other",
+      "name": null,
+      "op": "audioRecognition",
+      "engine": "transkun",
+      "at": "2026-11-20T11:00:00.0000000+00:00",
+      "original": "src_rec",
+      "state": "nowhere",
+      "edits": 0,
+      "taken": 0,
+      "hidden": false
+     }
+    ],
+    "views": [
+     {
+      "id": "n_1",
+      "kind": "notes",
+      "group": "src_file",
+      "working": true,
+      "hidden": false,
+      "op": "import"
+     },
+     {
+      "id": "n_2",
+      "kind": "notes",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "audioRecognition"
+     },
+     {
+      "id": "d_0001",
+      "kind": "draft",
+      "group": null,
+      "working": false,
+      "hidden": false,
+      "op": "draft"
+     }
+    ],
+    "hidden": 0,
+    "drafts": [
+     {
+      "id": "d_0001",
+      "name": "Draft 1",
+      "caption": "from the file's notes",
+      "createdAt": "2026-11-20T10:00:00.0000000+00:00",
+      "places": 1,
+      "shelf": 0,
+      "techniques": {
+       "taken": 0,
+       "total": 0
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

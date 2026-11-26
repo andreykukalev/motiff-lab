@@ -204,7 +204,7 @@ internal static class DraftTakeRequest
     }
 
     /// <summary>The draft "draft" of the piece and its place "place".</summary>
-    private static (Draft Draft, string Place) PlaceOf(OpenPiece owner, Request request)
+    internal static (Draft Draft, string Place) PlaceOf(OpenPiece owner, Request request)
     {
         string id = request.Required("draft");
         Draft draft = owner.Project.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.");
