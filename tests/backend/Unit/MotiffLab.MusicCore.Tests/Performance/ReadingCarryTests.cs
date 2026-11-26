@@ -130,7 +130,7 @@ public class ReadingCarryTests
 
         Assert.Equal((CarryOutcome.NotCarried, 3), (Assert.Single(carry.Corrections).Outcome, carry.Corrections[0].Bar));
         Assert.Equal([3], carry.NotCarriedBars);
-        Assert.Equal("not carried: 1 (bar 3)", carry.Text(Words.English));
+        Assert.Equal("not carried, in Check: 1 (bar 3)", carry.Text(Words.English));
     }
 
     [Fact]
@@ -204,8 +204,8 @@ public class ReadingCarryTests
 
         ReadingCarry carry = Carry(before, edits, after, 1);
 
-        Assert.Equal("1 correction carried over · not carried: 1 (bar 2) · «Looks right» carried over: 1 bar", carry.Text(Words.English));
-        Assert.Equal("перенесено: 1 исправление · не перенесено: 1 (такт 2) · «Верно» перенесено: 1 такт", carry.Text(Words.Russian));
+        Assert.Equal("1 correction carried over · not carried, in Check: 1 (bar 2) · «Looks right» carried over: 1 bar", carry.Text(Words.English));
+        Assert.Equal("перенесено: 1 исправление · не перенесено, в «Проверить»: 1 (такт 2) · «Верно» перенесено: 1 такт", carry.Text(Words.Russian));
         Assert.Null(Carry(before, NoteEditLog.Empty, after).Text(Words.English));
     }
 

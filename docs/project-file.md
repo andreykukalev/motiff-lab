@@ -317,12 +317,15 @@ What the scan server, the transcription or a performance left for the player to 
             | "PartSeam" | "TempoUncertain" | "DenseCluster" | "HandsGuessed"                     // transcription
             | "RecordingOctave" | "RecordingBarLength"                                            // a performance (version 13)
             | "PageQuality"                                                                         // scan: a bar on a poor page (version 0.4, within 15)
-            | "EnginesDisagree",                                                                    // scan: no two engines agree on a staff (version 1.3, within 17)
+            | "EnginesDisagree"                                                                     // scan: no two engines agree on a staff (version 1.3, within 17)
+            | "CorrectionUnfit",                                                                    // scan: a correction not carried to notes read again (version 1.5, within 17)
     "resolved": false }
 ]
 ```
 
 `EnginesDisagree` (version 1.3, within version 17, Andrei 2026-11-24; [0035](architecture/adr/0035-scan-jobs-four-engines.md), section 5) flags a bar of a page several engines read where no two of them read some staff alike. The merge marks such a measure in the scan's MusicXML with a hidden direction (`<other-direction print-object="no">Motiff Lab scan: engines disagree</other-direction>`), so the flag is worked out from the notes' bytes like the other scan reasons; which engines gave each staff is not kept in the file. A build before 1.3 keeps the flag whole as an unknown one and writes it back (S6).
+
+`CorrectionUnfit` (version 1.5, within version 17, «Как напечатано» step 2, Andrei 2026-11-26) flags a bar of other Notes read again from the PDF (`sources.notes.recognise`) where a correction of the working notes was not carried to them: the new reading gives the note neither as the player found it nor as they corrected it. The correction stays with the notes it was made on, which stay beside; the flag is the bar where its music lies in the new reading. It is stored with those Notes' other flags, which are then written out (`check` is no longer null for them). A build before 1.5 reads other Notes with no tolerance for an unknown value (`NotesCodec.ReadOtherNotes`), so it keeps those Notes whole as an unknown entry: it does not list them in Sources, and writes them back unchanged, nothing lost. Once they are made the working notes, such a build reads the working notes tolerantly and keeps the flag whole as an unknown one (S6).
 
 `null` only in a file written for a project that was never opened since it was read from an older version; opening such a project works the flags out from the piece (`CheckFlag.FromScan`, or `CheckFlag.FromTranscription` for a transcription) and marks the bars the player had confirmed as resolved (`scan.confirmedBars` of the working notes).
 

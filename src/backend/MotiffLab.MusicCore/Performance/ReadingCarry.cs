@@ -13,7 +13,7 @@ public enum CarryOutcome
     /// <summary>The new reading already gives what the player corrected the note to: nothing to carry.</summary>
     ByReading,
 
-    /// <summary>The new reading gives neither: the correction stays on the earlier reading, and the player decides.</summary>
+    /// <summary>The new reading gives neither: the correction stays on the earlier reading, its bar flagged in Check, and the player decides.</summary>
     NotCarried,
 }
 
@@ -70,7 +70,7 @@ public sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorrec
 
         if (notCarried > 0)
         {
-            parts.Add(words.T($"not carried: {notCarried} ({(bars.Count == 1 ? "bar" : "bars")} {where})", $"не перенесено: {notCarried} ({(bars.Count == 1 ? "такт" : "такты")} {where})"));
+            parts.Add(words.T($"not carried, in Check: {notCarried} ({(bars.Count == 1 ? "bar" : "bars")} {where})", $"не перенесено, в «Проверить»: {notCarried} ({(bars.Count == 1 ? "такт" : "такты")} {where})"));
         }
 
         if (ConfirmedBars.Count > 0)

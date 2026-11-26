@@ -61,6 +61,13 @@ public enum CheckReason
 
     /// <summary>No two of the engines that read the page agree on some staff of the bar (scan, version 1.3, within version 17; ADR 0035).</summary>
     EnginesDisagree,
+
+    /// <summary>
+    /// A correction the player made on an earlier reading of the same pages that the new reading gives neither as the
+    /// player found it nor as they corrected it (scan, «Как напечатано» step 2, version 1.5, within version 17): it stays on
+    /// the earlier reading, beside these notes, and the player decides.
+    /// </summary>
+    CorrectionUnfit,
 }
 
 /// <summary>
@@ -285,6 +292,9 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
         CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+        CheckReason.CorrectionUnfit => words.T(
+            "Your correction on the earlier reading of these pages does not fit this reading: it reads the note neither as you found it nor as you corrected it. The earlier reading keeps the correction; compare the two in Sources.",
+            "Ваше исправление не подошло к новому чтению: оно читает эту ноту не так, как вы её нашли, и не так, как исправили. Исправление осталось в прежнем чтении; сравните их в «Источниках»."),
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
@@ -300,6 +310,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
             CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
+            CheckReason.CorrectionUnfit => words.T("Your correction did not fit", "Исправление не подошло"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -340,6 +351,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
                 "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
             CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+            CheckReason.CorrectionUnfit => Describe(CheckReason.CorrectionUnfit, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }

@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json.Nodes;
 
+using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -118,6 +120,27 @@ public class UnknownValueTests
         Assert.Equal("New working motif", written["workspace"]!["motifs"]![0]!["name"]!.GetValue<string>());
         Assert.Equal(["v_0006", "v_0007", "v_0008", "v_0009", "v_0010", "v_0011"], Ids(written, "variations"));
         Assert.DoesNotContain(UnknownValue, written.ToJsonString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Other_notes_with_a_check_reason_this_build_does_not_know_are_kept_whole_and_written_back()
+    {
+        byte[] scanned = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
+        Project read = Project.CreateDocument("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "Nocturne.pdf", Encoding.ASCII.GetBytes("%PDF-1.4\n%%EOF\n"), s_now)
+            .Recognised(scanned, "homr 0.7.0", PageMap.Of(PieceImporter.Import("a.musicxml", scanned).Piece!, 1), s_now)
+            .RecognisedAgain(PieceOriginal.DocumentId, scanned, "homr 0.8.0", null, s_now);
+        OtherNotes again = read.Sources.Notes.Single();
+        Project flagged = read with { Sources = read.Sources with { Notes = [again with { Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false)] }] } };
+        Assert.Equal(CheckReason.CorrectionUnfit, ProjectFile.Read(ProjectFile.Write(flagged)).Sources.Notes.Single().Check!.Single().Reason);
+        JsonObject file = Node(ProjectFile.Write(flagged));
+        file["notes"]![1]!["check"]![0]!["reason"] = UnknownValue;
+        string entry = file["notes"]![1]!.ToJsonString();
+
+        Project opened = ProjectFile.Read(Bytes(file));
+
+        Assert.Empty(opened.Sources.Notes);
+        Assert.Single(opened.Unknown);
+        Assert.Equal(entry, Node(ProjectFile.Write(opened))["notes"]![1]!.ToJsonString());
     }
 
     [Fact]

@@ -98,6 +98,29 @@ public class SourceLayersFacadeTests
     }
 
     [Fact]
+    public void A_correction_the_notes_read_again_read_otherwise_is_flagged_in_their_check_in_both_languages()
+    {
+        MusicCoreFacade facade = Opened();
+        byte[] scanned = Scanned();
+        Note first = PieceImporter.Import("a.musicxml", scanned).Piece!.Notes.OrderBy(static note => note.Span.Onset).ThenBy(static note => note.Pitch.MidiNumber).First();
+        int bar = PieceImporter.Import("a.musicxml", scanned).Piece!.Meter.BarAt(first.Span.Onset).Number;
+        Call(facade, "corrections.set", $$"""{"bar": {{bar}}, "id": "{{first.Id}}", "pitch": {{first.Pitch.MidiNumber + 1}}}""");
+        string xml = Encoding.UTF8.GetString(scanned);
+        int octave = xml.IndexOf("<octave>", StringComparison.Ordinal) + "<octave>".Length;
+        byte[] otherwise = Encoding.UTF8.GetBytes(string.Concat(xml.AsSpan(0, octave), ((char)(xml[octave] == '3' ? '2' : '3')).ToString(), xml.AsSpan(octave + 1)));
+        string request = JsonSerializer.Serialize(new { original = "src_pdf", musicXml = Convert.ToBase64String(otherwise), engine = "homr 0.8.0", pages = 1, now = "2026-11-15T10:00:00Z" });
+
+        JsonElement carried = Call(facade, "sources.notes.recognise", request).GetProperty("carried");
+        Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
+
+        Assert.Equal(1, carried.GetProperty("notCarried").GetInt32());
+        Assert.Equal([bar], carried.GetProperty("bars").EnumerateArray().Select(static each => each.GetInt32()));
+        Assert.Contains(ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Check!, flag => flag.Bar == bar && flag.Reason == CheckReason.CorrectionUnfit && !flag.Resolved);
+        Assert.Equal("Your correction did not fit", CheckFlag.NameOf(CheckReason.CorrectionUnfit, Words.English));
+        Assert.StartsWith("Ваше исправление не подошло к новому чтению", CheckFlag.Describe(CheckReason.CorrectionUnfit, Words.Russian), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Notes_read_again_are_grouped_under_their_pdf_can_be_hidden_and_made_working_and_back()
     {
         MusicCoreFacade facade = Opened();
