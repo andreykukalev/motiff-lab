@@ -325,13 +325,14 @@ public class FacadeAnswersContractTests
             ("document.marks", null),
             ("project", null),
         ],
-        // The reference cards with no piece open: keys, a scale, a chord and the settings' state (not the harmony explorer: its answer holds "tempo" twice, which a JSON reader refuses).
+        // The reference cards with no piece open: keys, a scale, a chord, the settings' state and the harmony explorer.
         ["reference"] =
         [
             ("reference.key", """{"fifths":-3}"""),
             ("reference.scale", """{"fifths":2,"mode":"minor"}"""),
             ("reference.chord", """{"root":2,"quality":"minor"}"""),
             ("settings.state", null),
+            ("reference.explorer", """{"fifths":0,"mode":"major","language":"en"}"""),
         ],
         // A folder planned for the library (version 0.4): a score with its title and composer, two PDFs with the same bytes
         // (one a duplicate), and a file it cannot take.
@@ -345,7 +346,7 @@ public class FacadeAnswersContractTests
     private static readonly HashSet<string> s_steps = ["performance.add", "performance.take"];
 
     /// <summary>Calls made on piece 0, with no piece, beside those on the piece open.</summary>
-    private static readonly HashSet<string> s_withoutPiece = ["project.drafts", "scan.join", "catalogue", "reference.key", "reference.scale", "reference.chord", "settings.state", "library.plan"];
+    private static readonly HashSet<string> s_withoutPiece = ["project.drafts", "scan.join", "catalogue", "reference.key", "reference.scale", "reference.chord", "reference.explorer", "settings.state", "library.plan"];
 
     /// <summary>The files whose answers tell the project's times: the piece is opened at a fixed time, so they read the same tomorrow.</summary>
     private static readonly HashSet<string> s_dated = ["open", "marks", "document.marks"];

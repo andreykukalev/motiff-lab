@@ -74,8 +74,9 @@ internal static partial class ReferenceRequest
     /// "name"}), "key", "chords" (the key's: {"id", "numeral", "symbol", "positions": [{"inversion", "title", "figure"}]}),
     /// "steps" (the bars that sound; without "steps" the key's start, I–IV–V–I), "progression" (each bar's "chord",
     /// "numeral", "inversion", "figure", "symbol" and "pitches", the keys it sounds), "mei", "keyboardLow", "keyboardHigh",
-    /// "maxBars", "texture", "textures", "spacing", "spacings", "tempo" and "tempoChoices" (the playback's own "tempos" are
-    /// the music's). Without them the texture is Alberti, the spacing close and the tempo 72, as the web's explorer starts.
+    /// "maxBars", "texture", "textures", "spacing", "spacings", "chosenTempo" and "tempoChoices" (the playback's own "tempos"
+    /// and "tempo" are the music's; until v1.4 the chosen tempo was a second "tempo", which a strict JSON reader refuses).
+    /// Without them the texture is Alberti, the spacing close and the tempo 72, as the web's explorer starts.
     /// </summary>
     public static string Explorer(Request fields)
     {
@@ -119,7 +120,7 @@ internal static partial class ReferenceRequest
             Answer.Playback(json, progression.Music.Playback());
             Choices(json, "textures", texture, "texture");
             Choices(json, "spacings", spacing, "spacing");
-            json.WriteNumber("tempo", tempo);
+            json.WriteNumber("chosenTempo", tempo);
             JsonWrite.Numbers(json, "tempoChoices", HarmonyExplorer.Tempos);
         });
     }
