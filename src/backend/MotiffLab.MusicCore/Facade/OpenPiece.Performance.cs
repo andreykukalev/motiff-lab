@@ -44,9 +44,12 @@ internal sealed partial class OpenPiece
     private string PerformanceAnswer(SavedPerformance performance)
     {
         IReadOnlyList<Note> printed = Printed;
-        PerformanceComparison comparison = PerformancesSession.Compare(State, printed, performance);
-        return Answer.Write(json => Answer.Performance(json, performance, comparison, printed.Count, Words, Piece.Meter));
+        return PerformanceAnswer(performance, PerformancesSession.Compare(State, printed, performance), printed.Count);
     }
+
+    /// <summary>The version as its <paramref name="comparison"/> with the <paramref name="printed"/> notes has it, as the answer.</summary>
+    private string PerformanceAnswer(SavedPerformance performance, PerformanceComparison comparison, int printed) =>
+        Answer.Write(json => Answer.Performance(json, performance, comparison, printed, Words, Piece.Meter));
 
     /// <summary>
     /// "name", and either "midi" (base64) with "source" ("recording" or "midi", default midi), "engine" for a recording
@@ -167,13 +170,19 @@ internal sealed partial class OpenPiece
         return Keep(PerformancesSession.Restored(Project, id, BarsOf(request)), id, notesChange: true);
     }
 
-    /// <summary>"id", "bar" and "dismissed" (true unless sent): the bar marked "not a difference", or the mark taken back.</summary>
+    /// <summary>
+    /// "id", "bar" and "dismissed" (true unless sent): the bar marked "not a difference", or the mark taken back. The
+    /// comparison, which a dismissed bar does not change, is worked out once, to check the bar and for the answer.
+    /// </summary>
     private string DismissBar(Request request)
     {
         SavedPerformance performance = Performance(request);
         int bar = request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
         bool dismissed = request.Bool("dismissed") ?? true;
-        return Keep(PerformancesSession.Dismissed(State, Printed, performance, bar, dismissed), performance.Id);
+        IReadOnlyList<Note> printed = Printed;
+        PerformanceComparison comparison = PerformancesSession.Compare(State, printed, performance);
+        Project = PerformancesSession.Dismissed(comparison, Project, performance.Id, bar, dismissed);
+        return PerformanceAnswer(Project.FindPerformance(performance.Id)!, comparison, printed.Count);
     }
 
     /// <summary>"id" and "name".</summary>
@@ -185,15 +194,15 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// The <paramref name="project"/> a change of the version <paramref name="id"/> makes kept; when bars were taken or
-    /// restored (<paramref name="notesChange"/>) the notes read again and the selection kept over them, as after a
-    /// correction (<see cref="SelectionSession.FollowNotes"/>); then that version answered.
+    /// restored (<paramref name="notesChange"/>) the notes read again and, when they changed, the selection kept over them
+    /// with the variation in progress gone, as after a correction (E-score-1); then that version answered.
     /// </summary>
     private string Keep(Project project, string id, bool notesChange = false)
     {
         Project = project;
         if (notesChange)
         {
-            RefreshNotesAndSelection();
+            RefreshNotesFollowingSelection();
         }
 
         return PerformanceAnswer(Project.FindPerformance(id)!);

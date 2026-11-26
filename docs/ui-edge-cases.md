@@ -19,6 +19,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 
 ## Score and selection
 
+- `E-score-1` · Bars taken from another version or restored (performance.take, .takeAll, .restore) or a version with
+  bars taken from it removed, while a passage is selected · the selection keeps its passage over the new notes and a
+  variation in progress, made from the old notes, goes; when the notes stay the same (bars restored that were never
+  taken, a double tap) nothing changes · the same as after a correction (`SelectionSession.FollowNotes`, «Править ноты»)
+  · v1.5 w17-4
+
 ## Roll
 
 ## Menus, sheets and popovers

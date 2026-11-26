@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Facade;
@@ -81,5 +83,23 @@ public class PerformancesFacadeTests
         Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""");
         Call(facade, "sources.notes.remove", """{"id": "perf_1"}""");
         Assert.DoesNotContain(Assert.Single(ProjectFile.Read(SavedAndOpened(facade)).Motifs).NoteIds, id => id.StartsWith("perf-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Bars_restored_that_were_never_taken_keep_the_variation_in_progress_and_bars_taken_drop_it()
+    {
+        // E-score-1: the selection follows notes that changed, the variation made from the old ones goes, as after a correction.
+        MusicCoreFacade facade = WithVersion(replaced: true);
+        Call(facade, "select", """{"bars": {"first": 4, "last": 5}}""");
+        JsonElement understood = Call(facade, "understand");
+        string chip = understood.GetProperty("motif").GetProperty("facts").EnumerateArray().Concat(understood.GetProperty("character").EnumerateArray())
+            .SelectMany(fact => fact.GetProperty("tryChips").EnumerateArray()).First().GetProperty("id").GetString()!;
+        Call(facade, "try", $$"""{"chip": "{{chip}}"}""");
+
+        Call(facade, "performance.restore", """{"id": "perf_1", "bars": [5]}""");
+        Call(facade, "variation");
+
+        Call(facade, "performance.take", """{"id": "perf_1", "bars": [5]}""");
+        Assert.Equal("noVariation", Error(facade, "variation"));
     }
 }

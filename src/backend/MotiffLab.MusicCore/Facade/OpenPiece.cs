@@ -221,13 +221,19 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>
-    /// The notes read again (<see cref="RefreshNotes"/>) and the selection kept over them (<see cref="SelectionSession.FollowNotes"/>):
-    /// after a correction, bars taken or restored, or a version with bars taken from it taken away.
+    /// The notes read again (<see cref="RefreshNotes"/>) and, when they changed, the selection kept over them and the
+    /// variation made from the old ones gone (<see cref="SelectionSession.FollowNotes"/>, E-score-1): after corrections
+    /// dropped, bars taken or restored, or a version with bars taken from it taken away. Notes that stay the same (bars
+    /// restored that were never taken) keep the variation in progress.
     /// </summary>
-    private void RefreshNotesAndSelection()
+    private void RefreshNotesFollowingSelection()
     {
+        IReadOnlyList<Note> before = Notes;
         RefreshNotes();
-        Selection.FollowNotes(State);
+        if (!before.SequenceEqual(Notes))
+        {
+            Selection.FollowNotes(State);
+        }
     }
 
     /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>

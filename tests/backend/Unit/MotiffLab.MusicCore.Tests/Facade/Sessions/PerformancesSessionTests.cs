@@ -76,10 +76,11 @@ public class PerformancesSessionTests
         Project project = added.Project;
         SessionPiece with = piece with { Project = project };
 
-        Project dismissed = PerformancesSession.Dismissed(with, with.Notes, added.Performance, 5, dismissed: true);
+        PerformanceComparison comparison = PerformancesSession.Compare(with, with.Notes, added.Performance);
+        Project dismissed = PerformancesSession.Dismissed(comparison, project, "perf_1", 5, dismissed: true);
         Assert.Equal([5], dismissed.FindPerformance("perf_1")!.Dismissed);
-        Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => PerformancesSession.Dismissed(with, with.Notes, added.Performance, -2, dismissed: true)).Code);
-        Assert.Empty(PerformancesSession.Dismissed(with with { Project = dismissed }, with.Notes, dismissed.FindPerformance("perf_1")!, 5, dismissed: false).FindPerformance("perf_1")!.Dismissed);
+        Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => PerformancesSession.Dismissed(comparison, project, "perf_1", -2, dismissed: true)).Code);
+        Assert.Empty(PerformancesSession.Dismissed(comparison, dismissed, "perf_1", 5, dismissed: false).FindPerformance("perf_1")!.Dismissed);
 
         Assert.Equal("Concert", PerformancesSession.Renamed(project, "perf_1", " Concert ").FindPerformance("perf_1")!.Name);
         Assert.Equal("badRequest", Assert.Throws<FacadeException>(() => PerformancesSession.Renamed(project, "perf_1", "  ")).Code);

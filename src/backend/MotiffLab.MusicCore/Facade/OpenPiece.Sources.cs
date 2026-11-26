@@ -51,7 +51,7 @@ internal sealed partial class OpenPiece
         Project = project;
         if (takenChanged)
         {
-            RefreshNotesAndSelection();
+            RefreshNotesFollowingSelection();
         }
     }
 

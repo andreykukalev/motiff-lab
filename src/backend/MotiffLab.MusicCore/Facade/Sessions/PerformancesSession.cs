@@ -104,7 +104,7 @@ internal static class PerformancesSession
         List<TakenBar> taken = [];
         foreach (int bar in bars)
         {
-            BarComparison compared = comparison.Bars.FirstOrDefault(kept => kept.Bar == bar) ?? throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
+            BarComparison compared = Compared(comparison, bar);
             try
             {
                 taken.Add(PerformanceTake.Take(performance.Id, compared, played, comparison.Alignment, piece.Piece.Meter, printed, leaveOut));
@@ -141,20 +141,25 @@ internal static class PerformancesSession
     public static Project Restored(Project project, string id, IReadOnlyList<int> bars) => Changed(project, id, performance => performance.Restore(bars));
 
     /// <summary>
-    /// The project with the <paramref name="performance"/>'s <paramref name="bar"/> marked "not a difference", or the mark
-    /// taken back; refused, as a bar to take is, when the bar is not one the version is compared in (a bar the file cannot
-    /// keep would leave the piece unable to open).
+    /// <paramref name="project"/> with the version <paramref name="id"/>'s <paramref name="bar"/> marked "not a difference",
+    /// or the mark taken back; refused, as a bar to take is, when the bar is not one its <paramref name="comparison"/> has
+    /// (a bar the file cannot keep would leave the piece unable to open).
     /// </summary>
-    public static Project Dismissed(SessionPiece piece, IReadOnlyList<Note> printed, SavedPerformance performance, int bar, bool dismissed) =>
-        Compare(piece, printed, performance).Bars.Any(compared => compared.Bar == bar)
-            ? Changed(piece.Project, performance.Id, kept => kept.Dismiss(bar, dismissed))
-            : throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
+    public static Project Dismissed(PerformanceComparison comparison, Project project, string id, int bar, bool dismissed)
+    {
+        _ = Compared(comparison, bar);
+        return Changed(project, id, kept => kept.Dismiss(bar, dismissed));
+    }
 
     /// <summary><paramref name="project"/> with the version <paramref name="id"/> named <paramref name="name"/>; refused when the name is empty.</summary>
     public static Project Renamed(Project project, string id, string name) => Changed(project, id, performance => performance with { Name = name });
 
     /// <summary>The <paramref name="printed"/> notes with the bars taken from the project's versions in place of theirs: the notes the piece is open on.</summary>
     public static IReadOnlyList<Note> NotesWithTakes(IReadOnlyList<Note> printed, Project project) => PerformanceTake.Apply(printed, project.TakenBars);
+
+    /// <summary>The <paramref name="comparison"/> of <paramref name="bar"/>; refused when the version is not compared in that bar.</summary>
+    private static BarComparison Compared(PerformanceComparison comparison, int bar) =>
+        comparison.Bars.FirstOrDefault(kept => kept.Bar == bar) ?? throw FacadeException.BadRequest($"Bar {bar} is not in the piece.");
 
     private static Project Changed(Project project, string id, Func<SavedPerformance, SavedPerformance> change)
     {
