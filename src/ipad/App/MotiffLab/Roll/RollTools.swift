@@ -281,12 +281,14 @@ struct RollSurface: View {
             // While a field has the keyboard, a press on the roll only puts it away (TypingFocus, v0.6.4).
             .overlay { TypingShield() }
             .overlay(alignment: .bottom) {
-                RollZoomControls(roll: roll, text: text)
+                // Over a roll that shows no notes the zoom has nothing to act on.
+                RollZoomControls(roll: roll, text: text).disabled(roll.failed)
             }
-            // A load that failed leaves no notes: the roll says so, not an empty grid (v1.4 r-1b).
+            // A load that failed leaves no notes: the roll says so, not an empty grid, with the way out of its place
+            // (v1.4 r-1b): the drawer's «Убрать», Expand's «Назад».
             .overlay {
                 if roll.failed {
-                    Text(text["roll.failed"])
+                    Text(text[place == .focus ? "roll.failedInFocus" : "roll.failed"])
                         .dsType(.label)
                         .foregroundStyle(Color.ds("danger"))
                         .multilineTextAlignment(.center)

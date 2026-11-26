@@ -190,10 +190,10 @@ final class RollTests: XCTestCase {
 final class RollLoadTests: XCTestCase {
     private var window: UIWindow?
 
-    override func tearDown() {
+    override func tearDown() async throws {
         window?.isHidden = true
         window = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     /// Waits for `done`, at most five seconds.

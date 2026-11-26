@@ -402,10 +402,11 @@ final class Player: ObservableObject {
         }
     }
 
-    /// A message to the engine; Play also starts the audio engine again if the system stopped it and never said it may
-    /// start (an interruption need not end: another app's music the player left playing), so Play is never silent.
+    /// A message to the engine. Play first activates the audio session and starts the audio engine again if the system
+    /// stopped it and never said it may start (an interruption need not end: another app's music the player left
+    /// playing); while it cannot (a call goes on), Play is dropped, so the music never starts by itself when the call ends.
     private func send(_ message: EngineMessage) {
-        if case .play = message { keeper?.restart() }
+        if case .play = message, keeper?.restart() == false { return }
         renderer?.send(message)
     }
 
@@ -449,6 +450,8 @@ final class Player: ObservableObject {
     /// views show it paused now, where it was heard, not playing on from the last report until then.
     private func interrupted() {
         send(.pause)
+        // The reports still waiting were rendered before it: none may show the music playing again.
+        _ = renderer?.takeReports()
         last = nil
         if state != .stopped { show(.stopped) }
     }
