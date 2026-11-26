@@ -631,6 +631,8 @@ extension ScoreScreenContent {
                 if choice.into.elsewhere == nil { score.showNotice("drafts.added") }
             } cancel: {
                 draftSheet = nil
+            } assistant: {
+                DraftAssistantLabel(text: text)
             }
         }
     }

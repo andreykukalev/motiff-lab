@@ -6,7 +6,8 @@ import Foundation
 /// `place`, in the ink); a tap on one selects the place, so it plays and loops as any passage. Above the bars of each приём
 /// stands its plum number (`draftModel`); a tap on one selects that occurrence and opens its card there, and the pill's ‹ ›
 /// steps from one to the next. Since v1.2 a bridge place's label opens its card too, and each anchor the player
-/// confirmed stands as a small amber mark over its bar (`anchorsModel`), its menu «Открепить».
+/// confirmed stands as a small amber mark over its bar (`anchorsModel`), its menu «Открепить»; since v1.4 (F3) every
+/// label opens its place's card (`DraftPlaceContent`, the ▾ menu the page draws after the label).
 extension ScoreController {
     /// The labels of the draft's places for the page, in order, then the numbers of their приёмы, the diamonds of their
     /// seams and the marks of their anchors (with the numbers, hidden with them); none for any other piece.
@@ -109,12 +110,12 @@ extension ScoreController {
     }
 
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
-    /// there, with a bridge's card at its label (v1.2), else a version's marker, whose card opens there and whose bar is
-    /// selected.
+    /// there, selected, with its card at its label (a bridge's candidates, v1.2; any other place's ▾ menu of its variants,
+    /// v1.4), else a version's marker, whose card opens there and whose bar is selected.
     func pickLabel(_ bar: Int, left: Double, bottom: Double) {
         guard !pickPlace(startingAt: bar) else {
-            if let bridge = piece?.draft?.places.first(where: { $0.firstBar == bar && $0.bridge }) {
-                seamsModel.pickBridge(bridge.id, at: CGPoint(x: left, y: bottom))
+            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }) {
+                seamsModel.pickLabel(place.id, at: CGPoint(x: left, y: bottom))
                 draftModel.closeCard()
                 anchorsModel.close()
             }

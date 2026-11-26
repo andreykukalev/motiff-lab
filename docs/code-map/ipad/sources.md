@@ -11,9 +11,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 - Drafts (v1.1, ADR 0034): `SourceLayers.drafts`, the view of kind "draft" (its `name` its word); `SourcesDrafts.swift`
   (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
   `takeHand`, the seams' offers, `takeSure`, `makeBase`, `put`, undone by `drafts.undo`, `.draftStep`);
-  `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet; «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
+  `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet (v1.4 F4: for a new draft its card «Новый черновик», its
+  base, «Как», «С ассистентом · Pro» off until a place has a second variant, and «Создать»); «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
   `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams,
-  since v1.2 the register and the bridge place picked), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
+  since v1.2 the register; the place whose label was tapped, `label`, a bridge's or since v1.4 any place's), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
   amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`, `acceptProposal` (the assistant's «Принять», `drafts.accept`). Collage (v1.2):
   `OtherPieceDrafts.swift` (other files' drafts, `project.drafts` kept by bytes), `DraftChoice.Into.elsewhere`,
   `addToDraft` writes that file as music-core answers it (`drafts.add` with "file"), nothing here changes;

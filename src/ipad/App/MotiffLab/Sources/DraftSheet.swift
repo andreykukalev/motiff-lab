@@ -116,18 +116,21 @@ struct DraftSheetRequest: Identifiable {
     var into: DraftChoice.Into?
 }
 
-/// The «В черновик» sheet: «Что взять», «Куда», «Как» and «Добавить» (spec «Экран (iPad)»), each choice a row that
+/// The «В черновик» sheet: «Что взять», «Куда», «Как» and «Добавить» (spec «Экран (iPad)»), for a new draft its card
+/// «Новый черновик» and «Создать» (v1.4, F4), each choice a row that
 /// shows itself chosen with the accent's tint and a check, as the switch's menu does. What it offers is music-core's
 /// (`drafts.sheet`, asked again when another part is chosen, as the same music depends on it); `sources` is the piece
 /// whose drafts they are, which keeps the answer and the project file. Under «Куда», after this piece's, the drafts of the
 /// other pieces in the folder, grouped by each piece's title (v1.2, collage, `OtherPieceDrafts`), read once the sheet shows.
-struct DraftSheet: View {
+struct DraftSheet<Assistant: View>: View {
     let request: DraftSheetRequest
     @ObservedObject var sources: SourcesController
     let text: UIText
     /// Once added, where it went: the sheet goes, and the screen says so.
     let added: (DraftChoice) -> Void
     let cancel: () -> Void
+    /// «С ассистентом · Pro» on the card «Новый черновик», drawn by the screen, as the assistant's are.
+    @ViewBuilder let assistant: () -> Assistant
     @State private var sheet: DraftSheetAnswer?
     @State private var others: [OtherPieceDrafts] = []
     @State private var choice: DraftChoice?
@@ -176,17 +179,47 @@ struct DraftSheet: View {
                 row(draft.name, SourcesDraftRow.caption(draft, text), on: choice.into == into) { self.choice = DraftChoice.first(sheet, part: choice.part, into: into) }
             }
         }
+        if choice.into == .new {
+            newDraftCard(sheet, choice)
+        } else {
+            ways(sheet, choice)
+        }
+    }
+
+    @ViewBuilder private func ways(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         section("drafts.how")
         ForEach(Array(DraftChoice.ways(choice.into, in: sheet).enumerated()), id: \.offset) { _, way in
             row(title(way, newDraft: choice.into == .new), caption(way), on: way == choice.way) { self.choice?.way = way }
         }
     }
 
+    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»): the name it takes, its base (the notes
+    /// selected, the part chosen), «Как» and «С ассистентом · Pro». The assistant assembles a place from a variant beside
+    /// its base (ADR 0034 section 6), which a new draft of one fragment has not yet, so it is offered off, saying why;
+    /// «Создать» (`buttons`) makes the draft.
+    private func newDraftCard(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["drafts.new"]).overline()
+            Text(sheet.newName).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+            Text(text.format("drafts.newBase", DraftChoice.word(part: choice.part, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            ways(sheet, choice)
+            Button {} label: { assistant() }
+            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            .disabled(true)
+            .accessibilityHint(text["drafts.newAssistantLater"])
+            Text(text["drafts.newAssistantLater"]).dsType(.caption).foregroundStyle(Color.ds("ink-3")).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+    }
+
     private var buttons: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Button(text["common.cancel"], action: cancel).buttonStyle(DSButtonStyle(kind: .quiet))
             Spacer(minLength: 0)
-            Button(text["drafts.addButton"]) { Task { await add() } }
+            Button(text[choice?.into == .new ? "drafts.create" : "drafts.addButton"]) { Task { await add() } }
                 .buttonStyle(DSButtonStyle(kind: .primary))
                 .disabled(choice == nil || adding)
         }

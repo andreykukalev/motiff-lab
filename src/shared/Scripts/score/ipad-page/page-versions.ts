@@ -141,6 +141,8 @@ function labelOf(marker: PageMarker, number: boolean): HTMLButtonElement {
     label.dataset.bar = String(marker.bar);
     if (marker.anchor !== undefined) label.dataset.anchor = marker.anchor;
     else if (number) label.dataset.technique = marker.technique;
+    // A place's label opens its ▾ menu (v1.4, F3), the caret drawn after its words (score.css).
+    else if (marker.place) label.setAttribute("aria-haspopup", "menu");
     const text = document.createElement("span");
     text.textContent = marker.text;
     label.append(text);
