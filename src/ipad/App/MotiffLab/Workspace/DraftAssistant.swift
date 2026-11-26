@@ -84,7 +84,12 @@ struct DraftAssistantSection: View {
             }
         }
         .keyboardLift()
-        .onAppear { flow.apply(.open) }
+        // The question typed before the card was laid out anew (a rotation, Split View) is still there (r-1).
+        .onAppear {
+            flow.apply(.open)
+            flow.apply(.type(assistant.unsentInDraft))
+        }
+        .onChange(of: flow.draft) { _, typed in assistant.keepUnsent(typed, inDraft: true) }
         // What the API says the player may do, asked again once they sign in or out.
         .task(id: account.player) { await assistant.check(account.assistant) }
         .accessibilityElement(children: .contain)

@@ -19,8 +19,11 @@ final class AssistantController: ObservableObject {
     /// asked once before the first question in a draft, kept beside the other the same way.
     static let draftConsentKey = "ml-assistant-draft-consent"
 
-    /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere.
-    @Published private(set) var panelOpen = false
+    /// Whether the side panel shows: written here alone (`open`, `show`, `close`), read and observed elsewhere. Closed, the
+    /// question typed in it and not sent goes, as its field does.
+    @Published private(set) var panelOpen = false {
+        didSet { if !panelOpen { unsentInPanel = "" } }
+    }
     /// The list of the piece's conversations shown in the panel in place of the one open.
     @Published var listShown = false
     /// What the next question looks at: the selection, or the whole piece while the selection it was chosen for stands.
@@ -43,8 +46,16 @@ final class AssistantController: ObservableObject {
     @Published private(set) var here: AssistantHere?
     /// Whether the player agreed to what a question in a draft sends (`draftConsentKey`).
     @Published private(set) var draftConsentGiven: Bool
-    /// The assistant in a draft's place (v1.2 step 8): its conversation there (v1.4), never kept; nil while closed.
-    @Published private(set) var inDraft: AssistantInDraft?
+    /// The assistant in a draft's place (v1.2 step 8): its conversation there (v1.4), never kept; nil while closed. Closed,
+    /// or open on another place, the question typed there and not sent goes.
+    @Published private(set) var inDraft: AssistantInDraft? {
+        didSet { if inDraft?.place != oldValue?.place { unsentInDraft = "" } }
+    }
+    /// The question typed and not sent yet, in the panel and in a draft's place (r-1): kept here, since a rotation or
+    /// Split View lays the panel and the draft's card out anew, and their fields with them. Not observed: only the field
+    /// made again reads it (`keepUnsent`).
+    private(set) var unsentInPanel = ""
+    private(set) var unsentInDraft = ""
 
     private let store: AssistantStore
     private let defaults: UserDefaults
@@ -136,6 +147,16 @@ final class AssistantController: ObservableObject {
     func close() {
         panelOpen = false
         listShown = false
+    }
+
+    /// The question typed and not sent yet in the panel's field, or with `inDraft` in the draft's place's (r-1); empty once
+    /// sent or closed.
+    func keepUnsent(_ typed: String, inDraft: Bool = false) {
+        if inDraft {
+            unsentInDraft = self.inDraft == nil ? "" : typed
+        } else {
+            unsentInPanel = panelOpen ? typed : ""
+        }
     }
 
     /// The panel opened again on the conversation it had when it was closed (the pill's «Ассистент», Andrei's 0.8 test,

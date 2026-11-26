@@ -28,8 +28,7 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
   rules, focus, the playback model, beats, highlights' bands), each field written by one module; `post` (the only way to
   Swift), `pointerRules`, `documentPoint`, `READING_LINE_PX`. DOM-free at load (node test `score-page-state.test.mjs`).
 - `page-layout.ts`: `show`, `layout` (places every mark again), `inView`, `inset`, `frames`; the scroll and resize listeners.
-- `page-mark-place.ts` (r-1): the mark a card shows under (a `performanceBar` or `phraseHeld`) followed: a scroll or a
-  new layout posts `markMoved`, so Swift's card stays under it; a press that reaches the page forgets it (`score-mark-place.test.mjs`).
+- `page-mark-place.ts` (r-1): the mark a card shows under, followed: a scroll or a layout posts `markMoved`.
 - `page-ink.ts`: the pencil (`anchor`, `erase`, `eraseAlong`, `rub`, `rubEnd`, `draw`), owns the marks and the rubbing.
 - `page-bookmarks.ts`: `bookmarks`, `bookmarksTop` (the menu clears them).
 - `page-phrases.ts` (v1.2 i-2, the phrases spec): the phrases' marks (`phraseMarks`): a comma before each start note and
