@@ -181,7 +181,7 @@ public sealed partial class MusicCoreFacade
 
         if (name.StartsWith("corrections", StringComparison.Ordinal) && !flags.HasFlag(CallFlags.WhileCorrectionsOff))
         {
-            open.RefuseWhileOff();
+            open.Corrections.RefuseWhileOff(open.Words);
         }
 
         return call is null ? throw new FacadeException("unknownCall", $"There is no call \"{name}\".") : call.Run(new PieceCall(this, number, open), fields);
@@ -256,7 +256,7 @@ public sealed partial class MusicCoreFacade
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, from.Layer).AsReadOnly(view);
+        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, from.Corrections.Layer).AsReadOnly(view);
         int number = _next++;
         _pieces[number] = opened;
         return Answer.Write(json =>
@@ -289,7 +289,7 @@ public sealed partial class MusicCoreFacade
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        OpenPiece reopened = OpenPiece.Open(ProjectFile.Write(changed), open.Words, open.Layer);
+        OpenPiece reopened = OpenPiece.Open(ProjectFile.Write(changed), open.Words, open.Corrections.Layer);
         _pieces[number] = reopened;
         return Answer.Write(json =>
         {
