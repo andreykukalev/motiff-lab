@@ -102,11 +102,16 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertTrue(DraftRecordingOffer.ready.searchable)
         XCTAssertTrue(DraftRecordingOffer.notFound.searchable, "searched again on a tap")
         XCTAssertFalse(DraftRecordingOffer.noRecording.searchable, "nothing to search")
+        XCTAssertFalse(DraftRecordingOffer.noRecording.offered, "no recording heard as notes: the entry is not shown (answer 9)")
+        for entry in [DraftRecordingOffer.ready, .searching, .notFound, .failed(nil), .already(both.found[0])] {
+            XCTAssertTrue(entry.offered, "\(entry)")
+        }
         XCTAssertFalse(DraftRecordingOffer.searching.searchable, "one search at a time")
         for language in ["en", "ru"] {
             let text = UIText(language: language)
             XCTAssertNil(DraftRecordingOffer.ready.line(text), "before a tap")
-            for offer in [DraftRecordingOffer.noRecording, .searching, .notFound, .failed(nil), .already(both.found[0])] {
+            XCTAssertNil(DraftRecordingOffer.noRecording.line(text), "not shown: no line")
+            for offer in [DraftRecordingOffer.searching, .notFound, .failed(nil), .already(both.found[0])] {
                 let line = try XCTUnwrap(offer.line(text), "\(language): \(offer)")
                 XCTAssertFalse(line.hasPrefix("drafts."), "\(language): \(offer)")
             }
@@ -139,6 +144,8 @@ final class DraftStructureTests: XCTestCase {
             DraftViewAnswer.Place(id: id, label: id, onset: 0, end: 0, firstBar: 1, lastBar: 1, steps: 0, bridge: bridge, variants: [])
         }
         let places = [place("A"), place("bridge", bridge: true), place("B")]
+        XCTAssertTrue(DraftPlaceOrder.offered(places[0]))
+        XCTAssertFalse(DraftPlaceOrder.offered(places[1]), "a bridge shows no «Раньше» / «Позже»: music-core never moves it (answer 8)")
         XCTAssertEqual(DraftPlaceOrder.target(0, by: 1, in: places), 2)
         XCTAssertEqual(DraftPlaceOrder.target(2, by: -1, in: places), 0)
         XCTAssertNil(DraftPlaceOrder.target(0, by: -1, in: places), "none before the first")
@@ -346,15 +353,17 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(back.places.last?.variants.count, 1)
     }
 
-    /// F2 on a piece with no recording heard as notes: nothing is searched and the entry says so; a stretch put in anyway is
-    /// refused in music-core's words, and the draft stays as it was.
+    /// F2 on a piece with no recording heard as notes: nothing is searched and the entry is not shown (answer 9); a stretch
+    /// put in anyway is refused in music-core's words, and the draft stays as it was.
     func testFindOnRecordingWithoutARecordingHeard() async throws {
         let sources = try await piece()
         let draft = try await newDraft(sources, [1...4])
         let made = try await shown(draft, sources)
         let place = try XCTUnwrap(made.places.first)
+        XCTAssertFalse(sources.hasHeardNotes)
         let offer = await sources.findOnRecording(place.id, of: draft)
         XCTAssertEqual(offer, .noRecording)
+        XCTAssertFalse(offer.offered, "the place's card shows no «Найти на записи»")
         let found = await PieceCore(piece: sources.piece).draftRecording(draft: draft, place: place.id).value
         XCTAssertEqual(found?.found, [], "music-core finds nothing either")
 
@@ -365,6 +374,30 @@ final class DraftStructureTests: XCTestCase {
         XCTAssertEqual(sources.refusal(added, told: true, otherwise: "refused"), "The recording has no stretch of this place's music.")
         let after = try await shown(draft, sources)
         XCTAssertEqual(after.places.first?.variants.count, 1)
+    }
+
+    /// DRAFT-05, answer 21: with «Скрыть номера» a bridge's label, as a place's, only selects its place: the card open at it
+    /// goes with the numbers and a tap on it opens none; with the numbers back it opens its candidates again.
+    func testABridgesLabelOpensNoCardWhileTheNumbersAreHidden() throws {
+        let answers = try FacadeAnswerFixturesTests.answers("drafts.bridge")
+        let view = try XCTUnwrap(FacadeAnswer.decode(DraftViewAnswer.self, answers[5].text, of: "drafts.open"))
+        let bridge = try XCTUnwrap(view.draft.places.first(where: \.bridge), "the bridge between ① and ②")
+        var piece = OpenPiece(id: 9_000_781, title: view.draft.name, pages: [], timemap: "")
+        piece.draft = view.draft
+        let draftView = ScoreWorkspace(piece: piece, viewing: "view only")
+        let score = draftView.score
+        score.show(piece, dark: false)
+        score.pickLabel(bridge.firstBar, left: 12, bottom: 34)
+        XCTAssertEqual(score.seamsModel.label?.place, bridge.id, "numbers shown: the bridge's candidates at its label")
+        score.hideTechniqueNumbers(true)
+        XCTAssertNil(score.seamsModel.label, "hidden: the bridge's card goes with the numbers")
+        score.pickLabel(bridge.firstBar, left: 12, bottom: 34)
+        XCTAssertNil(score.seamsModel.label, "hidden: a bridge's label only selects its place")
+        score.hideTechniqueNumbers(false)
+        score.pickLabel(bridge.firstBar, left: 12, bottom: 34)
+        XCTAssertEqual(score.seamsModel.label?.place, bridge.id, "shown again: its card opens")
+        score.handle(.markAway)
+        XCTAssertNil(score.seamsModel.label, "its label out of sight: the card goes (answer 14)")
     }
 
     // MARK: - Helpers

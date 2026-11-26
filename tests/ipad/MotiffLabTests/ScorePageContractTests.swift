@@ -43,26 +43,33 @@ final class ScorePageContractTests: XCTestCase {
         XCTAssertEqual([start, end], [480, 1440])
     }
 
-    /// r-1: the mark a card shows under moved on the page (a scroll, a new layout): where its bottom left is now.
+    /// r-1: the mark a card shows at moved on the page (a scroll, a new layout): where its bottom left is now, and its top
+    /// (v1.4 a-1); out of sight, it says so.
     func testAMarkMovedCarriesItsPlace() {
-        let events = PageEvent.events(in: ["markMoved": ["left": 40.5, "bottom": 320]])
-        guard case let .markMoved(point)? = events.first else { return XCTFail("a mark moved: \(events)") }
+        let events = PageEvent.events(in: ["markMoved": ["left": 40.5, "top": 296, "bottom": 320]])
+        guard case let .markMoved(point, top)? = events.first else { return XCTFail("a mark moved: \(events)") }
         XCTAssertEqual(point, CGPoint(x: 40.5, y: 320))
+        XCTAssertEqual(top, 296)
+        XCTAssertEqual(events.first?.markHeight, 24)
+        guard case .markAway? = PageEvent.events(in: ["markAway": true]).first else { return XCTFail("a mark out of sight") }
+        XCTAssertNil(PageEvent.markAway.markHeight)
     }
 
     func testAVersionMarkerCarriesItsPlace() {
-        let events = PageEvent.events(in: ["performanceBar": 12, "left": 40.5, "bottom": 300])
-        XCTAssertEqual(events.count, 1, "left and bottom belong to the marker")
-        guard case let .performanceBar(bar, left, bottom)? = events.first else { return XCTFail("a marker: \(events)") }
+        let events = PageEvent.events(in: ["performanceBar": 12, "left": 40.5, "top": 280, "bottom": 300])
+        XCTAssertEqual(events.count, 1, "left, top and bottom belong to the marker")
+        guard case let .performanceBar(bar, left, bottom, top)? = events.first else { return XCTFail("a marker: \(events)") }
         XCTAssertEqual(bar, 12)
         XCTAssertEqual([left, bottom], [40.5, 300])
+        XCTAssertEqual(top, 280)
+        XCTAssertEqual(events.first?.markHeight, 20, "how high the mark is, for a card above it")
     }
 
     /// A draft's приём number (v1.1) is a marker that says which it is: the card opens for that occurrence, at the number.
     func testAPriyomNumberCarriesItsKey() {
         let events = PageEvent.events(in: ["performanceBar": 4, "left": 10, "bottom": 20, "technique": "pl_0001/1/4"])
         XCTAssertEqual(events.count, 1)
-        guard case let .techniqueNumber(key, left, bottom)? = events.first else { return XCTFail("a number: \(events)") }
+        guard case let .techniqueNumber(key, left, bottom, _)? = events.first else { return XCTFail("a number: \(events)") }
         XCTAssertEqual(key, "pl_0001/1/4")
         XCTAssertEqual([left, bottom], [10, 20])
     }
@@ -71,7 +78,7 @@ final class ScorePageContractTests: XCTestCase {
     func testASeamDiamondCarriesItsKey() {
         let events = PageEvent.events(in: ["performanceBar": 5, "left": 30, "bottom": 40, "seam": "pl_0002"])
         XCTAssertEqual(events.count, 1)
-        guard case let .seamDiamond(key, left, bottom)? = events.first else { return XCTFail("a seam: \(events)") }
+        guard case let .seamDiamond(key, left, bottom, _)? = events.first else { return XCTFail("a seam: \(events)") }
         XCTAssertEqual(key, "pl_0002")
         XCTAssertEqual([left, bottom], [30, 40])
     }
@@ -80,7 +87,7 @@ final class ScorePageContractTests: XCTestCase {
     func testAnAnchorMarkCarriesItsKey() {
         let events = PageEvent.events(in: ["performanceBar": 5, "left": 50, "bottom": 60, "anchor": "pl_0001/v_0002/2880"])
         XCTAssertEqual(events.count, 1)
-        guard case let .anchorMark(key, left, bottom)? = events.first else { return XCTFail("an anchor: \(events)") }
+        guard case let .anchorMark(key, left, bottom, _)? = events.first else { return XCTFail("an anchor: \(events)") }
         XCTAssertEqual(key, "pl_0001/v_0002/2880")
         XCTAssertEqual([left, bottom], [50, 60])
     }
@@ -105,7 +112,7 @@ final class ScorePageContractTests: XCTestCase {
     func testAPhraseMarkHeldCarriesItsPlaceAndOneDraggedItsMove() {
         let held = PageEvent.events(in: ["phraseHeld": 3, "left": 12.5, "bottom": 80])
         XCTAssertEqual(held.count, 1, "left and bottom belong to the mark")
-        guard case let .phraseHeld(number, left, bottom)? = held.first else { return XCTFail("a mark held: \(held)") }
+        guard case let .phraseHeld(number, left, bottom, _)? = held.first else { return XCTFail("a mark held: \(held)") }
         XCTAssertEqual(number, 3)
         XCTAssertEqual([left, bottom], [12.5, 80])
         guard case let .phraseMoved(from, to)? = PageEvent.events(in: ["phraseMoved": ["from": 2880, "to": 2520]]).first else { return XCTFail("a mark moved") }

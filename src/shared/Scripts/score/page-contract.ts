@@ -260,13 +260,20 @@ export interface PageEvents {
     cardLayout: Record<string, unknown>;
     coloured: TickRange;
     /** The mark whose card Swift shows (a `performanceBar` or `phraseHeld`) moved: where it is now, in the web view's points (r-1). */
-    markMoved: { left: number; bottom: number };
+    markMoved: MarkPlace;
+    /** That mark has left the visible part of the page (playback turned the page): its card closes (v1.4 a-1). */
+    markAway: true;
 }
 
-/** Where a tapped label over a bar is, in the web view's points (`windowPoint`), and a draft's приём number's, seam's or anchor's key. */
-export interface MarkerTap {
+/** Where a mark is, in the web view's points (`windowPoint`): its left, and its top and bottom, so a card opens under it or above it. */
+export interface MarkPlace {
     left: number;
+    top: number;
     bottom: number;
+}
+
+/** Where a tapped label over a bar is (`MarkPlace`), and a draft's приём number's, seam's or anchor's key. */
+export interface MarkerTap extends MarkPlace {
     technique?: string;
     seam?: string;
     anchor?: string;

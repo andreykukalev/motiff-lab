@@ -133,7 +133,7 @@ export function listenScroll(): void {
         scrolling = requestAnimationFrame(() => {
             reportPages();
             selection.placeMenu();
-            tellMarkMoved();
+            tellMarkMoved(true);
         });
     }, { passive: true });
 }
@@ -149,7 +149,7 @@ export function listenResize(): void {
             layoutCard();
             drawCardHeads();
             reportCardWidth();
-            tellMarkMoved();
+            tellMarkMoved(false);
         });
     });
 }

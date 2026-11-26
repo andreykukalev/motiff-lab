@@ -1,4 +1,5 @@
 import CoreGraphics
+import SwiftUI
 import XCTest
 
 @testable import MotiffLab
@@ -91,6 +92,47 @@ final class SourcesModelTests: XCTestCase {
         score.closeMarker()
         XCTAssertNil(score.sourcesModel.markerPick)
         XCTAssertEqual(asked, [12])
+    }
+
+    /// v1.4 a-1, answer 14: the page tells how high the mark is with its place (a tap, a move), for a card opened above it;
+    /// once the mark has left the visible part of the page (`markAway`: playback turned the page), its card closes, and
+    /// with it the cover that would catch the next tap.
+    func testACardAtAMarkKnowsItsHeightAndClosesOnceItLeavesSight() {
+        let score = ScoreController()
+        score.handle(.performanceBar(12, left: 40.5, bottom: 300, top: 276))
+        XCTAssertEqual(score.markHeight, 24)
+        score.handle(.markMoved(CGPoint(x: 40.5, y: 200), top: 152))
+        XCTAssertEqual(score.markHeight, 48, "zoomed in: as the page lays it out now")
+        XCTAssertNotNil(score.sourcesModel.markerPick)
+        score.handle(.markAway)
+        XCTAssertNil(score.sourcesModel.markerPick, "out of sight: the popover goes")
+        score.phraseMenu = PhraseMarkPick(number: 1, at: CGPoint(x: 10, y: 20))
+        score.handle(.markAway)
+        XCTAssertNil(score.phraseMenu, "and a phrase's menu")
+    }
+
+    /// v1.4 a-1, answer 14: a card at a mark opens under it where it fits there, else above it, else as low as it stays on
+    /// the screen; never under what the screen's own controls cover (the bar and a draft's pill at the top, the transport
+    /// pill, a drawer or a sheet at the bottom).
+    func testACardAtAMarkOpensAboveItWhereItDoesNotFitUnderIt() {
+        typealias Card = DraftCardAtMark<EmptyView>
+        let gap = CGFloat.ds("s-1")
+        let margin = CGFloat.ds("s-3")
+        let screen = Card.shown(EdgeInsets(), area: 800)
+        XCTAssertEqual(screen, margin...(800 - margin), "nothing covers it: a margin from the edges")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 100), mark: 24, card: 200, within: screen), 100 + gap, "room under the mark")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 700), mark: 24, card: 200, within: screen), 700 - 24 - gap - 200, "none under it: above it")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 700, within: screen), 800 - margin - 700, "room neither way: on the screen")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 900, within: screen), margin, "taller than the screen: from its top")
+
+        // The transport pill's top at 120 from the bottom, the bar and a draft's pill down to 110.
+        let clear = Card.shown(EdgeInsets(top: 110, leading: 0, bottom: 120, trailing: 0), area: 800)
+        XCTAssertEqual(clear, 110...680)
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 500), mark: 24, card: 200, within: screen), 500 + gap, "under the mark on the bare screen")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 500), mark: 24, card: 200, within: clear), 500 - 24 - gap - 200, "the pill covers that: above it")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 330), mark: 24, card: 200, within: clear), 330 + gap, "room under it above the pill")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 560, within: clear), 680 - 560, "room neither way: as low as it ends above the pill")
+        XCTAssertEqual(Card.top(at: CGPoint(x: 0, y: 300), mark: 24, card: 600, within: clear), 110, "taller than the room: from under the bars")
     }
 
     /// r-1: a card at a mark closes by its own cover, which the page never hears; the next `markMoved` finds no card and

@@ -185,7 +185,6 @@
   "drafts.goneSteps.one": "ушёл {0} шаг",
   "drafts.goneSteps.few": "ушли {0} шага",
   "drafts.goneSteps.many": "ушли {0} шагов",
-  "drafts.recordingNone": "У пьесы нет записи, распознанной в ноты.",
   "drafts.recordingSearching": "Ищу на записях…",
   "drafts.recordingNotFound": "На записях нет музыки этого места.",
   "drafts.recordingFailed": "Не получилось поискать на записях. Попробуйте ещё раз.",

@@ -83,7 +83,7 @@ enum PageEvent {
         case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
         case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved, motifMark
         case place, heads, drag, blank
-        case leave, cardLayout, coloured, markMoved
+        case leave, cardLayout, coloured, markMoved, markAway
     }
 
     case pages(first: Int, last: Int, count: Int)
@@ -102,20 +102,22 @@ enum PageEvent {
     case handles([CGPoint])
     case playheadAway(Double)
     case checkFlag(Int)
-    case performanceBar(Int, left: Double, bottom: Double)
+    /// A label over a bar tapped: its bar, and where it is: its bottom left and its top (`top`, v1.4 a-1, for a card opened
+    /// above it; nil where the page did not tell it), as for each mark below.
+    case performanceBar(Int, left: Double, bottom: Double, top: Double? = nil)
     /// A draft's приём number tapped (v1.1): a `performanceBar` message with the number's key, and where the number is.
-    case techniqueNumber(String, left: Double, bottom: Double)
+    case techniqueNumber(String, left: Double, bottom: Double, top: Double? = nil)
     /// A draft's seam diamond tapped (v1.1): a `performanceBar` message with the seam's key, and where the diamond is.
-    case seamDiamond(String, left: Double, bottom: Double)
+    case seamDiamond(String, left: Double, bottom: Double, top: Double? = nil)
     /// A draft's anchor mark tapped (v1.2): a `performanceBar` message with the anchor's key, and where the mark is.
-    case anchorMark(String, left: Double, bottom: Double)
+    case anchorMark(String, left: Double, bottom: Double, top: Double? = nil)
     /// A phrase's number tapped on the score (the phrases spec, decision 1): which phrase, from 1.
     case phraseMark(Int)
     /// A section's boxed letter tapped on the score: the section's id.
     case sectionMark(String)
     /// A phrase's number held still and let go (the phrases spec, «Polish of option A» 2): which phrase, and where its
     /// number's bottom left is on the page, for its menu.
-    case phraseHeld(Int, left: Double, bottom: Double)
+    case phraseHeld(Int, left: Double, bottom: Double, top: Double? = nil)
     /// A phrase's mark dragged and let go on a note: the tick its phrase starts at and that note's onset.
     case phraseMoved(from: Double, to: Double)
     /// A motif's comma tapped on the card in focus (the phrases spec, decision 2): its phrase's number and its place in it,
@@ -129,9 +131,26 @@ enum PageEvent {
     case cardLayout([String: Any])
     /// A passage the pen's colour bars coloured (finding 31), as Select would have selected it; the selection stays.
     case coloured(start: Double, end: Double)
-    /// The mark a card shows under (a `performanceBar` or a `phraseHeld`) moved on the page, a scroll or a new layout: where
-    /// its bottom left is now (r-1).
-    case markMoved(CGPoint)
+    /// The mark a card shows at (a `performanceBar` or a `phraseHeld`) moved on the page, a scroll or a new layout: where
+    /// its bottom left is now (r-1), and its top (v1.4 a-1).
+    case markMoved(CGPoint, top: Double? = nil)
+    /// That mark left the visible part of the page (playback turned the page, a scroll): its card closes (v1.4 a-1,
+    /// answer 14); the page no longer follows it.
+    case markAway
+
+    /// How high the mark is whose place the event tells (a mark tapped for its card, or moved), in the web view's points,
+    /// for a card opened above it (v1.4 a-1); nil for any other event, or a place told without its top.
+    var markHeight: Double? {
+        switch self {
+        case let .performanceBar(_, _, bottom, top), let .techniqueNumber(_, _, bottom, top), let .seamDiamond(_, _, bottom, top),
+             let .anchorMark(_, _, bottom, top), let .phraseHeld(_, _, bottom, top):
+            return top.map { max(0, bottom - $0) }
+        case let .markMoved(point, top):
+            return top.map { max(0, Double(point.y) - $0) }
+        default:
+            return nil
+        }
+    }
 
     /// The events of one message, in the order of `Kind`; what does not decode is left out.
     static func events(in message: [String: Any]) -> [PageEvent] {
@@ -176,10 +195,11 @@ enum PageEvent {
     private static func markerTap(_ value: Any?, _ message: [String: Any]) -> PageEvent? {
         let left = number(message["left"]) ?? 0
         let bottom = number(message["bottom"]) ?? 0
-        if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom) }
-        if let key = message["seam"] as? String { return .seamDiamond(key, left: left, bottom: bottom) }
-        if let key = message["anchor"] as? String { return .anchorMark(key, left: left, bottom: bottom) }
-        return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom) }
+        let top = number(message["top"])
+        if let key = message["technique"] as? String { return .techniqueNumber(key, left: left, bottom: bottom, top: top) }
+        if let key = message["seam"] as? String { return .seamDiamond(key, left: left, bottom: bottom, top: top) }
+        if let key = message["anchor"] as? String { return .anchorMark(key, left: left, bottom: bottom, top: top) }
+        return number(value).map { .performanceBar(Int($0), left: left, bottom: bottom, top: top) }
     }
 
     /// A mark on the score tapped that names what it marks: a bookmark, a margin note, a Check flag, a phrase's number,
@@ -213,7 +233,7 @@ enum PageEvent {
         case .performanceBar:
             return markerTap(value, message)
         case .phraseHeld:
-            return number(value).map { .phraseHeld(Int($0), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0) }
+            return number(value).map { .phraseHeld(Int($0), left: number(message["left"]) ?? 0, bottom: number(message["bottom"]) ?? 0, top: number(message["top"])) }
         case .phraseMoved:
             return fields.flatMap { moved in number(moved["from"]).flatMap { from in number(moved["to"]).map { .phraseMoved(from: from, to: $0) } } }
         case .playheadAway:
@@ -233,7 +253,9 @@ enum PageEvent {
         case .coloured:
             return span(fields).map { .coloured(start: $0.start, end: $0.end) }
         case .markMoved:
-            return fields.flatMap { place in number(place["left"]).map { CGPoint(x: $0, y: number(place["bottom"]) ?? 0) } }.map { .markMoved($0) }
+            return fields.flatMap { place in number(place["left"]).map { PageEvent.markMoved(CGPoint(x: $0, y: number(place["bottom"]) ?? 0), top: number(place["top"])) } }
+        case .markAway:
+            return .markAway
         default:
             return nil
         }

@@ -96,13 +96,13 @@ extension ScoreController {
     /// A marker tapped over the bars (at its bottom left on the page): a label, a приём's number or a seam's diamond.
     func pickMarker(_ event: PageEvent) {
         switch event {
-        case let .performanceBar(bar, left, bottom):
+        case let .performanceBar(bar, left, bottom, _):
             pickLabel(bar, left: left, bottom: bottom)
-        case let .techniqueNumber(key, left, bottom):
+        case let .techniqueNumber(key, left, bottom, _):
             pickTechnique(key, at: CGPoint(x: left, y: bottom))
-        case let .seamDiamond(key, left, bottom):
+        case let .seamDiamond(key, left, bottom, _):
             pickSeam(key, at: CGPoint(x: left, y: bottom))
-        case let .anchorMark(key, left, bottom):
+        case let .anchorMark(key, left, bottom, _):
             pickAnchor(key, at: CGPoint(x: left, y: bottom))
         default:
             break
@@ -126,13 +126,24 @@ extension ScoreController {
         return moved || draftCards.contains(true)
     }
 
+    /// The mark whose card shows left the visible part of the page (`markAway`: a scroll, playback turning the page): its
+    /// card goes as a tap beside it would put it away, a version's marker's, a phrase's number's or a draft's; a seam's card
+    /// on the draft's map stays (v1.4 a-1, answer 14).
+    func closeCardAtMark() {
+        closeMarker()
+        closePhraseMenu()
+        draftModel.closeCard()
+        if seamsModel.label != nil || seamsModel.picked?.at != nil { seamsModel.close() }
+        anchorsModel.close()
+    }
+
     /// A label tapped at `bar` (`left`, `bottom`: its bottom left on the page): in a draft's view the place that starts
     /// there, selected, with its card at its label (a bridge's candidates, v1.2; any other place's ▾ menu of its variants,
-    /// v1.4, none while «Скрыть номера» leaves the draft to practise on: DRAFT-05), else a version's marker, whose card
-    /// opens there and whose bar is selected.
+    /// v1.4; none while «Скрыть номера» leaves the draft to practise on, a bridge's neither since v1.4 a-1: DRAFT-05,
+    /// answer 21), else a version's marker, whose card opens there and whose bar is selected.
     func pickLabel(_ bar: Int, left: Double, bottom: Double) {
         guard !pickPlace(startingAt: bar) else {
-            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }), place.bridge || !draftModel.numbersHidden {
+            if let place = piece?.draft?.places.first(where: { $0.firstBar == bar }), !draftModel.numbersHidden {
                 seamsModel.pickLabel(place.id, at: CGPoint(x: left, y: bottom))
                 draftModel.closeCard()
                 anchorsModel.close()
@@ -166,12 +177,12 @@ extension ScoreController {
     }
 
     /// «Скрыть номера» or «Показать номера»: the numbers and the anchors' marks leave the page or come back; hidden, an
-    /// anchor's menu and a place's ▾ menu go (DRAFT-05), a bridge's card stays, as its label still opens it.
+    /// anchor's menu and the card at a place's label go, a bridge's too, as no label opens one then (DRAFT-05, answer 21).
     func hideTechniqueNumbers(_ hidden: Bool) {
         draftModel.hideNumbers(hidden)
         if hidden {
             anchorsModel.close()
-            if let open = seamsModel.label, piece?.draft?.places.first(where: { $0.id == open.place })?.bridge != true { seamsModel.close() }
+            if seamsModel.label != nil { seamsModel.close() }
         }
         Task { await drawVersions() }
     }

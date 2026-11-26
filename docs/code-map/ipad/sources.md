@@ -23,7 +23,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `addFromRecording`, `resize`, `carry` (the move's and the resize's toast tells what went, `told`: "dropped" steps, and
   bridges by the places count), reads `findOnRecording` (on a tap; none searched without Notes `isHeard`), `length`,
   `carryPlaces` (`PieceCore`); `refusal(_:told:otherwise:)`, music-core's words for these when "unavailable"
-  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи»: the stretch
+  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи», not shown without a recording heard, `offered`, a-1: the stretch
   found most, else the variant it is named) and `DraftLengthChoice` (bars within the Notes).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of

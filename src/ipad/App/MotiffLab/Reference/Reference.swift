@@ -330,9 +330,10 @@ final class ReferencePiano {
     private var starting: Task<Player.Renderer?, Never>?
     /// Follows the engine's reports while music plays once, to tell when it has ended.
     private var watching: Task<Void, Never>?
-    /// Called when music played once has come to its end.
+    /// Called when music played once has come to its end, and when the system paused it (EngineKeeper).
     var ended: (() -> Void)?
-    /// Starts the engine again after an interruption or a route change (EngineKeeper); an interruption pauses the music.
+    /// Starts the engine again after an interruption or a route change (EngineKeeper); an interruption, the app gone to the
+    /// background and the headphones gone pause the music, and the sheet shows it stopped (v1.4 a-1).
     private var keeper: EngineKeeper?
 
     func play(_ score: PlaybackScore, loop: Bool = false) async {
@@ -408,7 +409,10 @@ final class ReferencePiano {
             audio.attach(node)
             audio.connect(node, to: audio.mainMixerNode, format: format)
             try audio.start()
-            keeper = EngineKeeper(audio) { [weak self] in self?.pause() }
+            keeper = EngineKeeper(audio) { [weak self] in
+                self?.pause()
+                self?.ended?()
+            }
             let samples = try await Task.detached(priority: .userInitiated) { try Piano.load() }.value
             renderer.send(.samples(samples))
             self.renderer = renderer

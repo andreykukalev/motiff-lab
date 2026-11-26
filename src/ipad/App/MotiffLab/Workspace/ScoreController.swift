@@ -92,6 +92,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     var barBeats = BarBeats()
     /// A phrase's mark held, whose menu is open under its number (ScorePhraseEdits.swift); nil for none.
     @Published var phraseMenu: PhraseMarkPick?
+    /// How high the mark is that a card opens at, as the page last told it with the mark's place (a tap on it, a move):
+    /// the card opens above it when there is no room below (`DraftCardAtMark`, v1.4 a-1). Written only in `handle`.
+    @Published private(set) var markHeight: CGFloat = 0
     /// The tuplet groups the page read, as blocks the selection's grid never splits (v0.6.4, PlaceSelection.swift): the roll takes them.
     var tupletsRead: (@MainActor ([[String: Double]]) -> Void)?
     /// The zoom and the place a double tap inside the selection zoomed from (PlaceSelection.swift), for the next to go back to.
@@ -300,6 +303,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
 
     /// Acts on one thing the page reported; the roll's long press comes here too (its hold hint).
     func handle(_ event: PageEvent) {
+        if let height = event.markHeight.map({ CGFloat($0) }), height != markHeight { markHeight = height }
         if !handleSelection(event) {
             handleMarks(event)
         }
@@ -363,7 +367,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             pages = PagesInView(first: first, last: last, count: count)
         case .bookmark, .noteMarker, .checkFlag, .performanceBar, .techniqueNumber, .seamDiamond, .anchorMark, .phraseMark, .sectionMark, .motifMark:
             markTapped(event)
-        case let .phraseHeld(number, left, bottom):
+        case let .phraseHeld(number, left, bottom, _):
             holdPhrase(number, at: CGPoint(x: left, y: bottom))
         case let .phraseMoved(from, to):
             movePhrase(from: from, to: to)
@@ -385,13 +389,23 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             Task { await engraveCard() }
         case let .coloured(start, end):
             penModel.colour(start, end)
-        case .markMoved(let point):
-            // No card shows at a mark any more (closed by its own cover, which the page never hears): the page stops
-            // following it, else it would tell each frame of a scroll (r-1).
-            if !moveCardAtMark(to: point) { Task { await scorePage.send(.markForgotten) } }
+        case .markMoved, .markAway:
+            markChanged(event)
         default:
             break
         }
+    }
+
+    /// The mark whose card shows moved on the page (r-1), or left the visible part of it (v1.4 a-1, answer 14).
+    private func markChanged(_ event: PageEvent) {
+        guard case .markMoved(let point, _) = event else {
+            // Out of sight (playback turned the page): its card closes, its cover with it, so the next tap reaches the score.
+            closeCardAtMark()
+            return
+        }
+        // No card shows at a mark any more (closed by its own cover, which the page never hears): the page stops following
+        // it, else it would tell each frame of a scroll (r-1).
+        if !moveCardAtMark(to: point) { Task { await scorePage.send(.markForgotten) } }
     }
 
     /// A mark on the score tapped: a bookmark goes there, a margin note opens, a Check flag shows its bar, a version's or a
