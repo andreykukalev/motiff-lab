@@ -18,7 +18,7 @@ namespace MotiffLab.MusicCore.Facade;
 internal sealed partial class OpenPiece
 {
     /// <summary>The printed notes with the player's corrections: what every performance is compared with.</summary>
-    private IReadOnlyList<Note> Printed => Corrected();
+    private IReadOnlyList<Note> Printed => Corrections.Corrected(State);
 
     private SavedPerformance Performance(Request request) =>
         Project.FindPerformance(request.Required("id")) ?? throw new FacadeException("notFound", $"There is no performance {request.Required("id")}.");
