@@ -134,6 +134,10 @@ public class MusicCoreFacadeTests
         Assert.Contains(discarded.GetProperty("notes").EnumerateArray(), note => note.GetProperty("id").GetString() == id);
         Assert.Equal("unavailable", Error(facade, 1, "corrections.save", """{"bar": 2}"""));
         Assert.Equal("badRequest", Error(facade, 1, "corrections.add", """{"bar": 2, "pitch": 200, "onset": 0}"""));
+
+        // A note that would end past the longest time a piece can hold is a bad request, not a failure of music-core.
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.add", """{"bar": 2, "pitch": 60, "onset": 9223372036854775000, "length": 1000}"""));
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.set", $$"""{"bar": 2, "id": "{{id}}", "onset": 9223372036854775000, "length": 1000}"""));
     }
 
     [Fact]

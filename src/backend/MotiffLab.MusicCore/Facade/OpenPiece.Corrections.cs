@@ -277,6 +277,10 @@ internal sealed partial class OpenPiece
         {
             throw FacadeException.BadRequest(exception.Message);
         }
+        catch (OverflowException)
+        {
+            throw FacadeException.BadRequest("The note would end past the longest time a piece can hold.");
+        }
 
         if (!edits.Equals(Project.Edits))
         {
