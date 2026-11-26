@@ -30,6 +30,11 @@ namespace MotiffLab.MusicCore.Notation;
 /// same measures (decision record 0021).
 /// </para>
 /// <para>
+/// Notes with a source record (read from a PDF, or imported as MusicXML) are written as the score prints them, bar by bar
+/// and staff by staff, where the record fits; the steps above write the other bars, and inside a printed bar the voices
+/// of notes the player corrected or added (<see cref="PrintedBars"/>, «Как напечатано», step 1).
+/// </para>
+/// <para>
 /// The parts: <see cref="NotationPlan"/> plans the parts and bars, with <see cref="StaffVoices"/> (staves, clefs and
 /// voices), <see cref="TupletBeats"/> (triplets), <see cref="HeardRhythm"/> (notes heard in a recording) and
 /// <see cref="ControlPlan"/> (the marks of the playing); <see cref="StaffLayout"/> lays each staff out in a bar with
@@ -64,7 +69,10 @@ public static class NotationGenerator
         return Generate(import.Notes, import.Meter, import.KeySignatures.Select(key => new KeyChange(key.At, Math.Clamp(key.Sharps, -7, 7))), import.End, title, asHeard, tempos: tempos);
     }
 
-    /// <summary>Notation for a MusicXML import, generated from its notes rather than engraved as written. Key signatures come from the first part.</summary>
+    /// <summary>
+    /// Notation for a MusicXML import, written as the score prints it bar by bar where it can (<paramref name="printed"/>),
+    /// generated elsewhere. Key signatures come from the first part.
+    /// </summary>
     /// <param name="tempos">The tempo marked on the score, as <see cref="Generate"/> takes it.</param>
     public static GeneratedNotation FromMusicXml(MusicXmlImport import, string? title = null, IReadOnlyList<PlaybackTempo>? tempos = null)
     {
@@ -73,7 +81,7 @@ public static class NotationGenerator
         IEnumerable<KeyChange> keys = import.KeySignatures
             .Where(key => key.Track == firstTrack)
             .Select(key => new KeyChange(key.At, Math.Clamp(key.Fifths, -7, 7)));
-        return Generate(import.Notes, import.Meter, keys, import.End, title, tempos: tempos);
+        return Generate(import.Notes, import.Meter, keys, import.End, title, tempos: tempos, printed: PrintedNotation.Of(import));
     }
 
     /// <param name="notes">The notes to write, in any order.</param>
@@ -124,7 +132,12 @@ public static class NotationGenerator
     /// The tempo the notes play at, as played (version 0.5.4): marked over the original's top staff as
     /// <see cref="TempoMarks"/> says, "♩ = 92" at the start and at each change the notes state; none when null.
     /// </param>
-    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null, IReadOnlyList<PlaybackTempo>? tempos = null)
+    /// <param name="printed">
+    /// The notes' source record, for notes read from a PDF or imported as MusicXML («Как напечатано», step 1): each bar of
+    /// a staff of the original written as the score prints it, where the record fits (<see cref="PrintedBars"/>): voices,
+    /// rests, note values with dots and ties, tuplets, stems and beams. Not for notes written as heard, or an ossia.
+    /// </param>
+    public static GeneratedNotation Generate(IEnumerable<Note> notes, MeterMap meter, IEnumerable<KeyChange> keys, Tick end, string? title = null, bool asHeard = false, IReadOnlyList<PlaybackTempo>? playedTempos = null, IEnumerable<TickSpan>? pedal = null, BarRange? bars = null, IReadOnlyList<NotationOssia>? ossias = null, PlayedMarks marks = PlayedMarks.All, TransposedSpelling? spelling = null, IReadOnlyList<PlaybackTempo>? tempos = null, PrintedNotation? printed = null)
     {
         ArgumentNullException.ThrowIfNull(notes);
         ArgumentNullException.ThrowIfNull(meter);
@@ -147,7 +160,7 @@ public static class NotationGenerator
             nextStaff += part.Staves.Count;
         }
 
-        PartPlan main = NotationPlan.PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false, marks);
+        PartPlan main = NotationPlan.PlanPart(input, written, asHeard, playedTempos, pedal, nextStaff, ossia: false, marks, printed);
         parts.Add(main);
 
         (List<MeasurePlan> measures, int markCount) = NotationPlan.PlanMeasures(written, keyChanges, parts, spelling, tempos, meter);
@@ -156,6 +169,7 @@ public static class NotationGenerator
         return Counted(new GeneratedNotation(mei, main.StaffInfo, input.Length, main.Approximated, main.Shortened.Count, main.Heard.Held, main.Heard.Cut, main.Heard.Graces, asHeard), main) with
         {
             TempoMarkCount = markCount,
+            AppWrittenBarCount = printed is null || asHeard ? null : Enumerable.Range(written.FirstIndex, written.Count).Count(index => main.Staves.Any(staff => !staff.Printed.ContainsKey(index))),
             Excerpt = bars is null ? null : written.Range,
             Ossias = [.. above.Select((ossia, index) => new GeneratedOssia(ossia.Label, parts[index].StaffInfo, ossiaNotes[index].Length, OssiaIdPrefix(index)))],
         };

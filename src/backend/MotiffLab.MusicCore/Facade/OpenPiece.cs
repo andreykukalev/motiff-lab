@@ -496,7 +496,9 @@ internal sealed partial class OpenPiece
         PlaybackScore played = PlaybackScore.FromPiece(Piece);
         if (!heard)
         {
-            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias, tempos: played.Tempos);
+            // Notes with a source record are written as the score prints them («Как напечатано», step 1).
+            PrintedNotation? printed = Piece.MusicXml is { } source ? PrintedNotation.Of(source) : null;
+            return NotationGenerator.Generate(notes, Piece.Meter, keys, end, title, bars: bars, ossias: ossias, tempos: played.Tempos, printed: printed);
         }
 
         if (readable && !reading)

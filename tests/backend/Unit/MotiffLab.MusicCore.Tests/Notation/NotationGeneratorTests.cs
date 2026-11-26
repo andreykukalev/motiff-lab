@@ -367,9 +367,9 @@ public class NotationGeneratorTests
                     continue;
                 }
 
-                long filled = layer.Descendants()
-                    .Where(element => element.Attribute("dur") is not null && element.Parent!.Name != s_mei + "chord")
-                    .Sum(Ticks);
+                // A tuplet's values are summed before they are scaled: seven 16ths in the time of four are not whole ticks each.
+                long filled = layer.Descendants().Where(element => element.Attribute("dur") is not null && element.Parent!.Name != s_mei + "chord" && !element.Ancestors(s_mei + "tuplet").Any()).Sum(Ticks)
+                    + layer.Descendants(s_mei + "tuplet").Sum(NotationParts.TupletTicks);
                 Assert.Equal(barTicks, filled);
             }
         }

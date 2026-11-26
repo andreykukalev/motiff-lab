@@ -11,7 +11,7 @@ internal sealed record PartPlan(List<StaffPlan> Staves, ControlEvents[] Controls
     public NotationStaff[] StaffInfo => [.. Staves.Select(staff => new NotationStaff(staff.Number, staff.Track, staff.Clef, staff.Hand, staff.IsSplitInferred))];
 
     /// <summary>The part's staves laid out in a bar, with the marks of the playing that start there.</summary>
-    public PartMeasure Measure(Bar bar, int index, int fifths, TransposedSpelling? spelling) => new(FirstStaff, [.. Staves.Select(staff => StaffLayout.LayOut(staff, bar, fifths, spelling))])
+    public PartMeasure Measure(Bar bar, int index, int fifths, TransposedSpelling? spelling) => new(FirstStaff, [.. Staves.Select(staff => StaffLayout.LayOut(staff, bar, index, fifths, spelling))])
     {
         Dynamic = Marks is not null && Marks.Dynamics.TryGetValue(index, out (long At, string Level) dynamic) ? dynamic : null,
         TempoWord = Marks is not null && Marks.TempoWords.TryGetValue(index, out string? word) ? word : null,

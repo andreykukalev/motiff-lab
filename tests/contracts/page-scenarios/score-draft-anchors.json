@@ -151,9 +151,9 @@
        "bar": 3,
        "text": "1",
        "state": "open",
-       "left": 335,
+       "left": 337,
        "top": 195,
-       "right": 367,
+       "right": 369,
        "bottom": 219
       },
       {
@@ -180,9 +180,9 @@
        "bar": 3,
        "text": "",
        "state": null,
-       "left": 371,
+       "left": 373,
        "top": 195,
-       "right": 395,
+       "right": 397,
        "bottom": 219
       }
      ]

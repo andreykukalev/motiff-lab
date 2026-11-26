@@ -57,5 +57,8 @@ internal sealed class ChordPiece(long start, long ticks, int dur, int dots, Chor
     /// <summary>A grace note: written small and slashed, taking no time.</summary>
     public bool IsGrace { get; init; }
 
+    /// <summary>The stem as the score writes it («Как напечатано»): up, down, or null where the engraver places it.</summary>
+    public bool? StemUp { get; init; }
+
     public bool[] ShowAccidental { get; set; } = [];
 }

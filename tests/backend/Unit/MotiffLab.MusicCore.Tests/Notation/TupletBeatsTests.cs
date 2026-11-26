@@ -14,14 +14,14 @@ public class TupletBeatsTests
     {
         TupletSpan tuplet = Assert.Single(TupletBeats.Find(Onsets(0, 165, 325), Bars(1)));
 
-        Assert.Equal(new TupletSpan(0, 480, 3), tuplet);
+        Assert.Equal(new TupletSpan(0, 480, 3, 2), tuplet);
         Assert.Equal(160, tuplet.Step);
     }
 
     [Fact]
     public void Six_onsets_on_sixths_of_a_beat_are_a_sextuplet()
     {
-        Assert.Equal([new TupletSpan(480, 480, 6)], TupletBeats.Find(Onsets(480, 560, 640, 720, 800, 880), Bars(1)));
+        Assert.Equal([new TupletSpan(480, 480, 6, 4)], TupletBeats.Find(Onsets(480, 560, 640, 720, 800, 880), Bars(1)));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class TupletBeatsTests
     [Fact]
     public void Two_onsets_on_thirds_count_next_to_a_triplet_of_three()
     {
-        Assert.Equal([new TupletSpan(0, 480, 3), new TupletSpan(480, 480, 3)], TupletBeats.Find(Onsets(0, 160, 320, 480, 800), Bars(1)));
+        Assert.Equal([new TupletSpan(0, 480, 3, 2), new TupletSpan(480, 480, 3, 2)], TupletBeats.Find(Onsets(0, 160, 320, 480, 800), Bars(1)));
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class TupletBeatsTests
     [Fact]
     public void A_tick_goes_on_the_triplets_grid_in_a_triplet_beat_and_on_the_grid_outside()
     {
-        TupletSpan[] tuplets = [new(0, 480, 3)];
+        TupletSpan[] tuplets = [new(0, 480, 3, 2)];
 
         Assert.Equal(160, TupletBeats.SnapIn(150, tuplets, NotationGenerator.HeardGrid));
         Assert.Equal(600, TupletBeats.SnapIn(590, tuplets, NotationGenerator.HeardGrid));
@@ -59,7 +59,7 @@ public class TupletBeatsTests
     {
         ShownNote[] notes = [Shown("n_0001", 72, 155, 150), Shown("n_0002", 72, 480, 240)];
 
-        ShownNote[] written = TupletBeats.OnTuplets(notes, [new TupletSpan(0, 480, 3)]);
+        ShownNote[] written = TupletBeats.OnTuplets(notes, [new TupletSpan(0, 480, 3, 2)]);
 
         Assert.Equal([(160L, 320L), (480L, 720L)], written.Select(note => (note.Onset, note.End)));
         Assert.Same(notes, TupletBeats.OnTuplets(notes, []));
