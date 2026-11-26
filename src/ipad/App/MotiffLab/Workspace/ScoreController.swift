@@ -266,7 +266,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             webView.alpha = Landing.holdsTheNotes(piece.landing) ? 0 : 1
             selectionModel.open(piece)
             rendered = false
-            sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"))
+            sourcesModel.open(evenBars: DeviceSettings.shared.isOn("score.evenBars"), appWrittenBars: piece.appWrittenBars)
             focusModel.forgetVersionNotes()
         }
         self.dark = dark
@@ -1081,7 +1081,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         case .success(let engraving):
             // Its other view stays; where it opened does not, so the page stays where the player is.
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft, shownOnly: piece.shownOnly)
-            sourcesModel.keepEngraved(SourcesModel.Engraved(even: even))
+            sourcesModel.keepEngraved(SourcesModel.Engraved(even: even, appWrittenBars: engraving.appWrittenBars))
             await render()
             if focusModel.focused { await engraveCard() }
         case .failure(let error):

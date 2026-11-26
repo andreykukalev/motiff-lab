@@ -63,7 +63,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last
-  engraved; reads and renames versions (`performance.rename`). Tests: `SourcesModelTests`.
+  engraved (since v1.4 with the bars the app wrote, `Engraved.note`: the view's note in the score's bar); reads and
+  renames versions (`performance.rename`). Tests: `SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
   `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
   «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources

@@ -512,7 +512,7 @@ final class SourcesController: ObservableObject {
             }
             switch Engraver.engrave(piece: number, title: title, evenBars: evenBars) {
             case .success(let engraving):
-                var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap)
+                var shown = OpenPiece(id: number, title: title, pages: engraving.pages, timemap: engraving.timemap, appWrittenBars: engraving.appWrittenBars)
                 shown.draft = draft
                 shown.shownOnly = true
                 return .success(shown)

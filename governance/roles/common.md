@@ -35,7 +35,9 @@ Read `governance/README.md` (the process) first, then this file, then your role'
 
 Understanding the code comes before saving tokens (Andrei, 2026-11-16): a missed dependency costs more than a long
 context. The context is compacted automatically at about 400K tokens (the environment's
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, 500K, at 80 %).
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, 500K, at 80 %). This holds for the developer, the lead and the architect; the pull
+request reviewer reads the diff and the spec section it follows, not the whole task (`roles/pr-reviewer.md`, «Input»;
+Andrei, 2026-11-26).
 
 - Read the files you change whole, and every place that uses what they export: find the users by name across `src/`
   and `tests/` (`git grep -n -w <symbol> -- src tests`), including the score page's messages (`src/ipad/App/Web`,
@@ -92,7 +94,11 @@ context. The context is compacted automatically at about 400K tokens (the enviro
   `governance/quality/settings.json` or a tool's configuration to pass.
 - Batch commits, push rarely: every push starts CI. No empty commits, no pushes only to restart CI.
 - Commits keep the `Claude-Session` trailer. A pull request starts with the platform's attribution block, then the
-  template.
+  template, filled in a few lines: what changed, why, how it was checked, what is needed from Andrei (Andrei,
+  2026-11-26). Details stay in the code, the commit messages and the version note.
+- Catch up with `develop` once, right before the merge, not after every other pull request lands (Andrei, 2026-11-26):
+  each catch-up restarts CI and the iPad run, and wakes the agent to read its context again
+  (`roles/developer.md`, step 9).
 
 ## CI and heavy checks
 

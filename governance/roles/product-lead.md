@@ -16,7 +16,10 @@ A task brief is one page with the same headings: Goal (in the product's words, w
 and paths (`allowed_paths`) and the code map to read first; UX baseline entries in the area (they stay green) and the
 entries the task changes, with Andrei's wording; Contracts touched and the track that leads each; Tests to add, by
 layer (a failing test first for a defect, the scenario for a new behaviour); Not in scope; Done when (checks green, the
-«UX baseline» line in the pull request, code map updated).
+«UX baseline» line and the «Robustness» list in the pull request, code map updated).
+
+The reviewer's start message gives the pull request and the one section of the spec, decision record or design note
+the change follows (a path and a heading), not the brief or the task's history (`roles/pr-reviewer.md`, «Input»).
 
 ## Recording what Andrei writes
 
@@ -42,8 +45,9 @@ for feedback:
 
 1. Open a pull request to `develop` that sets `VERSION` to `0.<n>` and merge it on green: the `Version` workflow tags
    that commit `v0.<n>` and starts the iPad tests on the tag (a cloud thread cannot push tags itself).
-2. Write the version note: what is new, what to check (what is new, as
-   `provisional` entries of `docs/ux-baseline.md` with ids), what is uncertain, «Решено без вас» (3–5 lines with links),
+2. Write the version note: what is new, what to check (what is new, as `provisional` entries of `docs/ux-baseline.md`
+   with ids), what is uncertain, «Решено без вас» (3–5 lines with links), «Подпилено без вас» (the robustness fixes
+   and the new entries of `docs/ui-edge-cases.md`, one line each),
    which models were used and roughly how much of the limits.
 3. Ask the coordinator to open the thread «Версия 0.<n>» with the note, and close the previous version's thread.
 4. Rewrite `state.md` and write the handover: what is done, what is in work, what waits for Andrei.
