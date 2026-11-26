@@ -70,7 +70,7 @@ enum ProjectFiles {
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
         let text = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         if let failure = facadeObject(text), failure["error"] != nil {
-            throw ProjectError(message: failure["message"] as? String ?? "music-core did not save the project.")
+            throw ProjectError(message: failure["message"] as? String ?? UIText.current["opening.notSaved"])
         }
         try Data(text.utf8).write(to: url, options: .atomic)
     }
@@ -277,7 +277,7 @@ enum PieceDetailsFile {
     private static func change(_ url: URL, _ fields: [String: Any]) async throws -> (summary: PieceSummary, file: String) {
         let data = try Data(contentsOf: url)
         guard let file = String(data: data, encoding: .utf8) else {
-            throw ProjectError(message: "The project file could not be read.")
+            throw ProjectError(message: UIText.current["opening.unreadable"])
         }
         var request = fields
         request["file"] = file

@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.4 c-5):** contract 15 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-26, v1.5 c-15b):** contract 15 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -223,6 +223,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ### 15
 
 15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.
+
+Also within 15 (version 1.5, c-15b, #352): a circle of dna's "circles" that rests on recognised notes still to check, and is drawn as uncertain for it, answers "doubt", where they are (as its keys and chords do since 11); written only then, so the answer about imported notes is as before; a field added.
 
 Also within 15 (version 1.5, c-11, «Как напечатано» step 2): sources.notes.recognise carries the working notes' corrections and the bars the player confirmed over to the new Notes when the working notes are a reading of the same original (`ReadingCarry`), the corrections carried in one group, and then answers "carried": "carried", "byReading" and "notCarried" (how many), "bars" (those with a correction not carried), "confirmed" (the bars confirmed again) and "text" (the toast's line, or null); without a carry the answer is as before. A field added.
 

@@ -72,8 +72,8 @@ public sealed class AssistantPiece
         PhraseLevels.Suggest(Notes, Meter, Piece.MusicXml?.PhraseMarks ?? PhraseMarks.None, Piece.End, KeySignature.InForce(Piece.Keys, Tick.Zero), Words, LevelEdits.None),
         Words);
 
-    /// <summary>The recognised notes still to check: those in bars with an open Check flag (#352).</summary>
-    public NoteDoubt Doubt => NoteDoubt.Of(Notes, Meter, Check.Where(static flag => !flag.Resolved).Select(static flag => flag.Bar), Words);
+    /// <summary>The recognised notes still to check: those in bars with an open Check flag about the notes (#352).</summary>
+    public NoteDoubt Doubt => NoteDoubt.Of(Notes, Meter, CheckFlag.DoubtfulBars(Check), Words);
 
     /// <summary>Why bars <paramref name="from"/> to <paramref name="to"/> cannot be read, or null when they can.</summary>
     public string? RangeRefusal(int from, int to)

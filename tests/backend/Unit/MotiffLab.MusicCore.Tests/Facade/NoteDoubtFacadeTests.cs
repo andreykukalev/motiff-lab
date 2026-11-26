@@ -1,10 +1,13 @@
+using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
+using MotiffLab.MusicCore.Projects;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
-/// <summary>Through the facade (contract 11): doubt about recognised notes reaches chords and facts, and goes when checked (#352).</summary>
+/// <summary>Through the facade (contract 11; the circles' within 15): doubt about recognised notes reaches chords and facts, and goes when checked (#352).</summary>
 public class NoteDoubtFacadeTests
 {
     private static byte[] Fixture(params string[] path) => File.ReadAllBytes(Path.Combine([AppContext.BaseDirectory, .. path]));
@@ -74,7 +77,16 @@ public class NoteDoubtFacadeTests
     {
         MusicCoreFacade facade = Heard();
         Call(facade, "select", """{"bars": {"first": 1, "last": 8}}""");
-        bool doubtedDna = Call(facade, "dna").GetProperty("harmony").GetProperty("bars").EnumerateArray().Any(chord => chord.TryGetProperty("doubt", out _));
+        JsonElement before = Call(facade, "dna");
+        bool doubtedDna = before.GetProperty("harmony").GetProperty("bars").EnumerateArray().Any(chord => chord.TryGetProperty("doubt", out _));
+        // A circle drawn as uncertain because of the notes says why (dashed alone said nothing, #352).
+        JsonElement[] doubtedCircles = [.. before.GetProperty("circles").EnumerateArray().Where(circle => circle.TryGetProperty("doubt", out _))];
+        Assert.NotEmpty(doubtedCircles);
+        Assert.All(doubtedCircles, circle =>
+        {
+            Assert.Equal("uncertain", circle.GetProperty("circle").GetProperty("certainty").GetString());
+            Assert.StartsWith("Rests on recognised notes still to check", circle.GetProperty("doubt").GetString());
+        });
 
         foreach (int bar in Call(facade, "check").GetProperty("flags").EnumerateArray().Select(flag => flag.GetProperty("bar").GetInt32()).Distinct())
         {
@@ -85,6 +97,7 @@ public class NoteDoubtFacadeTests
         JsonElement dna = Call(facade, "dna");
         Assert.DoesNotContain(dna.GetProperty("harmony").GetProperty("bars").EnumerateArray(), chord => chord.TryGetProperty("doubt", out _));
         Assert.DoesNotContain(dna.GetProperty("keys").GetProperty("spans").EnumerateArray(), key => key.TryGetProperty("doubt", out _));
+        Assert.DoesNotContain(dna.GetProperty("circles").EnumerateArray(), circle => circle.TryGetProperty("doubt", out _));
         // The seams flag at least one bar, whose chord in the map was marked before it was checked.
         Assert.True(doubtedDna);
     }
@@ -104,6 +117,46 @@ public class NoteDoubtFacadeTests
             Assert.Equal(bar.GetProperty("reasons").GetArrayLength(), bar.GetProperty("texts").GetArrayLength());
             Assert.Matches("[а-я]", bar.GetProperty("names")[0].GetString()!);
         });
+    }
+
+    [Fact]
+    public void Looks_right_on_a_recording_bar_takes_its_length_marks_away_and_check_again_brings_them_back()
+    {
+        MusicCoreFacade facade = Heard();
+        JsonElement check = Call(facade, "check");
+        int[] flagged = [.. check.GetProperty("flags").EnumerateArray().Select(flag => flag.GetProperty("bar").GetInt32())];
+        static int[] Lengths(JsonElement answer) => [.. answer.GetProperty("lengths").EnumerateArray().Select(bar => bar.GetProperty("bar").GetInt32())];
+        int bar = Lengths(check).First(flagged.Contains);
+
+        Assert.DoesNotContain(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}}""")));
+        Assert.Contains(bar, Lengths(Call(facade, "check.resolve", $$"""{"bar": {{bar}}, "resolved": false}""")));
+    }
+
+    /// <summary>The heard piece saved and opened again with one open flag, for <paramref name="reason"/>, on bar 2: its only flag.</summary>
+    private static MusicCoreFacade OnlyFlag(CheckReason reason)
+    {
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(Heard().Call(1, "project.save")));
+        byte[] file = ProjectFile.Write(saved with { Check = [new CheckFlag(2, CheckSource.Transcription, reason, Resolved: false)] });
+        var facade = new MusicCoreFacade();
+        JsonElement opened = Json(facade.Open("recital.motiff.json", file, """{"language": "en"}"""));
+        Assert.False(opened.TryGetProperty("error", out _), opened.GetRawText());
+        return facade;
+    }
+
+    [Fact]
+    public void A_bar_whose_only_open_flag_is_guessed_hands_gives_no_doubt_to_its_chords_facts_or_the_dna()
+    {
+        foreach (CheckReason reason in new[] { CheckReason.HandsGuessed, CheckReason.DenseCluster })
+        {
+            MusicCoreFacade facade = OnlyFlag(reason);
+            Call(facade, "select", """{"bars": {"first": 1, "last": 3}}""");
+            bool doubted = Doubted(Call(facade, "understand")).Any();
+            bool dna = Call(facade, "dna").GetRawText().Contains("\"doubt\"", StringComparison.Ordinal);
+
+            // Only a flag about the notes makes what is read from them uncertain; the hands are not the notes.
+            Assert.Equal(reason != CheckReason.HandsGuessed, doubted);
+            Assert.Equal(reason != CheckReason.HandsGuessed, dna);
+        }
     }
 
     [Fact]

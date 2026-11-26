@@ -1,0 +1,8 @@
+{
+  "opening.failed": "This file could not be opened.",
+  "opening.noAnswer": "The piece could not be opened. Try once more.",
+  "opening.noNotation": "The notes could not be shown.",
+  "opening.notLaidOut": "The notes could not be laid out on the page.",
+  "opening.notSaved": "The piece could not be saved.",
+  "opening.unreadable": "The project file could not be read."
+}

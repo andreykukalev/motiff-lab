@@ -265,6 +265,20 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>The reason as the Check layer says it, in the language.</summary>
     public string Describe(Words words) => Describe(Reason, words);
 
+    /// <summary>
+    /// Whether the flag doubts the notes themselves (their pitch, onset or length), so what is read from them rests on notes
+    /// to check (#352): every reason but <see cref="CheckReason.HandsGuessed"/>, which doubts only the hand that plays them.
+    /// </summary>
+    public bool DoubtsNotes => Reason != CheckReason.HandsGuessed;
+
+    /// <summary>The bars whose recognised notes are still to check: those with an open flag that doubts the notes (<see cref="DoubtsNotes"/>), in order.</summary>
+    public static IReadOnlyList<int> DoubtfulBars(IEnumerable<CheckFlag>? flags) =>
+        [.. (flags ?? []).Where(static flag => !flag.Resolved && flag.DoubtsNotes).Select(static flag => flag.Bar).Distinct().Order()];
+
+    /// <summary>The bars the player said look right: flagged, every flag on them resolved, in order.</summary>
+    public static IReadOnlyList<int> CheckedBars(IEnumerable<CheckFlag>? flags) =>
+        [.. (flags ?? []).GroupBy(static flag => flag.Bar).Where(static bar => bar.All(static flag => flag.Resolved)).Select(static bar => bar.Key).Order()];
+
     public static string Describe(CheckReason reason, Words words) => reason switch
     {
         CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),

@@ -12,7 +12,10 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <remarks>
 /// <para>
 /// A note is doubtful when it was recognised (<see cref="Provenance.Detected"/>: read from a scan or heard in a
-/// recording) and starts in a bar with an open Check flag. Fixing the note makes it user-edited, and "Looks right"
+/// recording) and starts in a bar with an open Check flag about the notes. A flag that only the hands were guessed is not
+/// one: it doubts which hand plays a note, not its pitch, onset or length. The chords and keys never read the hands; the
+/// texture fact and the musical ideas' melody line do, when the notes carry both hands, so a guessed hand can change
+/// them; this doubt is about the notes, not the hands, and does not mark them for it. Fixing the note makes it user-edited, and "Looks right"
 /// resolves the bar's flags (for a scan its notes become user-confirmed); either way it is no longer doubtful, so the
 /// doubt goes from everything that rested on it. Imported notes are never doubtful: a piece without recognised notes
 /// reads exactly as before.
@@ -50,7 +53,7 @@ public sealed class NoteDoubt
     /// The doubtful notes of a piece: the recognised ones that start in a bar with an open Check flag.
     /// </summary>
     /// <param name="notes">The piece's notes as the player has them now, corrections applied.</param>
-    /// <param name="openBars">The bars with an open Check flag.</param>
+    /// <param name="openBars">The bars with an open Check flag about the notes (<c>CheckFlag.DoubtfulBars</c>).</param>
     public static NoteDoubt Of(IReadOnlyList<Note> notes, MeterMap meter, IEnumerable<int> openBars, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(notes);
@@ -189,8 +192,9 @@ public sealed class NoteDoubt
     }
 
     /// <summary>
-    /// Piece DNA with the doubt in its harmony lane and its keys: a bar's chord over doubtful notes is drawn as
-    /// uncertain and says so; a key read from the notes of a stretch with doubtful notes says so too.
+    /// Piece DNA with the doubt in its harmony lane, its keys and its circles: a bar's chord over doubtful notes is drawn
+    /// as uncertain and says so; a key read from the notes of a stretch with doubtful notes says so too, and so does the
+    /// circle of fifths of such a stretch, drawn as uncertain.
     /// </summary>
     public PieceDna On(PieceDna dna)
     {
@@ -204,8 +208,8 @@ public sealed class NoteDoubt
             ? chord with { Clear = false, Doubt = doubt }
             : chord)];
         DnaKey[] keys = [.. dna.Keys.Select(key => key.Inferred && Sentence(BarsIn(key.Span)) is { } doubt ? key with { Doubt = doubt } : key)];
-        DnaCircle[] circles = [.. dna.Circles.Select(circle => circle.Circle.Certainty == FactCertainty.Inferred && BarsIn(circle.Span).Count > 0
-            ? circle with { Circle = circle.Circle with { Certainty = FactCertainty.Uncertain } }
+        DnaCircle[] circles = [.. dna.Circles.Select(circle => circle.Circle.Certainty == FactCertainty.Inferred && Sentence(BarsIn(circle.Span)) is { } doubt
+            ? circle with { Circle = circle.Circle with { Certainty = FactCertainty.Uncertain }, Doubt = doubt }
             : circle)];
         return dna with { Harmony = harmony, Keys = keys, Circles = circles };
     }

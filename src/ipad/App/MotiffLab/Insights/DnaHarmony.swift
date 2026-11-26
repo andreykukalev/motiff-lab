@@ -326,7 +326,7 @@ extension DnaScreen {
                 .accessibilityElement()
                 .accessibilityLabel(text.format("circle.aria", shown.circle.name))
                 .accessibilityAddTraits(.isImage)
-            ForEach(shown.circle.lines, id: \.self) { line in
+            ForEach(circleLines(shown), id: \.self) { line in
                 Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             }
             if !shown.circle.chords.isEmpty {
@@ -373,6 +373,12 @@ extension DnaScreen {
         }
         .modifier(PopSurface())
         .accessibilityElement(children: .contain)
+    }
+
+    /// The lines that say what the circle shows, then, when it is drawn dashed because it rests on recognised notes still to
+    /// check (#352), where they are, as a fact says it.
+    private func circleLines(_ shown: DnaMap.SectionCircle) -> [String] {
+        shown.circle.lines + [shown.doubt].compactMap { $0 }
     }
 
     private func explanationCard(_ words: String) -> some View {
