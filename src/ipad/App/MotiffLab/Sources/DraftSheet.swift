@@ -252,7 +252,7 @@ struct DraftSheet<AssistLabel: View>: View {
     /// «С ассистентом · Pro», only once the passage is found on a recording (v1.5 d-11): Pro, said as on the draft's map,
     /// the assistant telling in the draft what the account allows; and «Создать» or «Добавить».
     @ViewBuilder private var actions: some View {
-        if choice?.into == .new, assist != nil, let found = recording.adds {
+        if let found = recording.assisting(into: choice?.into, opensDraft: assist != nil) {
             Button { Task { await create(with: found) } } label: { assistLabel }
                 .buttonStyle(DSButtonStyle(kind: .secondary))
                 .disabled(adding)
@@ -328,7 +328,8 @@ struct DraftSheet<AssistLabel: View>: View {
         defer { adding = false }
         if await sources.addToDraft(choice, span: request.span, from: request.piece) {
             added(choice)
-        } else {
+        } else if sources.refused(false) {
+            // Held while another was on its way, nothing was sent: no stale words (E-drafts-4).
             problem = sources.status
         }
     }
@@ -341,7 +342,7 @@ struct DraftSheet<AssistLabel: View>: View {
         defer { adding = false }
         if let draft = await sources.createWithRecording(choice, found: found, span: request.span, from: request.piece) {
             assist(draft)
-        } else {
+        } else if sources.refused(false) {
             problem = sources.status
         }
     }
@@ -356,9 +357,7 @@ struct DraftSheet<AssistLabel: View>: View {
         recording = sources.hasHeardNotes ? .searching : .noRecording
         guard recording == .searching else { return }
         let found = await sources.findNewOnRecording(span: request.span, part: part, from: request.piece)
-        // E-drafts-3: the sheet closed or another part chosen meanwhile: this search's end says nothing.
-        guard !Task.isCancelled else { return }
-        recording = found
+        recording.settle(found, cancelled: Task.isCancelled)
     }
 }
 

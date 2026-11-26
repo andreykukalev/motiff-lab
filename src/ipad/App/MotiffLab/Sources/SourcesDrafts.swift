@@ -40,9 +40,7 @@ extension SourcesController {
         guard hasHeardNotes else { return .noRecording }
         let fields: [String: Any] = ["span": ["onset": Int(span.lowerBound), "end": Int(span.upperBound)], "part": part]
         let found = await PieceCore(piece: piece).draftNewRecording(facadeRequest(fields))
-        // E-drafts-1: the recording the passage is selected in is not searched for it; with no other, nothing is said.
-        if found.value?.recordings == 0 { return .noRecording }
-        return DraftRecordingOffer(found: found.value?.found, refused: found.message)
+        return DraftRecordingOffer(new: found.value, refused: found.message)
     }
 
     /// The fragment into the draft of another piece (v1.2, collage, the plan's answer 5): music-core takes it into that

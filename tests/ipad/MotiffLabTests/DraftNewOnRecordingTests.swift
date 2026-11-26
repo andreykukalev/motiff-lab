@@ -24,12 +24,12 @@ final class DraftNewOnRecordingTests: XCTestCase {
         let answers = try FacadeAnswerFixturesTests.answers("drafts.recording.new")
         let found = try XCTUnwrap(FacadeAnswer.decode(DraftNewRecordingAnswer.self, answers[0].text, of: "drafts.findNewOnRecording"))
         XCTAssertEqual(found.recordings, 1)
-        let offer = DraftRecordingOffer(found: found.found)
+        let offer = DraftRecordingOffer(new: found)
         let stretch = try XCTUnwrap(offer.adds, "found: «С ассистентом · Pro» is offered")
         XCTAssertEqual(stretch.notes, "n_2")
-        XCTAssertEqual(stretch.techniques, 0)
-        XCTAssertEqual(offer.newDraftLine(UIText(language: "en")), "On the recording: “Recording 0–1” · 86 % the same · 0 techniques")
-        XCTAssertEqual(offer.newDraftLine(UIText(language: "ru")), "На записи: «Recording 0–1» · совпадает на 86 % · 0 приёмов")
+        XCTAssertEqual(stretch.techniques, 3, "bars 13–16 are played otherwise on the recording")
+        XCTAssertEqual(offer.newDraftLine(UIText(language: "en")), "On the recording: “Recording 2” · 69 % the same · 3 techniques")
+        XCTAssertEqual(offer.newDraftLine(UIText(language: "ru")), "На записи: «Recording 2» · совпадает на 69 % · 3 приёма")
         XCTAssertNotNil(SourceLayers(answer: answers[1].text), "made: answered as the sources")
         XCTAssertEqual(facadeObject(answers[1].text)?["recording"] as? String, "v_0002", "the stretch is ①'s variant")
 
@@ -54,6 +54,35 @@ final class DraftNewOnRecordingTests: XCTestCase {
                 XCTAssertFalse(offer.newDraftLine(text)?.hasPrefix("drafts.") ?? true, "\(language): \(offer)")
             }
         }
+    }
+
+    /// E-drafts-1: where music-core searched no recording (the only one is the one the passage is selected in) the card says
+    /// nothing and offers no assistant, never «no recording has this music»; one searched and nothing found says so.
+    func testNoRecordingSearchedSaysNothing() throws {
+        let none = try XCTUnwrap(FacadeAnswer.decode(DraftNewRecordingAnswer.self, #"{"recordings": 0, "found": []}"#, of: "drafts.findNewOnRecording"))
+        XCTAssertEqual(DraftRecordingOffer(new: none), .noRecording)
+        XCTAssertNil(DraftRecordingOffer(new: none).newDraftLine(UIText(language: "ru")))
+        let searched = try XCTUnwrap(FacadeAnswer.decode(DraftNewRecordingAnswer.self, #"{"recordings": 1, "found": []}"#, of: "drafts.findNewOnRecording"))
+        XCTAssertEqual(DraftRecordingOffer(new: searched), .notFound)
+        XCTAssertEqual(DraftRecordingOffer(new: nil, refused: "Select a passage first."), .failed("Select a passage first."))
+    }
+
+    /// E-drafts-2 and E-drafts-3: the assistant only for a new draft on a screen that opens a draft's view; a search the card
+    /// left ends saying nothing, one it waits for says what it found.
+    func testTheAssistantOnlyWhereTheDraftsViewOpensAndAStaleSearchSaysNothing() throws {
+        let answers = try FacadeAnswerFixturesTests.answers("drafts.recording.new")
+        let found = DraftRecordingOffer(new: try XCTUnwrap(FacadeAnswer.decode(DraftNewRecordingAnswer.self, answers[0].text, of: "drafts.findNewOnRecording")))
+        XCTAssertEqual(found.assisting(into: .new, opensDraft: true)?.notes, "n_2")
+        XCTAssertNil(found.assisting(into: .new, opensDraft: false), "a view shown over the piece: no switch, no assistant")
+        XCTAssertNil(found.assisting(into: .draft("d_0001"), opensDraft: true), "into a draft that is there")
+        XCTAssertNil(found.assisting(into: nil, opensDraft: true))
+        XCTAssertNil(DraftRecordingOffer.notFound.assisting(into: .new, opensDraft: true), "nothing found")
+
+        var card = DraftRecordingOffer.searching
+        card.settle(found, cancelled: true)
+        XCTAssertEqual(card, .searching, "the sheet closed or another part chosen: that search says nothing")
+        card.settle(found, cancelled: false)
+        XCTAssertEqual(card, found)
     }
 
     /// A piece with no recording heard: nothing is searched; a draft asked for with a stretch anyway is refused in
@@ -89,6 +118,24 @@ final class DraftNewOnRecordingTests: XCTestCase {
         XCTAssertTrue(made, sources.status ?? "")
         XCTAssertEqual(sources.layers.drafts.count, 1, "one draft")
         XCTAssertFalse(sources.stepping)
+    }
+
+    /// E-drafts-4: «С ассистентом · Pro» tapped while «Создать» is on its way makes nothing and is not told as refused.
+    func testTheAssistantsCreateWhileAnotherIsOnItsWayMakesNothing() async throws {
+        let sources = try await piece()
+        let new = DraftChoice(part: "all", into: .new, way: DraftChoice.Way(drop: .place))
+        let before = sources.status
+        let first = Task { await sources.addToDraft(new, span: 0..<1920, from: sources.piece) }
+        for _ in 0..<1000 where !sources.stepping { await Task.yield() }
+        let stray = #"{"recordings": 1, "found": [{"notes": "n_9", "label": "Recording 1–4", "percent": 80, "variant": null, "techniques": 2}]}"#
+        let found = try XCTUnwrap(FacadeAnswer.decode(DraftNewRecordingAnswer.self, stray, of: "drafts.findNewOnRecording")?.found.first)
+        let held = await sources.createWithRecording(new, found: found, span: 0..<1920, from: sources.piece)
+        XCTAssertNil(held, "held while the first is on its way")
+        XCTAssertFalse(sources.refused(false), "not refused: nothing was sent")
+        XCTAssertEqual(sources.status, before)
+        let made = await first.value
+        XCTAssertTrue(made, sources.status ?? "")
+        XCTAssertEqual(sources.layers.drafts.count, 1, "the first draft only")
     }
 
     /// The draft's view opened by «С ассистентом · Pro»: the assistant is open on ① in the place assembler's role, and it

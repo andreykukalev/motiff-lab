@@ -101,11 +101,7 @@ internal static class DraftRequest
             });
         }
 
-        if (request.Has("recording"))
-        {
-            throw FacadeException.BadRequest("Only a new draft takes \"recording\"; a place finds its stretch with drafts.addFromRecording.");
-        }
-
+        NoRecording(request);
         (Draft? into, DraftDrop drop, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
         Draft draft = into!;
         return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variant.Id)));
@@ -122,6 +118,7 @@ internal static class DraftRequest
     public static string AddTo(Project into, FragmentOrigin from, Request request)
     {
         _ = request.Required("draft");
+        NoRecording(request);
         (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(into, from, request);
         Project changed = Refused(() => into.ChangeDraft(draft!.Id, each => each.With(variant, drop, place)));
         return Answer.Write(json =>
@@ -142,6 +139,18 @@ internal static class DraftRequest
         Answer.Project(json, "project", project);
         Answer.Drafts(json, project, words);
     });
+
+    /// <summary>
+    /// "recording" refused where the fragment goes into a draft that is there, of this piece or another's file (version 1.5,
+    /// d-11): only a new draft takes it; a place finds its stretch with drafts.addFromRecording.
+    /// </summary>
+    private static void NoRecording(Request request)
+    {
+        if (request.Has("recording"))
+        {
+            throw FacadeException.BadRequest("Only a new draft takes \"recording\"; a place finds its stretch with drafts.addFromRecording.");
+        }
+    }
 
     /// <summary>
     /// The draft «Создать» makes of the fragment selected in <paramref name="from"/> (as <see cref="Sheet"/> reads it), named

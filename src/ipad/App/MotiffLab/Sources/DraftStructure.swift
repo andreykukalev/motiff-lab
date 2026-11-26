@@ -42,6 +42,25 @@ enum DraftRecordingOffer: Equatable, Sendable {
         self = best.variant == nil ? .add(best) : .already(best)
     }
 
+    /// The offer of what the card «Новый черновик» found (v1.5 d-11), as `init(found:refused:)`; with no recording searched,
+    /// the one the passage is selected in left out, nothing to say (E-drafts-1).
+    init(new answer: DraftNewRecordingAnswer?, refused: String? = nil) {
+        self = answer?.recordings == 0 ? .noRecording : DraftRecordingOffer(found: answer?.found, refused: refused)
+    }
+
+    /// The card's offer once its search ends, unless the card left it meanwhile (`cancelled`: the sheet closed, another
+    /// part chosen), whose end says nothing (E-drafts-3).
+    mutating func settle(_ found: DraftRecordingOffer, cancelled: Bool) {
+        if !cancelled { self = found }
+    }
+
+    /// The stretch «С ассистентом · Pro» on the card «Новый черновик» puts in (v1.5 d-11): one found, for a new draft
+    /// (`into`), on a screen that can open the draft's view (`opensDraft`: one with the switch, E-drafts-2); else nil, and
+    /// the button is not shown.
+    func assisting(into: DraftChoice.Into?, opensDraft: Bool) -> DraftRecordingAnswer.Found? {
+        into == .new && opensDraft ? adds : nil
+    }
+
     /// The stretch to put in; nil where nothing is.
     var adds: DraftRecordingAnswer.Found? {
         if case .add(let found) = self { return found }

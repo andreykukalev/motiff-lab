@@ -6,8 +6,8 @@
    "call": "drafts.findNewOnRecording",
    "request": {
     "bars": {
-     "first": 5,
-     "last": 8
+     "first": 13,
+     "last": 16
     }
    },
    "answer": {
@@ -15,22 +15,22 @@
     "found": [
      {
       "notes": "n_2",
-      "label": "Recording 0–1",
-      "percent": 86,
+      "label": "Recording 2",
+      "percent": 69,
       "span": {
-       "onset": 0,
-       "end": 2400
+       "onset": 2400,
+       "end": 3840
       },
       "bars": {
-       "first": 0,
-       "last": 1
+       "first": 2,
+       "last": 2
       },
       "ms": {
-       "from": 30500,
-       "to": 33000
+       "from": 33000,
+       "to": 34500
       },
       "variant": null,
-      "techniques": 0
+      "techniques": 3
      }
     ]
    }
@@ -41,8 +41,8 @@
     "device": "ipad",
     "here": [],
     "bars": {
-     "first": 5,
-     "last": 8
+     "first": 13,
+     "last": 16
     },
     "recording": "n_2",
     "now": "2026-11-26T10:00:00Z"
@@ -174,7 +174,7 @@
       "shelf": 0,
       "techniques": {
        "taken": 0,
-       "total": 0
+       "total": 3
       }
      }
     ]

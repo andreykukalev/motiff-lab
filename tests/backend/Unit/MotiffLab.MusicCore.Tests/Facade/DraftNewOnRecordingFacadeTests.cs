@@ -99,6 +99,19 @@ public class DraftNewOnRecordingFacadeTests
     }
 
     [Fact]
+    public void The_card_counts_the_techniques_the_place_would_have_with_the_stretch()
+    {
+        // Bars 13–16 of the notes are played otherwise on the recording: three приёмы between them.
+        const string Otherwise = """ "bars": {"first": 13, "last": 16} """;
+        MusicCoreFacade facade = Opened();
+        JsonElement found = Assert.Single(Found(facade, fields: Otherwise));
+
+        Assert.Equal(3, found.GetProperty("techniques").GetInt32());
+        Call(facade, "drafts.add", Fields($$"""{{Otherwise}}, "recording": "n_2" """));
+        Assert.Equal(3, Call(facade, "drafts.techniques", """{"draft": "d_0001", "place": "pl_0001"}""").GetProperty("total").GetInt32());
+    }
+
+    [Fact]
     public void Without_the_recording_drafts_add_makes_the_draft_as_before()
     {
         MusicCoreFacade facade = Opened();
