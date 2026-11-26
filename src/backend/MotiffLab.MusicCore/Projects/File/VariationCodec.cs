@@ -39,7 +39,8 @@ internal static class VariationCodec
             json.WriteEndObject();
         });
 
-        WriteList(json, "variations", project.Variations, KeptUnknown(project.Unknown, "variations", project.Variations.Select(static variation => variation.Id), replacedMotifs, out _), variation =>
+        List<UnknownEntity> unknownVariations = KeptUnknown(project.Unknown, "variations", project.Variations.Select(static variation => (variation.Id, variation.MotifId)), replacedMotifs);
+        WriteList(json, "variations", ApartFrom(project.Variations, unknownVariations), unknownVariations, variation =>
         {
             json.WriteStartObject();
             json.WriteString("id", variation.Id);
@@ -48,6 +49,26 @@ internal static class VariationCodec
             WriteKey(json, variation.Key);
             json.WriteEndObject();
         });
+    }
+
+    /// <summary>
+    /// The variations, each under an id no unknown one written beside them has (#364): the facade names the working motif's
+    /// variation after its motif (v_0002 for m_0002), which can be the id of a hidden variation of another motif; such a one
+    /// is written under the next id free of all, so no two variations in the file share one. The app never sees the ids.
+    /// </summary>
+    private static List<SavedVariation> ApartFrom(IReadOnlyList<SavedVariation> variations, IReadOnlyList<UnknownEntity> unknown)
+    {
+        HashSet<string> hidden = [.. unknown.Select(static entity => entity.Id).OfType<string>()];
+        List<string> ids = [.. variations.Select(static variation => variation.Id), .. hidden];
+        List<SavedVariation> apart = [];
+        foreach (SavedVariation variation in variations)
+        {
+            string id = hidden.Contains(variation.Id) ? Project.NextId("v_", ids) : variation.Id;
+            ids.Add(id);
+            apart.Add(variation with { Id = id });
+        }
+
+        return apart;
     }
 
     /// <summary>

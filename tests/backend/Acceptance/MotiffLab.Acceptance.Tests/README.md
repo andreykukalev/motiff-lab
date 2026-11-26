@@ -61,9 +61,7 @@ not counted among the messages of l.
 A scenario that fails on `main` because of a product defect is recorded in Task Record #310 and skipped, with the
 reason, only after Andrei agrees (`KnownDefect.cs`); the task that fixes the defect removes the Skip.
 
-| Scenario | Defect | Status |
-| --- | --- | --- |
-| l2, in Russian | The refusal of a newer project file is in English only: the text comes from `ProjectFile.Read` | Skipped, as Andrei agreed (2026-11-11, #310); a fix task turns it on |
+None today: l2 in Russian, the last one (#310), runs since #363.
 
 ## Running them
 
