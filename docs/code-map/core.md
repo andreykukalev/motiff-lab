@@ -46,7 +46,9 @@ through the facade; the API references it.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Dispatch`, a nested
-  class that reaches its handlers; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`). `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
+  class that reaches its handlers; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
+  registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,

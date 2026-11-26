@@ -92,6 +92,16 @@ public class FacadeCallsContractTests
     }
 
     [Fact]
+    public void A_piece_without_notes_answers_noNotes_for_a_name_it_does_not_hold_whatever_the_fields()
+    {
+        (MusicCoreFacade facade, int piece) = Opened("pdf");
+
+        // Since the call registry (v1.4 c-2): the name is looked up before any field is read, so a wrong "language" no longer answers badRequest.
+        Assert.Equal("noNotes", FacadeCalls.Json(facade.Call(piece, "sources.pdf", """{"language": 5}""")).GetProperty("error").GetString());
+        Assert.Equal("badRequest", FacadeCalls.Json(facade.Call(piece, "sources.layers", """{"language": 5}""")).GetProperty("error").GetString());
+    }
+
+    [Fact]
     public void A_probe_tells_a_call_from_a_name_the_facade_does_not_know()
     {
         SortedDictionary<string, string[]> answered = Answered(["version", "select", "document", "project.metadata", "sources.layers", "reference.key", "phrases.granularity", "corrections.nothing", "language"]);

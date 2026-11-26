@@ -13,7 +13,9 @@ is `MusicCoreFacade.Call(piece, name, request)`, which looks the name up in the 
 - **piece 0** (`piece0`): the calls that need no open piece (version, settings, library, sync, scans, Reference, …).
 - **a piece with notes** (`piece`): the piece, its selection, marks, corrections, sources, assistant and drafts. A
   `drafts.*` call works on the drafts of the piece the request's `into` names, else of the piece a view was opened from,
-  else of the piece itself; it is never refused as read-only, and its owner is found before the name is looked up.
+  else of the piece itself; it is never refused as read-only, and its owner is found before the name is looked up. One
+  exception before both: `drafts.add` with `file` (another piece's project file, the collage) adds to that file's
+  drafts and needs no owner (`MusicCoreFacade.CallOnDrafts`).
 - **a piece without notes**: a PDF piece (`pdf`) or a piece that is only its recording (`recording`).
 
 Every answer is one JSON object. A refusal is `{"error": code, "message": text}` and leaves the piece as it was:
@@ -222,6 +224,10 @@ Also within 14 (c-1b): such a page may be {"readings": [...], "evidence": the sc
 Also within 14 (v1.3 i-2, ADR 0035 section 6): scan.join answers "fingerprint" (the score as its Notes keep it) and a merged bar to check its "variants" (the engines' other readings of its staves to check) and "crop" (its box on the page image); check answers "fingerprint", the working notes' music; corrections.variant puts a variant in that bar as the player's corrections, one group undone whole by corrections.undoDraft; fields and a call added.
 
 Also within 14 (v1.3 i-1b, Andrei 2026-11-24): scan.insert puts a page no engine read, read again by itself, into the same Notes of a project file, the player's corrections carried over and the bars after it numbered on; a call added.
+
+Also within 14 (version 1.4, c-2, the call registry): on a piece without notes, a name it does not hold answers
+"noNotes" whatever the request's fields; a name starting "sources." with a "language" that is not text answered
+"badRequest" before. No app sends such a call.
 
 ### 13
 
