@@ -245,6 +245,7 @@ struct PiecePartsSheet: View {
                 row: $row,
                 number: number,
                 placeholder: PartsSplit.title(of: PartRow(title: "", first: row.first, last: row.last), number: number, collection: piece.title, text: text),
+                pages: splitter.rows.pages,
                 text: text
             ) { first, step in
                 splitter.rows.step(row.id, first: first, by: step)
@@ -330,6 +331,8 @@ private struct PiecePartRowView: View {
     @Binding var row: PartRow
     let number: Int
     let placeholder: String
+    /// The file's pages, which the counters keep within (`PartRows.pages`).
+    let pages: ClosedRange<Int>
     let text: UIText
     let step: (Bool, Int) -> Void
     let remove: () -> Void
@@ -360,29 +363,33 @@ private struct PiecePartRowView: View {
     }
 
     @ViewBuilder private var steppers: some View {
-        PageStepper(label: text["parts.pdf.from"], spoken: text.format("parts.pdf.firstOf", String(number)), value: row.first) { step(true, $0) }
-        PageStepper(label: text["parts.pdf.to"], spoken: text.format("parts.pdf.lastOf", String(number)), value: row.last) { step(false, $0) }
+        PageStepper(label: text["parts.pdf.from"], spoken: text.format("parts.pdf.firstOf", String(number)), value: row.first, range: pages) { step(true, $0) }
+        PageStepper(label: text["parts.pdf.to"], spoken: text.format("parts.pdf.lastOf", String(number)), value: row.last, range: pages) { step(false, $0) }
     }
 }
 
 /// A page number with − and + at the size of a fingertip, adjustable as one element by VoiceOver; since v1.4 also a
-/// draft's place's first and last bar (`DraftLengthRow`).
+/// draft's place's first and last bar (`DraftLengthRow`). A − or + held steps on and on, faster the longer it is held, as
+/// the platform's steppers do (v1.5, answer 15: a place of a 300-bar piece is not 300 taps); within `range` (the file's
+/// pages, a place's bars), where given, the − at its lower end and the + at its upper end are off, which also ends a hold
+/// there.
 struct PageStepper: View {
     let label: String
     let spoken: String
     let value: Int
+    var range: ClosedRange<Int>?
     let step: (Int) -> Void
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Text(label).dsType(.label).foregroundStyle(Color.ds("ink-2"))
-            stepButton("−", by: -1)
+            stepButton("−", by: -1, off: range.map { value <= $0.lowerBound } ?? false)
             Text(String(value))
                 .dsType(.bodyStrong)
                 .monospacedDigit()
                 .foregroundStyle(Color.ds("ink"))
                 .frame(minWidth: CGFloat.ds("s-8"))
-            stepButton("+", by: 1)
+            stepButton("+", by: 1, off: range.map { value >= $0.upperBound } ?? false)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spoken)
@@ -396,7 +403,7 @@ struct PageStepper: View {
         }
     }
 
-    private func stepButton(_ sign: String, by amount: Int) -> some View {
+    private func stepButton(_ sign: String, by amount: Int, off: Bool) -> some View {
         Button {
             step(amount)
         } label: {
@@ -405,6 +412,8 @@ struct PageStepper: View {
                 .frame(width: CGFloat.ds("h-touch"), height: CGFloat.ds("h-touch"))
         }
         .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+        .buttonRepeatBehavior(.enabled)
+        .disabled(off)
     }
 }
 

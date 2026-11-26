@@ -45,6 +45,9 @@ final class DraftStructureTests: XCTestCase {
         let length = try XCTUnwrap(FacadeAnswer.decode(DraftLengthAnswer.self, lengths[2].text, of: "drafts.length"))
         let start = try XCTUnwrap(DraftLengthChoice(length))
         XCTAssertNil(start.asked, "the place's own length: no resize")
+        // v1.5: the counters' − and + go off at these ends, which also ends a hold that steps on (answer 15).
+        XCTAssertEqual(start.firstBars, 0...4, "the first bar: from the Notes' first to the last asked")
+        XCTAssertEqual(start.lastBars, 1...105, "the last bar: from the first asked to the Notes' last")
         var longer = start
         longer.step(last: 2)
         XCTAssertEqual(longer.asked, 1...6)
@@ -54,6 +57,8 @@ final class DraftStructureTests: XCTestCase {
         var one = start
         one.step(first: 9)
         XCTAssertEqual(one.asked, 4...4, "the first stays at most the last")
+        XCTAssertEqual(one.firstBars, 0...4)
+        XCTAssertEqual(one.lastBars, 4...105)
         one.step(last: -9)
         XCTAssertEqual(one.asked, 4...4, "the last stays at least the first")
         var latest = start

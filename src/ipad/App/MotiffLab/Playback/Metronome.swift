@@ -339,6 +339,7 @@ struct MetronomePill: View {
             .accessibilityLabel(metronome.running ? text["metronome.stop"] : text["metronome.start"])
             Button("−") { metronome.slower() }
                 .buttonStyle(DSItemStyle())
+                .buttonRepeatBehavior(.enabled)
                 .disabled(metronome.bpm <= Metronome.minBpm)
                 .accessibilityLabel(text["metronome.slower"])
             Button {
@@ -354,6 +355,7 @@ struct MetronomePill: View {
             .accessibilityHint(text["metronome.tapHint"])
             Button("+") { metronome.faster() }
                 .buttonStyle(DSItemStyle())
+                .buttonRepeatBehavior(.enabled)
                 .disabled(metronome.bpm >= Metronome.maxBpm)
                 .accessibilityLabel(text["metronome.faster"])
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: 22).padding(.horizontal, 2)
