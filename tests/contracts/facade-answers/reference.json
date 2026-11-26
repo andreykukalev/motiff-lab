@@ -1,0 +1,973 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "reference.key",
+   "request": {
+    "fifths": -3
+   },
+   "answer": {
+    "signatures": [
+     {
+      "fifths": 0,
+      "label": "0",
+      "spoken": "no sharps or flats"
+     },
+     {
+      "fifths": 1,
+      "label": "1♯",
+      "spoken": "1 sharp"
+     },
+     {
+      "fifths": 2,
+      "label": "2♯",
+      "spoken": "2 sharps"
+     },
+     {
+      "fifths": 3,
+      "label": "3♯",
+      "spoken": "3 sharps"
+     },
+     {
+      "fifths": 4,
+      "label": "4♯",
+      "spoken": "4 sharps"
+     },
+     {
+      "fifths": 5,
+      "label": "5♯",
+      "spoken": "5 sharps"
+     },
+     {
+      "fifths": 6,
+      "label": "6♯",
+      "spoken": "6 sharps"
+     },
+     {
+      "fifths": 7,
+      "label": "7♯",
+      "spoken": "7 sharps"
+     },
+     {
+      "fifths": -1,
+      "label": "1♭",
+      "spoken": "1 flat"
+     },
+     {
+      "fifths": -2,
+      "label": "2♭",
+      "spoken": "2 flats"
+     },
+     {
+      "fifths": -3,
+      "label": "3♭",
+      "spoken": "3 flats"
+     },
+     {
+      "fifths": -4,
+      "label": "4♭",
+      "spoken": "4 flats"
+     },
+     {
+      "fifths": -5,
+      "label": "5♭",
+      "spoken": "5 flats"
+     },
+     {
+      "fifths": -6,
+      "label": "6♭",
+      "spoken": "6 flats"
+     },
+     {
+      "fifths": -7,
+      "label": "7♭",
+      "spoken": "7 flats"
+     }
+    ],
+    "sectors": [
+     {
+      "position": 0,
+      "fifths": 0,
+      "major": "C",
+      "minor": "Am",
+      "signature": "0"
+     },
+     {
+      "position": 1,
+      "fifths": 1,
+      "major": "G",
+      "minor": "Em",
+      "signature": "1♯"
+     },
+     {
+      "position": 2,
+      "fifths": 2,
+      "major": "D",
+      "minor": "Bm",
+      "signature": "2♯"
+     },
+     {
+      "position": 3,
+      "fifths": 3,
+      "major": "A",
+      "minor": "F♯m",
+      "signature": "3♯"
+     },
+     {
+      "position": 4,
+      "fifths": 4,
+      "major": "E",
+      "minor": "C♯m",
+      "signature": "4♯"
+     },
+     {
+      "position": 5,
+      "fifths": 5,
+      "major": "B",
+      "minor": "G♯m",
+      "signature": "5♯"
+     },
+     {
+      "position": 6,
+      "fifths": 6,
+      "major": "F♯",
+      "minor": "D♯m",
+      "signature": "6♯"
+     },
+     {
+      "position": 7,
+      "fifths": -5,
+      "major": "D♭",
+      "minor": "B♭m",
+      "signature": "5♭"
+     },
+     {
+      "position": 8,
+      "fifths": -4,
+      "major": "A♭",
+      "minor": "Fm",
+      "signature": "4♭"
+     },
+     {
+      "position": 9,
+      "fifths": -3,
+      "major": "E♭",
+      "minor": "Cm",
+      "signature": "3♭"
+     },
+     {
+      "position": 10,
+      "fifths": -2,
+      "major": "B♭",
+      "minor": "Gm",
+      "signature": "2♭"
+     },
+     {
+      "position": 11,
+      "fifths": -1,
+      "major": "F",
+      "minor": "Dm",
+      "signature": "1♭"
+     }
+    ],
+    "card": {
+     "key": {
+      "name": "E♭ major",
+      "fifths": -3,
+      "mode": "major"
+     },
+     "name": "E♭ major",
+     "position": 9,
+     "signature": {
+      "fifths": -3,
+      "label": "3♭",
+      "count": "3 flats",
+      "accidentals": [
+       "B♭",
+       "E♭",
+       "A♭"
+      ],
+      "trebleSteps": [
+       4,
+       7,
+       3
+      ]
+     },
+     "relative": {
+      "fifths": -3,
+      "mode": "minor",
+      "name": "C minor"
+     },
+     "parallel": {
+      "fifths": -6,
+      "mode": "minor",
+      "name": "E♭ minor"
+     },
+     "enharmonic": null,
+     "scales": [
+      {
+       "title": "major scale",
+       "form": "major",
+       "root": {
+        "step": 2,
+        "alter": -1,
+        "letter": "E♭",
+        "name": "E♭"
+       },
+       "notes": [
+        "E♭",
+        "F",
+        "G",
+        "A♭",
+        "B♭",
+        "C",
+        "D"
+       ],
+       "id": "scale.major",
+       "pitches": [
+        63,
+        65,
+        67,
+        68,
+        70,
+        72,
+        74,
+        75
+       ],
+       "keyboardLow": 60,
+       "keyboardHigh": 83
+      }
+     ],
+     "chords": [
+      {
+       "numeral": "I",
+       "function": "tonic",
+       "functionName": "tonic",
+       "symbol": "E♭",
+       "type": "major",
+       "root": {
+        "step": 2,
+        "alter": -1,
+        "letter": "E♭",
+        "name": "E♭"
+       },
+       "notes": [
+        "E♭",
+        "G",
+        "B♭"
+       ],
+       "id": "chord.I",
+       "pitches": [
+        63,
+        67,
+        70
+       ],
+       "keyboardLow": 60,
+       "keyboardHigh": 71
+      },
+      {
+       "numeral": "IV",
+       "function": "subdominant",
+       "functionName": "subdominant",
+       "symbol": "A♭",
+       "type": "major",
+       "root": {
+        "step": 5,
+        "alter": -1,
+        "letter": "A♭",
+        "name": "A♭"
+       },
+       "notes": [
+        "A♭",
+        "C",
+        "E♭"
+       ],
+       "id": "chord.IV",
+       "pitches": [
+        56,
+        60,
+        63
+       ],
+       "keyboardLow": 48,
+       "keyboardHigh": 71
+      },
+      {
+       "numeral": "V",
+       "function": "dominant",
+       "functionName": "dominant",
+       "symbol": "B♭",
+       "type": "major",
+       "root": {
+        "step": 6,
+        "alter": -1,
+        "letter": "B♭",
+        "name": "B♭"
+       },
+       "notes": [
+        "B♭",
+        "D",
+        "F"
+       ],
+       "id": "chord.V",
+       "pitches": [
+        58,
+        62,
+        65
+       ],
+       "keyboardLow": 48,
+       "keyboardHigh": 71
+      }
+     ]
+    },
+    "circle": {
+     "key": {
+      "name": "E♭ major",
+      "fifths": -3,
+      "mode": "major"
+     },
+     "name": "E♭ major",
+     "certainty": "detected",
+     "position": 9,
+     "sectors": [
+      {
+       "position": 0,
+       "fifths": 0,
+       "major": "C",
+       "minor": "Am",
+       "signature": "0"
+      },
+      {
+       "position": 1,
+       "fifths": 1,
+       "major": "G",
+       "minor": "Em",
+       "signature": "1♯"
+      },
+      {
+       "position": 2,
+       "fifths": 2,
+       "major": "D",
+       "minor": "Bm",
+       "signature": "2♯"
+      },
+      {
+       "position": 3,
+       "fifths": 3,
+       "major": "A",
+       "minor": "F♯m",
+       "signature": "3♯"
+      },
+      {
+       "position": 4,
+       "fifths": 4,
+       "major": "E",
+       "minor": "C♯m",
+       "signature": "4♯"
+      },
+      {
+       "position": 5,
+       "fifths": 5,
+       "major": "B",
+       "minor": "G♯m",
+       "signature": "5♯"
+      },
+      {
+       "position": 6,
+       "fifths": 6,
+       "major": "F♯",
+       "minor": "D♯m",
+       "signature": "6♯"
+      },
+      {
+       "position": 7,
+       "fifths": -5,
+       "major": "D♭",
+       "minor": "B♭m",
+       "signature": "5♭"
+      },
+      {
+       "position": 8,
+       "fifths": -4,
+       "major": "A♭",
+       "minor": "Fm",
+       "signature": "4♭"
+      },
+      {
+       "position": 9,
+       "fifths": -3,
+       "major": "E♭",
+       "minor": "Cm",
+       "signature": "3♭"
+      },
+      {
+       "position": 10,
+       "fifths": -2,
+       "major": "B♭",
+       "minor": "Gm",
+       "signature": "2♭"
+      },
+      {
+       "position": 11,
+       "fifths": -1,
+       "major": "F",
+       "minor": "Dm",
+       "signature": "1♭"
+      }
+     ],
+     "neighbours": [
+      {
+       "relation": "dominant",
+       "key": {
+        "name": "B♭ major",
+        "fifths": -2,
+        "mode": "major"
+       },
+       "position": 10,
+       "name": "B♭ major",
+       "label": "dominant"
+      },
+      {
+       "relation": "subdominant",
+       "key": {
+        "name": "A♭ major",
+        "fifths": -4,
+        "mode": "major"
+       },
+       "position": 8,
+       "name": "A♭ major",
+       "label": "subdominant"
+      },
+      {
+       "relation": "relative",
+       "key": {
+        "name": "C minor",
+        "fifths": -3,
+        "mode": "minor"
+       },
+       "position": 9,
+       "name": "C minor",
+       "label": "relative key"
+      },
+      {
+       "relation": "parallel",
+       "key": {
+        "name": "D♯ minor",
+        "fifths": 6,
+        "mode": "minor"
+       },
+       "position": 6,
+       "name": "D♯ minor",
+       "label": "parallel key"
+      }
+     ],
+     "chords": [],
+     "scale": [
+      63,
+      65,
+      67,
+      68,
+      70,
+      72,
+      74,
+      75
+     ],
+     "scaleNotes": [
+      {
+       "pitch": 63,
+       "onset": 0,
+       "end": 480
+      },
+      {
+       "pitch": 65,
+       "onset": 480,
+       "end": 960
+      },
+      {
+       "pitch": 67,
+       "onset": 960,
+       "end": 1440
+      },
+      {
+       "pitch": 68,
+       "onset": 1440,
+       "end": 1920
+      },
+      {
+       "pitch": 70,
+       "onset": 1920,
+       "end": 2400
+      },
+      {
+       "pitch": 72,
+       "onset": 2400,
+       "end": 2880
+      },
+      {
+       "pitch": 74,
+       "onset": 2880,
+       "end": 3360
+      },
+      {
+       "pitch": 75,
+       "onset": 3360,
+       "end": 4320
+      }
+     ],
+     "lines": [
+      "E♭ major: 3 flats, the same as its relative key, C minor.",
+      "Its neighbours on the circle differ by one sharp or flat: B♭ major (dominant) and A♭ major (subdominant)."
+     ],
+     "zones": [
+      "far",
+      "far",
+      "far",
+      "far",
+      "far",
+      "far",
+      "far",
+      "near",
+      "subdominant",
+      "tonic",
+      "dominant",
+      "near"
+     ]
+    },
+    "pieceKey": null
+   }
+  },
+  {
+   "call": "reference.scale",
+   "request": {
+    "fifths": 2,
+    "mode": "minor"
+   },
+   "answer": {
+    "roots": [
+     {
+      "step": 0,
+      "alter": 0,
+      "letter": "C",
+      "name": "C"
+     },
+     {
+      "step": 0,
+      "alter": 1,
+      "letter": "C♯",
+      "name": "C♯"
+     },
+     {
+      "step": 1,
+      "alter": -1,
+      "letter": "D♭",
+      "name": "D♭"
+     },
+     {
+      "step": 1,
+      "alter": 0,
+      "letter": "D",
+      "name": "D"
+     },
+     {
+      "step": 1,
+      "alter": 1,
+      "letter": "D♯",
+      "name": "D♯"
+     },
+     {
+      "step": 2,
+      "alter": -1,
+      "letter": "E♭",
+      "name": "E♭"
+     },
+     {
+      "step": 2,
+      "alter": 0,
+      "letter": "E",
+      "name": "E"
+     },
+     {
+      "step": 3,
+      "alter": 0,
+      "letter": "F",
+      "name": "F"
+     },
+     {
+      "step": 3,
+      "alter": 1,
+      "letter": "F♯",
+      "name": "F♯"
+     },
+     {
+      "step": 4,
+      "alter": -1,
+      "letter": "G♭",
+      "name": "G♭"
+     },
+     {
+      "step": 4,
+      "alter": 0,
+      "letter": "G",
+      "name": "G"
+     },
+     {
+      "step": 4,
+      "alter": 1,
+      "letter": "G♯",
+      "name": "G♯"
+     },
+     {
+      "step": 5,
+      "alter": -1,
+      "letter": "A♭",
+      "name": "A♭"
+     },
+     {
+      "step": 5,
+      "alter": 0,
+      "letter": "A",
+      "name": "A"
+     },
+     {
+      "step": 5,
+      "alter": 1,
+      "letter": "A♯",
+      "name": "A♯"
+     },
+     {
+      "step": 6,
+      "alter": -1,
+      "letter": "B♭",
+      "name": "B♭"
+     },
+     {
+      "step": 6,
+      "alter": 0,
+      "letter": "B",
+      "name": "B"
+     }
+    ],
+    "forms": [
+     {
+      "id": "major",
+      "name": "major",
+      "short": "major",
+      "family": "MajorAndMinor"
+     },
+     {
+      "id": "naturalMinor",
+      "name": "natural minor",
+      "short": "natural minor",
+      "family": "MajorAndMinor"
+     },
+     {
+      "id": "harmonicMinor",
+      "name": "harmonic minor",
+      "short": "harmonic minor",
+      "family": "MajorAndMinor"
+     },
+     {
+      "id": "melodicMinor",
+      "name": "melodic minor",
+      "short": "melodic minor",
+      "family": "MajorAndMinor"
+     },
+     {
+      "id": "dorian",
+      "name": "Dorian",
+      "short": "Dorian",
+      "family": "Mode"
+     },
+     {
+      "id": "phrygian",
+      "name": "Phrygian",
+      "short": "Phrygian",
+      "family": "Mode"
+     },
+     {
+      "id": "lydian",
+      "name": "Lydian",
+      "short": "Lydian",
+      "family": "Mode"
+     },
+     {
+      "id": "mixolydian",
+      "name": "Mixolydian",
+      "short": "Mixolydian",
+      "family": "Mode"
+     },
+     {
+      "id": "locrian",
+      "name": "Locrian",
+      "short": "Locrian",
+      "family": "Mode"
+     },
+     {
+      "id": "majorPentatonic",
+      "name": "major pentatonic",
+      "short": "major",
+      "family": "Pentatonic"
+     },
+     {
+      "id": "minorPentatonic",
+      "name": "minor pentatonic",
+      "short": "minor",
+      "family": "Pentatonic"
+     }
+    ],
+    "card": null
+   }
+  },
+  {
+   "call": "reference.chord",
+   "request": {
+    "root": 2,
+    "quality": "minor"
+   },
+   "answer": {
+    "roots": [
+     {
+      "step": 0,
+      "alter": 0,
+      "letter": "C",
+      "name": "C"
+     },
+     {
+      "step": 0,
+      "alter": 1,
+      "letter": "C♯",
+      "name": "C♯"
+     },
+     {
+      "step": 1,
+      "alter": -1,
+      "letter": "D♭",
+      "name": "D♭"
+     },
+     {
+      "step": 1,
+      "alter": 0,
+      "letter": "D",
+      "name": "D"
+     },
+     {
+      "step": 1,
+      "alter": 1,
+      "letter": "D♯",
+      "name": "D♯"
+     },
+     {
+      "step": 2,
+      "alter": -1,
+      "letter": "E♭",
+      "name": "E♭"
+     },
+     {
+      "step": 2,
+      "alter": 0,
+      "letter": "E",
+      "name": "E"
+     },
+     {
+      "step": 3,
+      "alter": 0,
+      "letter": "F",
+      "name": "F"
+     },
+     {
+      "step": 3,
+      "alter": 1,
+      "letter": "F♯",
+      "name": "F♯"
+     },
+     {
+      "step": 4,
+      "alter": -1,
+      "letter": "G♭",
+      "name": "G♭"
+     },
+     {
+      "step": 4,
+      "alter": 0,
+      "letter": "G",
+      "name": "G"
+     },
+     {
+      "step": 4,
+      "alter": 1,
+      "letter": "G♯",
+      "name": "G♯"
+     },
+     {
+      "step": 5,
+      "alter": -1,
+      "letter": "A♭",
+      "name": "A♭"
+     },
+     {
+      "step": 5,
+      "alter": 0,
+      "letter": "A",
+      "name": "A"
+     },
+     {
+      "step": 5,
+      "alter": 1,
+      "letter": "A♯",
+      "name": "A♯"
+     },
+     {
+      "step": 6,
+      "alter": -1,
+      "letter": "B♭",
+      "name": "B♭"
+     },
+     {
+      "step": 6,
+      "alter": 0,
+      "letter": "B",
+      "name": "B"
+     }
+    ],
+    "types": [
+     {
+      "id": "major",
+      "suffix": "",
+      "name": "major triad",
+      "family": "Triad"
+     },
+     {
+      "id": "minor",
+      "suffix": "m",
+      "name": "minor triad",
+      "family": "Triad"
+     },
+     {
+      "id": "diminished",
+      "suffix": "dim",
+      "name": "diminished triad",
+      "family": "Triad"
+     },
+     {
+      "id": "augmented",
+      "suffix": "+",
+      "name": "augmented triad",
+      "family": "Triad"
+     },
+     {
+      "id": "sus2",
+      "suffix": "sus2",
+      "name": "suspended second: a second in place of the third",
+      "family": "Triad"
+     },
+     {
+      "id": "sus4",
+      "suffix": "sus4",
+      "name": "suspended fourth: a fourth in place of the third",
+      "family": "Triad"
+     },
+     {
+      "id": "dominant7",
+      "suffix": "7",
+      "name": "dominant seventh",
+      "family": "Seventh"
+     },
+     {
+      "id": "major7",
+      "suffix": "maj7",
+      "name": "major seventh",
+      "family": "Seventh"
+     },
+     {
+      "id": "minor7",
+      "suffix": "m7",
+      "name": "minor seventh",
+      "family": "Seventh"
+     },
+     {
+      "id": "halfDiminished7",
+      "suffix": "m7♭5",
+      "name": "half-diminished seventh",
+      "family": "Seventh"
+     },
+     {
+      "id": "diminished7",
+      "suffix": "dim7",
+      "name": "diminished seventh",
+      "family": "Seventh"
+     },
+     {
+      "id": "major6",
+      "suffix": "6",
+      "name": "major sixth",
+      "family": "SixthOrNinth"
+     },
+     {
+      "id": "minor6",
+      "suffix": "m6",
+      "name": "minor sixth",
+      "family": "SixthOrNinth"
+     },
+     {
+      "id": "add9",
+      "suffix": "add9",
+      "name": "added ninth",
+      "family": "SixthOrNinth"
+     }
+    ],
+    "card": null
+   }
+  },
+  {
+   "call": "settings.state",
+   "request": null,
+   "answer": {
+    "preset": "practising",
+    "values": {
+     "level.player": "intermediate",
+     "guidance.brackets": "on",
+     "guidance.insightsStrip": "on",
+     "guidance.hints": "off",
+     "guidance.focusSuggestion": "off",
+     "guidance.assistantHints": "off",
+     "guidance.transportPill": "selection",
+     "guidance.barFade": "2",
+     "guidance.proOffers": "on",
+     "phrases.granularity": "phrases",
+     "score.layout": "pages",
+     "score.noteNames": "off",
+     "score.evenBars": "on",
+     "layers.ink": "on",
+     "layers.notes": "on",
+     "layers.bookmarks": "on",
+     "layers.analysis": "on",
+     "layers.check": "on",
+     "layers.performance": "on",
+     "layers.extra": "off",
+     "layers.taken": "on",
+     "layers.version": "off",
+     "layers.artefacts": "off",
+     "pen.pencilOnly": "on",
+     "pen.ink": "graphite",
+     "dna.chords": "on",
+     "dna.degrees": "off",
+     "dna.functions": "on",
+     "playback.metronome": "off",
+     "playback.countIn": "off",
+     "playback.follow": "on",
+     "roll.followPlayback": "on",
+     "roll.noteNames": "on",
+     "notes.naming": "auto",
+     "roll.colour": "hand",
+     "assistant.answers": "onRequest",
+     "appearance.theme": "auto",
+     "appearance.language": "en",
+     "account.saveOnline": "off",
+     "account.analytics": "off",
+     "scan.engine": "homr",
+     "experimental.scanJobs": "off"
+    }
+   }
+  }
+ ]
+}
