@@ -25,7 +25,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// <see cref="ProjectFileException"/> with a plain reason; it never half-reads a project. The one exception is the
 /// tolerant reader (decision record 0026, S6): in a file of this version, an entity of a list that holds a value a later
 /// build added to an enum is kept whole as an <see cref="UnknownEntity"/> and written back unchanged where it stood
-/// (docs/project-file.md, "Unknown enum values").
+/// (docs/project-file.md, "Unknown values").
 /// <para>
 /// This class holds the document's top level and the version switch; each part of the file has its codec in
 /// <c>Projects.File</c> (the originals, the Notes, the workspace, the marks, the variations, ...) and
@@ -127,7 +127,10 @@ public static class ProjectFile
             int version = Integer(root, "version");
             if (version > Version)
             {
-                throw new ProjectFileException("This project was saved by a newer version of Motiff Lab. Update the app and try again.");
+                throw new ProjectFileException("This project was saved by a newer version of Motiff Lab. Update the app and try again.")
+                {
+                    RussianMessage = "Этот проект сохранён более новой версией Motiff Lab. Обновите приложение и попробуйте ещё раз.",
+                };
             }
 
             if (version < 1)

@@ -159,7 +159,7 @@ function load({ roll, labels, noteNames, dark, colourBy, keep, frame }) {
     }
     theme(dark);
     view.setLabels(labels);
-    state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end };
+    state.payload = { ids: roll.ids, notes: roll.notes, bars: roll.bars, end: roll.end, voices: roll.names.voices };
     view.load(state.payload, undefined, Boolean(keep));
     view.setNames(roll.names.notes, roll.names.keyTicks, roll.names.rows, roll.names.short, roll.names.shortRows, roll.names.octaves);
     view.setNoteNames(Boolean(noteNames));

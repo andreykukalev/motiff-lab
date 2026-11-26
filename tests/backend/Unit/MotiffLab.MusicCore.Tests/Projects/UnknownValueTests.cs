@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
@@ -13,13 +14,13 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class UnknownValueTests
 {
-    private const string UnknownValue = "FutureValue";
+    internal const string UnknownValue = "FutureValue";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 11, 12, 0, 0, TimeSpan.Zero);
 
     private static readonly HashSet<string> s_inWorkspace = ["motifs", "variations", "observations", "marks", "bookmarks", "resumePoints", "settings"];
 
-    private static JsonObject Worked() =>
+    internal static JsonObject Worked() =>
         JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
 
     private static JsonObject Worked15() =>
@@ -29,7 +30,8 @@ public class UnknownValueTests
 
     private static JsonObject Node(byte[] bytes) => JsonNode.Parse(bytes)!.AsObject();
 
-    private static JsonObject With(JsonObject file, string path, JsonNode? value)
+    /// <summary>The file with <paramref name="value"/> at <paramref name="path"/>; the facade's tests use it too.</summary>
+    internal static JsonObject With(JsonObject file, string path, JsonNode? value)
     {
         string[] parts = path.Split('/');
         JsonNode node = s_inWorkspace.Contains(parts[0]) && file["workspace"] is JsonObject workspace ? workspace : file;
@@ -153,16 +155,53 @@ public class UnknownValueTests
     }
 
     [Fact]
-    public void A_built_in_category_with_an_unknown_ink_is_written_back_and_not_taken_by_the_built_in()
+    public void A_built_in_category_with_an_unknown_ink_stands_in_as_the_built_in_and_is_written_back()
     {
-        JsonObject file = With(Worked(), "bookmarks/categories/0/ink", UnknownValue);
+        // #364: the four built-ins are always there to add to; this build shows one in its own ink, under the file's name.
+        JsonObject file = With(With(Worked(), "bookmarks/categories/0/ink", UnknownValue), "bookmarks/categories/0/name", "Drills");
 
         Project project = ProjectFile.Read(Bytes(file));
         JsonObject written = Node(ProjectFile.Write(project));
 
-        Assert.DoesNotContain(project.Categories, category => category.Id == BookmarkCategory.PractiseId);
-        Assert.Equal(["practise", "performance", "structure", "teacher", "c_0001"], Ids(written["workspace"]!["bookmarks"]!, "categories"));
+        Assert.Equal(new BookmarkCategory(BookmarkCategory.PractiseId, "Drills", InkColour.Carmine), project.Categories[0]);
+        Assert.Equal(["practise", "performance", "structure", "teacher", "c_0001"], project.Categories.Select(category => category.Id));
+        Assert.Equal(["b_0001"], project.Bookmarks.Select(bookmark => bookmark.Id));
+        Assert.Equal(("practise", "InkColour"), (Assert.Single(project.Unknown).Id, project.Unknown[0].Enum));
         Assert.True(JsonNode.DeepEquals(file, written));
+    }
+
+    [Fact]
+    public void A_built_in_category_the_player_renames_takes_the_place_of_the_unknown_one()
+    {
+        JsonObject file = With(Worked(), "bookmarks/categories/2/ink", UnknownValue);
+
+        JsonObject written = Node(ProjectFile.Write(ProjectFile.Read(Bytes(file)).RenameCategory(BookmarkCategory.StructureId, "Form")));
+
+        JsonNode structure = written["workspace"]!["bookmarks"]!["categories"]![2]!;
+        Assert.Equal(("structure", "Form", "Graphite"), (structure["id"]!.GetValue<string>(), structure["name"]!.GetValue<string>(), structure["ink"]!.GetValue<string>()));
+        Assert.DoesNotContain(UnknownValue, written.ToJsonString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unknown_entity_is_never_dropped_because_a_known_one_of_another_owner_has_its_id()
+    {
+        // #364, criterion 4: v_0002 of the hidden m_0001 and b_0001 of the hidden c_0001 stay; the known variation of m_0002
+        // that has v_0002 is written under the next id free of all; a bookmark cannot be added under b_0001, so one added
+        // beside it takes the next id, and no two entities of the file share one.
+        JsonObject file = With(With(With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue), "bookmarks/categories/4/ink", UnknownValue), "bookmarks/items/0/category", "c_0001");
+        Project project = ProjectFile.Read(Bytes(file));
+        SavedVariation clashing = project.Variations.First(variation => variation.MotifId == "m_0002") with { Id = "v_0002" };
+        static Bookmark Beside(string id) => new(id, "Beside", BookmarkCategory.PractiseId, new TickSpan(Tick.Zero, 480), FromPhrase: false, s_now);
+
+        Assert.Throws<ArgumentException>(() => project.AddBookmark(Beside("b_0001")));
+        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId())) with { Variations = [clashing, .. project.Variations] }));
+
+        JsonArray variations = written["workspace"]!["variations"]!.AsArray();
+        Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005", "v_0012", "v_0006"], Ids(written, "variations")[..7]);
+        Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"]![1], variations[1]));
+        Assert.Equal("m_0002", variations[5]!["motifId"]!.GetValue<string>());
+        Assert.Equal(Ids(written, "variations").Length, Ids(written, "variations").Distinct().Count());
+        Assert.Equal([("b_0001", "c_0001"), ("b_0002", "practise")], written["workspace"]!["bookmarks"]!["items"]!.AsArray().Select(item => (item!["id"]!.GetValue<string>(), item["category"]!.GetValue<string>())));
     }
 
     [Fact]

@@ -41,7 +41,7 @@
         "notes": [0, 240, 76, 0, 0, 0, 1, 240, 240, 75, 0, 0, 0, 1],
         "bars": [0, 720, 0, 1],
         "end": 720,
-        "names": { "notes": ["E5", "D#5"], "keyTicks": [0], "rows": [["E5", "D#5"]], "short": ["E", "D#"], "shortRows": [["E", "D#"]], "octaves": ["octave 5"] }
+        "names": { "notes": ["E5", "D#5"], "keyTicks": [0], "rows": [["E5", "D#5"]], "short": ["E", "D#"], "shortRows": [["E", "D#"]], "octaves": ["octave 5"], "voices": [{ "track": 0, "voice": 1, "name": "upper voice" }] }
       },
       "labels": { "rightHand": "Right hand", "leftHand": "Left hand" },
       "noteNames": true,

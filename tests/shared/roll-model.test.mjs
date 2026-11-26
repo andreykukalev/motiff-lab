@@ -154,6 +154,28 @@ test("lanes take their names from the labels given, as in Russian (#134)", () =>
     assert.equal(fill("{0} из {1}, снова {0}", 3, "пяти"), "3 из пяти, снова 3");
 });
 
+test("a voice music-core names is shown by its name, the others by their number (#330)", () => {
+    const notes = [
+        ["a", 0, 480, 72, 0, 1, HAND_RIGHT, 0],
+        ["b", 0, 480, 48, 0, 5, HAND_LEFT, 0],
+        ["c", 0, 480, 60, 1, 2, HAND_NONE, 0],
+    ];
+    const roll = RollModel.fromPayload({
+        ids: notes.map((note) => note[0]),
+        notes: notes.flatMap((note) => note.slice(1)),
+        bars: [0, 1920, 480, 1],
+        end: 1920,
+        voices: [
+            { track: 0, voice: 1, name: "верхний голос" },
+            { track: 0, voice: 5, name: "нижний голос" },
+        ],
+    });
+    const labels = { ...ENGLISH_ROLL_LABELS, track: "Дорожка {0}", trackVoice: "{0}, голос {1}" };
+
+    assert.deepEqual(roll.lanes("voice", labels).map((lane) => lane.label), ["Дорожка 1, верхний голос", "Дорожка 1, нижний голос", "Дорожка 2, голос 2"]);
+    assert.deepEqual(roll.lanes("track", labels).map((lane) => lane.label), ["Дорожка 1", "Дорожка 2"], "the track colouring names no voice");
+});
+
 test("the arrow keys step through the notes in time order and stop at the ends", () => {
     const roll = model([
         ["a", 0, 480, 60, 0, 0, 0, 0],
