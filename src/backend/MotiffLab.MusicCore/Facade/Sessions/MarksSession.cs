@@ -1,4 +1,3 @@
-using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
@@ -9,7 +8,7 @@ namespace MotiffLab.MusicCore.Facade.Sessions;
 /// <summary>
 /// The player's marks on the piece and the bookmarks (audit W1.7, the fifth typed session; 0018, section 5; contract 2): ink,
 /// margin notes, highlights and fingering; the bookmarks in the player's order, the Structure bookmarks written from the
-/// sentences or the form, and the bookmarks' categories. The marks and the bookmarks are the project's: each change here
+/// form, and the bookmarks' categories. The marks and the bookmarks are the project's: each change here
 /// answers the project it makes, and the open piece keeps it. The session keeps no state of its own; it reads the piece
 /// through <see cref="SessionPiece"/>, takes typed values (the time as <c>now</c>), never a request, and returns typed
 /// results; it writes no JSON and reads no clock. OpenPiece.Marks.cs is its JSON adapter.
@@ -105,10 +104,6 @@ internal static class MarksSession
 
     /// <summary>The project without the bookmark <paramref name="id"/>.</summary>
     public static Project WithoutBookmark(SessionPiece piece, string id) => Changed(() => piece.Project.RemoveBookmark(id));
-
-    /// <summary>The project with a Structure bookmark for every sentence not bookmarked there yet, made <paramref name="now"/>.</summary>
-    public static Project WithStructureBookmarks(SessionPiece piece, DateTimeOffset now) =>
-        Changed(() => piece.Project.AddStructureBookmarks(piece.Structure.Levels.Sentences.Sentences, piece.Words, now));
 
     /// <summary>The project with a Structure bookmark for every section of the form not bookmarked there yet, made <paramref name="now"/>.</summary>
     public static Project WithFormBookmarks(SessionPiece piece, DateTimeOffset now) =>
