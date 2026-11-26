@@ -397,7 +397,7 @@ struct ScoreScreenContent: View {
                         FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
                     } else {
                         ScoreBar(title: piece.title, pages: score.pages, text: text, player: player, score: score, selectionModel: selectionModel, marksModel: marksModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, openReference: { change(.open(.reference)) },
-                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
+                                 sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing, viewNote: sourcesModel.engraved.note(text),
                                  width: screen.width - 2 * CGFloat.ds("s-4")) { dismiss() }
                     }
                     if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
@@ -828,6 +828,9 @@ struct ScoreBar: View {
     var pickView: ((SourceLayers.ViewEntry) -> Void)? = nil
     /// The read-only tag of a view shown over the piece; nil for the piece itself.
     var viewing: String? = nil
+    /// The view's note: how many bars the app wrote where the source's record did not fit (`SourcesModel.Engraved.note`),
+    /// the first thing in the bar to give way (TopBar).
+    var viewNote: String? = nil
     /// The bar's width, the screen's less its margins (TopBar).
     var width: CGFloat = 0
     let back: () -> Void
@@ -839,7 +842,7 @@ struct ScoreBar: View {
     /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
     /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        TopBar(width: width, pages: pageText) {
+        TopBar(width: width, pages: pageText, note: viewNote) {
             BarLeading(title: title, contentsOpen: panels.binding(.contents, change: change), text: text, back: back)
             if let sourceLayers, let pickView {
                 SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { change(.open(.versions)) }

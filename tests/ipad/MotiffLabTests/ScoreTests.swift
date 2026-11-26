@@ -17,6 +17,7 @@ final class ScoreTests: XCTestCase {
         XCTAssertEqual(piece.title, "Für Elise")
         XCTAssertEqual(piece.pages.count, 3)
         XCTAssertTrue(piece.pages.allSatisfy { $0.contains("<svg") })
+        XCTAssertNotNil(piece.appWrittenBars, "a MusicXML file is the notes' record, so the engraving counts the bars the app wrote")
         print("OPEN-AND-ENGRAVE \(elapsed)")
     }
 
@@ -47,6 +48,16 @@ final class ScoreTests: XCTestCase {
         XCTAssertEqual(piece.title, "Für Elise")
         // The whole piece: four full A4 pages since the systems spread down each page (#521 section 14).
         XCTAssertGreaterThanOrEqual(piece.pages.count, 4)
+    }
+
+    /// «Как напечатано» (v1.4): the notation answer's "appWrittenBarCount" is the engraving's bars the app wrote itself, 0
+    /// on Für Elise's first bars, whose record fits; another count as it is, and null (notes with no record) as none.
+    func testTheBarsTheAppWroteDecode() throws {
+        let notation = try XCTUnwrap(FacadeAnswerFixturesTests.answers("variation").compactMap { facadeObject($0.text) }.first { $0["mei"] != nil })
+        XCTAssertEqual(Engraving.appWrittenBars(in: notation), 0, "the file's record fits every bar")
+        XCTAssertEqual(Engraving.appWrittenBars(in: notation.merging(["appWrittenBarCount": 4]) { $1 }), 4)
+        XCTAssertNil(Engraving.appWrittenBars(in: notation.merging(["appWrittenBarCount": NSNull()]) { $1 }), "no record")
+        XCTAssertNil(Engraving.appWrittenBars(in: [:]))
     }
 
     func testAFileThatIsNoMusicSaysWhy() async {
