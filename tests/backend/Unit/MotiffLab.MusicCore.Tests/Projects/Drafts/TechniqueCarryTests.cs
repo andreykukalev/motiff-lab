@@ -107,13 +107,14 @@ public class TechniqueCarryTests
     }
 
     [Fact]
-    public void The_same_draft_gives_the_same_notes_and_a_second_carry_is_refused()
+    public void The_same_draft_gives_the_same_notes_and_a_second_carry_is_refused_and_not_offered()
     {
         (Draft once, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English);
         (Draft again, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English);
 
         Assert.Equal(once.FindPlace("pl_2")!.Variants[1].Music.Notes, again.FindPlace("pl_2")!.Variants[1].Music.Notes);
         Assert.Equal("Этот приём уже перенесён в это место.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(once, "pl_1", 1, null, "pl_2", Later, Words.Russian)).Message);
+        Assert.DoesNotContain(TechniqueCarry.Targets(once, "pl_1", 1, null, Words.English), static target => target.Place.Id == "pl_2");
     }
 
     [Fact]
