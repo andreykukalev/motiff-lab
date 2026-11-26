@@ -7,7 +7,7 @@ public sealed partial record NoteEditLog
     /// <summary>
     /// The log carried over to the notes the same piece gives once <paramref name="length"/> ticks of music are put in at
     /// <paramref name="at"/> (v1.3 i-1b: a page no engine read, read again into the same Notes), so each correction still
-    /// applies to the same music; null when one cannot be carried exactly. The one place corrections move: notes are
+    /// applies to the same music; null when one cannot be carried exactly. Corrections move here into the same Notes (to other Notes read again: ReadingCarry): notes are
     /// numbered in time order, so a correction of an imported note names that note's number among <paramref name="after"/>,
     /// and every value it records from <paramref name="at"/> on moves on by <paramref name="length"/>; an added note keeps its
     /// id; a correction of a note across <paramref name="at"/> is not carried (<see cref="Crosses"/>). Exact means: laid on <paramref name="after"/>, the carried log applies, moves and leaves unfit the same corrections

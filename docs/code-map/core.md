@@ -28,7 +28,9 @@ through the facade; the API references it.
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
   voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
-  `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`).
+  `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`); the player's
+  corrections carried to a new reading of the same pages (`ReadingCarry`, «Как напечатано» step 2: onsets matched by
+  `PerformanceAlignment.AlignOnsets`; wired by `SourcesSession.CarriedOver` on sources.notes.recognise).
 - The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (`ControlEvents` from `PlayingMarks`,
@@ -63,7 +65,7 @@ through the facade; the API references it.
   correction answers the edit log, which the open piece keeps) answers `BarCorrections` (`Answer.Corrections`), its
   adapter `OpenPiece.Corrections` (`Calls.Corrections`, every call's bar read before anything changes);
   `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
-  iPad's mark, «Распознать ещё раз», each answering the project it makes, the time taken as `now`) answers `KeptFile`,
+  iPad's mark, «Распознать ещё раз» with the corrections carried over (`CarriedOver`), each answering the project it makes, the time taken as `now`) answers `KeptFile`,
   `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
   `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
   each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
