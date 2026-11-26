@@ -152,14 +152,26 @@ extension SourcesController {
     /// «Принять» on the assistant's proposal in a draft (v1.2, ADR 0034 section 6, the plan's answer 7): music-core makes its
     /// call (`fields`: the place, the tool, its parameters and the role) again on the draft as it is now and keeps what it
     /// proposes, its steps marked as the assistant's (`drafts.accept`), saved at once and undone from the toast as any step
-    /// (`words` say what was taken). Nil once kept; else why not, in music-core's words (the draft changed under it).
-    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> String? {
-        await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? nil : status ?? ""
+    /// (`words` say what was taken). Kept; else why not, in music-core's words (the draft changed under it); held, not sent,
+    /// while another step is on its way (`stepping`).
+    func acceptProposal(_ fields: [String: Any], of draft: String, words: String) async -> DraftAcceptance {
+        guard !stepping else { return .held }
+        return await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? .kept : .refused(status ?? "")
+    }
+
+    /// Whether a step that answered `taken` was refused by music-core: not when it was taken, nor when it was not sent as
+    /// another was on its way (`stepping`), which says nothing.
+    func refused(_ taken: Bool) -> Bool {
+        !taken && !stepping
     }
 
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
-    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open).
+    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open). While one
+    /// is on its way (`stepping`) another is not sent (a second tap): false, `status` untouched (`refused`).
     private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {
+        guard !stepping else { return false }
+        stepping = true
+        defer { stepping = false }
         var fields = fields
         fields["draft"] = draft
         fields["now"] = Self.now()

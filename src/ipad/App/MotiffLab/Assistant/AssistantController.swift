@@ -263,16 +263,21 @@ final class AssistantController: ObservableObject {
     }
 
     /// «Принять» on a step proposed in the place: `take` keeps it (the screen's step on the draft, music-core's
-    /// `drafts.accept`, answering why not, or nil once kept); then the proposal says so and the others of its question go,
-    /// or it says why music-core did not take it. True when it was kept.
+    /// `drafts.accept`); then the proposal says so and the others of its question go, or it says why music-core did not
+    /// take it; held (another step of the draft on its way), it stays as it was. True when it was kept.
     @discardableResult
-    func accept(_ proposal: AssistantPlaceProposal, by take: () async -> String?) async -> Bool {
+    func accept(_ proposal: AssistantPlaceProposal, by take: () async -> DraftAcceptance) async -> Bool {
         guard !busy else { return false }
         busy = true
         defer { busy = false }
-        if let problem = await take() {
+        switch await take() {
+        case .held:
+            return false
+        case .refused(let problem):
             mark(proposal.id, .proposed, problem: problem)
             return false
+        case .kept:
+            break
         }
         for other in inDraft?.exchange?.proposals ?? [] where other.id != proposal.id && other.state == .proposed {
             mark(other.id, .cancelled)

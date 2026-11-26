@@ -116,7 +116,8 @@ struct DraftSheetRequest: Identifiable {
     var into: DraftChoice.Into?
 }
 
-/// The «В черновик» sheet: «Что взять», «Куда», «Как» and «Добавить» (spec «Экран (iPad)»), each choice a row that
+/// The «В черновик» sheet: «Что взять», «Куда», «Как» and «Добавить» (spec «Экран (iPad)»), for a new draft its card
+/// «Новый черновик» and «Создать» (v1.4, F4), each choice a row that
 /// shows itself chosen with the accent's tint and a check, as the switch's menu does. What it offers is music-core's
 /// (`drafts.sheet`, asked again when another part is chosen, as the same music depends on it); `sources` is the piece
 /// whose drafts they are, which keeps the answer and the project file. Under «Куда», after this piece's, the drafts of the
@@ -176,27 +177,50 @@ struct DraftSheet: View {
                 row(draft.name, SourcesDraftRow.caption(draft, text), on: choice.into == into) { self.choice = DraftChoice.first(sheet, part: choice.part, into: into) }
             }
         }
+        if choice.into == .new {
+            newDraftCard(sheet, choice)
+        } else {
+            ways(sheet, choice)
+        }
+    }
+
+    @ViewBuilder private func ways(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         section("drafts.how")
         ForEach(Array(DraftChoice.ways(choice.into, in: sheet).enumerated()), id: \.offset) { _, way in
-            row(title(way, newDraft: choice.into == .new), caption(way), on: way == choice.way) { self.choice?.way = way }
+            row(title(way), caption(way), on: way == choice.way) { self.choice?.way = way }
         }
+    }
+
+    /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»), in place of «Как»: the name it takes and its
+    /// base (the notes selected, the part chosen); «Создать» (`buttons`) makes the draft with the fragment as its first
+    /// place, the one way a new draft has (`DraftChoice.ways(nil)`).
+    private func newDraftCard(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["drafts.new"]).overline()
+            Text(sheet.newName).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+            Text(text.format("drafts.newBase", DraftChoice.word(part: choice.part, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+        .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
     }
 
     private var buttons: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Button(text["common.cancel"], action: cancel).buttonStyle(DSButtonStyle(kind: .quiet))
             Spacer(minLength: 0)
-            Button(text["drafts.addButton"]) { Task { await add() } }
+            Button(text[choice?.into == .new ? "drafts.create" : "drafts.addButton"]) { Task { await add() } }
                 .buttonStyle(DSButtonStyle(kind: .primary))
                 .disabled(choice == nil || adding)
         }
         .padding(.top, CGFloat.ds("s-2"))
     }
 
-    private func title(_ way: DraftChoice.Way, newDraft: Bool) -> String {
+    private func title(_ way: DraftChoice.Way) -> String {
         switch way.drop {
         case .variant: text["drafts.asVariant"]
-        case .place: text[newDraft ? "drafts.asFirst" : "drafts.asPlace"]
+        case .place: text["drafts.asPlace"]
         case .shelf: text["drafts.toShelf"]
         }
     }

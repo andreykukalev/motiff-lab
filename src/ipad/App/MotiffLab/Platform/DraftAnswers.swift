@@ -327,6 +327,15 @@ struct PieceDraftsAnswer: Decodable, Sendable {
     let drafts: [SourceLayersAnswer.Draft]
 }
 
+/// What «Принять» on the assistant's proposal in a draft came to (`SourcesController.acceptProposal`, v1.4): kept; refused
+/// by music-core, with why in its words; or held, not sent, as another step of the draft was on its way, which leaves the
+/// proposal as it was (`AssistantController.accept(_:by:)`).
+enum DraftAcceptance: Equatable, Sendable {
+    case kept
+    case refused(String)
+    case held
+}
+
 /// A fragment added to another piece's draft (`drafts.add` with "file", DraftRequest.AddTo, v1.2 collage): the draft, and
 /// "file", that piece's project file changed, to save in place of the one sent exactly as music-core wrote it.
 struct DraftAddedElsewhereAnswer: Decodable, Sendable {
