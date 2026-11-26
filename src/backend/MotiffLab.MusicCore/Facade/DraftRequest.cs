@@ -175,7 +175,7 @@ internal static class DraftRequest
     /// </summary>
     private static string Forgetting(OpenPiece owner, string id, string answer)
     {
-        owner.ForgetDraftsBefore(id);
+        owner.Sources.ForgetDraftsBefore(id);
         return answer;
     }
 
@@ -184,7 +184,7 @@ internal static class DraftRequest
     /// as a "variant" of the place "place", as a new "place" at the end or on the "shelf" (<see cref="Draft.Placed"/>).
     /// Answers the sources with "draft", "place" (where it went, null on the shelf), "variant" and "dropped", the numbers of
     /// the steps that went with it out of its place. Its structure is the draft's state, not a step: drafts.undo takes it back
-    /// while the piece stays open (<see cref="OpenPiece.DraftBefore"/>).
+    /// while the piece stays open (<see cref="Sessions.SourcesSession.TakeDraftBefore"/>).
     /// </summary>
     public static string Place(OpenPiece owner, Request request)
     {
@@ -360,7 +360,7 @@ internal static class DraftRequest
                 JsonWrite.Numbers(json, "dropped", [.. draft.Steps.Select(static step => step.Number).Except(changed.Steps.Select(static step => step.Number))]);
                 more?.Invoke(json, changed);
             });
-        owner.KeepDraftBefore(draft);
+        owner.Sources.KeepDraftBefore(draft);
         return answer;
     }
 

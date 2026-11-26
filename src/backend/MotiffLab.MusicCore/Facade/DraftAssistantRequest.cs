@@ -54,7 +54,7 @@ internal static class DraftAssistantRequest
         });
         if (proposal.Structure)
         {
-            owner.KeepDraftBefore(proposal.Before);
+            owner.Sources.KeepDraftBefore(proposal.Before);
         }
 
         return answer;

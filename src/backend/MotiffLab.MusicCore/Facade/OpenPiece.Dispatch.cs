@@ -84,16 +84,5 @@ internal sealed partial class OpenPiece
             new("performance.takeAll", static (piece, request) => piece.TakeAll(request)),
             new("performance.restore", static (piece, request) => piece.ChangePerformance(request, performance => performance.Restore(BarsOf(request)), notesChange: true)),
         ];
-
-        /// <summary>The sources that need the notes (those that need none: <see cref="SourceRequest.Calls"/>).</summary>
-        public static readonly FacadeCall<OpenPiece>[] Sources =
-        [
-            new("sources.document", static (piece, request) => piece.KeepDocument(request)),
-            new("sources.documentNotes", static (piece, request) => piece.AddDocumentNotes(request)),
-            new("sources.pdf", static (piece, request) => request.Text("id") is { } id && id != PieceOriginal.DocumentId ? piece.OriginalBytes(id) : piece.DocumentBytes()),
-            new("sources.relink", static (piece, request) => piece.RelinkDocument(request)),
-            new("sources.held", static (piece, request) => piece.MarkHeld(request)),
-            new("sources.notes.recognise", static (piece, request) => piece.RecogniseAgain(request)),
-        ];
     }
 }
