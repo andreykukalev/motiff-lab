@@ -49,19 +49,26 @@ sees only the diff and the spec section (`roles/pr-reviewer.md`) and cannot find
      «Robustness»; the lead copies them into the version note.
    - Decide on your own, by the common pattern, what no spec, mockup or baseline entry says (Andrei, 2026-11-26): a
      miss, a tap beside or outside, a cancelled or interrupted gesture, a repeated tap, an empty or extreme input. Take
-     the pattern from, in this order: how the app already handles the same case elsewhere (`docs/ui-conventions.md`,
-     the code), Apple's Human Interface Guidelines and the system apps on iPad, the usual behaviour of score and
+     the pattern from, in this order: the same case already decided (`docs/ui-edge-cases.md`), how the app already
+     handles it elsewhere (`docs/ui-conventions.md`, the code), Apple's Human Interface Guidelines and the system apps on iPad, the usual behaviour of score and
      document apps. Typical answers: a tap outside a menu, sheet or popover closes it without acting; a miss does
      nothing and never acts on the nearest thing unless the app already snaps there; a target smaller than 44 pt gets
      a larger hit area; a cancelled drag puts everything back; a second tap during a running action is ignored or the
-     control shows it is busy; nothing is lost without undo. Each such decision is one line in «Robustness» with its
-     source («as the pen palette», «HIG: popovers») and a test where it can be tested; the lead lists them in the
-     version note under «Подпилено без вас», so Andrei can overturn one there. Do not ask him about these.
+     control shows it is busy; nothing is lost without undo. Each such decision gets an entry in
+     `docs/ui-edge-cases.md` (id, case, decision, source such as «as the pen palette» or «HIG: popovers», the pull
+     request), a one-line comment naming the id where the code implements it, a test where it can be tested and a line
+     in «Robustness». Never edit a spec, a mockup or `docs/ux-baseline.md` to record it: those are Andrei's sources,
+     the register is the agents'. The lead lists the new entries in the version note under «Подпилено без вас», so
+     Andrei can overturn one there. Do not ask him about these.
    - Ask, never decide: changing what an existing gesture or button does in a case a source defines, adding or
      removing a setting or control, anything that differs from a spec, an approved mockup or a baseline entry, how
      selection or playback works (not their edge cases above), a case where two sources say different things. List
      these under «Needs from Andrei»; the lead asks him once per version.
    - Robustness fixes stay under about a third of the change; more is a separate task for the lead.
+   - Comments that keep the context for the next agent (Andrei, 2026-11-26): a one-line «why» where the code does
+     something it would be tempting to «simplify», naming its source (a spec section, a baseline or register id, an
+     ADR, HIG); one line at the top of a new file on what it is responsible for and what does not belong in it; the
+     shape of a message or facade call where two sides meet by a string name. Never a comment that retells the code.
 7. Check before the push: build, unit tests, the node tests in `tests/shared`, whitespace,
    `node tools/quality/quality.mjs`; for `src/ipad/App`, the expectations in `tests/ipad/MotiffLabTests`. Fix what the
    quality checks find instead of adding baseline entries; an entry that cannot be avoided gets its reason in `why` and
