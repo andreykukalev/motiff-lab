@@ -100,9 +100,12 @@ test("the piano roll's button is in the pill only", () => {
 // the longer it is held, as the platform's steppers do (SwiftUI's `buttonRepeatBehavior`), so a place of a 300-bar piece is
 // not 300 taps; each is off at its bound, which ends a hold there. Every button whose label is a − or + on the iPad, and
 // every `stepButton` that draws one: the counters of a draft's place's length and of the PDF's pages (`PageStepper`), the
-// tempo's pace, the metronome's beats a minute and a note's values in Check. The roll's zoom steps are icons, no number.
+// tempo's pace and the metronome's beats a minute. The roll's zoom steps are icons, no number.
 test("every − and + that steps a number on the iPad steps on while held, off at its bound", () => {
     const app = new URL("src/ipad/App/MotiffLab/", root);
+    // Each step of a note's value in Check is a correction that engraves the score again: a hold would queue many and
+    // could overshoot the bound music-core answers after, so these step once a press.
+    const once = new Set(["Marks/Check.swift:−", "Marks/Check.swift:+"]);
     const found = [];
     for (const name of readdirSync(app, { recursive: true }).filter((file) => file.endsWith(".swift")).sort()) {
         const source = readFileSync(new URL(name, app)).toString();
@@ -113,8 +116,10 @@ test("every − and + that steps a number on the iPad steps on while held, off a
             const end = site[0].startsWith("func") || nextButton < 0 ? closes : Math.min(closes, after + nextButton);
             const button = source.slice(site.index, end);
             const line = source.slice(0, site.index).split("\n").length;
-            found.push(`${name}:${site[0].startsWith("func") ? "stepButton" : site[0].slice(-3, -2)}`);
-            assert.match(button, /\.buttonRepeatBehavior\(\.enabled\)/, `${name}:${line} repeats while held`);
+            const id = `${name}:${site[0].startsWith("func") ? "stepButton" : site[0].slice(-3, -2)}`;
+            found.push(id);
+            if (once.has(id)) assert.doesNotMatch(button, /\.buttonRepeatBehavior/, `${name}:${line} steps once a press`);
+            else assert.match(button, /\.buttonRepeatBehavior\(\.enabled\)/, `${name}:${line} repeats while held`);
             assert.match(button, /\.disabled\(/, `${name}:${line} is off at its bound`);
         }
     }

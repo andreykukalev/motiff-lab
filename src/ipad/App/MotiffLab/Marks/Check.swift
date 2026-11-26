@@ -547,13 +547,12 @@ struct CorrectionsList: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// A value with a step down and a step up, each said as what it does; held, each steps on (v1.5, answer 15), off where
-    /// it cannot step.
+    /// A value with a step down and a step up, each said as what it does. Not repeated while held, unlike the app's other
+    /// number steppers (v1.5): each step is a correction that engraves the score again.
     private func stepper(_ label: String, _ value: String, down: (String, Bool), up: (String, Bool), step: @escaping (Int) -> Void) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button { step(-1) } label: { Text("−").frame(minWidth: CGFloat.ds("icon-s")) }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                .buttonRepeatBehavior(.enabled)
                 .disabled(!down.1)
                 .accessibilityLabel(down.0)
             VStack(alignment: .leading, spacing: 0) {
@@ -562,7 +561,6 @@ struct CorrectionsList: View {
             }
             Button { step(1) } label: { Text("+").frame(minWidth: CGFloat.ds("icon-s")) }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                .buttonRepeatBehavior(.enabled)
                 .disabled(!up.1)
                 .accessibilityLabel(up.0)
         }
