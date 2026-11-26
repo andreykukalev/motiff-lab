@@ -259,13 +259,7 @@ internal sealed partial class OpenPiece
         }
 
         json.WriteEndArray();
-        json.WriteStartArray("hidden");
-        foreach (string id in _hidden)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "hidden", _hidden);
     }
 
     private string MisfitText(EditMisfit reason) => reason switch

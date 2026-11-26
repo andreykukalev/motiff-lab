@@ -187,13 +187,7 @@ internal static partial class Answer
         }
 
         json.WriteBoolean("focused", point.Focused);
-        json.WriteStartArray("overlays");
-        foreach (Overlay overlay in point.Overlays)
-        {
-            json.WriteStringValue(JsonWrite.Name(overlay));
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "overlays", point.Overlays.Select(JsonWrite.Name));
         json.WriteNumber("tempoPercent", point.TempoPercent);
         json.WriteString("hands", point.Hands is { } hands ? JsonWrite.Name(hands) : "both");
         json.WriteBoolean("loop", point.Loop);
@@ -231,13 +225,7 @@ internal static partial class Answer
             json.WriteBoolean("hasVariation", idea.Variation is not null);
             if (idea.Variation is { } variation)
             {
-                json.WriteStartArray("steps");
-                foreach (SavedStep step in variation.Steps)
-                {
-                    json.WriteStringValue(step.Operation);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Texts(json, "steps", variation.Steps.Select(static step => step.Operation));
             }
 
             json.WriteString("createdAt", idea.CreatedAt.ToString("O", CultureInfo.InvariantCulture));

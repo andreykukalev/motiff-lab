@@ -93,13 +93,7 @@ internal static partial class Answer
 
     public static void Keep(Utf8JsonWriter json, string name, IEnumerable<KeepProperty> keep)
     {
-        json.WriteStartArray(name);
-        foreach (KeepProperty property in keep.Order())
-        {
-            json.WriteStringValue(JsonWrite.Name(property));
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, name, keep.Order().Select(JsonWrite.Name));
     }
 
     public static void KeySignature(Utf8JsonWriter json, string name, KeySignature? key)

@@ -24,13 +24,7 @@ internal static class OriginCodec
         if (scan is not null)
         {
             json.WriteStartObject("scan");
-            json.WriteStartArray("confirmedBars");
-            foreach (int bar in scan.ConfirmedBars)
-            {
-                json.WriteNumberValue(bar);
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Numbers(json, "confirmedBars", scan.ConfirmedBars);
             WriteScanPages(json, scan.Pages);
             json.WriteEndObject();
         }

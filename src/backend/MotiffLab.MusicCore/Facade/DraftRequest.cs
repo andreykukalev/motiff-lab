@@ -48,13 +48,7 @@ internal static class DraftRequest
         PlaceMatch? best = SameMusic.Suggested([.. offered.Select(static each => each.Suggested).OfType<PlaceMatch>()]);
         return Answer.Write(json =>
         {
-            json.WriteStartArray("parts");
-            foreach (DraftPart each in parts)
-            {
-                json.WriteStringValue(Name(each));
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "parts", parts.Select(Name));
             json.WriteString("part", Name(part));
             json.WriteNumber("notes", fragment.Notes.Count);
             json.WriteString("newName", DraftLabels.NewName(owner.Project, words));

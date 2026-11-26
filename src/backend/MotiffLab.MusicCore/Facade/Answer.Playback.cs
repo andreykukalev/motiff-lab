@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
-/// <summary>What plays and what the roll shows (0018 section 4): the playback score, its tempo, the hands, and the roll's flat arrays, written with the one set of list writers (D12).</summary>
+/// <summary>What plays and what the roll shows (0018 section 4): the playback score, its tempo and the hands, and the roll's flat arrays (packed by <c>PianoRollData</c>, written with <see cref="JsonWrite"/>'s list writers: D12).</summary>
 internal static partial class Answer
 {
     /// <summary>The piano roll's data, with the field names the roll reads (Scripts/roll/roll-model.ts, RollPayload).</summary>

@@ -108,13 +108,7 @@ internal static partial class Answer
         OptionalNumber(json, "pages", original.Pages);
         OptionalNumber(json, "durationMs", original.DurationMs);
         json.WriteBoolean("hidden", source.Hidden);
-        json.WriteStartArray("notes");
-        foreach (string id in source.Notes)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "notes", source.Notes);
         json.WriteNumber("pageMarks", source.PageMarks);
         json.WriteEndObject();
     }

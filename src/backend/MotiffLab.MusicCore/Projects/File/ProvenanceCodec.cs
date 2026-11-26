@@ -29,13 +29,7 @@ internal static class ProvenanceCodec
         json.WriteEndArray();
         if (provenance.Inputs.Count > 0)
         {
-            json.WriteStartArray("inputs");
-            foreach (string input in provenance.Inputs)
-            {
-                json.WriteStringValue(input);
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "inputs", provenance.Inputs);
         }
 
         if (provenance.Engine is { } engine)

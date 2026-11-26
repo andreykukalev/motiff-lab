@@ -17,13 +17,7 @@ internal static partial class Answer
     /// </summary>
     public static void PieceKeys(Utf8JsonWriter json, Project project)
     {
-        json.WriteStartArray("pieceKeys");
-        foreach (string key in SamePiece.Keys(project))
-        {
-            json.WriteStringValue(key);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "pieceKeys", SamePiece.Keys(project));
     }
 
     /// <summary>

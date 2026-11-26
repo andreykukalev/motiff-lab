@@ -39,6 +39,15 @@ internal static class JsonWrite
         json.WriteEndArray();
     }
 
+    /// <summary>A list of texts left out when there are none, as the file keeps a take's note ids and a piece's tags.</summary>
+    internal static void TextsIfAny(Utf8JsonWriter json, string name, IReadOnlyCollection<string> texts)
+    {
+        if (texts.Count > 0)
+        {
+            Texts(json, name, texts);
+        }
+    }
+
     /// <summary>A list of whole numbers: counts, bars, ticks (a tick's <c>Value</c>), pitches.</summary>
     internal static void Numbers<T>(Utf8JsonWriter json, string name, IEnumerable<T> numbers)
         where T : IBinaryInteger<T>

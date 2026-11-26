@@ -72,13 +72,7 @@ internal static class WorkspaceCodec
         json.WriteEndObject();
         if (project.HiddenViews.Count > 0)
         {
-            json.WriteStartArray("hiddenViews");
-            foreach (string id in project.HiddenViews)
-            {
-                json.WriteStringValue(id);
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "hiddenViews", project.HiddenViews);
         }
 
         WriteUnknownFields(json, project.UnknownFieldsAt(WorkspacePath));
@@ -117,18 +111,12 @@ internal static class WorkspaceCodec
         json.WriteString("original", partOf.Original);
         if (partOf.Pages is var (first, last))
         {
-            json.WriteStartArray("pages");
-            json.WriteNumberValue(first);
-            json.WriteNumberValue(last);
-            json.WriteEndArray();
+            JsonWrite.Numbers(json, "pages", [first, last]);
         }
 
         if (partOf.Milliseconds is var (from, to))
         {
-            json.WriteStartArray("ms");
-            json.WriteNumberValue(from);
-            json.WriteNumberValue(to);
-            json.WriteEndArray();
+            JsonWrite.Numbers(json, "ms", [from, to]);
         }
 
         json.WriteEndObject();

@@ -159,13 +159,7 @@ internal static partial class ReferenceRequest
     private static void Choices<T>(Utf8JsonWriter json, string offered, T chosen, string name)
         where T : struct, Enum
     {
-        json.WriteStartArray(offered);
-        foreach (T value in Enum.GetValues<T>())
-        {
-            json.WriteStringValue(JsonWrite.Name(value));
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, offered, Enum.GetValues<T>().Select(JsonWrite.Name));
         json.WriteString(name, JsonWrite.Name(chosen));
     }
 

@@ -93,13 +93,7 @@ internal static partial class ScanRequest
                 json.WriteString("kind", JsonNamingPolicy.CamelCase.ConvertName(page.Kind.ToString()));
                 json.WriteNumber("notes", page.Notes);
                 json.WriteNumber("bars", page.Bars);
-                json.WriteStartArray("issues");
-                foreach (string issue in page.Issues)
-                {
-                    json.WriteStringValue(issue);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Texts(json, "issues", page.Issues);
                 if (page.MusicXml is { } musicXml)
                 {
                     json.WriteString("musicxml", Encoding.UTF8.GetString(musicXml));
@@ -141,13 +135,7 @@ internal static partial class ScanRequest
     private static void Merge(Utf8JsonWriter json, ScanMergedPage page, ScanBar[] bars)
     {
         json.WriteStartObject("merge");
-        json.WriteStartArray("engines");
-        foreach (string engine in page.Engines)
-        {
-            json.WriteStringValue(engine);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "engines", page.Engines);
         json.WriteStartArray("bars");
         foreach ((ScanBar bar, ScanMergedBar read) in bars.Zip(page.Bars))
         {
@@ -160,13 +148,7 @@ internal static partial class ScanRequest
                 json.WriteStartObject();
                 json.WriteNumber("part", staff.Part);
                 json.WriteNumber("staff", staff.Staff);
-                json.WriteStartArray("engines");
-                foreach (string engine in staff.Engines)
-                {
-                    json.WriteStringValue(engine);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Texts(json, "engines", staff.Engines);
                 json.WriteEndObject();
             }
 
@@ -191,13 +173,7 @@ internal static partial class ScanRequest
         foreach (ScanVariant variant in variants)
         {
             json.WriteStartObject();
-            json.WriteStartArray("engines");
-            foreach (string engine in variant.Engines)
-            {
-                json.WriteStringValue(engine);
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "engines", variant.Engines);
             json.WriteStartArray("staves");
             foreach (ScanVariantStaff staff in variant.Staves)
             {

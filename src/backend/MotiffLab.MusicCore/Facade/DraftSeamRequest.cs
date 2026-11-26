@@ -73,16 +73,8 @@ internal static class DraftSeamRequest
         json.WriteNumber("end", seam.Listen.End.Value);
         json.WriteEndObject();
         json.WriteBoolean("left", seam.Left);
-        json.WriteStartArray("changes");
-        foreach ((bool changes, string name) in new[] { (seam.KeyChanges, "key"), (seam.MeterChanges, "meter"), (seam.TempoChanges, "tempo"), (seam.Register != 0, "register") })
-        {
-            if (changes)
-            {
-                json.WriteStringValue(name);
-            }
-        }
-
-        json.WriteEndArray();
+        (bool Changes, string Name)[] changes = [(seam.KeyChanges, "key"), (seam.MeterChanges, "meter"), (seam.TempoChanges, "tempo"), (seam.Register != 0, "register")];
+        JsonWrite.Texts(json, "changes", changes.Where(static change => change.Changes).Select(static change => change.Name));
         Register(json, seam, words);
         json.WriteStartArray("sides");
         Side(json, seam.Before, words);

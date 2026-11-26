@@ -188,8 +188,8 @@ internal static class DraftsCodec
                     json.WriteString("part", JsonWrite.Name(part));
                 }
 
-                WriteIds(json, "removed", take.Removed);
-                WriteIds(json, "added", take.Added);
+                JsonWrite.TextsIfAny(json, "removed", take.Removed);
+                JsonWrite.TextsIfAny(json, "added", take.Added);
                 if (take.Insert is { } insert)
                 {
                     json.WriteStartObject("insert");
@@ -246,23 +246,6 @@ internal static class DraftsCodec
         json.WriteString("kind", JsonWrite.Name(technique.Kind));
         JsonWrite.Numbers(json, "bars", technique.Bars);
         json.WriteEndObject();
-    }
-
-    /// <summary>A take's note ids, left out when there are none (a take that inserts bars).</summary>
-    private static void WriteIds(Utf8JsonWriter json, string name, IReadOnlyList<string> ids)
-    {
-        if (ids.Count == 0)
-        {
-            return;
-        }
-
-        json.WriteStartArray(name);
-        foreach (string id in ids)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
     }
 
     private static Draft ReadDraft(JsonElement draft)

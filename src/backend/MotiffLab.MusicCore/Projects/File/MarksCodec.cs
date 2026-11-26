@@ -366,13 +366,7 @@ internal static class MarksCodec
             }
 
             json.WriteBoolean("focused", point.Focused);
-            json.WriteStartArray("overlays");
-            foreach (Overlay overlay in point.Overlays)
-            {
-                json.WriteStringValue(overlay.ToString());
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "overlays", point.Overlays.Select(static overlay => overlay.ToString()));
             json.WriteNumber("tempoPercent", point.TempoPercent);
             if (point.Hands is { } hands)
             {
