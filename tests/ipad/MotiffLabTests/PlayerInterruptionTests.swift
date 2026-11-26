@@ -5,7 +5,7 @@ import XCTest
 
 /// The player through what the system does to the iPad's audio (v1.4 r-1b): an interruption shows the music paused at
 /// once and keeps it so, the loop and the place kept, and Play goes on from there; the keeper says whether it could start
-/// the engine, so a Play it cannot honour is not left waiting to sound by itself.
+/// the engine, so a Play it cannot honour is not left waiting to sound by itself; a sound that cannot load says so.
 @MainActor
 final class PlayerInterruptionTests: XCTestCase {
     /// Waits for `done`, at most `seconds`.
@@ -86,5 +86,18 @@ final class PlayerInterruptionTests: XCTestCase {
         XCTAssertTrue(started, "a stopped engine started again")
         XCTAssertTrue(running)
         XCTAssertTrue(again, "a running engine runs")
+    }
+
+    /// A sound that cannot load says so in the interface's language (v1.4 r-1b), not in music-core's English.
+    func testASoundThatCannotLoadSaysSoInTheInterfacesLanguage() async {
+        let player = Player()
+        defer { player.shutdown() }
+        // A piece music-core does not hold: no playback score.
+        await player.load(piece: 9_000_779)
+        let problem = player.problem
+        let ready = player.ready
+        XCTAssertEqual(problem, UIText.current["playback.failed"])
+        XCTAssertFalse(problem?.contains("music-core") ?? true)
+        XCTAssertFalse(ready)
     }
 }

@@ -18,6 +18,7 @@ final class Player: ObservableObject {
         barNumbers.last { $0.start <= tick }?.number ?? barNumbers.first?.number
     }
     @Published private(set) var ready = false
+    /// That the sound could not be loaded (`playback.failed`, in the interface's language); nil once it has.
     @Published private(set) var problem: String?
     /// The playback tempo and the piece's (#511 section 17): an object of its own, so that the pill's tempo control observes
     /// it alone and is not drawn again with every position report while playing; a change applies to the engine at once.
@@ -115,7 +116,8 @@ final class Player: ObservableObject {
             Metronome.shared.attach(self)
             startPolling()
         } catch {
-            problem = (error as? PlayerError)?.message ?? error.localizedDescription
+            // The player reads why in their own language, not the engine's or music-core's English (v1.4 r-1b).
+            problem = UIText.current["playback.failed"]
         }
     }
 
