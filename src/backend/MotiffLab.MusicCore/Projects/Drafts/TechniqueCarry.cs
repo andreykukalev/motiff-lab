@@ -34,8 +34,9 @@ public static class TechniqueCarry
 
     /// <summary>
     /// Where the приём <paramref name="number"/> of the place <paramref name="fromId"/>, read at its bar <paramref name="bar"/>
-    /// (its first when null), can go: each other place of the draft that is not a bridge, in order, with its bars (from 1)
-    /// where the приём fits, none where it fits nowhere or would take out every note of the place.
+    /// (its first when null), can go: each other place of the draft that is not a bridge and that it was not carried into
+    /// already (as <see cref="Put"/> tells), in order, with its bars (from 1) where the приём fits, none where it fits nowhere
+    /// or would take out every note of the place.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place, приём, or bar of it.</exception>
     /// <exception cref="InvalidOperationException">Bars put in, which are not carried; the message in <paramref name="words"/>.</exception>
@@ -43,7 +44,10 @@ public static class TechniqueCarry
     {
         ArgumentNullException.ThrowIfNull(draft);
         Pattern pattern = PatternOf(draft, fromId, number, bar, words);
-        return [.. draft.Places.Where(place => place.Id != fromId && !place.Bridge).Select(place => (place, Applied(pattern, place.BaseVariant.Music) is ({ Notes.Count: > 0 }, var bars) ? bars : []))];
+        return [.. draft.Places.Where(place => place.Id != fromId && !place.Bridge)
+            .Select(place => (Place: place, Carried: Applied(pattern, place.BaseVariant.Music)))
+            .Where(each => !CarriedAlready(each.Place, pattern, each.Carried.Music))
+            .Select(each => (each.Place, each.Carried is ({ Notes.Count: > 0 }, var bars) ? bars : []))];
     }
 
     /// <summary>
@@ -82,7 +86,7 @@ public static class TechniqueCarry
             throw new InvalidOperationException(words.T("The technique fits no bar of that place.", "Этот приём не подходит ни к одному такту этого места."));
         }
 
-        if (to.Variants.Any(each => each.MadeWith(pattern.Params) && Same(each.Music.Notes, music.Notes)))
+        if (CarriedAlready(to, pattern, music))
         {
             throw new InvalidOperationException(words.T("The technique is carried into that place already.", "Этот приём уже перенесён в это место."));
         }
@@ -288,6 +292,10 @@ public static class TechniqueCarry
 
         return Encoding.UTF8.GetString(stream.ToArray());
     }
+
+    /// <summary>Whether the place has the приём carried into it already: a variant made with its params and the notes <paramref name="carried"/> it would make.</summary>
+    private static bool CarriedAlready(DraftPlace to, Pattern pattern, SourceMusic carried) =>
+        to.Variants.Any(each => each.MadeWith(pattern.Params) && Same(each.Music.Notes, carried.Notes));
 
     private static bool Same(IReadOnlyList<Note> one, IReadOnlyList<Note> other) =>
         one.Select(static note => (note.Pitch.MidiNumber, note.Span)).SequenceEqual(other.Select(static note => (note.Pitch.MidiNumber, note.Span)));

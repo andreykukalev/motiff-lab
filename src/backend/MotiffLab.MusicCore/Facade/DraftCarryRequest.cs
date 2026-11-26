@@ -13,7 +13,8 @@ internal static class DraftCarryRequest
     /// Where the приём "technique" of the place "place" of the draft "draft", read at its bar "bar" (its first when none), can
     /// be carried, nothing changed: "draft", "place", "technique" and "places" [{"place", "label" (as the draft's map names
     /// it), "bars" (the place's bars, from 1, where it fits; empty where it fits nowhere)}], each other place that is not a
-    /// bridge, in the draft's order. Bars put in are not carried (unavailable); no such place, приём or bar is a bad request.
+    /// bridge and that it was not carried into already, in the draft's order. Bars put in are not carried (unavailable); no
+    /// such place, приём or bar is a bad request.
     /// </summary>
     public static string Places(OpenPiece owner, Request request)
     {
