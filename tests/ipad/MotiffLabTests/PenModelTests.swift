@@ -117,6 +117,7 @@ final class PenModelTests: XCTestCase {
     private func coloured(_ score: FakeScore, _ count: Int) async {
         guard score.coloured.count < count else { return }
         let done = expectation(description: "\(count) colourings")
+        done.assertForOverFulfill = false
         score.changed = { if score.coloured.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -126,6 +127,7 @@ final class PenModelTests: XCTestCase {
     private func recoloured(_ score: FakeScore, _ count: Int) async {
         guard score.recoloured.count < count else { return }
         let done = expectation(description: "\(count) changes sent back")
+        done.assertForOverFulfill = false
         score.changed = { if score.recoloured.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -135,6 +137,7 @@ final class PenModelTests: XCTestCase {
     private func changes(_ score: FakeScore, _ count: Int) async {
         guard score.changes.count < count else { return }
         let done = expectation(description: "\(count) changes")
+        done.assertForOverFulfill = false
         score.changed = { if score.changes.count == count { done.fulfill() } }
         await fulfillment(of: [done], timeout: 5)
         score.changed = nil
@@ -294,7 +297,7 @@ final class PenModelTests: XCTestCase {
         let (model, score) = made()
         score.page.rubbed = ["removed": [["id": "a"]], "uncoloured": [["start": 0, "end": 480]]]
         model.rub([["x": 1, "y": 2]], lifted: true, in: 7)
-        await coloured(score, 1)
+        await changes(score, 1) // the ink goes last, after the colour (r-1)
         let taken = Recolouring(taken: [Recolouring.Highlight(onset: 0, end: 480, colour: "amber")])
         model.undo()
         await changes(score, 2)
