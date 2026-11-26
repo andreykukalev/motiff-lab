@@ -96,12 +96,16 @@ internal sealed class SelectionSession
         HiddenVariation = null;
     }
 
-    /// <summary>An idea brought back: its passage as the selection and its variation, when it keeps one, as the chain.</summary>
+    /// <summary>
+    /// An idea brought back: its passage as the selection and its variation, when it keeps one, as the chain, which no Try
+    /// chip started here (the chip of an earlier try goes).
+    /// </summary>
     public void Open(MotifSelection selection, VariationChain? chain)
     {
         Current = selection;
         Kind = MotifSelectionKind.Range;
         _understood = null;
+        Chip = null;
         Chain = chain;
         HiddenVariation = null;
     }

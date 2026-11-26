@@ -130,4 +130,17 @@ public class SelectionSessionTests
         Assert.Same(unfit, session.HiddenVariation);
         Assert.Same(unfit, session.WorkingVariation);
     }
+
+    [Fact]
+    public void An_idea_brought_back_has_no_chip_of_an_earlier_try()
+    {
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        VariationChain idea = session.Variation();
+
+        session.Open(Bars(piece, 1, 4), idea);
+
+        Assert.Same(idea, session.Chain);
+        Assert.Null(session.Chip);
+    }
 }
