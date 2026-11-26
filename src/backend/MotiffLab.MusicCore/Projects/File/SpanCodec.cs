@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Projects.File;
 
 /// <summary>
 /// The shapes of time every part of the project file shares: a span ("onset", "duration" in ticks), a range with its
-/// filter, a list of ticks and a list of note ids.
+/// filter, and a list of note ids read.
 /// </summary>
 internal static class SpanCodec
 {
@@ -27,25 +27,23 @@ internal static class SpanCodec
         return onset >= 0 && duration > 0 ? new TickSpan(new Tick(onset), duration) : throw Damaged($"{what} range");
     }
 
-    internal static void WriteTicks(Utf8JsonWriter json, string name, IEnumerable<Tick> ticks)
-    {
-        json.WriteStartArray(name);
-        foreach (Tick tick in ticks)
-        {
-            json.WriteNumberValue(tick.Value);
-        }
-
-        json.WriteEndArray();
-    }
-
     internal static void WriteRange(Utf8JsonWriter json, TickSpan span, SelectionFilter filter)
     {
         json.WriteNumber("onset", span.Onset.Value);
         json.WriteNumber("duration", span.Duration);
-        json.WriteStartObject("filter");
+        WriteFilter(json, "filter", filter, static hand => hand.ToString());
+    }
+
+    /// <summary>
+    /// A filter, with only the fields it narrows by: "hand", "track", "voice". The file names the hand as the enum does
+    /// ("Right"); the facade's answers, which write it here too, in lower camel case (<paramref name="handName"/>).
+    /// </summary>
+    internal static void WriteFilter(Utf8JsonWriter json, string name, SelectionFilter filter, Func<Hand, string> handName)
+    {
+        json.WriteStartObject(name);
         if (filter.Hand is Hand hand)
         {
-            json.WriteString("hand", hand.ToString());
+            json.WriteString("hand", handName(hand));
         }
 
         if (filter.Track is int track)
@@ -90,17 +88,6 @@ internal static class SpanCodec
         {
             throw Damaged($"{what} filter");
         }
-    }
-
-    internal static void WriteNoteIds(Utf8JsonWriter json, IReadOnlyList<string> noteIds)
-    {
-        json.WriteStartArray("noteIds");
-        foreach (string id in noteIds)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
     }
 
     internal static List<string> ReadNoteIds(JsonElement parent, string what) =>

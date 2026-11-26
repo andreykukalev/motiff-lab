@@ -9,7 +9,6 @@ using MotiffLab.MusicCore.Time;
 
 using static MotiffLab.MusicCore.Projects.File.EditsCodec;
 using static MotiffLab.MusicCore.Projects.File.JsonRead;
-using static MotiffLab.MusicCore.Projects.File.JsonWrite;
 using static MotiffLab.MusicCore.Projects.File.MarksCodec;
 using static MotiffLab.MusicCore.Projects.File.OriginalsCodec;
 using static MotiffLab.MusicCore.Projects.File.OriginCodec;
@@ -111,7 +110,7 @@ internal static class NotesCodec
             json.WriteString("project", other);
         }
 
-        WriteNumbers(json, "starts", pages.Starts.Select(static start => start.Value));
+        JsonWrite.Numbers(json, "starts", pages.Starts.Select(static start => start.Value));
         json.WriteEndObject();
     }
 

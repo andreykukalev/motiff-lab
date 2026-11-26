@@ -50,13 +50,7 @@ internal static class SourceRequest
                 json.WriteString("fileName", project.DocumentFileName);
                 json.WriteNumber("pages", project.DocumentPages?.Pages ?? 0);
                 json.WriteBoolean("readFrom", sources.ReadFromDocument);
-                json.WriteStartArray("starts");
-                foreach (Time.Tick start in project.DocumentPages?.Starts ?? [])
-                {
-                    json.WriteNumberValue(start.Value);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Numbers(json, "starts", (project.DocumentPages?.Starts ?? []).Select(static start => start.Value));
                 json.WriteEndObject();
             }
             else

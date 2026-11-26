@@ -48,13 +48,7 @@ internal static class DraftRequest
         PlaceMatch? best = SameMusic.Suggested([.. offered.Select(static each => each.Suggested).OfType<PlaceMatch>()]);
         return Answer.Write(json =>
         {
-            json.WriteStartArray("parts");
-            foreach (DraftPart each in parts)
-            {
-                json.WriteStringValue(Name(each));
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "parts", parts.Select(Name));
             json.WriteString("part", Name(part));
             json.WriteNumber("notes", fragment.Notes.Count);
             json.WriteString("newName", DraftLabels.NewName(owner.Project, words));
@@ -304,7 +298,7 @@ internal static class DraftRequest
 
         if (DraftBridges.KindOf(variant) is { } bridge)
         {
-            json.WriteString("bridge", Answer.Camel(bridge));
+            json.WriteString("bridge", JsonWrite.Name(bridge));
             json.WriteString("explanation", DraftBridges.Explanation(variant, words));
         }
     }
@@ -358,7 +352,7 @@ internal static class DraftRequest
             json =>
             {
                 Added(json, draft.Id, place, variant);
-                Answer.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
+                JsonWrite.Numbers(json, "dropped", [.. dropped.Select(static step => step.Number)]);
                 more?.Invoke(json);
             });
         owner.KeepDraftBefore(draft);

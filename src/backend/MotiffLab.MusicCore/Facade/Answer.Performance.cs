@@ -42,7 +42,7 @@ internal static partial class Answer
             json.WriteNumber("bar", bar.Bar);
             Span(json, "span", meter.GetBar(bar.Bar).Span);
             json.WriteBoolean("aligned", bar.Aligned);
-            json.WriteString("kind", Name(bar.Difference));
+            json.WriteString("kind", JsonWrite.Name(bar.Difference));
             json.WriteString("marker", bar.Marker(words));
             json.WriteNumber("confidence", bar.Confidence);
             json.WriteBoolean("dismissed", dismissed.Contains(bar.Bar));
@@ -58,8 +58,8 @@ internal static partial class Answer
             }
 
             json.WriteEndArray();
-            Ids(json, "notHeard", bar.PrintedNotHeard);
-            Ids(json, "probablyNotHeard", bar.ProbablyNotHeard);
+            JsonWrite.Texts(json, "notHeard", bar.PrintedNotHeard);
+            JsonWrite.Texts(json, "probablyNotHeard", bar.ProbablyNotHeard);
             Placed(json, "played", bar.PlayedNotPrinted);
             Placed(json, "artefacts", bar.LikelyArtefacts);
             json.WriteEndObject();
@@ -73,7 +73,7 @@ internal static partial class Answer
     {
         json.WriteString("id", performance.Id);
         json.WriteString("name", performance.Name);
-        json.WriteString("source", Name(performance.Source));
+        json.WriteString("source", JsonWrite.Name(performance.Source));
         if (performance.Engine is { } engine)
         {
             json.WriteString("engine", engine);
@@ -82,17 +82,6 @@ internal static partial class Answer
         json.WriteNumber("recordingStart", performance.RecordingStart / 1000);
         json.WriteNumber("takenBars", performance.Taken.Count);
         json.WriteNumber("dismissedBars", performance.Dismissed.Count);
-    }
-
-    private static void Ids(Utf8JsonWriter json, string name, IReadOnlyList<string> ids)
-    {
-        json.WriteStartArray(name);
-        foreach (string id in ids)
-        {
-            json.WriteStringValue(id);
-        }
-
-        json.WriteEndArray();
     }
 
     private static void Placed(Utf8JsonWriter json, string name, IReadOnlyList<PlacedNote> notes)

@@ -11,33 +11,85 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
 
-/// <summary>The answers about what the project keeps with the piece (0018; contract 2): marks, bookmarks, resume points, ideas, settings and Check.</summary>
+/// <summary>
+/// The answers about the project (0018; contract 2): its summary on a library card and in the open answer, and what it keeps
+/// with the piece: marks, bookmarks, resume points, ideas, settings and Check.
+/// </summary>
 internal static partial class Answer
 {
+    public static void Project(Utf8JsonWriter json, string name, Project project)
+    {
+        json.WriteStartObject(name);
+        json.WriteString("id", project.Id);
+        json.WriteString("fileName", project.FileName);
+        json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+        json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
+        json.WriteString("origin", project.Scan is not null ? "scanned" : project.Transcription is not null ? "transcribed" : "imported");
+        json.WriteNumber("motifs", project.Motifs.Count);
+        json.WriteNumber("variations", project.Variations.Count);
+        json.WriteNumber("corrections", project.Edits.Edits.Count);
+        json.WriteNumber("resumePoints", project.ResumePoints.Count);
+        json.WriteNumber("ideas", project.Observations.Count);
+        json.WriteNumber("marks", project.Marks.Count);
+        json.WriteNumber("bookmarks", project.Bookmarks.Count);
+        json.WriteNumber("openChecks", project.OpenChecks.Count);
+        Details(json, project.Details);
+        // Within contract 4, for the library's cards (0018 section 9): the bars still to check, whether the piece has notes
+        // and a PDF (0023), and the resume point worked from last.
+        json.WriteNumber("checkBars", project.Summary.CheckBars);
+        json.WriteBoolean("hasNotes", project.HasNotes);
+        json.WriteBoolean("document", project.Document is not null);
+        // Within contract 12 (version 0.3): the originals and where their bytes are, for the iPad's badges.
+        Originals(json, project);
+        // Within contract 12 (version 0.4): where a piece made with «Пьесы в файле» is in its collection.
+        PartOf(json, project.PartOf);
+        PieceKeys(json, project);
+        // Within contract 4 (2026-11-05): notes read from a PDF piece name it, and where each of its pages starts in the
+        // notes, in ticks, for PDF | Notes.
+        if (project.ReadFrom is { } readFrom)
+        {
+            json.WriteString("readFrom", readFrom.ProjectId);
+            JsonWrite.Numbers(json, "readFromPages", readFrom.Pages.Starts.Select(static start => start.Value));
+        }
+
+        // Contract 6 (testing item 16): a piece with notes and a PDF kept inside it, where each of the PDF's pages starts
+        // in the notes, in ticks, for PDF | Notes within the one piece.
+        if (project.HasNotes && project.DocumentPages is { } pages)
+        {
+            JsonWrite.Numbers(json, "documentPages", pages.Starts.Select(static start => start.Value));
+        }
+
+        if (project.RecentResumePoints.FirstOrDefault() is { } latest)
+        {
+            json.WriteStartObject("latest");
+            json.WriteString("id", latest.Id);
+            if (latest.Name is { } pointName)
+            {
+                json.WriteString("name", pointName);
+            }
+
+            json.WriteNumber("at", latest.At.Value);
+            json.WriteString("lastActive", latest.LastActive.ToString("O", CultureInfo.InvariantCulture));
+            json.WriteEndObject();
+        }
+        else
+        {
+            json.WriteNull("latest");
+        }
+
+        json.WriteEndObject();
+    }
+
     public static void Marks(Utf8JsonWriter json, Marks marks, MeterMap meter)
     {
         json.WriteStartArray("ink");
         foreach (InkStroke stroke in marks.Ink)
         {
-            json.WriteStartObject();
-            json.WriteString("id", stroke.Id);
-            json.WriteString("tool", Name(stroke.Tool));
-            json.WriteString("colour", Name(stroke.Colour));
-            json.WriteNumber("size", stroke.Size);
-            json.WriteNumber("bar", stroke.Bar.Value);
-            json.WriteNumber("barNumber", meter.BarAt(stroke.Bar).Number);
-            json.WriteNumber("u", stroke.U);
-            json.WriteNumber("v", stroke.V);
-            json.WriteStartArray("points");
-            foreach (double value in stroke.Points)
+            ProjectFile.WriteStroke(json, stroke, (writer, ink) =>
             {
-                json.WriteNumberValue(value);
-            }
-
-            json.WriteEndArray();
-            json.WriteNumber("pressure", stroke.Pressure);
-            Margin(json, stroke.Margin);
-            json.WriteEndObject();
+                writer.WriteNumber("bar", ink.Bar.Value);
+                writer.WriteNumber("barNumber", meter.BarAt(ink.Bar).Number);
+            });
         }
 
         json.WriteEndArray();
@@ -61,8 +113,8 @@ internal static partial class Answer
             json.WriteStartObject();
             json.WriteString("id", highlight.Id);
             Place(json, highlight.Span, meter);
-            Texts(json, "notes", highlight.NoteIds);
-            json.WriteString("colour", Name(highlight.Colour));
+            JsonWrite.Texts(json, "notes", highlight.NoteIds);
+            json.WriteString("colour", JsonWrite.Name(highlight.Colour));
             json.WriteEndObject();
         }
 
@@ -79,7 +131,7 @@ internal static partial class Answer
             json.WriteStartObject();
             json.WriteString("id", category.Id);
             json.WriteString("name", category.NameIn(words));
-            json.WriteString("ink", Name(category.Ink));
+            json.WriteString("ink", JsonWrite.Name(category.Ink));
             json.WriteBoolean("builtIn", category.IsBuiltIn);
             json.WriteNumber("bookmarks", project.Bookmarks.Count(bookmark => bookmark.CategoryId == category.Id));
             json.WriteEndObject();
@@ -135,15 +187,9 @@ internal static partial class Answer
         }
 
         json.WriteBoolean("focused", point.Focused);
-        json.WriteStartArray("overlays");
-        foreach (Overlay overlay in point.Overlays)
-        {
-            json.WriteStringValue(Name(overlay));
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "overlays", point.Overlays.Select(JsonWrite.Name));
         json.WriteNumber("tempoPercent", point.TempoPercent);
-        json.WriteString("hands", point.Hands is { } hands ? Name(hands) : "both");
+        json.WriteString("hands", point.Hands is { } hands ? JsonWrite.Name(hands) : "both");
         json.WriteBoolean("loop", point.Loop);
         json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
         json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
@@ -179,13 +225,7 @@ internal static partial class Answer
             json.WriteBoolean("hasVariation", idea.Variation is not null);
             if (idea.Variation is { } variation)
             {
-                json.WriteStartArray("steps");
-                foreach (SavedStep step in variation.Steps)
-                {
-                    json.WriteStringValue(step.Operation);
-                }
-
-                json.WriteEndArray();
+                JsonWrite.Texts(json, "steps", variation.Steps.Select(static step => step.Operation));
             }
 
             json.WriteString("createdAt", idea.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
@@ -209,8 +249,8 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteNumber("bar", flag.Bar);
-            json.WriteString("source", Name(flag.Source));
-            json.WriteString("reason", Name(flag.Reason));
+            json.WriteString("source", JsonWrite.Name(flag.Source));
+            json.WriteString("reason", JsonWrite.Name(flag.Reason));
             json.WriteString("name", CheckFlag.NameOf(flag.Reason, words));
             json.WriteString("text", flag.Describe(words));
             json.WriteBoolean("resolved", flag.Resolved);
@@ -241,10 +281,10 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteNumber("bar", bar.Bar);
-            Texts(json, "noteIds", bar.NoteIds);
-            Texts(json, "reasons", bar.Reasons.Select(Name));
-            Texts(json, "names", bar.Reasons.Select(reason => HeardLengths.NameOf(reason, words)));
-            Texts(json, "texts", bar.Reasons.Select(reason => HeardLengths.Explain(reason, words)));
+            JsonWrite.Texts(json, "noteIds", bar.NoteIds);
+            JsonWrite.Texts(json, "reasons", bar.Reasons.Select(JsonWrite.Name));
+            JsonWrite.Texts(json, "names", bar.Reasons.Select(reason => HeardLengths.NameOf(reason, words)));
+            JsonWrite.Texts(json, "texts", bar.Reasons.Select(reason => HeardLengths.Explain(reason, words)));
             BarSpan(json, bar.Bar, meter, end);
             json.WriteEndObject();
         }
@@ -273,9 +313,9 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteString("id", setting.Id);
-            json.WriteString("section", Name(setting.Section));
-            json.WriteString("kind", Name(setting.Kind));
-            Texts(json, "choices", setting.Choices);
+            json.WriteString("section", JsonWrite.Name(setting.Section));
+            json.WriteString("kind", JsonWrite.Name(setting.Kind));
+            JsonWrite.Texts(json, "choices", setting.Choices);
             json.WriteString("default", setting.Default);
             if (setting.Presets is { } presets)
             {
@@ -290,17 +330,17 @@ internal static partial class Answer
                 json.WriteNull("presets");
             }
 
-            json.WriteString("scope", Name(setting.Scope));
+            json.WriteString("scope", JsonWrite.Name(setting.Scope));
             json.WriteEndObject();
         }
 
         json.WriteEndArray();
-        Texts(json, "presets", [Name(Preset.Learning), Name(Preset.Practising), Name(Preset.Clean)]);
+        JsonWrite.Texts(json, "presets", [JsonWrite.Name(Preset.Learning), JsonWrite.Name(Preset.Practising), JsonWrite.Name(Preset.Clean)]);
     }
 
     public static void SettingsState(Utf8JsonWriter json, SettingsState state)
     {
-        json.WriteString("preset", Name(state.Preset));
+        json.WriteString("preset", JsonWrite.Name(state.Preset));
         json.WriteStartObject("values");
         foreach ((string id, string value) in state.Values)
         {
@@ -341,8 +381,8 @@ internal static partial class Answer
             json.WriteNull("composerFrom");
         }
 
-        Texts(json, "tags", details.Tags);
-        Texts(json, "playlists", details.Playlists);
+        JsonWrite.Texts(json, "tags", details.Tags);
+        JsonWrite.Texts(json, "playlists", details.Playlists);
     }
 
     private static string From(Events.Attribution attribution) => attribution.Provenance switch

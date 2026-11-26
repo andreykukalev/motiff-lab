@@ -72,13 +72,7 @@ internal static class WorkspaceCodec
         json.WriteEndObject();
         if (project.HiddenViews.Count > 0)
         {
-            json.WriteStartArray("hiddenViews");
-            foreach (string id in project.HiddenViews)
-            {
-                json.WriteStringValue(id);
-            }
-
-            json.WriteEndArray();
+            JsonWrite.Texts(json, "hiddenViews", project.HiddenViews);
         }
 
         WriteUnknownFields(json, project.UnknownFieldsAt(WorkspacePath));
@@ -117,18 +111,12 @@ internal static class WorkspaceCodec
         json.WriteString("original", partOf.Original);
         if (partOf.Pages is var (first, last))
         {
-            json.WriteStartArray("pages");
-            json.WriteNumberValue(first);
-            json.WriteNumberValue(last);
-            json.WriteEndArray();
+            JsonWrite.Numbers(json, "pages", [first, last]);
         }
 
         if (partOf.Milliseconds is var (from, to))
         {
-            json.WriteStartArray("ms");
-            json.WriteNumberValue(from);
-            json.WriteNumberValue(to);
-            json.WriteEndArray();
+            JsonWrite.Numbers(json, "ms", [from, to]);
         }
 
         json.WriteEndObject();
@@ -166,7 +154,7 @@ internal static class WorkspaceCodec
         {
             json.WriteStartObject("variation");
             WriteRange(json, variation.Passage.Span, variation.Passage.Filter);
-            WriteNoteIds(json, variation.NoteIds);
+            JsonWrite.Texts(json, "noteIds", variation.NoteIds);
             WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
             WriteKey(json, variation.Key);
 
@@ -188,15 +176,15 @@ internal static class WorkspaceCodec
     private static void WritePhrases(Utf8JsonWriter json, Project project)
     {
         json.WriteStartObject("phrases");
-        WriteTicks(json, "added", project.Phrases.Added);
-        WriteTicks(json, "removed", project.Phrases.Removed);
+        JsonWrite.Numbers(json, "added", project.Phrases.Added.Select(static tick => tick.Value));
+        JsonWrite.Numbers(json, "removed", project.Phrases.Removed.Select(static tick => tick.Value));
         json.WriteStartObject("short");
-        WriteTicks(json, "added", project.ShortPhrases.Added);
-        WriteTicks(json, "removed", project.ShortPhrases.Removed);
+        JsonWrite.Numbers(json, "added", project.ShortPhrases.Added.Select(static tick => tick.Value));
+        JsonWrite.Numbers(json, "removed", project.ShortPhrases.Removed.Select(static tick => tick.Value));
         json.WriteEndObject();
         json.WriteStartObject("sentences");
-        WriteTicks(json, "added", project.Sentences.Added);
-        WriteTicks(json, "removed", project.Sentences.Removed);
+        JsonWrite.Numbers(json, "added", project.Sentences.Added.Select(static tick => tick.Value));
+        JsonWrite.Numbers(json, "removed", project.Sentences.Removed.Select(static tick => tick.Value));
         json.WriteEndObject();
         json.WriteEndObject();
     }

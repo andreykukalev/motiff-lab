@@ -17,13 +17,7 @@ internal static partial class Answer
     /// </summary>
     public static void PieceKeys(Utf8JsonWriter json, Project project)
     {
-        json.WriteStartArray("pieceKeys");
-        foreach (string key in SamePiece.Keys(project))
-        {
-            json.WriteStringValue(key);
-        }
-
-        json.WriteEndArray();
+        JsonWrite.Texts(json, "pieceKeys", SamePiece.Keys(project));
     }
 
     /// <summary>
@@ -67,15 +61,6 @@ internal static partial class Answer
         json.WriteEndObject();
     }
 
-    /// <summary>"margin": "left" or "right" on a stroke begun in a line's margin; left out for a stroke in its bar, as the file does.</summary>
-    public static void Margin(Utf8JsonWriter json, StrokeMargin? margin)
-    {
-        if (margin is { } side)
-        {
-            json.WriteString("margin", Name(side));
-        }
-    }
-
     /// <summary>
     /// "pages": the pages of a scan the server reported on (<see cref="ScanCheck.Pages"/>), each {"page" (from 1, in the
     /// notes' order), "quality" ("good", "weak" or "poor"), "rotation" (degrees the server turned it), "bars" (how many were
@@ -89,7 +74,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteNumber("page", page.Page);
-            json.WriteString("quality", Name(page.Quality));
+            json.WriteString("quality", JsonWrite.Name(page.Quality));
             json.WriteNumber("rotation", page.Report.Rotation);
             json.WriteNumber("bars", page.Bars.Count);
             json.WriteNumber("doubtful", page.DoubtfulOf(confirmedBars));

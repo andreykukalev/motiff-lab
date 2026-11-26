@@ -48,7 +48,7 @@ internal static class LibraryRequest
             }
 
             json.WriteEndArray();
-            WriteTexts(json, "fingerprint", plan.ToFingerprint);
+            JsonWrite.Texts(json, "fingerprint", plan.ToFingerprint);
             json.WriteStartObject("counts");
             json.WriteNumber("found", plan.Found);
             json.WriteNumber("new", plan.New);
@@ -103,7 +103,7 @@ internal static class LibraryRequest
                 json.WriteStartObject();
                 json.WriteString("project", original.Original.ProjectId);
                 json.WriteString("original", original.Original.OriginalId);
-                json.WriteString("status", Answer.Name(original.Status));
+                json.WriteString("status", JsonWrite.Name(original.Status));
                 json.WriteString("path", original.Path);
                 json.WriteStartArray("candidates");
                 foreach (RelinkCandidate candidate in original.Candidates)
@@ -120,8 +120,8 @@ internal static class LibraryRequest
             }
 
             json.WriteEndArray();
-            WriteTexts(json, "fingerprint", plan.ToFingerprint);
-            WriteTexts(json, "confirm", plan.ToConfirm);
+            JsonWrite.Texts(json, "fingerprint", plan.ToFingerprint);
+            JsonWrite.Texts(json, "confirm", plan.ToConfirm);
         });
     }
 
@@ -222,18 +222,18 @@ internal static class LibraryRequest
     {
         json.WriteStartObject();
         json.WriteString("path", file.File.Path);
-        json.WriteString("status", Answer.Name(file.Status));
+        json.WriteString("status", JsonWrite.Name(file.Status));
         json.WriteString("sameAs", file.SameAs);
         json.WriteString("project", file.Project);
         json.WriteBoolean("provisional", file.Provisional);
         WriteSuggestion(json, "title", file.Title);
         WriteSuggestion(json, "composer", file.Composer);
-        WriteTexts(json, "playlists", file.Playlists);
-        WriteTexts(json, "tags", file.Tags);
+        JsonWrite.Texts(json, "playlists", file.Playlists);
+        JsonWrite.Texts(json, "tags", file.Tags);
         json.WriteBoolean("collection", file.PossibleCollection);
         json.WriteStartObject("possiblySame");
-        WriteTexts(json, "files", file.PossiblySameFiles);
-        WriteTexts(json, "pieces", file.PossiblySamePieces);
+        JsonWrite.Texts(json, "files", file.PossiblySameFiles);
+        JsonWrite.Texts(json, "pieces", file.PossiblySamePieces);
         json.WriteEndObject();
         json.WriteEndObject();
     }
@@ -248,19 +248,8 @@ internal static class LibraryRequest
 
         json.WriteStartObject(name);
         json.WriteString("value", suggestion.Value);
-        json.WriteString("from", Answer.Name(suggestion.Source));
+        json.WriteString("from", JsonWrite.Name(suggestion.Source));
         Answer.Attribution(json, suggestion.Attribution);
         json.WriteEndObject();
-    }
-
-    private static void WriteTexts(Utf8JsonWriter json, string name, IEnumerable<string> texts)
-    {
-        json.WriteStartArray(name);
-        foreach (string text in texts)
-        {
-            json.WriteStringValue(text);
-        }
-
-        json.WriteEndArray();
     }
 }
