@@ -113,9 +113,9 @@ public class FactsDigestTests
         string[] ids = [.. items.EnumerateArray().Select(item => item.GetProperty("id").GetString()!)];
 
         // The summary line has an id now, and is no plain field any more.
-        Assert.StartsWith("Форма A B C A′", Text("summary"), StringComparison.Ordinal);
+        Assert.StartsWith("Форма A B A C A", Text("summary"), StringComparison.Ordinal);
         Assert.False(Json(Written(FactsDigest.OfPiece(piece))).TryGetProperty("summary", out _));
-        Assert.Equal("A′, такты 78–105, общий материал с A (такты 0–8)", Text("form.section_4"));
+        Assert.Equal("A, такты 39–60, общий материал с A (такты 0–23) и A (такты 84–105)", Text("form.section_3"));
         Assert.Equal("Темп: четверть 72 BPM на всём протяжении.", Text("piece.tempo.profile"));
         Assert.Equal(["range.L", "range.R"], ids.Where(id => id.StartsWith("range.", StringComparison.Ordinal)));
         Assert.Equal("Такт 32, самый плотный: 7 нот на долю", Text("density.32"));
@@ -124,7 +124,7 @@ public class FactsDigestTests
         Assert.Equal(piece.Structure.Levels.Phrases.Phrases.Count, ids.Count(id => id.StartsWith("phrase.", StringComparison.Ordinal)));
         Assert.Equal("Фраза 2, такты 4–8, начало: такт 4, доля 3", Text("phrase.2"));
         Assert.Equal("Предложение 1, такты 0–8: фразы 1–2", Text("sentence.1"));
-        Assert.Equal("Аккорды части A (такты 0–8), тактов у каждого: Am (i) 4, E (V) 2", Text("chords.section_1"));
+        Assert.Equal("Аккорды части A (такты 0–23), тактов у каждого: Am (i) 10, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1", Text("chords.section_1"));
         Assert.All(
             items.EnumerateArray().Where(item => item.GetProperty("kind").GetString() is not ("summary" or "range" or "tempo")),
             item => Assert.True(item.TryGetProperty("bars", out _), item.GetProperty("id").GetString()));

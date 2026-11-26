@@ -1,9 +1,10 @@
 key.1 | key | detected | ля минор, такты 0–105 | 0–105
-summary | summary | inferred | Форма A B C A′ · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32
-form.section_1 | form | inferred | A, такты 0–8, общий материал с A′ (такты 78–105) | 0–8
-form.section_2 | form | inferred | B, такты 9–23 | 9–23
-form.section_3 | form | inferred | C, такты 24–77 | 24–77
-form.section_4 | form | inferred | A′, такты 78–105, общий материал с A (такты 0–8) | 78–105
+summary | summary | inferred | Форма A B A C A · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32
+form.section_1 | form | inferred | A, такты 0–23, общий материал с A (такты 39–60) и A (такты 84–105) | 0–23
+form.section_2 | form | inferred | B, такты 24–39 | 24–39
+form.section_3 | form | inferred | A, такты 39–60, общий материал с A (такты 0–23) и A (такты 84–105) | 39–60
+form.section_4 | form | inferred | C, такты 61–83 | 61–83
+form.section_5 | form | inferred | A, такты 84–105, общий материал с A (такты 0–23) и A (такты 39–60) | 84–105
 piece.tempo.profile | tempo | detected | Темп: четверть 72 BPM на всём протяжении.
 range.L | range | detected | L: 388 нот, от A1 до E5
 range.R | range | detected | R: 514 нот, от A3 до E7
@@ -44,10 +45,11 @@ sentence.1 | sentence | inferred | Предложение 1, такты 0–8: �
 sentence.2 | sentence | inferred | Предложение 2, такты 9–23: фразы 3–5 | 9–23
 sentence.3 | sentence | inferred | Предложение 3, такты 24–77: фразы 6–15 | 24–77
 sentence.4 | sentence | inferred | Предложение 4, такты 78–105: фразы 16–21 | 78–105
-chords.section_1 | chords | inferred | Аккорды части A (такты 0–8), тактов у каждого: Am (i) 4, E (V) 2 | 0–8
-chords.section_2 | chords | inferred | Аккорды части B (такты 9–23), тактов у каждого: Am (i) 6, E (V) 3, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 9–23
-chords.section_3 | chords | inferred | Аккорды части C (такты 24–77), тактов у каждого: Am (i) 11, E (V) 5, Dm/A (iv) 4, C (III) 3, Emaj7 (Vmaj7) 3, F (VI) 2 и ещё 16 | 24–77
-chords.section_4 | chords | inferred | Аккорды части A′ (такты 78–105), тактов у каждого: Am (i) 12, E (V) 6, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 78–105
+chords.section_1 | chords | inferred | Аккорды части A (такты 0–23), тактов у каждого: Am (i) 10, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 0–23
+chords.section_2 | chords | inferred | Аккорды части B (такты 24–39), тактов у каждого: F (VI) 2, C (III) 2, Cmaj7 (IIImaj7) 2, Am (i) 1, D+ (IV+) 1, Fmaj7 (VImaj7) 1 и ещё 4 | 24–39
+chords.section_3 | chords | inferred | Аккорды части A (такты 39–60), тактов у каждого: Am (i) 8, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 39–60
+chords.section_4 | chords | inferred | Аккорды части C (такты 61–83), тактов у каждого: Am (i) 6, Dm/A (iv) 4, A7 (I7) 2, A♯ (♭II) 2, Dm (iv) 1, D♯dim7 (♯iv°7) 1 и ещё 5 | 61–83
+chords.section_5 | chords | inferred | Аккорды части A (такты 84–105), тактов у каждого: Am (i) 8, E (V) 5, Emaj7 (Vmaj7) 3, C (III) 1, G (VII) 1 | 84–105
 cadence.4 | cadence | inferred | половинная каденция в такте 4 | 4–4
 cadence.8 | cadence | inferred | полная каденция в такте 8 | 8–8
 cadence.19 | cadence | inferred | половинная каденция в такте 19 | 19–19
