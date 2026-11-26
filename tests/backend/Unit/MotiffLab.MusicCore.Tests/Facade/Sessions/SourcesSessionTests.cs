@@ -57,7 +57,7 @@ public class SourcesSessionTests
 
         DocumentVersion read = SourcesSession.ReadDocument(kept, Scanned());
         Assert.NotEmpty(read.Midi);
-        Assert.Equal(1, SourcesSession.LinkedPages(kept, read.Read, pages: 1).Pages);
+        Assert.Equal(1, SourcesSession.WithPagesLinked(kept, read.Read, pages: 1).DocumentPages!.Pages);
         Assert.Equal(Path.GetFileNameWithoutExtension(kept.Project.DocumentFileName), SourcesSession.VersionName(kept, ""));
         Assert.Equal("Henle", SourcesSession.VersionName(kept, "Henle"));
         Assert.Equal("import", Assert.Throws<FacadeException>(() => SourcesSession.Read("notes.musicxml", "plain text"u8.ToArray(), Words.English)).Code);

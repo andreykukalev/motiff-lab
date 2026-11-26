@@ -66,18 +66,28 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "musicXml" (base64) the scan server read from the PDF kept in this piece, "engine", "pages" and "name": the notes
     /// added as another version from the score (0022), and the PDF's pages linked to these bars by the bar numbers the scan
-    /// began each page with (<see cref="SourcesSession.LinkedPages"/>) once the version is added, so a refused call leaves
-    /// them as they were. Answers the comparison, as performance.add does.
+    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version and the link are kept together or
+    /// not at all: a call refused, or failing while the version is added, leaves the piece as it was. Answers the comparison,
+    /// as performance.add does.
     /// </summary>
     private string AddDocumentNotes(Request request)
     {
         SourcesSession.RefuseWithoutDocument(State);
         DocumentVersion read = SourcesSession.ReadDocument(State, SourceRequest.Base64(request.Required("musicXml"), "musicXml"));
-        PageMap linked = SourcesSession.LinkedPages(State, read.Read, request.Int("pages"));
+        Project linked = SourcesSession.WithPagesLinked(State, read.Read, request.Int("pages"));
         string name = SourcesSession.VersionName(State, request.Text("name"));
-        string answer = AddVersion(name, read.Midi, PerformanceSource.Score, 0, request.Text("engine"));
-        Project = Project with { DocumentPages = linked };
-        return answer;
+        string? engine = request.Text("engine");
+        Project before = Project;
+        Project = linked;
+        try
+        {
+            return AddVersion(name, read.Midi, PerformanceSource.Score, 0, engine);
+        }
+        catch
+        {
+            Project = before;
+            throw;
+        }
     }
 
     /// <summary>
@@ -110,7 +120,7 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// «Распознать ещё раз»: "original" (the PDF's id), "musicXml" (base64) the scan server read from it, "engine",
     /// "pages", "reports" (the scan server's page reports) and "now": other Notes beside the working ones, which keep their
-    /// corrections (<see cref="SourcesSession.RecognisedAgain"/>). Answers the sources with their "id".
+    /// corrections (<see cref="NotesOperations.RecognisedAgain"/>). Answers the sources with their "id".
     /// </summary>
     private string RecogniseAgain(Request request)
     {
@@ -121,6 +131,6 @@ internal sealed partial class OpenPiece
         string original = request.Required("original");
         string engine = request.Required("engine");
         DateTimeOffset now = Now(request);
-        return Changed(request, project => SourcesSession.RecognisedAgain(project, original, read, engine, pages, now, reports), json => json.WriteString("id", id));
+        return Changed(request, project => project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), json => json.WriteString("id", id));
     }
 }

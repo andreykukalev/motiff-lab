@@ -116,9 +116,12 @@ internal sealed class SourcesSession
             : throw FacadeException.BadRequest(version.Rejection is { } why ? $"{why.Message} {why.Tip}".Trim() : "The notes read have no notes.");
     }
 
-    /// <summary>The PDF's <paramref name="pages"/> (else as many as it has) linked to the piece's bars by the bar numbers the scan began each page with.</summary>
-    public static PageMap LinkedPages(SessionPiece piece, ImportedPiece read, int? pages) =>
-        PageMap.Of(read, Math.Max(1, pages ?? piece.Project.DocumentPages?.Pages ?? 1)).Through(read.Meter, piece.Piece.Meter, piece.Piece.End);
+    /// <summary>
+    /// The project with the PDF's <paramref name="pages"/> (else as many as it has) linked to the piece's bars by the bar
+    /// numbers the scan began each page with, as the notes <paramref name="read"/> from it say.
+    /// </summary>
+    public static Project WithPagesLinked(SessionPiece piece, ImportedPiece read, int? pages) =>
+        piece.Project with { DocumentPages = PageMap.Of(read, Math.Max(1, pages ?? piece.Project.DocumentPages?.Pages ?? 1)).Through(read.Meter, piece.Piece.Meter, piece.Piece.End) };
 
     /// <summary>The name of the version read from the PDF: <paramref name="name"/> when given, else the PDF's file name.</summary>
     public static string VersionName(SessionPiece piece, string? name) =>
@@ -160,8 +163,4 @@ internal sealed class SourcesSession
 
     /// <summary>The <paramref name="pages"/> (else one) of the PDF notes were read again from, by the bars the scan began each with.</summary>
     public static PageMap ReadPages(ReadScore read, int? pages) => PageMap.Of(read.Piece, Math.Max(1, pages ?? 1));
-
-    /// <summary>«Распознать ещё раз»: <paramref name="project"/> with other Notes read from the PDF <paramref name="original"/> beside the working ones, which keep their corrections.</summary>
-    public static Project RecognisedAgain(Project project, string original, ReadScore read, string engine, PageMap pages, DateTimeOffset now, IReadOnlyList<PageReport>? reports) =>
-        project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports);
 }
