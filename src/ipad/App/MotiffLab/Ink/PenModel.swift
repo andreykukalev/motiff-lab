@@ -19,15 +19,18 @@ protocol PenScore: AnyObject {
     /// writes and who colours through the page follow.
     func colouringChanged()
     /// Colours a passage in a colour of the bars (finding 31): the highlights there become that colour, or, where it was
-    /// all that colour already, the colour goes.
-    func colourBars(_ span: Range<Double>, in colour: String) async
-    /// Takes the colour from these stretches, whatever it is (the eraser over highlights).
-    func uncolourBars(_ spans: [Range<Double>]) async
+    /// all that colour already, the colour goes. Answers the change made, for the Pen's history (v1.4 i-5).
+    func colourBars(_ span: Range<Double>, in colour: String) async -> Recolouring
+    /// Takes the colour from these stretches, whatever it is (the eraser over highlights); answers the change made.
+    func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring
+    /// Makes a change of the highlights: a step's, reversed for the Pen's Undo and as it was for its Redo (v1.4 i-5). The
+    /// answer is drawn unless `draws` is false, when the step's ink calls come after it and the last of them draws.
+    func recolour(_ change: Recolouring, draws: Bool) async
 }
 
 /// The score's pen (ADR 0031 section 3, S6): the pen's state as last chosen on this device, the bar's Pen, the pencil
-/// palette, the Pen's own history for Undo and Redo (BUG-05, #521 9), the eraser's points on their way to the page, the
-/// ink queue and how the stroke being written looks. It keeps a stroke the pen finished, rubs out as the eraser moves and
+/// palette, the Pen's own history for Undo and Redo (BUG-05, #521 9; its colours too since v1.4 i-5), the eraser's
+/// points on their way to the page, the ink queue and how the stroke being written looks. It keeps a stroke the pen finished, rubs out as the eraser moves and
 /// saves a press of it as one step, through the score it is given (`PenScore`). Who writes, selects and scrolls
 /// (InkInput, InputRules) and where a point lies on the page stay ScoreController's, which hands the points in in the
 /// page's pixels. The views that show the pen observe this model; a PDF's pages have their own (PdfController).
@@ -58,7 +61,8 @@ final class PenModel: ObservableObject, PenHolder {
     weak var score: PenScore?
     /// The score has bars to colour: every tool.
     var tools: [ActiveTool] { ActiveTool.allCases }
-    /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, or a press of the eraser (BUG-05).
+    /// What the pen and the eraser did here, newest last, for Undo and Redo: a stroke kept, a passage the colour bars
+    /// coloured, or a press of the eraser with the colour it took (BUG-05, v1.4 i-5).
     private var steps = InkHistory()
     /// The page's ink changes, one after another: strokes kept, the eraser's moves and saves, Undo.
     private let inkQueue = InkQueue()
@@ -66,27 +70,39 @@ final class PenModel: ObservableObject, PenHolder {
     private var rubPoints: [[String: Double]] = []
     private var rubQueued = false
 
-    /// Takes back the last step, after any change still being saved: a stroke goes, and a press of the eraser is put back
-    /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05).
+    /// Takes back the last step, after any change still being saved: a stroke goes, a press of the eraser is put back
+    /// whole, the pieces it left taken away and the marks it cut kept again (BUG-05), and the colours a step changed are
+    /// as they were before it, a colour it pushed out or joined included (v1.4 i-5).
     func undo() {
         inkQueue.then { [weak self] in
             guard let self, let score = self.score, let piece = score.pieceId, let last = self.steps.undo() else { return }
             self.inkStepsChanged()
+            // The colours first, then the ink, whose last call draws both: the step is drawn once.
+            await score.recolour(last.colouring.reversed, draws: !last.changesInk)
             await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
         }
     }
 
-    /// Does the step undone last again (#521 9): a stroke comes back, a press of the eraser takes again what it took.
+    /// Does the step undone last again (#521 9): a stroke comes back, a press of the eraser takes again what it took, and
+    /// the colours change again as the step changed them (v1.4 i-5).
     func redo() {
         inkQueue.then { [weak self] in
             guard let self, let score = self.score, let piece = score.pieceId, let step = self.steps.redo() else { return }
             self.inkStepsChanged()
+            await score.recolour(step.colouring, draws: !step.changesInk)
             await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
         }
+    }
+
+    /// Keeps a step that changed something in the Pen's history, and Undo and Redo follow.
+    private func record(_ step: InkStep) {
+        guard !step.isEmpty else { return }
+        steps.record(step)
+        inkStepsChanged()
     }
 
     private func inkStepsChanged() {
@@ -117,10 +133,15 @@ final class PenModel: ObservableObject, PenHolder {
     }
 
     /// A passage the colour bars coloured on the page (finding 31), in ticks, in the colour chosen, in the queue's turn so
-    /// it meets the marks as the change before left them; nothing while the colour bars are not the tool.
+    /// it meets the marks as the change before left them, kept as one step of the Pen's history (v1.4 i-5); nothing while
+    /// the colour bars are not the tool.
     func colour(_ start: Double, _ end: Double) {
         guard let colour = pen.colouring, end > start else { return }
-        inkQueue.then { [weak self] in await self?.score?.colourBars(start..<end, in: colour.rawValue) }
+        inkQueue.then { [weak self] in
+            guard let self, let score = self.score else { return }
+            let change = await score.colourBars(start..<end, in: colour.rawValue)
+            self.record(InkStep(colouring: change))
+        }
     }
 
     /// The eraser moved (InkInput, BUG-05), its points in the page's pixels: the page takes the marks under it at once
@@ -147,29 +168,29 @@ final class PenModel: ObservableObject, PenHolder {
     }
 
     /// The eraser lifted: what the press did is saved as one step (`ink.add` for the pieces left, `ink.remove` for the
-    /// marks it cut, drawn once both are done), and Undo puts it back whole. The colour it passed over goes too (finding
-    /// 31: the page's `uncoloured`, in ticks), which is no step of the Pen's history.
+    /// marks it cut, drawn once both are done), and so is the colour it passed over (finding 31: the page's `uncoloured`,
+    /// in ticks), in the same step (v1.4 i-5): Undo puts it back whole.
     private func endRub(_ piece: Int32?) async {
         // The page's press ends even with no piece to save it in.
         guard let score, let cut = try? await score.scorePage.call(.rubEnd) as? [String: Any], let piece else { return }
-        await saveRub(cut, in: piece)
+        var step = await saveRub(cut, in: piece)
         let uncoloured = (cut["uncoloured"] as? [[String: Any]] ?? []).compactMap { span -> Range<Double>? in
             guard let start = (span["start"] as? NSNumber)?.doubleValue, let end = (span["end"] as? NSNumber)?.doubleValue, end > start else { return nil }
             return start..<end
         }
-        if !uncoloured.isEmpty { await score.uncolourBars(uncoloured) }
+        if !uncoloured.isEmpty { step.colouring = await score.uncolourBars(uncoloured) }
+        record(step)
     }
 
-    /// The marks a press of the eraser cut and the pieces it left, saved as one step.
-    private func saveRub(_ cut: [String: Any], in piece: Int32) async {
-        guard let score, let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty else { return }
+    /// The marks a press of the eraser cut and the pieces it left, saved; answers them as the press's step.
+    private func saveRub(_ cut: [String: Any], in piece: Int32) async -> InkStep {
+        guard let score, let removed = cut["removed"] as? [[String: Any]], !removed.isEmpty else { return InkStep() }
         let pieces = cut["added"] as? [[String: Any]] ?? []
         if !pieces.isEmpty {
             await score.changeMarks(piece, "ink.add", ["strokes": pieces], draws: false)
         }
         await score.changeMarks(piece, "ink.remove", ["ids": removed.compactMap { $0["id"] as? String }], draws: true)
-        steps.record(InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces))
-        inkStepsChanged()
+        return InkStep(added: pieces.compactMap { $0["id"] as? String }, removed: removed, strokes: pieces)
     }
 
     /// The mark `motiff.anchor` makes goes to `ink.add` as it is, its `margin` (v0.4) with it when the page sets one.
@@ -179,8 +200,7 @@ final class PenModel: ObservableObject, PenHolder {
         guard let mark = try? await score.scorePage.call(.anchor, request) as? [String: Any],
               let id = mark["id"] as? String
         else { return }
-        steps.record(InkStep(added: [id], strokes: [mark]))
-        inkStepsChanged()
+        record(InkStep(added: [id], strokes: [mark]))
         await score.changeMarks(piece, "ink.add", ["strokes": [mark]], draws: true)
     }
 

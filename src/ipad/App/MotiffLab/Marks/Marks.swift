@@ -20,6 +20,8 @@ struct HighlightMark: Identifiable, Equatable, Sendable {
     var lastBar: Int
     /// "amber", "carmine", "forest" or "ochre".
     var colour: String
+    /// The notes it names, as music-core keeps them (an older file's); none for what the pen colours.
+    var notes: [String] = []
 }
 
 /// What the piece's marks hold beyond the ink's strokes, as music-core answers every mark call: the margin notes in score
@@ -47,7 +49,10 @@ struct MarksShelf: Equatable, Sendable {
         .sorted { $0.onset != $1.onset ? $0.onset < $1.onset : $0.createdAt < $1.createdAt }
         highlights = (object["highlights"] as? [[String: Any]] ?? []).compactMap { entry in
             guard let id = entry["id"] as? String, let at = place(entry) else { return nil }
-            return HighlightMark(id: id, onset: at.onset, end: at.end, firstBar: at.first, lastBar: at.last, colour: entry["colour"] as? String ?? "amber")
+            return HighlightMark(
+                id: id, onset: at.onset, end: at.end, firstBar: at.first, lastBar: at.last,
+                colour: entry["colour"] as? String ?? "amber", notes: entry["notes"] as? [String] ?? []
+            )
         }
         let ink = object["ink"] as? [[String: Any]] ?? []
         inkCount = ink.count
