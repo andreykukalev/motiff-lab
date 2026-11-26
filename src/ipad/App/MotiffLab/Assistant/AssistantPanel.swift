@@ -36,7 +36,12 @@ struct AssistantPanel: View {
         }
         .background(Color.ds("surface"))
         .keyboardRoom()
-        .onAppear { flow.apply(.open) }
+        // The question typed before the panel was laid out anew (a rotation, Split View) is still there (r-1).
+        .onAppear {
+            flow.apply(.open)
+            flow.apply(.type(assistant.unsentInPanel))
+        }
+        .onChange(of: flow.draft) { _, typed in assistant.keepUnsent(typed) }
         // What the API says the player may do, asked again once they sign in or out.
         .task(id: account.player) { await assistant.check(account.assistant) }
         .accessibilityElement(children: .contain)

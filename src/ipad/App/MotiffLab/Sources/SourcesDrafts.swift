@@ -166,24 +166,112 @@ extension SourcesController {
         return await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? .kept : .refused(status ?? "")
     }
 
+    // MARK: - The draft's structure (v1.4: F1, F2, a place's length, a приём carried)
+
+    /// «Раньше» or «Позже» on a place's card of the map (F1): `place` moved to `index` among the draft's places. A bridge
+    /// place is not moved, music-core's words in `status`; a bridge whose neighbours change goes, and so does each seam kept
+    /// as it was («Оставить») whose place before it is another now: the toast says what went (`telling`).
+    func movePlace(_ place: DraftViewAnswer.Place, to index: Int, of draft: String) async -> Bool {
+        await draftStep("drafts.movePlace", ["place": place.id, "index": index], of: draft, toast: text["drafts.toastMoved"], telling: true)
+    }
+
+    /// «Найти на записи» in a place's card (F2): the stretch music-core finds most put in as a variant of `place`, `found`
+    /// (`findOnRecording`'s) naming it in the toast. No "notes" is sent: music-core takes the stretch it finds most, never
+    /// another recording's in its stead, and refuses one the place has already, in its words.
+    func addFromRecording(_ found: DraftRecordingAnswer.Found, to place: String, of draft: String) async -> Bool {
+        await draftStep("drafts.addFromRecording", ["place": place], of: draft, toast: text.format("drafts.toastPut", found.label))
+    }
+
+    /// A place's length in its card (v1.4): its base cut again from its Notes over `bars` of its source. The steps outside
+    /// them go, a seam kept as it was whose edge moved and a bridge at an edge that moved too: the toast says what went
+    /// (`telling`). Why it cannot be done is music-core's, in `status`.
+    func resize(_ place: String, to bars: ClosedRange<Int>, of draft: String) async -> Bool {
+        let fields: [String: Any] = ["place": place, "bars": ["first": bars.lowerBound, "last": bars.upperBound]]
+        let words = text.format("drafts.toastResized", String(bars.lowerBound), String(bars.upperBound))
+        return await draftStep("drafts.resize", fields, of: draft, toast: words, telling: true)
+    }
+
+    /// «Перенести приём» on a приём's card (v1.4): music-core builds a variant of the place `target` with the приём of
+    /// `spot` (read at its bar) done where its shape fits, and puts it in; one carried there already is refused, in its words.
+    func carry(_ spot: DraftTechniquesModel.Spot, to target: DraftCarryPlacesAnswer.Place) async -> Bool {
+        let fields: [String: Any] = ["place": spot.place, "technique": spot.technique.number, "bar": spot.occurrence.bar, "to": target.place]
+        return await draftStep("drafts.carry", fields, of: spot.draft, toast: text.format("drafts.toastCarried", String(spot.technique.number), target.label))
+    }
+
+    /// Whether the piece has a recording heard as notes, the only notes «Найти на записи» searches (F2).
+    var hasHeardNotes: Bool {
+        layers.notes.contains(where: \.isHeard)
+    }
+
+    /// «Найти на записи» tapped (F2; spec «Ноты + запись»: the engine finds the stretch): what music-core finds for `place`
+    /// of `draft` (`drafts.findOnRecording`, read only), searched only then; nothing on a piece with no recording heard.
+    func findOnRecording(_ place: String, of draft: String) async -> DraftRecordingOffer {
+        guard hasHeardNotes else { return .noRecording }
+        let found = await PieceCore(piece: piece).draftRecording(draft: draft, place: place)
+        return DraftRecordingOffer(found.value, refused: found.message)
+    }
+
+    /// How long `place` of `draft` is in the bars of its source and whether that can change (`drafts.length`, read only).
+    func length(of place: String, in draft: String) async -> DraftLengthAnswer? {
+        await PieceCore(piece: piece).draftLength(draft: draft, place: place).value
+    }
+
+    /// The places the приём of `spot` can be carried to (`drafts.carryPlaces`, read only), or why not in music-core's
+    /// words (bars put in are not carried).
+    func carryPlaces(_ spot: DraftTechniquesModel.Spot) async -> PieceCore.Answer<DraftCarryPlacesAnswer> {
+        await PieceCore(piece: piece).draftCarryPlaces(draft: spot.draft, place: spot.place, technique: spot.technique.number, bar: spot.occurrence.bar)
+    }
+
     /// Whether a step that answered `taken` was refused by music-core: not when it was taken, nor when it was not sent as
     /// another was on its way (`stepping`), which says nothing.
     func refused(_ taken: Bool) -> Bool {
         !taken && !stepping
     }
 
+    /// What a card says of a step that answered `taken`: nothing when it was taken or not sent (`refused`); else, when
+    /// `told`, music-core's own words where it gave them to the player ("unavailable", `refusedInWords`: the steps of the
+    /// draft's structure, v1.4: a bridge moved, a place whose length cannot change, a приём carried there already), and
+    /// the card's own `words` otherwise, never a bad request's developer text.
+    func refusal(_ taken: Bool, told: Bool, otherwise words: String) -> String? {
+        guard refused(taken) else { return nil }
+        return told && refusedInWords ? status ?? words : words
+    }
+
+    /// The toast's words of a step of the draft's structure (`words`) with what went with it: `steps` of the journal
+    /// (music-core's "dropped") and `bridges` (the draft has that many places fewer: only a bridge goes with a move or a
+    /// resize).
+    nonisolated static func told(_ words: String, steps: Int, bridges: Int, _ text: UIText) -> String {
+        var parts = [words]
+        if bridges > 0 { parts.append(text.count("drafts.goneBridges", bridges)) }
+        if steps > 0 { parts.append(text.count("drafts.goneSteps", steps)) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The draft's view opening again after a step taken (`work`, a card's `reopen`), every other step held meanwhile
+    /// (`stepping`, as while a step is on its way): the cards still show the draft as it was, so a step sent from them
+    /// would act on the draft as it no longer is.
+    func reopening(_ work: @MainActor () async -> Void) async {
+        stepping = true
+        defer { stepping = false }
+        await work()
+    }
+
     /// A step of the draft `draft` (`name`, one of the calls above), saved to the piece's project file at once; its toast
-    /// (`toast`) undoes it with `drafts.undo` (a change of the draft's structure too, while the piece is open). While one
-    /// is on its way (`stepping`) another is not sent (a second tap): false, `status` untouched (`refused`).
-    private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String) async -> Bool {
+    /// (`toast`, with what went with it when `telling`: `told`) undoes it with `drafts.undo` (a change of the draft's
+    /// structure too, while the piece is open). While one is on its way (`stepping`) another is not sent (a second tap):
+    /// false, `status` untouched (`refused`).
+    private func draftStep(_ name: String, _ fields: [String: Any], of draft: String, toast words: String, telling: Bool = false) async -> Bool {
         guard !stepping else { return false }
         stepping = true
         defer { stepping = false }
         var fields = fields
         fields["draft"] = draft
         fields["now"] = Self.now()
-        guard await change(name, fields) != nil else { return false }
-        toast = SourcesToast(text: words, undo: .draftStep(draft))
+        let places = layers.draft(draft)?.places ?? 0
+        guard let answer = await change(name, fields) else { return false }
+        let dropped = (answer["dropped"] as? [Any])?.count ?? 0
+        let bridges = max(0, places - (layers.draft(draft)?.places ?? places))
+        toast = SourcesToast(text: telling ? Self.told(words, steps: dropped, bridges: bridges, text) : words, undo: .draftStep(draft))
         return true
     }
 }
