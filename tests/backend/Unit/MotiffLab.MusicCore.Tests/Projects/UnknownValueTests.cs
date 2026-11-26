@@ -186,20 +186,22 @@ public class UnknownValueTests
     public void An_unknown_entity_is_never_dropped_because_a_known_one_of_another_owner_has_its_id()
     {
         // #364, criterion 4: v_0002 of the hidden m_0001 and b_0001 of the hidden c_0001 stay; the known variation of m_0002
-        // that has v_0002 is written under the next id free of all, the known bookmark beside the unknown one as read.
+        // that has v_0002 is written under the next id free of all; a bookmark cannot be added under b_0001, so one added
+        // beside it takes the next id, and no two entities of the file share one.
         JsonObject file = With(With(With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue), "bookmarks/categories/4/ink", UnknownValue), "bookmarks/items/0/category", "c_0001");
         Project project = ProjectFile.Read(Bytes(file));
         SavedVariation clashing = project.Variations.First(variation => variation.MotifId == "m_0002") with { Id = "v_0002" };
-        Bookmark beside = new("b_0001", "Same id", BookmarkCategory.PractiseId, new TickSpan(Tick.Zero, 480), FromPhrase: false, s_now);
+        static Bookmark Beside(string id) => new(id, "Beside", BookmarkCategory.PractiseId, new TickSpan(Tick.Zero, 480), FromPhrase: false, s_now);
 
-        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(beside) with { Variations = [clashing, .. project.Variations] }));
+        Assert.Throws<ArgumentException>(() => project.AddBookmark(Beside("b_0001")));
+        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId())) with { Variations = [clashing, .. project.Variations] }));
 
         JsonArray variations = written["workspace"]!["variations"]!.AsArray();
         Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005", "v_0012", "v_0006"], Ids(written, "variations")[..7]);
         Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"]![1], variations[1]));
         Assert.Equal("m_0002", variations[5]!["motifId"]!.GetValue<string>());
         Assert.Equal(Ids(written, "variations").Length, Ids(written, "variations").Distinct().Count());
-        Assert.Equal([("b_0001", "c_0001"), ("b_0001", "practise")], written["workspace"]!["bookmarks"]!["items"]!.AsArray().Select(item => (item!["id"]!.GetValue<string>(), item["category"]!.GetValue<string>())));
+        Assert.Equal([("b_0001", "c_0001"), ("b_0002", "practise")], written["workspace"]!["bookmarks"]!["items"]!.AsArray().Select(item => (item!["id"]!.GetValue<string>(), item["category"]!.GetValue<string>())));
     }
 
     [Fact]

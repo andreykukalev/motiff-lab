@@ -21,11 +21,14 @@ public sealed partial record Project
     public Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
 
     /// <summary>The project with the bookmark at the end of the player's order.</summary>
-    /// <exception cref="ArgumentException">A bookmark with the same id is already there, or its category is not.</exception>
+    /// <exception cref="ArgumentException">
+    /// A bookmark with the same id is already there, one kept unknown too (S6, #364: the file never holds two), or its category
+    /// is not.
+    /// </exception>
     public Project AddBookmark(Bookmark bookmark)
     {
         ArgumentNullException.ThrowIfNull(bookmark);
-        if (Bookmarks.Any(kept => kept.Id == bookmark.Id))
+        if (Bookmarks.Any(kept => kept.Id == bookmark.Id) || UnknownIds(Unknown, "bookmarks.items").Contains(bookmark.Id, StringComparer.Ordinal))
         {
             throw new ArgumentException($"There is already a bookmark {bookmark.Id}.", nameof(bookmark));
         }

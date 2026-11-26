@@ -356,11 +356,11 @@ public sealed partial class MusicCoreFacade
     }
 
     /// <summary>
-    /// The project in the request's "file", the project file's text, for the calls on piece 0 that read one without opening
-    /// it; a file the reader refuses answers "badRequest" with its reason in the request's "language" where the reader gives
-    /// one in both (a newer version, #363).
+    /// The project in the request's "file", the project file's text, for every call that reads one without opening it; a file
+    /// the reader refuses answers "badRequest" with its reason in the request's "language" where the reader gives one in both
+    /// (a newer version, #363).
     /// </summary>
-    private static Project ProjectIn(Request fields)
+    internal static Project ProjectIn(Request fields)
     {
         try
         {

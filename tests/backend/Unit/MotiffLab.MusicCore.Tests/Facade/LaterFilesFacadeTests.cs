@@ -54,6 +54,16 @@ public class LaterFilesFacadeTests
         Assert.Equal(("badRequest", message), (answer.GetProperty("error").GetString(), answer.GetProperty("message").GetString()));
     }
 
+    [Fact]
+    public void The_scan_inserts_refusal_of_a_newer_file_is_in_the_players_language()
+    {
+        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(Golden("v18-future.motiff.json")), page = 1, language = "ru" });
+
+        JsonElement answer = Json(new MusicCoreFacade().Call(0, "scan.insert", request));
+
+        Assert.Equal(("badRequest", "Этот проект сохранён более новой версией Motiff Lab. Обновите приложение и попробуйте ещё раз."), (answer.GetProperty("error").GetString(), answer.GetProperty("message").GetString()));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
