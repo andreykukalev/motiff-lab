@@ -59,9 +59,7 @@ public sealed partial class MusicCoreFacade
         {
             using Request fields = Request.Parse(request);
             Words words = Words.For(fields.Text("language"));
-            DateTimeOffset now = fields.Text("now") is { } text
-                ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-                : DateTimeOffset.UtcNow;
+            DateTimeOffset now = fields.Now();
             byte[] bytes = data.ToArray();
             int number = _next;
             string id = fields.Text("id") ?? NewProjectId();

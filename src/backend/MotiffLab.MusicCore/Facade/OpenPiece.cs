@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
@@ -25,7 +24,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// the phrases; the one primary selection (0013) with what was understood about it and the variation chain
 /// a Try chip starts are its <see cref="SelectionSession"/>, the corrections' draft and layer its
 /// <see cref="CorrectionsSession"/>, the drafts kept for drafts.undo and the rules of its sources its
-/// <see cref="SourcesSession"/>, the rules of the versions compared with it <see cref="PerformancesSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
+/// <see cref="SourcesSession"/>, the rules of the versions compared with it <see cref="PerformancesSession"/>, the rules of the
+/// marks and the bookmarks <see cref="MarksSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {
@@ -491,9 +491,7 @@ internal sealed partial class OpenPiece
     /// </summary>
     private string Save(Request request)
     {
-        DateTimeOffset? now = request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : null;
+        DateTimeOffset? now = request.SentNow();
         (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: Corrections.Layer == EditsLayer.Off);
         Project = Project.WithPhraseLevels(Levels.Edits) with
         {

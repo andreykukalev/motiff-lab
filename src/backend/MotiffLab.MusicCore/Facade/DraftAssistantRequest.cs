@@ -72,7 +72,7 @@ internal static class DraftAssistantRequest
     {
         try
         {
-            return DraftScope.Of(owner.Project, request.Required("draft"), request.Required("place"), request.Text("variant"), SourceRequest.Now(request), owner.Words);
+            return DraftScope.Of(owner.Project, request.Required("draft"), request.Required("place"), request.Text("variant"), request.Now(), owner.Words);
         }
         catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException or InvalidOperationException)
         {
