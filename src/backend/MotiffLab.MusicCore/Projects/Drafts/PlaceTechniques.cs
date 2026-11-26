@@ -72,7 +72,7 @@ public sealed record PlaceTechnique(int Number, string Variant, TechniqueKind Ki
 public static class PlaceTechniques
 {
     /// <summary>The grid the shape of a difference is read on: a 16th.</summary>
-    private const long ShapeGrid = CanonicalTime.TicksPerQuarter / 4;
+    internal const long ShapeGrid = CanonicalTime.TicksPerQuarter / 4;
 
     /// <summary>The приёмы of the place <paramref name="place"/>, decided as its <paramref name="steps"/> (its own) left them.</summary>
     public static IReadOnlyList<PlaceTechnique> Of(DraftPlace place, IReadOnlyList<DraftStep> steps)

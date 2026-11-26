@@ -39,7 +39,8 @@ through the facade; the API references it.
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
   `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
   seam), `DraftAnchors` (anchors the player confirms), `OnRecording` (the stretch of a recording that is a place's
-  music, «Найти на записи»); a place's order is `Draft.WithPlaceAt`.
+  music, «Найти на записи»), `PlaceLength` (a place's base cut again over other bars), `TechniqueCarry` (a приём carried
+  into another place as a variant); a place's order is `Draft.WithPlaceAt` (`Draft.Reshaped` drops what a seam lost).
 - `Assistant` (its tools; the digest `FactsDigest`, `.Piece`, `.Draft`; the template's `NearestFacts`; `.Drafts`, in a
   draft: `DraftScope`, `DraftTools`, `DraftProposal`), `Analytics`
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
@@ -54,7 +55,7 @@ through the facade; the API references it.
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
-  `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
+  `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
   `DraftAssistantRequest`), `ShownView`.
 
 ## The native build (`src/ipad/Core`)

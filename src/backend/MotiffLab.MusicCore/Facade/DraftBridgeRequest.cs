@@ -27,9 +27,8 @@ internal static class DraftBridgeRequest
             draft,
             place,
             draft.NextVariantId(),
-            [],
             each => DraftBridges.Put(each, after, SourceRequest.Now(request)),
-            json => Candidates(json, owner.Project.FindDraft(draft.Id)!.FindPlace(place)!, owner.Words));
+            (json, changed) => Candidates(json, changed.FindPlace(place)!, owner.Words));
     }
 
     /// <summary>
@@ -41,7 +40,7 @@ internal static class DraftBridgeRequest
         Draft draft = DraftOf(owner, request);
         string id = request.Required("place");
         DraftPlace place = draft.FindPlace(id) ?? throw FacadeException.BadRequest($"The draft has no place {id}.");
-        return DraftRequest.Restructured(owner, request, draft, id, place.Base, draft.StepsOf(id), each => DraftBridges.Leave(each, id));
+        return DraftRequest.Restructured(owner, request, draft, id, place.Base, each => DraftBridges.Leave(each, id));
     }
 
     private static void Candidates(Utf8JsonWriter json, DraftPlace place, Words words)

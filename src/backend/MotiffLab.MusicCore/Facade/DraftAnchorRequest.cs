@@ -26,7 +26,7 @@ internal static class DraftAnchorRequest
         Tick inVariant = anchor.Long("variant") is { } tick ? new Tick(tick)
             : anchor.Long("recording") is { } milliseconds ? Heard(owner.Project, draft, place, variant, milliseconds, pieces)
             : throw FacadeException.BadRequest("Send \"anchor\" with \"variant\" (a tick) or \"recording\" (milliseconds).");
-        return DraftRequest.Restructured(owner, request, draft, place, variant, [], each => DraftAnchors.Confirm(each, place, variant, new DraftAnchor(at, inVariant)));
+        return DraftRequest.Restructured(owner, request, draft, place, variant, each => DraftAnchors.Confirm(each, place, variant, new DraftAnchor(at, inVariant)));
     }
 
     /// <summary>«Открепить»: the anchor at "base" (the place's base tick) of the variant "variant" taken away. Answers as <see cref="Confirm"/>.</summary>
@@ -34,7 +34,7 @@ internal static class DraftAnchorRequest
     {
         (Draft draft, string place, string variant) = VariantOf(owner, request);
         Tick at = Base(request);
-        return DraftRequest.Restructured(owner, request, draft, place, variant, [], each => DraftAnchors.Remove(each, place, variant, at));
+        return DraftRequest.Restructured(owner, request, draft, place, variant, each => DraftAnchors.Remove(each, place, variant, at));
     }
 
     /// <summary>The variant's tick played at <paramref name="milliseconds"/> of its recording; unavailable for one not heard or not at hand.</summary>
