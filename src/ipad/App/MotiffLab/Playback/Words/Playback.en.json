@@ -1,4 +1,5 @@
 {
+  "playback.failed": "The sound could not be loaded. Open the piece again to try once more.",
   "transport.play": "Play",
   "transport.pause": "Pause",
   "listen.bothHands": "Both hands",
