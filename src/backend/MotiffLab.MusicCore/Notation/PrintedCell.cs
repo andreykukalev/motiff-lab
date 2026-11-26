@@ -24,7 +24,7 @@ internal enum PrintedKind
     /// <summary>A rest for the whole bar.</summary>
     MeasureRest,
 
-    /// <summary>A rest whose values the generator works out (a whole-measure rest in a bar that is not full).</summary>
+    /// <summary>A rest whose values the generator works out: a whole-measure rest in a bar that is not full, a rest whose written value is not its length.</summary>
     FilledRest,
 
     /// <summary>Time the voice skips without a sign.</summary>

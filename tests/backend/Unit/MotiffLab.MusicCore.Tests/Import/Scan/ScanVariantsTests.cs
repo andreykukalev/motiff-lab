@@ -110,6 +110,8 @@ public class ScanVariantsTests
         string outside = JsonSerializer.Serialize(new { bar = 2, staves = new[] { new { part = 1, staff = 1, notes = new[] { new { onset = 1920, pitch = 79, length = 480 } } } } });
         Assert.Equal("badRequest", JsonDocument.Parse(piece.Call(1, "corrections.variant", outside)).RootElement.GetProperty("error").GetString());
         Assert.Equal("badRequest", JsonDocument.Parse(piece.Call(1, "corrections.variant", """{"bar": 2}""")).RootElement.GetProperty("error").GetString());
+        string past = """{"bar": 2, "staves": [{"part": 1, "staff": 1, "notes": [{"onset": 0, "pitch": 60, "length": 9223372036854775000}]}]}""";
+        Assert.Equal("badRequest", JsonDocument.Parse(piece.Call(1, "corrections.variant", past)).RootElement.GetProperty("error").GetString());
     }
 
     [Fact]
