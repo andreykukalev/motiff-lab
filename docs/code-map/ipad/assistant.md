@@ -15,7 +15,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
 - `AssistantStates.swift`: `AssistantScope` (core AskScope), `AssistantPhase` (no streaming), `AssistantRecovery`.
 - `AssistantController.swift`: panel state, `scope` (`choose`; the chips' `pickShowingBars` also scrolls the score to
   the selected bars by `ScoreController.reveal`), `phase`, `standing` (`check`: `/assistant/status`), the piece's
-  conversations, `open` (an Ask: the panel opens empty, a conversation is made only by its first question, v0.9),
+  conversations, `open` (an Ask: the panel opens on no conversation, its field keeping an unsent question, v1.5; a conversation is made only by its first question, v0.9),
   `show` and `close` (the pill's «Ассистент»: the panel on the conversation it had, or closed),
   `ask` (status → `assistant.context` → turns), `forget` (Try again), `start` (a conversation begun by «Продолжить в чате»).
 - `AssistantTurns.swift`: one question's turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`,

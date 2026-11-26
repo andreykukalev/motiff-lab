@@ -98,23 +98,30 @@ test("the piano roll's button is in the pill only", () => {
 
 // Andrei's answer 15 of 1.4 (2026-11-26 10:16 UTC, built in 1.5): a − or + that steps a number repeats while held, faster
 // the longer it is held, as the platform's steppers do (SwiftUI's `buttonRepeatBehavior`), so a place of a 300-bar piece is
-// not 300 taps: the counters of a draft's place's length and of the PDF's pages (`PageStepper`) and the tempo's pace.
-test("every − and + that steps a number on the iPad steps on while held", () => {
-    const steppers = [
-        ["src/ipad/App/MotiffLab/Pdf/PiecePartsSheet.swift", "struct PageStepper"],
-        ["src/ipad/App/MotiffLab/Playback/Tempo.swift", "struct TempoControl"],
-    ];
-    for (const [path, owner] of steppers) {
-        const source = read(path).toString();
-        const from = source.indexOf(owner);
-        assert.ok(from >= 0, `${owner} in ${path}`);
-        const at = source.indexOf("private func stepButton(", from);
-        assert.ok(at >= 0, `${owner}'s stepButton`);
-        const next = source.indexOf("\n    }\n", at);
-        assert.match(source.slice(at, next), /\.buttonRepeatBehavior\(\.enabled\)/, `${owner}'s − and + repeat while held`);
-    }
+// not 300 taps; each is off at its bound, which ends a hold there. Every button whose label is a − or + on the iPad, and
+// every `stepButton` that draws one: the counters of a draft's place's length and of the PDF's pages (`PageStepper`), the
+// tempo's pace, the metronome's beats a minute and a note's values in Check. The roll's zoom steps are icons, no number.
+test("every − and + that steps a number on the iPad steps on while held, off at its bound", () => {
     const app = new URL("src/ipad/App/MotiffLab/", root);
-    const files = readdirSync(app, { recursive: true }).filter((name) => name.endsWith(".swift"));
-    const named = files.filter((name) => /func stepButton\(/.test(readFileSync(new URL(name, app)).toString()));
-    assert.deepEqual(named.sort(), ["Pdf/PiecePartsSheet.swift", "Playback/Tempo.swift"], "a new stepper is listed here, so it repeats too");
+    const found = [];
+    for (const name of readdirSync(app, { recursive: true }).filter((file) => file.endsWith(".swift")).sort()) {
+        const source = readFileSync(new URL(name, app)).toString();
+        for (const site of source.matchAll(/Button\("[−+]"\)|Text\("[−+]"\)|func stepButton\(/g)) {
+            const after = site.index + site[0].length;
+            const closes = source.indexOf("\n    }\n", after);
+            const nextButton = source.slice(after).search(/\bButton\b/);
+            const end = site[0].startsWith("func") || nextButton < 0 ? closes : Math.min(closes, after + nextButton);
+            const button = source.slice(site.index, end);
+            const line = source.slice(0, site.index).split("\n").length;
+            found.push(`${name}:${site[0].startsWith("func") ? "stepButton" : site[0].slice(-3, -2)}`);
+            assert.match(button, /\.buttonRepeatBehavior\(\.enabled\)/, `${name}:${line} repeats while held`);
+            assert.match(button, /\.disabled\(/, `${name}:${line} is off at its bound`);
+        }
+    }
+    assert.deepEqual(found, [
+        "Marks/Check.swift:−", "Marks/Check.swift:+",
+        "Pdf/PiecePartsSheet.swift:stepButton",
+        "Playback/Metronome.swift:−", "Playback/Metronome.swift:+",
+        "Playback/Tempo.swift:stepButton",
+    ], "the scan finds every stepper; a new one is listed here");
 });

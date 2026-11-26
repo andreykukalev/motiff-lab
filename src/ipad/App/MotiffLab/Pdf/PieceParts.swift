@@ -97,13 +97,16 @@ struct PartRows: Equatable, Sendable {
         rows.removeAll { $0.id == id }
     }
 
-    /// Moves a piece's first or last page by `step`, kept within the file.
+    /// The pages a piece's first or last page may be: the file's, from 1 (page 1 alone in a file of none).
+    var pages: ClosedRange<Int> { 1...max(1, pageCount) }
+
+    /// Moves a piece's first or last page by `step`, kept within the file (`pages`).
     mutating func step(_ id: UUID, first: Bool, by step: Int) {
         guard let index = rows.firstIndex(where: { $0.id == id }), pageCount > 0 else { return }
         if first {
-            rows[index].first = min(max(1, rows[index].first + step), pageCount)
+            rows[index].first = min(max(pages.lowerBound, rows[index].first + step), pages.upperBound)
         } else {
-            rows[index].last = min(max(1, rows[index].last + step), pageCount)
+            rows[index].last = min(max(pages.lowerBound, rows[index].last + step), pages.upperBound)
         }
     }
 }

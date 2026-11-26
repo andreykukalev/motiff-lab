@@ -110,8 +110,9 @@ final class AssistantController: ObservableObject {
         listShown = false
     }
 
-    /// An Ask (Andrei, 2026-11-18, v0.8 finding 4): the panel opens empty, ready for a question, whatever was open before;
-    /// no conversation is made until its first question goes (`ask`), and the earlier ones stay in the list. It looks at
+    /// An Ask (Andrei, 2026-11-18, v0.8 finding 4): the panel opens on no conversation, ready for a question, whatever was
+    /// open before, its field still holding a question typed and not sent (`unsentInPanel`, v1.5, answer 16); no
+    /// conversation is made until its first question goes (`ask`), and the earlier ones stay in the list. It looks at
     /// the selection when there is one, or at the whole piece when asked about it (for the selection that stands now: bars
     /// selected after it are what the next question is about).
     func open(wholePiece: Bool, selection: ScoreSelection?) {
