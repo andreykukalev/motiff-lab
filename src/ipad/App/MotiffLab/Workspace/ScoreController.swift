@@ -385,6 +385,10 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             Task { await engraveCard() }
         case let .coloured(start, end):
             penModel.colour(start, end)
+        case .markMoved(let point):
+            // No card shows at a mark any more (closed by its own cover, which the page never hears): the page stops
+            // following it, else it would tell each frame of a scroll (r-1).
+            if !moveCardAtMark(to: point) { Task { await scorePage.send(.markForgotten) } }
         default:
             break
         }

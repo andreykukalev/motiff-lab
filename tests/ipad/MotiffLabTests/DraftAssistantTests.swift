@@ -46,6 +46,37 @@ final class DraftAssistantTests: XCTestCase {
          "place": "pl_0001", "structure": false, "steps": [{"kind": "take", "technique": {"kind": "simplify", "bars": [4]}}]}]}
         """#)!
 
+    /// r-1: a rotation or Split View lays the panel and a draft's card out anew, their fields with them: the question typed
+    /// and not sent is still there in the field made again, until it is sent, the chat closes or opens on another place.
+    func testAQuestionTypedAndNotSentOutlivesItsField() {
+        let assistant = controller()
+        assistant.open(wholePiece: true, selection: nil)
+        assistant.keepUnsent("Почему здесь доминанта?")
+        var remade = AskFlow(surface: .panel)
+        remade.apply(.open)
+        remade.apply(.type(assistant.unsentInPanel))
+        XCTAssertEqual(remade.draft, "Почему здесь доминанта?", "the panel's field made again")
+        assistant.close()
+        XCTAssertEqual(assistant.unsentInPanel, "", "closed, the panel's question goes")
+        assistant.keepUnsent("late")
+        XCTAssertEqual(assistant.unsentInPanel, "", "none kept while the panel is closed")
+
+        let first = AssistantDraftPlace(draft: "d_0001", place: "pl_0001", label: "①", basis: [])
+        let second = AssistantDraftPlace(draft: "d_0001", place: "pl_0002", label: "②", basis: [])
+        assistant.keepUnsent("Which bridge?", inDraft: true)
+        XCTAssertEqual(assistant.unsentInDraft, "", "none kept while no place's assistant is open")
+        assistant.openInDraft(first)
+        assistant.keepUnsent("Which bridge?", inDraft: true)
+        XCTAssertEqual(assistant.unsentInDraft, "Which bridge?")
+        assistant.startInDraft(role: AssistantDraftPlace.explainer)
+        XCTAssertEqual(assistant.unsentInDraft, "Which bridge?", "another role in the same place keeps it")
+        assistant.openInDraft(second)
+        XCTAssertEqual(assistant.unsentInDraft, "", "another place's assistant starts empty")
+        assistant.keepUnsent("And here?", inDraft: true)
+        assistant.closeInDraft()
+        XCTAssertEqual(assistant.unsentInDraft, "")
+    }
+
     func testAStepProposedInAPlaceKeepsTheCallThatMakesItAgain() throws {
         let arguments = JSONValue.object(["techniques": .array([.int(1)]), "bar": .null])
         let chat = AssistantChat(id: "c1", started: Date(), updated: Date(), role: AssistantDraftPlace.role)

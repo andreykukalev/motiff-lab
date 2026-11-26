@@ -42,7 +42,8 @@
     "playheads",
     "practice",
     "selectionControls",
-    "writing"
+    "writing",
+    "markForgotten"
   ],
   "events": [
     "pages",
@@ -72,6 +73,7 @@
     "blank",
     "leave",
     "cardLayout",
-    "coloured"
+    "coloured",
+    "markMoved"
   ]
 }
