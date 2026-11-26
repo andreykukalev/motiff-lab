@@ -43,7 +43,10 @@
   "rollZoom.pitchOut": "More octaves",
   "rollZoom.time": "Time zoom",
   "rollZoom.timeIn": "Fewer bars",
+  "rollZoom.timeInGreatest": "The roll is at its greatest zoom",
+  "rollZoom.timeInOneBar": "One bar already fills the roll",
   "rollZoom.timeOut": "More bars",
+  "rollZoom.timeOutLeast": "The roll is at its least zoom",
   "roll.collapse": "Collapse",
   "roll.collapseHint": "Puts the piano roll down; the roll button at the bottom brings it back."
 }

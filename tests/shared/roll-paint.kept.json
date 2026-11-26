@@ -5732,5 +5732,2060 @@
     "Bar 320, beat 3"
    ]
   }
+ ],
+ "pressNavigate": [
+  {
+   "step": "Navigate, bar 2 selected",
+   "roll": "369 lines, sha1 408156ee2ef6602b",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a finger's tap inside the selection plays from there",
+   "roll": "369 lines, sha1 1f45c1db845e5bf5",
+   "posted": [
+    [
+     "OnRollSeek",
+     1240,
+     true
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "164px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "two fast taps outside it",
+   "roll": "0 lines, sha1 da39a3ee5e6b4b0d",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "164px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "a finger drags the roll along and down",
+   "roll": "309 lines, sha1 115a147868945ea5",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 900,
+    "pitchTop": 83
+   },
+   "scroller": "900 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "74px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "held still: the black playhead goes there",
+   "roll": "309 lines, sha1 8cc36ed300419ad2",
+   "posted": [
+    [
+     "OnRollDrag",
+     "grab",
+     "black",
+     null
+    ],
+    [
+     "OnRollDrag",
+     "place",
+     "black",
+     2520
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 900,
+    "pitchTop": 83
+   },
+   "scroller": "900 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "202px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "moved on: it scrubs",
+   "roll": "309 lines, sha1 16808b81d5e045a9",
+   "posted": [
+    [
+     "OnRollDrag",
+     "move",
+     "black",
+     2880
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 900,
+    "pitchTop": 83
+   },
+   "scroller": "900 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "238px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "let go",
+   "roll": "309 lines, sha1 16808b81d5e045a9",
+   "posted": [
+    [
+     "OnRollDrag",
+     "release",
+     "black",
+     null
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 900,
+    "pitchTop": 83
+   },
+   "scroller": "900 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "238px",
+    "24px",
+    "960",
+    "1679",
+    "1240",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "a tap on the bar numbers takes the playhead to the beat",
+   "roll": "309 lines, sha1 16808b81d5e045a9",
+   "posted": [
+    [
+     "OnRollSeek",
+     2640,
+     false
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 900,
+    "pitchTop": 83
+   },
+   "scroller": "900 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "238px",
+    "24px",
+    "960",
+    "1679",
+    "2640",
+    "Bar 4, beat 2"
+   ]
+  },
+  {
+   "step": "the stylus drags the bar numbers: the roll moves, nothing is selected",
+   "roll": "306 lines, sha1 8f9d605ebd12b424",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 1500,
+    "pitchTop": 83
+   },
+   "scroller": "1500 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "178px",
+    "24px",
+    "960",
+    "1679",
+    "2640",
+    "Bar 4, beat 2"
+   ]
+  }
+ ],
+ "pressSelect": [
+  {
+   "step": "Select by place, bar 2 selected",
+   "roll": "387 lines, sha1 3d350646cb4bf778",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a tap outside the selection selects its bar",
+   "roll": "387 lines, sha1 2255a12888409b25",
+   "posted": [
+    [
+     "OnRollSpan",
+     2400,
+     3120,
+     "replace",
+     "gesture-3"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "the host's answer",
+   "roll": "387 lines, sha1 3baef13c4e5490b4",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a span drawn outside it",
+   "roll": "395 lines, sha1 05f2b01811dc69bd",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: the span sent and held",
+   "roll": "387 lines, sha1 529e44d55e6de694",
+   "posted": [
+    [
+     "OnRollSpan",
+     3360,
+     4080,
+     "replace",
+     "gesture-4"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "no answer: the span goes back",
+   "roll": "387 lines, sha1 3baef13c4e5490b4",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a finger beside the stylus moves the roll",
+   "roll": "376 lines, sha1 798fa4982ad14533",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 200,
+    "pitchTop": 80
+   },
+   "scroller": "200 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a lasso drawn round notes",
+   "roll": "399 lines, sha1 c6259080d616ac16",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 200,
+    "pitchTop": 80
+   },
+   "scroller": "200 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: its notes picked",
+   "roll": "376 lines, sha1 798fa4982ad14533",
+   "posted": [
+    [
+     "OnRollNotes",
+     [
+      "n_0010"
+     ],
+     "replace",
+     "gesture-5"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 200,
+    "pitchTop": 80
+   },
+   "scroller": "200 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "picked notes dragged later and up",
+   "roll": "379 lines, sha1 9d859f38e60bcae1",
+   "posted": [
+    [
+     "OnRollNotesMoveBegan"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 200,
+    "pitchTop": 80
+   },
+   "scroller": "200 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "2399",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: the move sent",
+   "roll": "385 lines, sha1 6c801432d29b9b98",
+   "posted": [
+    [
+     "OnRollNotesMoved",
+     [
+      {
+       "id": "n_0010",
+       "onset": 1440,
+       "pitch": 71,
+       "length": 240
+      },
+      {
+       "id": "n_0015",
+       "onset": 2040,
+       "pitch": 71,
+       "length": 120
+      },
+      {
+       "id": "n_0017",
+       "onset": 2160,
+       "pitch": 73,
+       "length": 240
+      }
+     ],
+     "gesture-6"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 200,
+    "pitchTop": 80
+   },
+   "scroller": "200 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "2399",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a double tap inside it: Fit",
+   "roll": "424 lines, sha1 4f65e6a736a5cd95",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 1,
+      "octaves": 3,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": true,
+      "pitchOut": true,
+      "zoomOut": true
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 257.3333333333322,
+    "rowScale": 0.3636363636363653,
+    "scroll": 2370,
+    "pitchTop": 78
+   },
+   "scroller": "2370 of 75210.1554404145",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "back to the overview",
+   "roll": "1231 lines, sha1 1b85689275b47906",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 17,
+      "octaves": 4,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": true,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 17.15555555555568,
+    "rowScale": 0.3181818181818183,
+    "scroll": 0,
+    "pitchTop": 78
+   },
+   "scroller": "0 of 69752.33160621766",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  }
+ ],
+ "pressTwoFingers": [
+  {
+   "step": "one finger draws a span",
+   "roll": "389 lines, sha1 1d9a6eab03d3ae13",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a second finger: a pinch, the span gone",
+   "roll": "313 lines, sha1 0b4dafa49ef02bd6",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 3,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 80,
+    "rowScale": 1,
+    "scroll": 1176,
+    "pitchTop": 80
+   },
+   "scroller": "1176 of 74346",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "both lifted: nothing selected",
+   "roll": "0 lines, sha1 da39a3ee5e6b4b0d",
+   "posted": [],
+   "frame": {
+    "zoom": 80,
+    "rowScale": 1,
+    "scroll": 1176,
+    "pitchTop": 80
+   },
+   "scroller": "1176 of 74346",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a first finger again after one whose end was lost: a tap",
+   "roll": "338 lines, sha1 8fe2b94016445a04",
+   "posted": [
+    [
+     "OnRollSpan",
+     2400,
+     3120,
+     "create",
+     "gesture-12"
+    ]
+   ],
+   "frame": {
+    "zoom": 80,
+    "rowScale": 1,
+    "scroll": 1176,
+    "pitchTop": 80
+   },
+   "scroller": "1176 of 74346",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  }
+ ],
+ "pressPlayhead": [
+  {
+   "step": "lanes, stopped in bar 1",
+   "roll": "363 lines, sha1 e5aa92a0f58b03f7",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 79
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "88px",
+    "24px",
+    "0",
+    "75599",
+    "480",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "the black playhead taken down its line and dragged",
+   "roll": "395 lines, sha1 931ae7e5819c5c93",
+   "posted": [
+    [
+     "OnRollDrag",
+     "grab",
+     "black",
+     null
+    ],
+    [
+     "OnRollDrag",
+     "move",
+     "black",
+     1200
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 77
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "160px",
+    "24px",
+    "0",
+    "75599",
+    "480",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "let go",
+   "roll": "335 lines, sha1 ae31c69552b654af",
+   "posted": [
+    [
+     "OnRollDrag",
+     "release",
+     "black",
+     null
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 74
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "160px",
+    "24px",
+    "0",
+    "75599",
+    "480",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "the stylus on the selection's start in the loop strip takes its edge",
+   "roll": "307 lines, sha1 117fb119573094ce",
+   "posted": [
+    [
+     "OnRollSpan",
+     1440,
+     1680,
+     "edit",
+     "gesture-13"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 71
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "160px",
+    "24px",
+    "0",
+    "75599",
+    "480",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "a finger there takes the edge by the lanes' rule",
+   "roll": "287 lines, sha1 0d854831df8f69f2",
+   "posted": [
+    [
+     "OnRollRange",
+     1679,
+     1480,
+     false,
+     false,
+     "edit",
+     "gesture-14"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 69
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "160px",
+    "24px",
+    "0",
+    "75599",
+    "480",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "playing",
+   "roll": "267 lines, sha1 64e087f4fe33224c",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 68
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "160px",
+    "24px",
+    "0",
+    "75599",
+    "1300",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "taken where it was drawn, dragged to the right edge",
+   "roll": "290 lines, sha1 b5462d614cb54dde",
+   "posted": [
+    [
+     "OnRollDrag",
+     "grab",
+     "black",
+     null
+    ],
+    [
+     "OnRollDrag",
+     "move",
+     "black",
+     4080
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 52,
+    "pitchTop": 66
+   },
+   "scroller": "52 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "443px",
+    "24px",
+    "0",
+    "75599",
+    "1340",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "held at the edge: the view goes on",
+   "roll": "297 lines, sha1 058ebc86dc218420",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 698,
+    "pitchTop": 66
+   },
+   "scroller": "698 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "378px",
+    "24px",
+    "0",
+    "75599",
+    "1340",
+    "Bar 2, beat 2"
+   ]
+  },
+  {
+   "step": "let go: it plays on from there",
+   "roll": "303 lines, sha1 d11cdcb1883b8b8a",
+   "posted": [
+    [
+     "OnRollDrag",
+     "move",
+     "black",
+     4800
+    ],
+    [
+     "OnRollDrag",
+     "release",
+     "black",
+     null
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 948.9256353857332,
+    "pitchTop": 66
+   },
+   "scroller": "948.9256353857332 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "425px",
+    "24px",
+    "0",
+    "75599",
+    "1340",
+    "Bar 2, beat 2"
+   ]
+  }
+ ],
+ "pressEditor": [
+  {
+   "step": "a note's end dragged longer",
+   "roll": "369 lines, sha1 7ddf2caa58810e30",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: the length sent",
+   "roll": "365 lines, sha1 4f4baf48a3aa1ad0",
+   "posted": [
+    [
+     "OnRollNoteChange",
+     "n_0005",
+     480,
+     76,
+     360
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a box drawn on empty space",
+   "roll": "373 lines, sha1 3c5765f15e8340c7",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: its notes picked",
+   "roll": "368 lines, sha1 41984ff65b20df78",
+   "posted": [
+    [
+     "OnRollNotesPicked",
+     [
+      "n_0015",
+      "n_0017"
+     ]
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "Delete takes them out",
+   "roll": "0 lines, sha1 da39a3ee5e6b4b0d",
+   "posted": [
+    [
+     "OnRollNoteRemove",
+     "n_0015"
+    ],
+    [
+     "OnRollNoteRemove",
+     "n_0017"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "Add: a tap on empty space adds a note",
+   "roll": "362 lines, sha1 00438cfc6e63def3",
+   "posted": [
+    [
+     "OnRollNoteAdd",
+     2040,
+     79,
+     360
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "Remove: a tap on a note takes it out",
+   "roll": "362 lines, sha1 00438cfc6e63def3",
+   "posted": [
+    [
+     "OnRollNoteRemove",
+     "n_0017"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a finger's Add tap waits to be lifted",
+   "roll": "362 lines, sha1 00438cfc6e63def3",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "lifted: the note added",
+   "roll": "0 lines, sha1 da39a3ee5e6b4b0d",
+   "posted": [
+    [
+     "OnRollNoteAdd",
+     2160,
+     78,
+     360
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a second finger: no note added",
+   "roll": "362 lines, sha1 00438cfc6e63def3",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "playing, a note dragged out past the left and the bottom",
+   "roll": "365 lines, sha1 5031141e2d514d0e",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "100px",
+    "24px",
+    "0",
+    "75599",
+    "600",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "let go: the note at the start",
+   "roll": "365 lines, sha1 608946cdac976b5d",
+   "posted": [
+    [
+     "OnRollNoteChange",
+     "n_0007",
+     0,
+     65,
+     120
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "100px",
+    "24px",
+    "0",
+    "75599",
+    "600",
+    "Bar 1, beat 2"
+   ]
+  },
+  {
+   "step": "the keys at the limits: the highest and lowest note, the first beat, the shortest length",
+   "roll": "170 lines, sha1 38a46fb593dd9809",
+   "posted": [
+    [
+     "OnRollNoteChange",
+     "lo",
+     600,
+     0,
+     120
+    ],
+    [
+     "OnRollZoom",
+     {
+      "bars": 1,
+      "octaves": 1,
+      "timeIn": false,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 0",
+   "legend": [
+    "Right hand"
+   ],
+   "playhead": [
+    "100px",
+    "24px",
+    "0",
+    "1919",
+    "600",
+    "Bar 1, beat 2"
+   ]
+  }
+ ],
+ "pressCancel": [
+  {
+   "step": "a span drawn, then cancelled by the system",
+   "roll": "387 lines, sha1 3d350646cb4bf778",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a span drawn, its capture lost, then let go",
+   "roll": "387 lines, sha1 68f4227c6a7bfd21",
+   "posted": [
+    [
+     "OnRollSpan",
+     2520,
+     3120,
+     "replace",
+     "gesture-16"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "the tool changed mid-drag",
+   "roll": "369 lines, sha1 211debfc4c1fb19e",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a turn mid-drag",
+   "roll": "533 lines, sha1 f1544dd60b05f083",
+   "posted": [
+    [
+     "OnRollSpan",
+     3000,
+     3120,
+     "edit",
+     "gesture-18"
+    ],
+    [
+     "OnRollZoom",
+     {
+      "bars": 10,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 72410",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a drag out past the right and the top",
+   "roll": "578 lines, sha1 9017296562bbc36f",
+   "posted": [
+    [
+     "OnRollZoom",
+     {
+      "bars": 9,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 7423,
+    "pitchTop": 80
+   },
+   "scroller": "7423 of 72410",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go out there",
+   "roll": "568 lines, sha1 28c6e383c22586bd",
+   "posted": [
+    [
+     "OnRollSpan",
+     2520,
+     8400,
+     "replace",
+     "gesture-19"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 7423,
+    "pitchTop": 80
+   },
+   "scroller": "7423 of 72410",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a note dragged in the editor, then cancelled: nothing sent",
+   "roll": "559 lines, sha1 c6550f1b40ee516c",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 7423,
+    "pitchTop": 80
+   },
+   "scroller": "7423 of 72410",
+   "legend": [
+    "Right hand",
+    "Left hand"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "960",
+    "1679",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  }
+ ],
+ "pressMouse": [
+  {
+   "step": "a click on a note selects it",
+   "roll": "376 lines, sha1 47cf687439746c7f",
+   "posted": [
+    [
+     "OnRollSelection",
+     [
+      "n_0010"
+     ]
+    ],
+    [
+     "OnRollZoom",
+     {
+      "bars": 6,
+      "octaves": 1,
+      "timeIn": true,
+      "timeOut": true,
+      "pitchIn": false,
+      "pitchOut": true,
+      "zoomOut": false
+     }
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a click on empty space clears",
+   "roll": "368 lines, sha1 fd1c564766fd3f6a",
+   "posted": [
+    [
+     "OnRollSelection",
+     []
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a range dragged",
+   "roll": "375 lines, sha1 09d5d7581ad58cb1",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "0",
+    "75599",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "let go: the range sent, the host's answer",
+   "roll": "377 lines, sha1 a05c52c1154e4899",
+   "posted": [
+    [
+     "OnRollRange",
+     2440,
+     3240,
+     false,
+     false,
+     "create",
+     "gesture-20"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "the end edge dragged",
+   "roll": "377 lines, sha1 a05c52c1154e4899",
+   "posted": [
+    [
+     "OnRollRange",
+     2400,
+     3639,
+     false,
+     false,
+     "edit",
+     "gesture-21"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "a click on the Check flag",
+   "roll": "0 lines, sha1 da39a3ee5e6b4b0d",
+   "posted": [
+    [
+     "OnRollCheckPicked",
+     4
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "bars dragged on the bar numbers",
+   "roll": "377 lines, sha1 a05c52c1154e4899",
+   "posted": [
+    [
+     "OnRollHoldHint"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 80
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "the pitch names: a key and down the rows",
+   "roll": "317 lines, sha1 dbd8f4de5f554ad8",
+   "posted": [],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 0,
+    "pitchTop": 84
+   },
+   "scroller": "0 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "Select: a range from outside the selection",
+   "roll": "283 lines, sha1 7c629ca231229a78",
+   "posted": [
+    [
+     "OnRollRange",
+     4040,
+     4440,
+     false,
+     false,
+     "create",
+     "gesture-23"
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 3813,
+    "pitchTop": 84
+   },
+   "scroller": "3813 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  },
+  {
+   "step": "Navigate: the mouse moves the roll, a click places the playhead",
+   "roll": "275 lines, sha1 f0ae3fc150503241",
+   "posted": [
+    [
+     "OnRollPlace",
+     6053,
+     false
+    ]
+   ],
+   "frame": {
+    "zoom": 48,
+    "rowScale": 1,
+    "scroll": 4013,
+    "pitchTop": 84
+   },
+   "scroller": "4013 of 73510",
+   "legend": [
+    "Right hand",
+    "Left hand",
+    "A bar to check: tap its ?"
+   ],
+   "playhead": [
+    "40px",
+    "24px",
+    "2400",
+    "3119",
+    "0",
+    "Bar 0, beat 1"
+   ]
+  }
  ]
 }

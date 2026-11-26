@@ -9,7 +9,8 @@ import { NAMED_ROW, drawGutter } from "./roll-keys-draw.js";
 import { isBlackKey, nameFits, type RollModel, type RollNote } from "./roll-model.js";
 import { laneColour, lanePattern, palette, patternTile, prepare, type PatternKind } from "./roll-palette.js";
 import type { Span } from "./roll-playhead.js";
-import { BAR_ROW, GUTTER, TICKS_PER_QUARTER } from "./roll-viewport.js";
+import { BAR_ROW, GUTTER } from "./roll-viewport.js";
+import { TICKS_PER_QUARTER } from "../score/score-timeline.js";
 
 /** A Check flag on the bar numbers: an amber square with "?" (design/kit/ds.css .flag). */
 export const CHECK_FLAG = 14;

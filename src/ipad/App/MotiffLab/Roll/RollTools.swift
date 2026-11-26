@@ -19,6 +19,16 @@ extension RollZoom {
     static func octaveWord(_ octaves: Int, _ text: UIText) -> String {
         text.count("rollZoom.octaveWord", octaves)
     }
+
+    /// Why a time step is off, said by its hint as the Expand button's is (RollDrawer): + with one bar across the roll, else
+    /// at the greatest zoom; − at the least zoom (the roll's, or in Expand the passage's fit: the report does not tell them
+    /// apart). With no bar in view − says nothing, as no reason would be true. Nil while the step is on.
+    static func timeStepReason(_ zoom: RollZoom, inward: Bool, _ text: UIText) -> String? {
+        if inward {
+            return zoom.timeIn ? nil : text[zoom.bars == 1 ? "rollZoom.timeInOneBar" : "rollZoom.timeInGreatest"]
+        }
+        return zoom.timeOut || zoom.bars == 0 ? nil : text["rollZoom.timeOutLeast"]
+    }
 }
 
 /// The roll drawer's height (#511 section 7.1): its handle
@@ -194,7 +204,7 @@ struct RollZoomControls: View {
 
     private func time(_ zoom: RollZoom) -> some View {
         HStack(spacing: 0) {
-            step("−", text["rollZoom.timeOut"], enabled: zoom.timeOut) { roll.zoomStep(.time, -1) }
+            step("−", text["rollZoom.timeOut"], enabled: zoom.timeOut, reason: RollZoom.timeStepReason(zoom, inward: false, text)) { roll.zoomStep(.time, -1) }
             Text(RollZoom.barsText(zoom.bars, text))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
@@ -202,7 +212,7 @@ struct RollZoomControls: View {
                 .lineLimit(1)
                 .fixedSize()
                 .padding(.horizontal, CGFloat.ds("s-1"))
-            step("+", text["rollZoom.timeIn"], enabled: zoom.timeIn) { roll.zoomStep(.time, 1) }
+            step("+", text["rollZoom.timeIn"], enabled: zoom.timeIn, reason: RollZoom.timeStepReason(zoom, inward: true, text)) { roll.zoomStep(.time, 1) }
             Rectangle().fill(Color.ds("hairline")).frame(width: 1, height: CGFloat.ds("s-6"))
             Button(text["roll.js.fit"]) { roll.zoomStep(.fit, 0) }
                 .buttonStyle(DSItemStyle())
@@ -244,8 +254,8 @@ struct RollZoomControls: View {
         .accessibilityLabel(text["rollZoom.pitch"])
     }
 
-    /// − or +: a fingertip's size, for a finger or the Pencil.
-    private func step(_ sign: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    /// − or +: a fingertip's size, for a finger or the Pencil; off, its hint says why when there is a reason.
+    private func step(_ sign: String, _ label: String, enabled: Bool, reason: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(sign)
                 .dsType(.heading)
@@ -255,6 +265,8 @@ struct RollZoomControls: View {
         .buttonStyle(BarActionStyle())
         .disabled(!enabled)
         .accessibilityLabel(label)
+        .help(reason ?? label)
+        .accessibilityHint(reason ?? "")
     }
 }
 

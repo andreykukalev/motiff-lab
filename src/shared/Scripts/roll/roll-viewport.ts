@@ -8,9 +8,9 @@ import { MAX_ROW, MIN_ROW, ROW_AT_100, type RollModel, rowFor, rowWindow } from 
 import { measures } from "./roll-palette.js";
 import type { Span } from "./roll-playhead.js";
 import { barShareInView, barsInView, octavesInView, rowForOctaves, stepBars, stepOctaves, type AxisZoom } from "./roll-zoom.js";
-import { chase, fitFrame, fitZoom, followPlayhead, glideFrame, paddedPitches, scrollLimits, type ViewFrame } from "./roll-view.js";
+import { chase, fitFrame, fitZoom, followPlayhead, glideFrame, paddedPitches, scrollLimits, ticksForPixels, type ViewFrame } from "./roll-view.js";
+import { TICKS_PER_QUARTER } from "../score/score-timeline.js";
 
-export const TICKS_PER_QUARTER = 480;
 /** The keys and the octave band down the left, in pixels: the time starts right of it. */
 export const GUTTER = 62;
 /** The bar numbers over the notes: tall enough to press and drag on for a bar selection (WCAG 2.2 target size, 2.5.8). */
@@ -134,7 +134,17 @@ export class RollViewport {
 
     /** The tick at a point across the roll, never before the piece's start. */
     tickAtX(x: number): number {
-        return Math.max(0, this.scrollNow + ((x - GUTTER) * TICKS_PER_QUARTER) / this.zoomNow);
+        return Math.max(0, this.scrollNow + this.ticksAcross(x - GUTTER));
+    }
+
+    /** How many ticks a distance across the roll, in pixels, spans at the zoom now (a drag, a pan, the wheel). */
+    ticksAcross(dx: number): number {
+        return ticksForPixels(dx, this.zoomNow);
+    }
+
+    /** The time in view as the painter and the Check flags read it: the roll's width, the ticks at its sides, where a tick is. */
+    timeFrame(): { width: number; from: number; to: number; xOf: (tick: number) => number } {
+        return { width: this.host.width(), from: this.scrollNow, to: this.scrollNow + this.visibleTicks(), xOf: (tick) => this.xOf(tick) };
     }
 
     /** Where a row's top is down the roll. */
@@ -156,7 +166,7 @@ export class RollViewport {
 
     /** How many ticks the view shows. */
     visibleTicks(): number {
-        return (this.timeWidth() * TICKS_PER_QUARTER) / this.zoomNow;
+        return this.ticksAcross(this.timeWidth());
     }
 
     /** How far the view's left edge goes: the whole piece, or only within the passage of Expand (roll-view.ts scrollLimits). */
@@ -165,7 +175,7 @@ export class RollViewport {
             end: this.host.model()?.end ?? 0,
             visible: this.visibleTicks(),
             passage: this.bound,
-            margin: (measures.fitMargin * TICKS_PER_QUARTER) / this.zoomNow,
+            margin: this.ticksAcross(measures.fitMargin),
         });
     }
 
@@ -266,10 +276,10 @@ export class RollViewport {
     zoomTo(zoom: number, rowScale: number, anchorX?: number): void {
         const width = this.timeWidth();
         const anchor = anchorX ?? Math.min(Math.max(this.xOf(this.host.playhead()) - GUTTER, 0), width);
-        const anchorTick = this.scrollNow + (anchor * TICKS_PER_QUARTER) / this.zoomNow;
+        const anchorTick = this.scrollNow + this.ticksAcross(anchor);
         this.zoomNow = Math.min(MAX_ZOOM, Math.max(this.minZoom(), zoom));
         this.rowScaleNow = Math.min(MAX_ROW / ROW_AT_100, Math.max((this.host.touchReading() ? READING_MIN_ROW : MIN_ROW) / ROW_AT_100, rowScale));
-        this.scrollTo(anchorTick - (anchor * TICKS_PER_QUARTER) / this.zoomNow);
+        this.scrollTo(anchorTick - this.ticksAcross(anchor));
         this.host.zoomed();
     }
 
