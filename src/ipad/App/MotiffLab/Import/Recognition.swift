@@ -306,7 +306,10 @@ final class RecognitionQueue: ObservableObject {
     /// Waits while the piece `file` is open on screen with its notes read (`awaiting`: «Ноты готовы» on its PDF), until its
     /// screen lets it go (`released`) or closes; false once the batch no longer wants it (`wanted`).
     private func letGo(_ file: String, wanted: () -> Bool) async -> Bool {
-        guard open == file else { return wanted() }
+        guard open == file else {
+            letGoSaved.remove(file)
+            return wanted()
+        }
         awaiting = file
         defer { if awaiting == file { awaiting = nil } }
         while wanted(), open == file { try? await Task.sleep(nanoseconds: 500_000_000) }
