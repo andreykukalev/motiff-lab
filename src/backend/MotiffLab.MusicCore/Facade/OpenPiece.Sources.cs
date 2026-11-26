@@ -118,9 +118,12 @@ internal sealed partial class OpenPiece
         }
 
         int pages = Math.Max(1, request.Int("pages") ?? Project.DocumentPages?.Pages ?? 1);
-        Project = Project with { DocumentPages = PageMap.Of(read, pages).Through(read.Meter, Piece.Meter, Piece.End) };
+        PageMap linked = PageMap.Of(read, pages).Through(read.Meter, Piece.Meter, Piece.End);
         string name = request.Text("name") is { Length: > 0 } given ? given : Path.GetFileNameWithoutExtension(fileName);
-        return AddVersion(name, midi, PerformanceSource.Score, 0, request.Text("engine"));
+        // The pages are linked to these bars only once the version is added: a refused call leaves them as they were.
+        string answer = AddVersion(name, midi, PerformanceSource.Score, 0, request.Text("engine"));
+        Project = Project with { DocumentPages = linked };
+        return answer;
     }
 
     /// <summary>

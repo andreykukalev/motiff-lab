@@ -1083,6 +1083,23 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
+    public void Notes_read_from_the_pdf_that_are_refused_leave_its_pages_linked_as_they_were()
+    {
+        (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
+        byte[] pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
+        Call(facade, "sources.document", JsonSerializer.Serialize(new { pdf = Convert.ToBase64String(pdf), pages = 2 }));
+        string musicXml = Convert.ToBase64String(Fixture(FurElise));
+
+        Assert.Equal("badRequest", Error(facade, 1, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml, pages = 1, engine = 5 })));
+        Assert.Equal("badRequest", Error(facade, 1, "sources.documentNotes", JsonSerializer.Serialize(new { musicXml, pages = 1, name = 5 })));
+
+        JsonElement sources = Call(facade, "sources");
+        Assert.Equal(2, sources.GetProperty("document").GetProperty("starts").GetArrayLength());
+        Assert.False(sources.GetProperty("document").GetProperty("readFrom").GetBoolean());
+        Assert.Empty(Call(facade, "performances").GetProperty("performances").EnumerateArray());
+    }
+
+    [Fact]
     public void A_performance_is_compared_taken_into_the_score_kept_and_restored()
     {
         (MusicCoreFacade facade, _) = Open("""{"id": "p_fur"}""");
