@@ -119,8 +119,11 @@ struct InkStep {
     /// The highlights it changed (the score's colour bars and its eraser, finding 31); none on a PDF's pages.
     var colouring = Recolouring()
 
+    /// Whether the step added or took strokes, so its Undo and Redo make a call of the ink, whose last one draws.
+    var changesInk: Bool { !added.isEmpty || !removed.isEmpty }
+
     /// Whether the step changed nothing: a press of the eraser that met no mark and no colour.
-    var isEmpty: Bool { added.isEmpty && removed.isEmpty && colouring.isEmpty }
+    var isEmpty: Bool { !changesInk && colouring.isEmpty }
 
     /// Takes the step back through `change(call, request, draws)`: the strokes it added go, then the strokes it took come
     /// back, the answer drawn only at the last call, so a press of the eraser comes back whole at once.

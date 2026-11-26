@@ -50,8 +50,9 @@ final class PenModelTests: XCTestCase {
         private(set) var turned: [Bool] = []
         private(set) var colouringChanges = 0
         private(set) var coloured: [String] = []
-        /// The changes Undo and Redo sent back.
+        /// The changes Undo and Redo sent back, and whether each was to be drawn.
         private(set) var recoloured: [Recolouring] = []
+        private(set) var recolourDraws: [Bool] = []
         /// What the colour bars changed, as the score answers it: nothing when it is empty, else the span laid in its colour.
         var colourChanges = true
         var changed: (() -> Void)?
@@ -81,8 +82,11 @@ final class PenModelTests: XCTestCase {
             return Recolouring(taken: spans.map { Recolouring.Highlight(onset: $0.lowerBound, end: $0.upperBound, colour: "amber") })
         }
 
-        func recolour(_ change: Recolouring) async {
-            if !change.isEmpty { recoloured.append(change) }
+        func recolour(_ change: Recolouring, draws: Bool) async {
+            if !change.isEmpty {
+                recoloured.append(change)
+                recolourDraws.append(draws)
+            }
             changed?()
         }
     }
@@ -211,6 +215,7 @@ final class PenModelTests: XCTestCase {
         model.undo()
         await recoloured(score, 1)
         XCTAssertEqual(score.recoloured, [laid.reversed], "the newest step first: the colour, not the stroke")
+        XCTAssertEqual(score.recolourDraws, [true], "a step of colour alone draws its own answer")
         XCTAssertEqual(score.changes.count, 1, "the stroke is still there")
         XCTAssertTrue(model.canUndo)
         XCTAssertTrue(model.canRedo)
@@ -265,7 +270,8 @@ final class PenModelTests: XCTestCase {
         XCTAssertTrue(model.canUndo, "the colour it took is a step (v1.4 i-5)")
     }
 
-    /// A press of the eraser that cut a stroke and took a colour is one step: Undo puts back both, Redo takes both again.
+    /// A press of the eraser that cut a stroke and took a colour is one step: Undo puts back both, Redo takes both again,
+    /// each drawn once, by the step's last ink call after the colours.
     func testAPressThatCutInkAndTookAColourIsOneStep() async {
         let (model, score) = made()
         score.page.rubbed = ["removed": [["id": "a"]], "uncoloured": [["start": 0, "end": 480]]]
@@ -273,14 +279,18 @@ final class PenModelTests: XCTestCase {
         await coloured(score, 1)
         let taken = Recolouring(taken: [Recolouring.Highlight(onset: 0, end: 480, colour: "amber")])
         model.undo()
-        await recoloured(score, 1)
+        await changes(score, 2)
         XCTAssertEqual(score.changes.map(\.call), ["ink.remove", "ink.add"], "the stroke cut comes back")
         XCTAssertEqual(score.recoloured, [taken.reversed], "and the colour, in the same Undo")
+        XCTAssertEqual(score.recolourDraws, [false], "the colours wait for the ink")
+        XCTAssertEqual(score.changes[1].draws, true, "the ink's last call draws the step once")
         XCTAssertFalse(model.canUndo, "one step")
         model.redo()
-        await recoloured(score, 2)
+        await changes(score, 3)
         XCTAssertEqual(score.changes.map(\.call), ["ink.remove", "ink.add", "ink.remove"])
         XCTAssertEqual(score.recoloured, [taken.reversed, taken])
+        XCTAssertEqual(score.recolourDraws, [false, false])
+        XCTAssertEqual(score.changes[2].draws, true, "drawn once again")
     }
 
     func testThePenTurnedOnOrOffGoesToTheScore() {

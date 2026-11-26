@@ -23,8 +23,9 @@ protocol PenScore: AnyObject {
     func colourBars(_ span: Range<Double>, in colour: String) async -> Recolouring
     /// Takes the colour from these stretches, whatever it is (the eraser over highlights); answers the change made.
     func uncolourBars(_ spans: [Range<Double>]) async -> Recolouring
-    /// Makes a change of the highlights: a step's, reversed for the Pen's Undo and as it was for its Redo (v1.4 i-5).
-    func recolour(_ change: Recolouring) async
+    /// Makes a change of the highlights: a step's, reversed for the Pen's Undo and as it was for its Redo (v1.4 i-5). The
+    /// answer is drawn unless `draws` is false, when the step's ink calls come after it and the last of them draws.
+    func recolour(_ change: Recolouring, draws: Bool) async
 }
 
 /// The score's pen (ADR 0031 section 3, S6): the pen's state as last chosen on this device, the bar's Pen, the pencil
@@ -76,10 +77,11 @@ final class PenModel: ObservableObject, PenHolder {
         inkQueue.then { [weak self] in
             guard let self, let score = self.score, let piece = score.pieceId, let last = self.steps.undo() else { return }
             self.inkStepsChanged()
+            // The colours first, then the ink, whose last call draws both: the step is drawn once.
+            await score.recolour(last.colouring.reversed, draws: !last.changesInk)
             await last.undo(remove: "ink.remove", add: "ink.add") { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
-            await score.recolour(last.colouring.reversed)
         }
     }
 
@@ -89,10 +91,10 @@ final class PenModel: ObservableObject, PenHolder {
         inkQueue.then { [weak self] in
             guard let self, let score = self.score, let piece = score.pieceId, let step = self.steps.redo() else { return }
             self.inkStepsChanged()
+            await score.recolour(step.colouring, draws: !step.changesInk)
             await step.redo(remove: "ink.remove", add: "ink.add") { call, request, draws in
                 await score.changeMarks(piece, call, request, draws: draws)
             }
-            await score.recolour(step.colouring)
         }
     }
 

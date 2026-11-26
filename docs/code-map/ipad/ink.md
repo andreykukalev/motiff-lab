@@ -29,8 +29,9 @@ page's `pen` and its mode, in that order. A change of `PenState.colouring` calls
 (a passage the page coloured) and the eraser's `uncoloured` go through the queue to `PenScore.colourBars` and
 `uncolourBars`, which answer the change made (`Recolouring`, Platform, by value). Since v1.4 (i-5, answer 4 (a)) it is
 the step's `InkStep.colouring` in the one Pen history: a passage coloured is a step, the colour a press of the eraser
-took is part of that press's step, and `undo` and `redo` send it, reversed or as it was, to `PenScore.recolour`; a
-change that changed nothing is no step (`record`). Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
+took is part of that press's step, and `undo` and `redo` send it, reversed or as it was, to `PenScore.recolour`
+before the step's ink, whose last call draws both, so the step is drawn once; a change that changed nothing is no step
+(`record`). Who writes and scrolls (`InkInput`, `InputRules`) and where a point is on the
 page stay the root's, which hands the points in in the page's pixels.
 
 ## The state it owns
