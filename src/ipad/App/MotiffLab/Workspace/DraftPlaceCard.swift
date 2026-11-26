@@ -96,9 +96,9 @@ struct DraftPlaceContent: View {
     /// A step on the draft: taken, the view opens again where the player is; refused, the card says so.
     private func take(_ step: @escaping @MainActor () async -> Bool) {
         Task {
-            let taken = await step()
-            guard taken else {
-                refused = owner.refused(taken)
+            let done = await step()
+            guard done else {
+                refused = owner.refused(done)
                 return
             }
             refused = false
