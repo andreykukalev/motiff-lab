@@ -1,3 +1,5 @@
+import UIKit
+import WebKit
 import XCTest
 
 @testable import MotiffLab
@@ -179,5 +181,56 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(RollPlace.holder(for: .drawer, among: reopened), 4, "the drawer opened again while the last one still slides away")
         XCTAssertNil(RollPlace.holder(for: .focus, among: [(.drawer, 1)]), "the card's holder is not made yet: it takes the web view when it is")
         XCTAssertNil(RollPlace.holder(for: nil, among: expanding), "the roll on no place: nobody takes the web view")
+    }
+}
+
+/// The roll's load (v1.4 r-1b): one that fails says so in the roll's place, and the next one that shows notes takes the
+/// failure away, so the drawer never says the roll could not be shown over notes it shows.
+@MainActor
+final class RollLoadTests: XCTestCase {
+    private var window: UIWindow?
+
+    override func tearDown() {
+        window?.isHidden = true
+        window = nil
+        super.tearDown()
+    }
+
+    /// Waits for `done`, at most five seconds.
+    private func until(_ done: () -> Bool) async {
+        for _ in 0..<100 where !done() {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    func testAFailedLoadSaysSoAndALoadThatShowsNotesTakesItAway() async throws {
+        let roll = RollController()
+        let shown = UIWindow(frame: CGRect(x: 0, y: 0, width: 1024, height: 400))
+        roll.webView.frame = shown.bounds
+        shown.addSubview(roll.webView)
+        shown.isHidden = false
+        window = shown
+        // The page tells the controller it is ready as it defines `window.roll`.
+        for _ in 0..<300 {
+            let found = try? await roll.webView.callAsyncJavaScript("return typeof window.roll", arguments: [:], contentWorld: .page)
+            if found as? String == "object" { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+
+        // A piece music-core does not hold: no roll.
+        roll.show(OpenPiece(id: 9_000_777, title: "None", pages: [], timemap: ""), dark: false)
+        await until { roll.problem != nil }
+        let failedFirst = roll.failed
+        XCTAssertTrue(failedFirst, "the roll says it could not be shown")
+
+        let example = try XCTUnwrap(KitPiece.example)
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        defer { _ = MusicCore.close(piece: piece.id) }
+        roll.show(piece, dark: false)
+        await until { roll.problem == nil }
+        let failedAfter = roll.failed
+        XCTAssertNil(roll.problem, "a load that showed the notes leaves no failure behind")
+        XCTAssertFalse(failedAfter)
     }
 }

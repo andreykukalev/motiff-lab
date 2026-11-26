@@ -283,6 +283,16 @@ struct RollSurface: View {
             .overlay(alignment: .bottom) {
                 RollZoomControls(roll: roll, text: text)
             }
+            // A load that failed leaves no notes: the roll says so, not an empty grid (v1.4 r-1b).
+            .overlay {
+                if roll.failed {
+                    Text(text["roll.failed"])
+                        .dsType(.label)
+                        .foregroundStyle(Color.ds("danger"))
+                        .multilineTextAlignment(.center)
+                        .padding(CGFloat.ds("s-4"))
+                }
+            }
     }
 }
 
