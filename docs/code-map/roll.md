@@ -11,28 +11,25 @@ the handles are drawn on the canvas, so they check what the roll posts.
 
 ## Modules
 
-- `piano-roll.ts`: `PianoRoll` (baselined): the API, the state shown, `draw` (scene and frame to the
-  painter, then the gestures' layers and the playhead), the legend, the floating zoom, the editor and the input
-  (`onPointerDown` › `roll-press.ts` › one `begin*` per gesture; `onPointerMove`, `pointerUp`, `cancelPresses`).
-  Editor, legend and input router leave in W3.12 part 2.
-- `roll-viewport.ts`: `RollViewport` owns zoom, view, glide, following and Expand's passage (`xOf`, `tickAtX`, `yOf`,
-  `pitchAt`, `zoom*`, `axisZoom` for OnRollZoom, `follow`, `bind`); reads the roll via `ViewportHost`, rules from
-  `roll-view.ts` and `roll-zoom.ts`.
+- `piano-roll.ts`: `PianoRoll` (baselined): the composition behind the port (RollApi): the API, the state shown, `draw`
+  (scene and frame to the painter, then the gestures' layers and the playhead), the floating zoom; it hands its
+  collaborators narrow hosts (`editorHost`, `inputHost`).
+- `roll-viewport.ts`: `RollViewport` owns zoom, view, glide, following and Expand's passage (`xOf`, `tickAtX`,
+  `ticksAcross` for any distance across, `timeFrame` for draw() and the bar numbers, `yOf`, `pitchAt`, `zoom*`,
+  `axisZoom` for OnRollZoom, `follow`, `bind`); reads the roll via `ViewportHost`, rules from `roll-view.ts` and
+  `roll-zoom.ts`. `TICKS_PER_QUARTER` comes from `score/score-timeline.ts` alone.
 - `roll-painter.ts` (`RollPainter.paint`: grid, layers, notes, tags, Check flags with `checkPlaces`; `drawPlayheadLine`),
   `roll-keys-draw.ts` (the keys down the left, the keyboard, `keyAt`), `roll-palette.ts` (the tokens read once per theme:
   `palette`, `measures`, written only by `readPalette`).
-- `roll-press.ts` (S2, the input router): `rollPressFor`, the press table: gutter (keys) › an edge by the place rule ›
-  a playhead (R7) › Select by place › touch-reading pan › the old edge › strips or the loop lane › the editor › the modes
-  (R8) › a note. Facts with a hit test are asked lazily, in that order. Test: `tests/shared/roll-press.test.mjs`.
+- `roll-legend.ts`: `RollLegend`, the legend's element and its swatches (`show`).
+- `roll-editor.ts`: `RollEditor`, the note editor (testing item 15): its tool, the note picked, the notes a box took,
+  a note dragged or lengthened on the sixteenth grid, a finger's tap that waits to be lifted, its keys; posts the
+  `OnRollNote*` calls and `OnRollNotesPicked`. The painter reads `placed` and `picked`.
+- The input router and its gestures (`roll-input.ts`, `roll-press.ts`, the place and the strips' gestures):
+  [`roll-input.md`](roll-input.md).
 - `roll-model.ts`: notes and bars from music-core's packed payload; `noteAt`, `inRange`, `grid`.
 - `roll-modes.ts`: what a press begins under the bar's tool (`gestureFor`, `selectsOnRoll`, `navigatesOnRoll`), the
   Edit notes box (`notesInBox`, overlap rule), the one playhead.
-- `roll-strip-gesture.ts`: the strips' hold-based selection gesture of 0.6.1 (`RollStripGesture`, `rangeBars`).
-- `roll-place.ts`, `roll-place-gesture.ts`, `roll-place-draw.ts` (#601): selection by place in Select. Hit tests (box,
-  lasso by note centre, `pickedSpan`, move steps), the press (`RollPlaceGesture` over `score/selection-places.ts`: edge,
-  inside = add, outside = new, taps, double tap = Fit, drag of picks = move), its drawing (`HANDLE`, rectangle, lasso).
-  v0.6.4: a drag is a span on the grid (`score/selection-grid.ts`); only the lasso picks notes; a span let go is held
-  (`placed`) until Swift's selection comes back; only an edge's handle beats a playhead.
 - `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view and zoom rules, playhead, lanes.
 
 ## Not reached by the iPad's roll (W0.6, 2026-11-16, kept)
@@ -41,9 +38,8 @@ the handles are drawn on the canvas, so they check what the roll posts.
   `setFilter`, `setVariation`, `clearVariation`, `setGhosts`, `setAudible`, `dispose`; `HAND_NONE`, `fitZoom`, `fitRow`,
   `ticksIn`, `narrowedPicks`, `RollPlaceGesture.active`.
 - roll.js sets touch reading and axis zoom at load, so their off sides are the web's (`zoomBy`, `reportZoom`,
-  `pointerUp`, `movedByFingers`, `onDocumentPointerUp`); the rules before the modes and `!placeOn` run only before
-  Swift's first `input` (`setRules`, `heldModel`, `beginRulePress`, `modelChanged`, `pressBarNumbers`, `stripHost`,
-  `drawPlace`).
+  `onDocumentPointerUp`; `RollInputRouter.pointerUp`); the rules before the modes and `!placeOn` run only before Swift's
+  first `input` (`setRules`, `heldModel`, `modelChanged`, `drawPlace`; `RollInputRouter.pressBarNumbers`, `stripHost`).
 
 ## iPad
 
