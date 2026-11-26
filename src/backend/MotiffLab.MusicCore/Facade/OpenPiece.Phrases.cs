@@ -45,7 +45,7 @@ internal sealed partial class OpenPiece
 
         Structure = Structure.With(Levels.With(edits));
         Project = Project.WithPhraseLevels(Levels.Edits);
-        _understood = null;
+        Selection.ForgetUnderstanding();
         return Answer.Write(json =>
         {
             Answer.Phrases(json, Levels, Structure.Sections, Level, Words, Piece.Meter);

@@ -8,7 +8,6 @@
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Analysis/MotifAnalyzer.cs","symbol":"MotifAnalyzer.Analyze","value":129,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Analysis/Phrasing/SentenceMap.Grouping.cs","symbol":"SentenceMap.Group","value":86,"why":"existing before #332; moved to Analysis/Phrasing (v1.2 c-1)"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Assembly/Assembled.cs","symbol":"Assembled.Builder.Carry","value":105,"why":"existing before #332"},
-    {"tool":"csharp","rule":"file-length","file":"src/backend/MotiffLab.MusicCore/Facade/OpenPiece.cs","symbol":"","value":736,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Import/Midi/MidiImporter.cs","symbol":"MidiImporter.Import","value":104,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Import/Midi/MidiIssueCodes.cs","symbol":"MidiIssueCodes.Describe","value":88,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Import/Midi/SmfReader.cs","symbol":"SmfReader.Read","value":100,"why":"existing before #332"},

@@ -21,7 +21,7 @@ internal sealed partial class OpenPiece
         Project = Project with { PlayerTempo = perMinute };
         Piece = Piece with { PlayerTempo = perMinute };
         // The character facts speak of the tempo.
-        _understood = null;
+        Selection.ForgetUnderstanding();
         PlaybackScore score = PlaybackScore.FromPiece(Piece);
         return Answer.Write(json => Answer.PlaybackTempoAnswer(json, score));
     }
