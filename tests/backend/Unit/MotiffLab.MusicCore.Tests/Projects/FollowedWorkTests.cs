@@ -1,5 +1,7 @@
 using MotiffLab.MusicCore.Analysis.Phrasing;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Motifs;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
@@ -11,7 +13,8 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// <summary>
 /// The player's work in ticks following the music when other Notes become the working ones (v1.5 c-11b; the v1.4 plan's
 /// answer 5): bookmarks, phrase boundaries, resume points and ideas placed by bars, a place in a bar with no match kept where
-/// the music before it went and told, and the line of the toast in both languages.
+/// the music before it went and told, the bars title of a bookmark, the versions compared, and the line of the toast in both
+/// languages.
 /// </summary>
 public class FollowedWorkTests
 {
@@ -85,6 +88,33 @@ public class FollowedWorkTests
         Assert.Null(followed!.Text(Words.English));
         Assert.Null(nothing);
         Assert.Equal(none.ResumePoints, untouched.ResumePoints);
+    }
+
+    [Fact]
+    public void A_bookmark_still_titled_by_its_bars_is_titled_by_its_bars_now_in_its_language_and_one_the_player_named_stays()
+    {
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5");
+        project = new[] { ("bar 2", Bars(2, 2)), ("такты 1–2", Bars(1, 2)), ("bar 2 tricky", Bars(2, 2)) }.Aggregate(project, static (marked, each) =>
+            marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
+
+        Project swapped = project.MakeWorking("n_2", out _);
+
+        Assert.Equal(["bar 3", "такты 2–3", "bar 2 tricky"], swapped.Bookmarks.Select(static bookmark => bookmark.Title));
+    }
+
+    [Fact]
+    public void A_version_compared_keeps_its_anchors_dismissed_bars_and_check_flags_on_the_same_music()
+    {
+        var version = new SavedPerformance("perf_1", "Live", PerformanceSource.Midi, [0x4d], 0, [new Anchor(new Tick(0), 0), new Anchor(new Tick(Bar), 2_000_000)]) { Dismissed = [2] };
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5").AddPerformance(version)
+            .WithPerformanceChecks([new CheckFlag(2, CheckSource.Performance, CheckReason.RecordingOctave, Resolved: true)]);
+
+        Project swapped = project.MakeWorking("n_2", out _);
+
+        SavedPerformance compared = Assert.Single(swapped.Performances);
+        Assert.Equal([new Anchor(new Tick(Bar), 0), new Anchor(new Tick(2 * Bar), 2_000_000)], compared.Anchors);
+        Assert.Equal([3], compared.Dismissed);
+        Assert.Equal(new CheckFlag(3, CheckSource.Performance, CheckReason.RecordingOctave, Resolved: true), Assert.Single(swapped.Check!));
     }
 
     [Fact]

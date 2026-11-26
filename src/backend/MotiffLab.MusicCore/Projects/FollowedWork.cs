@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
@@ -9,12 +10,13 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// The player's work kept in ticks with the piece, following the music when other Notes become the working ones (v1.4 plan,
 /// answer 5 of 2026-11-25: «Фразы и закладки при смене рабочих Нот переносятся по сопоставлению тактов сами»): the
-/// bookmarks, the phrase boundaries set or taken away at every level, the resume points and the ideas kept with a note alone,
-/// each placed by bars in the new working notes as the two are matched (<see cref="ReadingMatch"/>, the match of the
-/// corrections carried over). A place in a bar with no match is kept where the music before it went and told, never
-/// dropped: the earlier notes keep none of this work, so dropping it would lose it. What waits with its own notes (the marks,
-/// motifs, variations and ideas with a variation) and the versions compared are not here. Pure: the same projects give the
-/// same work.
+/// bookmarks (and a title still by their bars), the phrase boundaries set or taken away at every level, the resume points, the
+/// ideas kept with a note alone, and the versions compared with the notes (their anchors, the bars dismissed and their Check
+/// flags; lead, 2026-11-26: nothing stays in stale ticks), each placed by bars in the new working notes as the two are
+/// matched (<see cref="ReadingMatch"/>, the match of the corrections carried over). A place in a bar with no match is kept
+/// where the music before it went and told, never dropped: the earlier notes keep none of this work, so dropping it would
+/// lose it. What waits with its own notes (the marks, motifs, variations and ideas with a variation) is not here. Pure: the
+/// same projects give the same work.
 /// </summary>
 /// <param name="Project">The project with the work followed.</param>
 /// <param name="Bookmarks">The bookmarks whose place changed with their bars.</param>
@@ -74,21 +76,18 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
     {
         ArgumentNullException.ThrowIfNull(was);
         ArgumentNullException.ThrowIfNull(made);
-        bool placed = !made.Phrases.IsEmpty || !made.ShortPhrases.IsEmpty || !made.Sentences.IsEmpty || made.Bookmarks.Count > 0
-            || made.ResumePoints.Any(static point => point.At != Tick.Zero || point.Passage is not null)
-            || made.Observations.Any(static observation => observation.Variation is null);
-        if (!placed || !was.HasNotes || !made.HasNotes || Seen(was) is not { } before || Seen(made) is not { } after)
+        if (!Placed(made) || !was.HasNotes || !made.HasNotes || Seen(was) is not { } before || Seen(made) is not { } after)
         {
             return null;
         }
 
-        var follow = new Following(new ReadingMatch(before, after), after.Meter);
+        var follow = new Following(new ReadingMatch(before, after), before.Meter, after.Meter);
         Project followed = made with
         {
             Phrases = follow.Edits(made.Phrases, Told.Phrase),
             ShortPhrases = follow.Edits(made.ShortPhrases, Told.None),
             Sentences = follow.Edits(made.Sentences, Told.None),
-            Bookmarks = [.. made.Bookmarks.Select(bookmark => bookmark with { Span = follow.Span(bookmark.Span, Told.Bookmark) })],
+            Bookmarks = [.. made.Bookmarks.Select(follow.Placed)],
             ResumePoints = [.. made.ResumePoints.Select(point => point with
             {
                 At = follow.At(point.At, Told.None),
@@ -96,9 +95,17 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             })],
             Observations = [.. made.Observations.Select(observation => observation.Variation is not null ? observation
                 : observation with { Phrase = observation.Phrase with { Span = follow.Span(observation.Phrase.Span, Told.Idea) } })],
+            Performances = [.. made.Performances.Select(follow.Compared)],
+            Check = made.Check is { } check ? follow.Checks(check) : null,
         };
         return new FollowedWork(followed, follow.Moved(Told.Bookmark), follow.Moved(Told.Phrase), follow.Moved(Told.Idea), follow.Near, [.. follow.NearBars]);
     }
+
+    /// <summary>Whether the project keeps work in its working notes' ticks or bars that would follow them.</summary>
+    private static bool Placed(Project project) =>
+        !project.Phrases.IsEmpty || !project.ShortPhrases.IsEmpty || !project.Sentences.IsEmpty || project.Bookmarks.Count > 0
+        || project.ResumePoints.Any(static point => point.At != Tick.Zero || point.Passage is not null)
+        || project.Observations.Any(static observation => observation.Variation is null) || project.Performances.Count > 0;
 
     /// <summary>The working notes of <paramref name="project"/> as the player sees them; null when they do not open.</summary>
     private static ImportedPiece? Seen(Project project)
@@ -125,7 +132,7 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
     }
 
     /// <summary>The places of the work placed one by one, counted as they are told.</summary>
-    private sealed class Following(ReadingMatch match, MeterMap meter)
+    private sealed class Following(ReadingMatch match, MeterMap was, MeterMap meter)
     {
         private readonly int[] _moved = new int[4];
 
@@ -138,6 +145,46 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
         /// <summary>The edits with each boundary placed, set and taken away as before (a tick both set and taken away is set).</summary>
         public PhraseEdits Edits(PhraseEdits edits, Told told) =>
             PhraseEdits.None.Removing([.. edits.Removed.Select(tick => At(tick, told))]).Adding([.. edits.Added.Select(tick => At(tick, told))]);
+
+        /// <summary>
+        /// The bookmark at its place, and with a title that is still the bars title it started with, in either language
+        /// (<see cref="Bookmark.BarsTitle"/>), titled by its bars now in that language; a title the player gave stays.
+        /// </summary>
+        public Bookmark Placed(Bookmark bookmark)
+        {
+            TickSpan span = Span(bookmark.Span, Told.Bookmark);
+            Words[] languages = [Words.English, Words.Russian];
+            int language = Array.FindIndex(languages, words => bookmark.Title == Bookmark.BarsTitle(was, bookmark.Span, words));
+            return bookmark with { Span = span, Title = language < 0 ? bookmark.Title : Bookmark.BarsTitle(meter, span, languages[language]) };
+        }
+
+        /// <summary>
+        /// A version compared with the notes, lined up with the new ones: its anchors placed, those that would no longer
+        /// increase left out (an alignment needs them strictly increasing), and the bars the player said are not a
+        /// difference at their bars now. Its merge record is written back as it was (it names no bar the app reads).
+        /// </summary>
+        public SavedPerformance Compared(SavedPerformance performance)
+        {
+            List<Anchor> anchors = [];
+            foreach (Anchor anchor in performance.Anchors)
+            {
+                Anchor placed = anchor with { Score = At(anchor.Score, Told.None) };
+                if (anchors.Count == 0 || (placed.Score > anchors[^1].Score && placed.Microseconds > anchors[^1].Microseconds))
+                {
+                    anchors.Add(placed);
+                }
+            }
+
+            return performance with { Anchors = anchors, Dismissed = [.. performance.Dismissed.Select(Bar).Distinct().Order()] };
+        }
+
+        /// <summary>The Check flags, those of the versions compared at their bars now (one of a bar and reason kept), in bar order.</summary>
+        public IReadOnlyList<CheckFlag> Checks(IReadOnlyList<CheckFlag> flags) =>
+            [.. flags.Select(flag => flag.Source == CheckSource.Performance ? new CheckFlag(Bar(flag.Bar), flag.Source, flag.Reason, flag.Resolved) : flag)
+                .DistinctBy(static flag => (flag.Bar, flag.Source, flag.Reason)).OrderBy(static flag => flag.Bar).ThenBy(static flag => flag.Reason)];
+
+        /// <summary>The bar of the new working notes where an earlier bar's start is placed.</summary>
+        public int Bar(int number) => number < was.FirstBarNumber ? number : meter.BarAt(At(was.GetBar(number).Span.Onset, Told.None)).Number;
 
         public Tick At(Tick at, Told told)
         {

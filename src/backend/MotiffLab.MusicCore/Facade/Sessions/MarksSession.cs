@@ -33,12 +33,7 @@ internal static class MarksSession
     }
 
     /// <summary>"bars 1–8" / "такты 1–8": the title a bookmark starts with, and the name of an idea kept with a note alone.</summary>
-    public static string BarsTitle(SessionPiece piece, TickSpan span)
-    {
-        int first = piece.Piece.Meter.BarAt(span.Onset).Number;
-        int last = piece.Piece.Meter.BarAt(new Tick(span.End.Value - 1)).Number;
-        return first == last ? piece.Words.T($"bar {first}", $"такт {first}") : piece.Words.T($"bars {first}–{last}", $"такты {first}–{last}");
-    }
+    public static string BarsTitle(SessionPiece piece, TickSpan span) => Bookmark.BarsTitle(piece.Piece.Meter, span, piece.Words);
 
     /// <summary>The project with the <paramref name="strokes"/> added after the ink there, thinned as the ink is kept; refused when two strokes share an id.</summary>
     public static Project WithInk(SessionPiece piece, IReadOnlyList<InkStroke> strokes) => Marked(piece, marks => marks.AddInk(strokes));
