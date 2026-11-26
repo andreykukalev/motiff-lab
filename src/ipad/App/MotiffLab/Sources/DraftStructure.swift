@@ -85,14 +85,20 @@ struct DraftLengthChoice: Equatable, Sendable {
         last = now.last
     }
 
-    /// The first bar `by` bars on, kept from the Notes' first to the last bar asked.
+    /// The bars the first bar may be: from the Notes' first to the last bar asked.
+    var firstBars: ClosedRange<Int> { most.first...max(most.first, last) }
+
+    /// The bars the last bar may be: from the first bar asked to the Notes' last.
+    var lastBars: ClosedRange<Int> { min(first, most.last)...most.last }
+
+    /// The first bar `by` bars on, kept within `firstBars`.
     mutating func step(first by: Int) {
-        first = min(max(first + by, most.first), last)
+        first = min(max(first + by, firstBars.lowerBound), firstBars.upperBound)
     }
 
-    /// The last bar `by` bars on, kept from the first bar asked to the Notes' last.
+    /// The last bar `by` bars on, kept within `lastBars`.
     mutating func step(last by: Int) {
-        last = min(max(last + by, first), most.last)
+        last = min(max(last + by, lastBars.lowerBound), lastBars.upperBound)
     }
 
     /// The bars asked; nil while they are the place's own, which music-core does not take as a resize.

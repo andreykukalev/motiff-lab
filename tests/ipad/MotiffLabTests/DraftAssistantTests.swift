@@ -47,7 +47,8 @@ final class DraftAssistantTests: XCTestCase {
         """#)!
 
     /// r-1: a rotation or Split View lays the panel and a draft's card out anew, their fields with them: the question typed
-    /// and not sent is still there in the field made again, until it is sent, the chat closes or opens on another place.
+    /// and not sent is still there in the field made again, until it is sent, or a draft's place's chat closes or opens on
+    /// another place.
     func testAQuestionTypedAndNotSentOutlivesItsField() {
         let assistant = controller()
         assistant.open(wholePiece: true, selection: nil)
@@ -56,10 +57,6 @@ final class DraftAssistantTests: XCTestCase {
         remade.apply(.open)
         remade.apply(.type(assistant.unsentInPanel))
         XCTAssertEqual(remade.draft, "Почему здесь доминанта?", "the panel's field made again")
-        assistant.close()
-        XCTAssertEqual(assistant.unsentInPanel, "", "closed, the panel's question goes")
-        assistant.keepUnsent("late")
-        XCTAssertEqual(assistant.unsentInPanel, "", "none kept while the panel is closed")
 
         let first = AssistantDraftPlace(draft: "d_0001", place: "pl_0001", label: "①", basis: [])
         let second = AssistantDraftPlace(draft: "d_0001", place: "pl_0002", label: "②", basis: [])
@@ -75,6 +72,45 @@ final class DraftAssistantTests: XCTestCase {
         assistant.keepUnsent("And here?", inDraft: true)
         assistant.closeInDraft()
         XCTAssertEqual(assistant.unsentInDraft, "")
+    }
+
+    /// v1.5, answer 16: the panel's question typed and not sent outlives closing the panel, the field emptied as it closes
+    /// keeping it, and stands in the field when the panel opens again, by the pill or by an Ask; it goes once sent and when
+    /// the screen's piece is another.
+    func testThePanelsUnsentQuestionOutlivesClosingThePanel() {
+        let assistant = controller()
+        assistant.load(piece: "first")
+        assistant.open(wholePiece: true, selection: nil)
+        var field = AskFlow(surface: .panel)
+        field.apply(.open)
+        field.apply(.type("Почему здесь доминанта?"))
+        assistant.keepUnsent(field.draft)
+        field.apply(.close)
+        assistant.close()
+        // The field's own change, emptied by its close, reaches the controller after the panel has closed.
+        assistant.keepUnsent(field.draft)
+        XCTAssertEqual(assistant.unsentInPanel, "Почему здесь доминанта?", "closed, the panel keeps the question")
+
+        assistant.show()
+        var reopened = AskFlow(surface: .panel)
+        reopened.apply(.open)
+        reopened.apply(.type(assistant.unsentInPanel))
+        XCTAssertEqual(reopened.draft, "Почему здесь доминанта?", "opened again by the pill")
+        assistant.close()
+        assistant.open(wholePiece: false, selection: nil)
+        XCTAssertEqual(assistant.unsentInPanel, "Почему здесь доминанта?", "opened again by an Ask")
+
+        assistant.load(piece: "first")
+        XCTAssertEqual(assistant.unsentInPanel, "Почему здесь доминанта?", "the same piece on a screen made again keeps it")
+        let sent = reopened.apply(.send)
+        XCTAssertEqual(sent, "Почему здесь доминанта?")
+        assistant.keepUnsent(reopened.draft)
+        XCTAssertEqual(assistant.unsentInPanel, "", "sent, it goes")
+
+        assistant.keepUnsent("Где кульминация?")
+        assistant.close()
+        assistant.load(piece: "second")
+        XCTAssertEqual(assistant.unsentInPanel, "", "another piece's panel starts empty")
     }
 
     func testAStepProposedInAPlaceKeepsTheCallThatMakesItAgain() throws {
