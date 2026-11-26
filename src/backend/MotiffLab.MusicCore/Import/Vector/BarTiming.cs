@@ -1,3 +1,5 @@
+using MotiffLab.MusicCore.Time;
+
 namespace MotiffLab.MusicCore.Import.Vector;
 
 /// <summary>
@@ -18,7 +20,7 @@ internal static class BarTiming
         List<VectorEvent> all = [.. bar.Staves.SelectMany(events => events)];
         foreach (VectorEvent item in all)
         {
-            item.Ticks = item.Grace || item.WholeBar ? 0 : Dotted(item.Written, item.Dots) * item.Tuplet.Normal / item.Tuplet.Actual;
+            item.Ticks = item.Grace || item.WholeBar ? 0 : NoteValue.Dotted(item.Written, item.Dots) * item.Tuplet.Normal / item.Tuplet.Actual;
             item.Onset = 0;
         }
 
@@ -95,17 +97,6 @@ internal static class BarTiming
         return found >= 0 ? found : voices.FindIndex(voice => voice.End <= item.Onset && (voice.Up == item.StemUp || item.StemUp is null));
     }
 
-    /// <summary>A length with its dots: each dot adds half of what the one before added.</summary>
-    public static int Dotted(int ticks, int dots)
-    {
-        int total = ticks;
-        for (int dot = 1; dot <= dots; dot++)
-        {
-            total += ticks >> dot;
-        }
-
-        return total;
-    }
 
     /// <summary>Gives each event of a staff its voice; a grace note joins the voice of the note it leads to.</summary>
     /// <returns>Where the staff's longest voice ends.</returns>

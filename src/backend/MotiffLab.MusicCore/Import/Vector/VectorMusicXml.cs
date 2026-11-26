@@ -8,7 +8,8 @@ namespace MotiffLab.MusicCore.Import.Vector;
 /// <summary>
 /// Writes the bars read from one page as MusicXML, the shape the scan server's engines give (decision record 0029): one
 /// partwise part with a staff per printed staff, 480 divisions a quarter, each staff's voices one after another with a
-/// backup between them, each note's beam as read, and the time a voice skips as a <c>&lt;forward&gt;</c> in that voice. The
+/// backup between them, each note's beam as read, and the time a voice skips, up to the bar's end, as a
+/// <c>&lt;forward&gt;</c> in that voice, so that every voice adds up to the bar. The
 /// first bar holds the clefs, key and meter in force, so the page stands on its own and <see cref="Scan.ScanJoin"/> joins it
 /// with the others.
 /// </summary>
@@ -51,6 +52,8 @@ internal static class VectorMusicXml
         }
 
         int position = 0;
+        // The bar ends where its longest voice does.
+        int end = bar.Staves.SelectMany(events => events).Where(item => !item.Grace).Select(item => item.Onset + item.Ticks).DefaultIfEmpty(0).Max();
         foreach (IGrouping<int, VectorEvent> voice in bar.Staves.SelectMany(events => events).GroupBy(item => item.Voice).OrderBy(group => group.Key))
         {
             if (position > 0)
@@ -72,17 +75,27 @@ internal static class VectorMusicXml
 
                 if (item.Onset > position)
                 {
-                    measure.Add(new XElement("forward", new XElement("duration", Text(item.Onset - position)), new XElement("voice", Text(item.Voice)), new XElement("staff", Text(item.Staff + 1))));
+                    measure.Add(Forward(item.Onset - position, item));
                     position = item.Onset;
                 }
 
                 measure.Add(Notes(item, beams.GetValueOrDefault(item)));
                 position += item.Ticks;
             }
+
+            if (end > position)
+            {
+                measure.Add(Forward(end - position, ordered[0]));
+                position = end;
+            }
         }
 
         return measure;
     }
+
+    /// <summary>Time the voice of <paramref name="item"/> skips, in that voice and on its staff.</summary>
+    private static XElement Forward(int duration, VectorEvent item) =>
+        new("forward", new XElement("duration", Text(duration)), new XElement("voice", Text(item.Voice)), new XElement("staff", Text(item.Staff + 1)));
 
     private static XElement? Attributes(VectorBar bar, int staves, (IReadOnlyList<VectorClef> Clefs, int Fifths, VectorMeter? Meter)? opening)
     {

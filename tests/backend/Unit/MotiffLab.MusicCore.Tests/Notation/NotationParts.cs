@@ -13,11 +13,16 @@ internal static class NotationParts
 
     private static readonly XNamespace s_mei = "http://www.music-encoding.org/ns/mei";
 
-    /// <summary>An MEI tuplet's length in ticks: its values' written lengths together, times its numbase over its num.</summary>
-    public static long TupletTicks(XElement tuplet) =>
-        tuplet.Descendants().Where(element => element.Attribute("dur") is not null && element.Parent!.Name != s_mei + "chord")
+    /// <summary>An MEI tuplet's length in ticks: its values' written lengths together, times its numbase over its num, a whole number of ticks.</summary>
+    public static long TupletTicks(XElement tuplet)
+    {
+        long scaled = tuplet.Descendants().Where(element => element.Attribute("dur") is not null && element.Parent!.Name != s_mei + "chord")
             .Sum(element => 1920 / int.Parse((string)element.Attribute("dur")!) * (((int?)element.Attribute("dots") ?? 0) == 1 ? 3 : 2) / 2)
-        * (int)tuplet.Attribute("numbase")! / (int)tuplet.Attribute("num")!;
+            * (int)tuplet.Attribute("numbase")!;
+        int num = (int)tuplet.Attribute("num")!;
+        Assert.Equal(0, scaled % num);
+        return scaled / num;
+    }
 
     public static Note Note(string id, int pitch, long onset, long duration, int track = 0, Hand? hand = null) => new()
     {

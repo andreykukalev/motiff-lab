@@ -5,7 +5,7 @@ through the facade; the API references it.
 
 ## Folders (`MotiffLab.MusicCore.<Folder>`, some with sub-namespaces)
 
-- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`;
+- `Time`: `Tick`, `TickSpan` (480 a quarter), `QuarterFraction`, `CanonicalTime`, `MidiTimeBase`, `MusicXmlDivisions`, `NoteValue` (named values, dots);
   the tempo model (`PlaybackTempo`, `TempoSource`, `TempoBeat`).
 - `Events`: `Note`, `Pitch`, `Hand`, `KeyMode`, `Provenance`, `Attribution`, the player's corrections (`NoteEditLog`);
   pitch spelling (`NoteNaming`, `NoteNames`, `PitchSpeller`, `SpelledPitch`, `TransposedSpelling`, `KeyChange`).

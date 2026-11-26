@@ -169,6 +169,7 @@ public static class NotationGenerator
         return Counted(new GeneratedNotation(mei, main.StaffInfo, input.Length, main.Approximated, main.Shortened.Count, main.Heard.Held, main.Heard.Cut, main.Heard.Graces, asHeard), main) with
         {
             TempoMarkCount = markCount,
+            AppWrittenBarCount = printed is null || asHeard ? null : Enumerable.Range(written.FirstIndex, written.Count).Count(index => main.Staves.Any(staff => !staff.Printed.ContainsKey(index))),
             Excerpt = bars is null ? null : written.Range,
             Ossias = [.. above.Select((ossia, index) => new GeneratedOssia(ossia.Label, parts[index].StaffInfo, ossiaNotes[index].Length, OssiaIdPrefix(index)))],
         };

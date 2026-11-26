@@ -13,26 +13,13 @@ namespace MotiffLab.MusicCore.Notation;
 /// </summary>
 /// <remarks>
 /// A bar of a staff keeps the generator's writing when the record does not fit it: a voice whose notes or rests overlap,
-/// a first voice whose values do not add up to the bar, a written value that is not the note's length, a tie or voice that
+/// a voice whose values (with the time it skips as written) do not add up to the bar, a written value that is not the note's length, a tie or voice that
 /// crosses to another staff, a chord whose notes are written differently. In a bar that fits, a voice with a note the player
 /// corrected, added or removed is written by the generator's rules inside that voice; a note added goes into the first
 /// voice with room for it, or into a voice of its own.
 /// </remarks>
 internal static class PrintedBars
 {
-    /// <summary>MEI's note values and MusicXML's names for them.</summary>
-    private static readonly Dictionary<string, int> s_types = new(StringComparer.Ordinal)
-    {
-        ["whole"] = 1,
-        ["half"] = 2,
-        ["quarter"] = 4,
-        ["eighth"] = 8,
-        ["16th"] = 16,
-        ["32nd"] = 32,
-        ["64th"] = 64,
-        ["128th"] = 128,
-    };
-
     /// <summary>
     /// The staff's bars written as printed among the bars written, by bar index (<see cref="StaffPlan.Printed"/>), and the
     /// notes written as printed in all of them (<see cref="StaffPlan.AsPrinted"/>).
@@ -160,14 +147,14 @@ internal static class PrintedBars
         return true;
     }
 
-    /// <summary>The voices written, the first of them adding up to the bar; null when one does not fit.</summary>
+    /// <summary>The voices written, each adding up to the bar; null when one does not fit.</summary>
     private static PrintedCell? Written(IEnumerable<VoicePlan> plans, Bar bar)
     {
         var voices = new List<PrintedVoice>();
         var asPrinted = new HashSet<string>(StringComparer.Ordinal);
         foreach (VoicePlan plan in plans)
         {
-            PrintedVoice? voice = plan.Generated.Count > 0 || plan.Changed ? GeneratedVoice(plan, bar) : PrintedVoiceOf(plan, bar, first: voices.Count == 0);
+            PrintedVoice? voice = plan.Generated.Count > 0 || plan.Changed ? GeneratedVoice(plan, bar) : PrintedVoiceOf(plan, bar);
             if (voice is null)
             {
                 return null;
@@ -199,10 +186,10 @@ internal static class PrintedBars
     }
 
     /// <summary>A voice as the score writes it; null when it does not fit the bar.</summary>
-    private static PrintedVoice? PrintedVoiceOf(VoicePlan plan, Bar bar, bool first)
+    private static PrintedVoice? PrintedVoiceOf(VoicePlan plan, Bar bar)
     {
         List<PrintedItem>? items = Items(plan, bar);
-        if (items is null || Gaps(items, bar, first) is not { } complete)
+        if (items is null || AddsUp(items, bar) is not { } complete)
         {
             return null;
         }
@@ -288,39 +275,23 @@ internal static class PrintedBars
     }
 
     /// <summary>
-    /// The items with spaces in the gaps of a lower voice; null when items overlap, leave the bar, a space is off the 128th
-    /// grid, or the first voice leaves a gap (its values do not add up to the bar).
+    /// The items when they add up to the bar: one after another from its start to its end, the time the voice skips written
+    /// as spaces on the 128th grid; null when items overlap, leave the bar or leave a gap the score does not write.
     /// </summary>
-    private static List<PrintedItem>? Gaps(List<PrintedItem> items, Bar bar, bool first)
+    private static List<PrintedItem>? AddsUp(List<PrintedItem> items, Bar bar)
     {
-        var complete = new List<PrintedItem>();
         long cursor = bar.Span.Onset.Value;
-        foreach (PrintedItem item in items.Append(new PrintedItem(PrintedKind.Space, bar.Span.End.Value, bar.Span.End.Value)))
+        foreach (PrintedItem item in items)
         {
-            if (item.Start < cursor || item.End > bar.Span.End.Value || (item.Kind == PrintedKind.Space && !Fillable(item.Start, item.End, bar)))
+            if (item.Start != cursor || item.End > bar.Span.End.Value || (item.Kind == PrintedKind.Space && !Fillable(item.Start, item.End, bar)))
             {
                 return null;
-            }
-
-            if (item.Start > cursor)
-            {
-                if (first || !Fillable(cursor, item.Start, bar))
-                {
-                    return null;
-                }
-
-                complete.Add(new PrintedItem(PrintedKind.Space, cursor, item.Start));
-            }
-
-            if (item.End > item.Start)
-            {
-                complete.Add(item);
             }
 
             cursor = item.End;
         }
 
-        return complete;
+        return cursor == bar.Span.End.Value ? items : null;
     }
 
     /// <summary>The score's beams over the items, from a note that begins one to the note that ends it; null when it writes none.</summary>
@@ -360,18 +331,18 @@ internal static class PrintedBars
     /// </summary>
     internal static (int Dur, int Dots)? Value(MusicXmlWriting writing, QuarterFraction duration)
     {
-        int[] durs = writing.Type is { } type ? (s_types.TryGetValue(type, out int named) ? [named] : []) : [.. s_types.Values];
+        IEnumerable<QuarterFraction> values = writing.Type is { } type ? NoteValue.Named.TryGetValue(type, out QuarterFraction named) ? [named] : [] : NoteValue.Named.Values;
         int[] dots = writing.Type is null ? [0, 1, 2] : [writing.Dots];
         (int actual, int normal) = writing.Tuplet is { } tuplet ? (tuplet.Actual, tuplet.Normal) : (1, 1);
-        foreach (int dur in durs)
+        // MEI writes a value as the parts of a whole note it is: 1, 2, 4 … 128; a breve is not written.
+        foreach (QuarterFraction value in values.Where(value => (4 * value.Denominator) % value.Numerator == 0 && value.Numerator <= 4))
         {
             foreach (int dot in dots.Where(dot => dot is >= 0 and <= 4))
             {
-                // A value of 4/dur quarters, each dot adding half the last: 4 (2^(d+1) - 1) / (dur 2^d), times normal/actual.
-                var length = new QuarterFraction(4L * ((1L << (dot + 1)) - 1) * normal, dur * (1L << dot) * actual);
-                if (length == duration)
+                QuarterFraction length = NoteValue.Dotted(value, dot);
+                if (new QuarterFraction(length.Numerator * normal, length.Denominator * actual) == duration)
                 {
-                    return (dur, dot);
+                    return ((int)(4 * value.Denominator / value.Numerator), dot);
                 }
             }
         }

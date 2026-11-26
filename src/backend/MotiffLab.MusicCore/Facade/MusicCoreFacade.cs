@@ -36,7 +36,9 @@ public sealed partial class MusicCoreFacade
     /// image); check answers "fingerprint", the working notes' music; corrections.variant puts a variant in that bar as the
     /// player's corrections, one group undone whole by corrections.undoDraft; fields and a call added. Also within 14 (v1.3
     /// i-1b, Andrei 2026-11-24): scan.insert puts a page no engine read, read again by itself, into the same Notes of a project
-    /// file, the player's corrections carried over and the bars after it numbered on; a call added.
+    /// file, the player's corrections carried over and the bars after it numbered on; a call added. Also within 14 (v1.4 c-4,
+    /// «Как напечатано» step 1): notation writes notes with a source record as the score prints them where it fits, and
+    /// answers "appWrittenBarCount", the bars the app wrote where it does not (null for notes without a record); a field added.
     /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
     /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
     /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they

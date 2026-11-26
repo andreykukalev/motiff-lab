@@ -28,6 +28,8 @@ public class PrintedBarsTests
 
     private static string Back(int duration) => $"<backup><duration>{duration}</duration></backup>";
 
+    private static string Forward(int duration, string voice) => $"<forward><duration>{duration}</duration><voice>{voice}</voice><staff>1</staff></forward>";
+
     private const string Triplet = "<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>";
 
     private static string Beam(string where) => $"<beam number=\"1\">{where}</beam>";
@@ -221,16 +223,94 @@ public class PrintedBarsTests
     }
 
     [Fact]
-    public void A_gap_in_a_lower_voice_and_a_voiced_forward_are_spaces()
+    public void The_time_a_lower_voice_skips_as_written_is_spaces()
     {
         MusicXmlImport score = Score(1, "4/4",
             N("E5", 48, "whole", more: "<stem>up</stem>")
-            + Back(48) + "<forward><duration>24</duration><voice>2</voice><staff>1</staff></forward>" + N("C5", 12, "quarter", voice: "2", more: "<stem>down</stem>"));
+            + Back(48) + Forward(24, "2") + N("C5", 12, "quarter", voice: "2", more: "<stem>down</stem>") + Forward(12, "2"));
 
         XElement lower = Bar(Printed(score), 1).Elements(s_mei + "layer").Last();
 
         Assert.Equal(["space", "note", "space"], lower.Elements().Select(element => element.Name.LocalName));
         Assert.Equal("down", (string?)lower.Element(s_mei + "note")!.Attribute("stem.dir"));
+    }
+
+    [Fact]
+    public void A_lower_voice_that_leaves_a_gap_the_score_does_not_write_writes_the_bar_as_before()
+    {
+        MusicXmlImport score = Score(1, "4/4",
+            N("E5", 48, "whole", more: "<stem>up</stem>")
+            + Back(48) + Forward(24, "2") + N("C5", 12, "quarter", voice: "2", more: "<stem>down</stem>"));
+
+        Assert.All(Bar(Printed(score), 1).Descendants(s_mei + "note"), note => Assert.Null(note.Attribute("stem.dir")));
+        Assert.Equal(1, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+    }
+
+    [Fact]
+    public void A_hidden_rest_off_the_grid_in_a_lower_voice_writes_the_bar_as_before()
+    {
+        // A triplet eighth's time without a sign: no note value of the generator fills it.
+        MusicXmlImport score = Score(1, "4/4",
+            N("E5", 48, "whole", more: "<stem>up</stem>")
+            + Back(48) + R(4, "eighth", voice: "2", more: Triplet).Replace("<note>", "<note print-object=\"no\">", StringComparison.Ordinal)
+            + N("C5", 4, "eighth", voice: "2", more: Triplet + "<stem>down</stem>") + N("D5", 4, "eighth", voice: "2", more: Triplet + "<stem>down</stem>")
+            + N("E4", 12, "quarter", voice: "2", more: "<stem>down</stem>") + N("F4", 24, "half", voice: "2", more: "<stem>down</stem>"));
+
+        Assert.All(Bar(Printed(score), 1).Descendants(s_mei + "note"), note => Assert.Null(note.Attribute("stem.dir")));
+    }
+
+    [Fact]
+    public void A_note_moved_to_another_pitch_keeps_its_voice_as_printed()
+    {
+        MusicXmlImport score = Score(1, "4/4",
+            N("E5", 18, "quarter", more: "<dot/><stem>up</stem>") + N("F5", 6, "eighth", more: "<stem>up</stem>") + N("G5", 24, "half", more: "<stem>up</stem>"));
+        Note[] notes = [.. score.Notes.Select(note => note.Id == "n_0002" ? note with { Pitch = new Pitch(76), Attribution = Attribution.UserEdited } : note)];
+
+        XDocument mei = XDocument.Parse(NotationGenerator.Generate(notes, score.Meter, [], score.End, printed: PrintedNotation.Of(score)).Mei);
+
+        XElement[] written = [.. Bar(mei, 1).Descendants(s_mei + "note")];
+        Assert.All(written, note => Assert.Equal("up", (string?)note.Attribute("stem.dir")));
+        Assert.Equal("1", (string?)written[0].Attribute("dots"));
+    }
+
+    [Fact]
+    public void Tuplets_without_brackets_end_on_the_beat()
+    {
+        string sixTriplets = string.Concat(Enumerable.Range(0, 6).Select(index => N("C5", 4, "eighth", more: Triplet)));
+        string quarterTriplets = N("C5", 12, "quarter") + string.Concat(Enumerable.Range(0, 3).Select(index => N("D5", 8, "quarter", more: Triplet))) + N("E5", 12, "quarter");
+
+        XDocument mei = Printed(Score(1, "2/4", sixTriplets));
+        XDocument across = Printed(Score(1, "4/4", quarterTriplets));
+
+        Assert.Equal([3, 3], Bar(mei, 1).Descendants(s_mei + "tuplet").Select(tuplet => tuplet.Elements(s_mei + "note").Count() + tuplet.Elements(s_mei + "beam").Elements(s_mei + "note").Count()));
+        Assert.Equal(3, Bar(across, 1).Descendants(s_mei + "tuplet").Single().Descendants(s_mei + "note").Count());
+    }
+
+    [Fact]
+    public void A_note_removed_from_a_lower_voice_leaves_that_voice_to_the_rules()
+    {
+        MusicXmlImport score = Score(1, "4/4",
+            N("E5", 48, "whole", more: "<stem>up</stem>")
+            + Back(48) + N("C5", 24, "half", voice: "2", more: "<stem>down</stem>") + N("D5", 24, "half", voice: "2", more: "<stem>down</stem>"));
+        Note[] notes = [.. score.Notes.Where(note => note.Pitch.MidiNumber != 74)];
+
+        XDocument mei = XDocument.Parse(NotationGenerator.Generate(notes, score.Meter, [], score.End, printed: PrintedNotation.Of(score)).Mei);
+
+        XElement[] layers = [.. Bar(mei, 1).Elements(s_mei + "layer")];
+        Assert.Equal("up", (string?)layers[0].Element(s_mei + "note")!.Attribute("stem.dir"));
+        Assert.Null(layers[1].Element(s_mei + "note")!.Attribute("stem.dir"));
+    }
+
+    [Fact]
+    public void The_bars_the_app_writes_are_counted_and_none_without_a_record()
+    {
+        string printed = N("C5", 48, "whole");
+        // Three quarters in the last 4/4 bar, as an engine misreads one.
+        string misread = N("D5", 12, "quarter") + N("E5", 12, "quarter") + N("F5", 12, "quarter");
+        MusicXmlImport score = Score(1, "4/4", printed, printed, misread);
+
+        Assert.Equal(1, NotationGenerator.FromMusicXml(score).AppWrittenBarCount);
+        Assert.Null(NotationGenerator.Generate(score.Notes, score.Meter, [], score.End).AppWrittenBarCount);
     }
 
     [Fact]
@@ -243,7 +323,7 @@ public class PrintedBarsTests
     }
 
     [Fact]
-    public void The_vector_reading_writes_its_beams_and_the_time_a_voice_skips()
+    public void The_vector_reading_writes_its_beams_and_the_time_a_voice_skips_to_the_bar_s_end()
     {
         static VectorEvent Eighth(double x, int onset, char step) => new()
         {
@@ -265,5 +345,7 @@ public class PrintedBarsTests
 
         Assert.Equal([MusicXmlBeam.Begin, MusicXmlBeam.Continue, MusicXmlBeam.Continue, MusicXmlBeam.End], read.WrittenNotes.Where(note => note.Voice == "1").OrderBy(note => note.Span.Onset).Select(note => note.Writing.Beam));
         Assert.Equal(new TickSpan(Tick.Zero, 960), read.Spaces.Single(space => space.Voice == "2").Span);
+        // The eighths end halfway: the voice skips the rest of the bar, so it adds up to the bar.
+        Assert.Equal(new TickSpan(new Tick(960), 960), read.Spaces.Single(space => space.Voice == "1").Span);
     }
 }

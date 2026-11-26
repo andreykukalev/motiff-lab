@@ -4910,7 +4910,8 @@
     "tripletCount": 15,
     "slurCount": 0,
     "pedalCount": 0,
-    "writtenAsHeard": false
+    "writtenAsHeard": false,
+    "appWrittenBarCount": 0
    }
   },
   {
