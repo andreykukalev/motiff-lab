@@ -24,30 +24,9 @@ internal sealed partial class OpenPiece
             new("reference.key", static (piece, request) => ReferenceRequest.Key(request, PieceDna.OpeningKey(piece.Notes, piece.Piece.Meter, piece.Piece.Keys, piece.Piece.End))),
         ];
 
-        /// <summary>What the project keeps with the piece: marks, bookmarks, resume points, ideas, settings, Check, pieces, tempo.</summary>
+        /// <summary>What the project keeps with the piece: resume points, ideas, settings, Check, pieces, tempo (the marks and bookmarks: <see cref="Marks"/>).</summary>
         public static readonly FacadeCall<OpenPiece>[] Project =
         [
-            new("marks", static (piece, _) => piece.MarksAnswer(), CallFlags.Showing | CallFlags.OpenFirst),
-            new("ink.add", static (piece, request) => piece.Marks(marks => marks.AddInk(request.Elements("strokes").Select(ReadStroke)))),
-            new("ink.remove", static (piece, request) => piece.Marks(marks => marks.RemoveInk(request.Texts("ids")))),
-            new("ink.clear", static (piece, _) => piece.Marks(marks => marks.WithInk([]))),
-            new("note.add", static (piece, request) => piece.Marks(marks => marks.AddNote(new MarginNote(marks.NextNoteId(), piece.Span(request), request.Required("text"), Now(request))))),
-            new("note.change", static (piece, request) => piece.Marks(marks => marks.ChangeNote(request.Required("id"), request.Required("text")))),
-            new("note.remove", static (piece, request) => piece.Marks(marks => marks.RemoveNote(request.Required("id")))),
-            new("highlight.add", static (piece, request) => piece.Marks(marks => marks.AddHighlight(new Highlight(marks.NextHighlightId(), piece.Span(request), request.Texts("notes"), request.Enum<InkColour>("colour") ?? InkColour.Amber)))),
-            new("highlight.remove", static (piece, request) => piece.Marks(marks => marks.RemoveHighlight(request.Required("id")))),
-            new("fingering.set", static (piece, request) => piece.Marks(marks => marks.SetFingering(new Fingering(request.Required("noteId"), request.Int("finger") ?? throw FacadeException.BadRequest("The fingering needs \"finger\", 1 to 5."))))),
-            new("fingering.remove", static (piece, request) => piece.Marks(marks => marks.RemoveFingering(request.Required("noteId")))),
-            new("bookmarks", static (piece, _) => piece.BookmarksAnswer(), CallFlags.OpenFirst),
-            new("bookmark.add", static (piece, request) => piece.AddBookmark(request)),
-            new("bookmark.change", static (piece, request) => piece.ChangeBookmark(request)),
-            new("bookmark.move", static (piece, request) => piece.Bookmarks(project => project.MoveBookmark(request.Required("id"), request.Int("index") ?? throw FacadeException.BadRequest("Send \"index\", the place in your order.")))),
-            new("bookmark.remove", static (piece, request) => piece.Bookmarks(project => project.RemoveBookmark(request.Required("id")))),
-            new("bookmark.structure", static (piece, request) => piece.Bookmarks(project => project.AddStructureBookmarks(piece.Levels.Sentences.Sentences, piece.Words, Now(request)))),
-            new("bookmark.form", static (piece, request) => piece.Bookmarks(project => project.AddFormBookmarks(piece.Structure.Sections, piece.Words, Now(request)))),
-            new("category.add", static (piece, request) => piece.Bookmarks(project => project.AddCategory(new BookmarkCategory(project.NextCategoryId(), request.Required("name"), request.Enum<InkColour>("ink") ?? InkColour.Graphite)))),
-            new("category.rename", static (piece, request) => piece.Bookmarks(project => project.RenameCategory(request.Required("id"), request.Text("name")))),
-            new("category.remove", static (piece, request) => piece.Bookmarks(project => project.RemoveCategory(request.Required("id")))),
             new("resume", static (piece, _) => Answer.Write(json => Answer.ResumePoints(json, piece.Project, piece.Piece.Meter)), CallFlags.OpenFirst),
             new("resume.save", static (piece, request) => piece.SaveResumePoint(request)),
             new("resume.rename", static (piece, request) => piece.Resume(project => project.ChangeResumePoint(request.Required("id"), point => point.Rename(request.Text("name"))))),
@@ -68,7 +47,7 @@ internal sealed partial class OpenPiece
             new("check", static (piece, _) => Answer.Write(piece.CheckAnswer), CallFlags.Showing | CallFlags.OpenFirst),
             new("check.resolve", static (piece, request) => piece.Change(project => PiecesRequest.Resolve(project, request), piece.CheckAnswer)),
             new("pieces.find", static (piece, request) => Answer.Write(json => PiecesRequest.Find(json, piece.Project, piece.Piece, piece.Notes, piece.Words, request))),
-            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, Now(request), request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
+            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
             new("tempo", static (piece, _) => Answer.Write(json => TempoRequest.Write(json, piece.Project, piece.Piece, piece.Words))),
         ];
     }

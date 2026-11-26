@@ -109,7 +109,7 @@ internal sealed partial class OpenPiece
             return SourcesAnswer(json => json.WriteBoolean("linked", false));
         }
 
-        Project = SourcesSession.HeldOnIpad(linked, PieceOriginal.DocumentId, held: true, Now(request));
+        Project = SourcesSession.HeldOnIpad(linked, PieceOriginal.DocumentId, held: true, request.Now());
         return SourcesAnswer(json => json.WriteBoolean("linked", true));
     }
 
@@ -118,7 +118,7 @@ internal sealed partial class OpenPiece
     {
         string id = request.Required("id");
         bool held = request.Bool("held") ?? throw FacadeException.BadRequest("Send \"held\", true or false.");
-        Project = SourcesSession.HeldOnIpad(Project, id, held, Now(request));
+        Project = SourcesSession.HeldOnIpad(Project, id, held, request.Now());
         return SourcesAnswer();
     }
 
@@ -135,7 +135,7 @@ internal sealed partial class OpenPiece
         List<PageReport>? reports = ScanRequest.ReportsIn(request);
         string original = request.Required("original");
         string engine = request.Required("engine");
-        DateTimeOffset now = Now(request);
+        DateTimeOffset now = request.Now();
         return Changed(request, project => project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), json => json.WriteString("id", id));
     }
 }

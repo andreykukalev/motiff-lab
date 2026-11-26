@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -26,7 +25,7 @@ internal static class PartsRequest
     public static string Split(Request fields)
     {
         Project collection = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
-        var options = new PieceSplitOptions(Now(fields), MusicCoreFacade.NewProjectId)
+        var options = new PieceSplitOptions(fields.Now(), MusicCoreFacade.NewProjectId)
         {
             Playlist = fields.Text("playlist"),
             Device = fields.Enum<HoldingDevice>("device"),
@@ -184,9 +183,4 @@ internal static class PartsRequest
             throw FacadeException.BadRequest("A part's \"pdf\" is not base64.");
         }
     }
-
-    private static DateTimeOffset Now(Request request) =>
-        request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
 }

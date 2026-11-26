@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
@@ -29,7 +28,7 @@ internal static class SourceRequest
         new("sources.layers", static (on, request) => Layers(request, on.Get(), on.Words)),
         new("sources.view.hide", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false.")))),
         new("sources.notes.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.DeleteNotes(request.Required("id")))),
-        new("sources.original.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.RemoveOriginal(request.Required("id"), Now(request), request.Bool("withNotes") ?? false))),
+        new("sources.original.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.RemoveOriginal(request.Required("id"), request.Now(), request.Bool("withNotes") ?? false))),
         new("sources.original.add", static (on, request) => AddOriginal(request, on.Get, on.Set, on.EvenPages, on.Words)),
     ];
 
@@ -86,7 +85,7 @@ internal static class SourceRequest
         long from = request.Long("sentFromMs") ?? 0;
         (long, long) stretch = (from, from + request.Long("milliseconds")!.Value);
         string id = project.HasNotes ? project.NextNotesId() : project.NotesId;
-        return Changed(request, get, set, words, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, Now(request), stretch), json => json.WriteString("id", id));
+        return Changed(request, get, set, words, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, request.Now(), stretch), json => json.WriteString("id", id));
     }
 
     /// <summary>
@@ -132,11 +131,6 @@ internal static class SourceRequest
         return Layers(request, changed, words, more);
     }
 
-    public static DateTimeOffset Now(Request request) =>
-        request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
-
     /// <summary>
     /// «+ Добавить оригинал»: "kind" ("pdf", "images", "audio", "midi", "musicxml"), "fileName", "kept" ("file", the
     /// default, "device" or "link"), "data" (base64, with "file"), "folder", "pages", "durationMs" and "now". The same file
@@ -170,7 +164,7 @@ internal static class SourceRequest
             _ => "src_score",
         };
         Project project = get();
-        var original = new PieceOriginal(project.NextOriginalId(stem), kind, request.Required("fileName"), kept, Now(request))
+        var original = new PieceOriginal(project.NextOriginalId(stem), kind, request.Required("fileName"), kept, request.Now())
         {
             Folder = request.Text("folder"),
             Pages = request.Int("pages"),

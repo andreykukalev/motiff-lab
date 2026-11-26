@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Import;
@@ -131,7 +130,7 @@ internal sealed class OpenDocument
         new("document.ink.add", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])), CallFlags.NeedsPdf),
         new("document.ink.remove", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])), CallFlags.NeedsPdf),
         new("document.ink.clear", static (document, request) => document.Change(request, marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])), CallFlags.NeedsPdf),
-        new("document.bookmark.add", static (document, request) => document.Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), Now(request))), CallFlags.NeedsPdf),
+        new("document.bookmark.add", static (document, request) => document.Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), request.Now())), CallFlags.NeedsPdf),
         new("document.bookmark.rename", static (document, request) => document.Change(request, marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))), CallFlags.NeedsPdf),
         new("document.bookmark.remove", static (document, request) => document.Change(request, marks => marks.RemoveBookmark(request.Required("id"))), CallFlags.NeedsPdf),
         new("document.read", static (document, request) => document.Read(request), CallFlags.NeedsPdf),
@@ -223,11 +222,9 @@ internal sealed class OpenDocument
 
     private string Save(Request request)
     {
-        if (request.Text("now") is { } text)
+        if (request.SentNow() is { } now)
         {
-            Project = DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset now)
-                ? Project with { LastOpened = now }
-                : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.");
+            Project = Project with { LastOpened = now };
         }
 
         return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project));
@@ -267,7 +264,7 @@ internal sealed class OpenDocument
             throw new FacadeException("import", imported.Rejection?.Text(words) ?? words.T("No notes could be read from these pages.", "На этих страницах не удалось прочитать нот."));
         }
 
-        DateTimeOffset now = Now(request);
+        DateTimeOffset now = request.Now();
         int pages = Math.Max(1, request.Int("pages") ?? 1);
         Project read;
         try
@@ -370,9 +367,4 @@ internal sealed class OpenDocument
             throw FacadeException.BadRequest(exception.Message);
         }
     }
-
-    private static DateTimeOffset Now(Request request) =>
-        request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
@@ -147,6 +148,18 @@ internal sealed class Request : IDisposable
 
         return values;
     }
+
+    /// <summary>
+    /// "now", the time the call is made at as the app sends it (ISO 8601), else the clock (audit D15): the one place the
+    /// facade reads the time; the adapters read it and hand it to the sessions and the rules, which never read a clock.
+    /// </summary>
+    public DateTimeOffset Now() => SentNow() ?? DateTimeOffset.UtcNow;
+
+    /// <summary>"now" as sent, null when it is not: project.save keeps the time the piece was last opened unless it is sent.</summary>
+    public DateTimeOffset? SentNow() =>
+        Text("now") is { } text
+            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
+            : null;
 
     /// <summary>A span {"onset", "end"} in ticks.</summary>
     public TickSpan? Span(string name)
