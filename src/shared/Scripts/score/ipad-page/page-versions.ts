@@ -18,8 +18,6 @@ const PERFORMANCE_MIN_WIDTH = 36;
 const PERFORMANCE_MAX_WIDTH = 180;
 /** A draft's place label (v1.1) says where the place came from, so it may run on longer than a version's. */
 const PLACE_MAX_WIDTH = 360;
-/** A draft's приём numbers (v1.1) in one bar stand side by side, this far apart. */
-const NUMBER_STEP = PERFORMANCE_TARGET + 4;
 
 /** Where a Check flag or a margin note stands over the bars, which a label stops short of. */
 export interface MarkFlag {
@@ -97,6 +95,8 @@ export function placePerformance(geometry: ScoreGeometry, flags: readonly MarkFl
     all.filter((entry) => entry.marker.seam !== undefined).forEach(placeSeam);
     const placed = all.filter((entry) => entry.marker.seam === undefined);
     const numbers = placed.filter((entry) => isNumber(entry.marker));
+    // Where the next number of a bar starts: just after the one before it, as wide as it is drawn (v1.4, F7: a fixed step
+    // let an anchor's mark run onto a number's frame).
     const inBar = new Map<string, number>();
     placed.forEach(({ marker, bar }, index) => {
         // A label runs on up to the next of its own kind: a draft's numbers (v1.1) neither cut a label nor are cut by one.
@@ -107,13 +107,14 @@ export function placePerformance(geometry: ScoreGeometry, flags: readonly MarkFl
         // A place's label goes up a row over the numbers in its room; the numbers of one bar stand side by side.
         const over = marker.place && numbers.some((entry) => entry.bar.system === bar.system && entry.bar.left >= bar.left && entry.bar.left - bar.left < room);
         const top = labelTop(bar) - (over ? PERFORMANCE_TARGET + 2 : 0);
-        const beside = number ? inBar.get(`${bar.system}:${bar.left}`) ?? 0 : 0;
-        if (number) inBar.set(`${bar.system}:${bar.left}`, beside + 1);
+        const key = `${bar.system}:${bar.left}`;
+        const left = (number ? inBar.get(key) : undefined) ?? bar.left + NOTE_OFFSET_X;
         const label = labelOf(marker, number);
-        label.style.left = `${bar.left + NOTE_OFFSET_X + beside * NUMBER_STEP}px`;
+        label.style.left = `${left}px`;
         label.style.top = `${lifted ? Math.min(top, Math.min(...ahead.map((flag) => flag.top)) - PERFORMANCE_TARGET - 2) : top}px`;
         label.style.maxWidth = `${Math.max(PERFORMANCE_MIN_WIDTH, Math.min(widest, room))}px`;
         document.body.append(label);
+        if (number) inBar.set(key, left + label.offsetWidth + NOTE_OFFSET_X);
     });
 }
 
