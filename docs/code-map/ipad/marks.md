@@ -6,10 +6,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 `Bookmarks`, `Check`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `ScanReviewBlock`, `SegmentedChoice` (`.swift`).
 
-- `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as
-  `highlight.remove` and `highlight.add` (span and colour): a passage coloured lays it in its colour (other colours give
-  way there, the same colour joins it), one all that colour already loses it, the eraser takes the colour where it
-  passed. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`. The
+- `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as a
+  `Recolouring` (Platform: the highlights taken and laid, by value): a passage coloured lays it in its colour (other
+  colours give way there, the same colour joins it), one all that colour already loses it, the eraser takes the colour
+  where it passed; `ids(of:over:)` finds by value the ids of what a change takes, so the Pen's Undo and Redo (v1.4 i-5)
+  find highlights music-core laid again under new ids. `HighlightMark.notes` keeps an older file's notes for that. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`. The
   selection menu's «Выделить цветом» (`HighlightRow`) is gone with it.
 
 - `MarksModel.swift` (S6, ADR 0031 section 3, v0.10 d-4): `MarksModel`, the marks' state and their own rules; it reads

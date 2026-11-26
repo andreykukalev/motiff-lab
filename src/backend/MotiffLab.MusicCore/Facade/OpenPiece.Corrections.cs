@@ -38,34 +38,10 @@ internal sealed partial class OpenPiece
     /// <summary>The corrections before and after the assistant's draft accepted last, so one Undo takes it back whole while nothing came after it.</summary>
     private (NoteEditLog Before, NoteEditLog After)? _acceptedDraft;
 
-    private string CallOnCorrections(string name, Request request)
-    {
-        RefuseWhileOff(name);
-        return CallOnCorrectionsLayered(name, request);
-    }
-
-    private string CallOnCorrectionsLayered(string name, Request request) => name switch
-    {
-        "corrections" => CorrectionsAnswer(CorrectionBar(request)),
-        "corrections.layer" => SwitchLayer(request),
-        "corrections.drop" => DropUnfit(request),
-        "corrections.begin" => BeginDraft(request),
-        "corrections.save" => EndDraft(request, keep: true),
-        "corrections.discard" => EndDraft(request, keep: false),
-        "corrections.reset" => Correct(request, _ => NoteEditLog.Empty),
-        "corrections.add" => AddNote(request),
-        "corrections.acceptDraft" => AcceptDraft(request),
-        "corrections.undoDraft" => UndoDraft(request),
-        "corrections.variant" => TakeVariant(request),
-        "corrections.set" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Set(CorrectableNote(request), request))),
-        "corrections.change" => Correct(request, edits => edits.Change(Piece.Notes, CorrectableNote(request).Id, Changed(CorrectableNote(request), request))),
-        "corrections.remove" => Correct(request, edits => edits.Remove(Piece.Notes, CorrectableNote(request).Id)),
-        "corrections.revert" => Correct(request, edits => RevertedFor(request.Required("id")).Aggregate(edits, static (log, id) => log.Revert(id))),
-        "corrections.undo" => _draftFrom is not null
-            ? Correct(request, _ => _draftSteps.Count > 0 ? _draftSteps.Peek() : throw FacadeException.Unavailable("There is no correction to undo."), undo: true)
-            : Correct(request, edits => edits.IsEmpty ? throw FacadeException.Unavailable("There is no correction to undo.") : edits.Undo()),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-    };
+    /// <summary>The last correction undone: in the note editor's draft, its last step (the reset too), else the last in the log.</summary>
+    private string UndoCorrection(Request request) => _draftFrom is not null
+        ? Correct(request, _ => _draftSteps.Count > 0 ? _draftSteps.Peek() : throw FacadeException.Unavailable("There is no correction to undo."), undo: true)
+        : Correct(request, edits => edits.IsEmpty ? throw FacadeException.Unavailable("There is no correction to undo.") : edits.Undo());
 
     /// <summary>
     /// corrections.acceptDraft {"bar", "tool", "parameters", "index"} (version 0.6.1, #582 item 17.3, the iPad's Accept of the
@@ -78,7 +54,7 @@ internal sealed partial class OpenPiece
     {
         JsonElement parameters = request.Element("parameters") ?? throw FacadeException.BadRequest("Send \"parameters\", the tool's.");
         var call = new SessionDraft("d1", request.Required("tool"), parameters, request.Int("index") ?? 0, DraftState.Proposed);
-        AssistantDraft draft = call.Make(new AssistantPiece(Piece, Notes, Project.Check ?? [], Words, Structure))
+        AssistantDraft draft = call.Make(Assistant)
             ?? throw FacadeException.Unavailable(Words.T("This draft no longer fits the notes. Ask again.", "Этот черновик больше не подходит к нотам. Спросите ещё раз."));
         if (draft.Edits.Any(static edit => PerformanceTake.IsTaken(edit.NoteId)))
         {

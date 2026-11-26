@@ -16,14 +16,14 @@ internal static class AssistantRequest
     /// <summary>assistant.tools: {"tools": [{name, kind, description, parameters}]}, the same for every request.</summary>
     public static string Tools() => Answer.Write(AssistantTools.WriteCatalogue);
 
-    public static string Call(string name, Request request, AssistantPiece piece) => name switch
-    {
-        "assistant.call" => Run(request, piece),
-        "assistant.digest" => Digest(request, piece),
-        "assistant.address" => Address(request, piece),
-        "assistant.context" => Context(request, piece),
-        _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\"."),
-    };
+    /// <summary>The assistant's calls on an open piece (<see cref="CallRegistry.OnPiece"/>), on what its tools read of it.</summary>
+    public static readonly FacadeCall<AssistantPiece>[] Calls =
+    [
+        new("assistant.call", static (piece, request) => Run(request, piece)),
+        new("assistant.digest", static (piece, request) => Digest(request, piece)),
+        new("assistant.address", static (piece, request) => Address(request, piece)),
+        new("assistant.context", static (piece, request) => Context(request, piece)),
+    ];
 
     /// <summary>
     /// assistant.call {"tool", "parameters", "role"?}: the tool's answer, {"tool", "kind", "ok"} with "refusal" or "result" and

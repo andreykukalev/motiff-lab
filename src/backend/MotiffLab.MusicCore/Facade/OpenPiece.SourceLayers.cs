@@ -16,13 +16,6 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private string? CallOnSourceLayers(string name, Request request) => name switch
-    {
-        "sources.notes.recognise" => RecogniseAgain(request),
-        "sources.notes.hear" => SourceRequest.Hear(request, () => Project, project => Project = project, Words),
-        _ => SourceRequest.Call(name, request, () => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words),
-    };
-
     /// <summary>
     /// The drafts as they were before each change of their structure made while the piece is open (drafts.place, drafts.base),
     /// the latest last: a draft's structure is its state, not a step of its journal, so only these let drafts.undo take

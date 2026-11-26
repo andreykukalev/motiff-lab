@@ -11,61 +11,19 @@ using MotiffLab.MusicCore.Projects;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// The one entry point for an app (0020): keeps the pieces the app has open, numbered from 1, and
-/// answers calls by name with JSON text. The iPad app calls it through the C functions of the native
-/// build; the web app calls music-core directly and uses only <see cref="NewProjectId"/> and <see cref="Imported"/> (0025). The same calls in the same order give the same answers, apart from a new project's id
-/// and creation time when the request names neither.
+/// The one entry point for an app (0020): keeps the pieces the app has open, numbered from 1, and answers calls by name
+/// with JSON text. The iPad app calls it through the C functions of the native build (src/ipad/Core). The calls, where
+/// each is answered and its flags are <see cref="CallRegistry"/>; docs/facade-contract.md lists them with the contract's
+/// history. The same calls in the same order give the same answers, apart from a new project's id and creation time when
+/// the request names neither.
 /// </summary>
 /// <remarks>
-/// Not thread-safe: an app calls it from one thread at a time. Every answer is one JSON object; a
-/// failure is {"error": code, "message": text} and leaves the piece as it was.
+/// Not thread-safe: an app calls it from one thread at a time. Every answer is one JSON object; a failure is
+/// {"error": code, "message": text} (an import's also "reason" and perhaps "tip") and leaves the piece as it was.
 /// </remarks>
 public sealed partial class MusicCoreFacade
 {
-    /// <summary>
-    /// 14 removes phrases.level and its "remember" (version 1.2), which no app sends since the score's phrase marks; it
-    /// answers unknownCall. "levels" and phrases.granularity stay, so a file carrying the setting opens as before.
-    /// Also within 14 (version 1.3, ADR 0035 section 5): a page of scan.join's "pages" may be its readings by several engines,
-    /// [{"engine", "musicxml"}], merged staff by staff (<see cref="Import.Scan.ScanMerge"/>), and such a page answers "merge":
-    /// its engines and each bar's "level" (sure, probable, check) with the engines of each staff; a page sent as text and
-    /// "score" with "replace" answer as before; a form and a field added. Also within 14 (c-1b): such a page may be
-    /// {"readings": [...], "evidence": the scan server's page evidence}, the evidence settling the staves no two engines
-    /// agree on (<see cref="Import.Scan.ScanEvidence"/>); a form added, the answer as before.
-    /// Also within 14 (v1.3 i-2, ADR 0035 section 6): scan.join answers "fingerprint" (the score as its Notes keep it) and a
-    /// merged bar to check its "variants" (the engines' other readings of its staves to check) and "crop" (its box on the page
-    /// image); check answers "fingerprint", the working notes' music; corrections.variant puts a variant in that bar as the
-    /// player's corrections, one group undone whole by corrections.undoDraft; fields and a call added. Also within 14 (v1.3
-    /// i-1b, Andrei 2026-11-24): scan.insert puts a page no engine read, read again by itself, into the same Notes of a project
-    /// file, the player's corrections carried over and the bars after it numbered on; a call added. Also within 14 (v1.4 c-4,
-    /// «Как напечатано» step 1): notation writes notes with a source record as the score prints them where it fits, and
-    /// answers "appWrittenBarCount", the bars the app wrote where it does not (null for notes without a record); a field added.
-    /// 13 removes the calls of the bar-by-bar merge, which left the iPad in version 1.1 (ADR 0034, section 8) and which no app
-    /// sends: those of 7 (performance.merge, its .open, .choose, .own, .undecide, .undo, .redo, .reset, .cancel, .apply,
-    /// .undoApplied, .notation and .playback, and performance.putBack) and performance.remove of 4, as 10 removed calls; they
-    /// answer unknownCall, and a performance no longer tells "mergedAt" and "mergeKept". A version is removed as other Notes
-    /// are (sources.notes.remove). The project file stays version 17 and reads a performance's "taken" and "merge" and writes
-    /// them back as before.
-    /// Also within 13 (version 1.1, ADR 0034 section 9 step 2, the iPad's step 5): drafts.sheet, drafts.add, drafts.open,
-    /// drafts.rename and drafts.remove (<see cref="DraftRequest"/>), on the piece open, on Notes or a version open only to be
-    /// shown, or with "into" from another piece; sources.layers and the Sources sheet's answers gain "drafts", their views
-    /// the kind "draft", which sources.view.hide hides as any other; calls, a field and a value added.
-    /// Also within 13 (version 1.1, ADR 0034 section 9 step 3, the iPad's step 6): drafts.techniques answers the приёмы of a
-    /// place with their numbers, kinds, labels, confidence, whether sure, and where each is found, drafts.take and drafts.leave
-    /// take or leave one everywhere or at one bar, drafts.takeSure takes every sure one as a group, drafts.takeFrom a hand or
-    /// a span of a variant, drafts.undo the draft's last step (<see cref="DraftTakeRequest"/>); calls added.
-    /// Also within 13 (version 1.1, ADR 0034 section 9 step 4, the iPad's step 7): drafts.seams answers a draft's seams, what
-    /// differs of key, meter and tempo either side and what is offered, drafts.transpose and drafts.tempo add the step an
-    /// offer names, drafts.leaveSeam keeps a seam as it is (<see cref="DraftSeamRequest"/>); calls added.
-    /// Also within 13 (version 1.1, the iPad's step 7, the draft's map): drafts.open gives each place its variants and steps
-    /// and the draft its shelf, drafts.place moves a variant and drafts.base chooses a place's base (<see cref="DraftRequest"/>);
-    /// calls added; drafts.undo takes them back while the piece is open (a draft's structure is its state, not in its journal).
-    /// Also within 13 (version 1.2, the phrases spec, «Engine»): the phrases answer is the one answer of the score's marks: a
-    /// phrase's start tells "bar", "beat", "found" (what a moved one replaced), "close" and "why" («Почему здесь»), a phrase
-    /// its "motifs", the answer "own" and "sections" (dna's form, each with its "phrase", bar and beat); phrases.edit takes
-    /// "move", "start", "remove", "putBack", "resetAll" (the phrases only, "replaced") and "restore" with "expected" (Undo,
-    /// refused when stale), answering "previous" and "changed"; fields added. A piece opens in phrases, no edit moves a bookmark.
-    /// Earlier contracts: ADR 0020, point 2.
-    /// </summary>
+    /// <summary>The facade contract's number, in the version call; what each number added or removed: docs/facade-contract.md.</summary>
     public const int Contract = 14;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
@@ -171,7 +129,11 @@ public sealed partial class MusicCoreFacade
         }
     }
 
-    /// <summary>Runs one call on an open piece; piece 0 is for the stateless calls (version, catalogue, settings, settings.state).</summary>
+    /// <summary>
+    /// Runs one call by name (<see cref="CallRegistry"/>) on an open piece, or on piece 0 for the calls that need none.
+    /// A name the registry does not hold there answers "unknownCall" (on piece 0 with nothing open, "noPiece" for a
+    /// piece's call, <see cref="CallRegistry.OpensFirst"/>; on a piece without notes, "noNotes").
+    /// </summary>
     public string Call(int piece, string name, string? request = null)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -180,36 +142,9 @@ public sealed partial class MusicCoreFacade
             using Request fields = Request.Parse(request);
             if (piece == 0)
             {
-                return name switch
-                {
-                    "version" => Version(),
-                    "catalogue" => Answer.Write(json => Answer.Catalogue(json, Words.For(fields.Text("language")))),
-                    "settings" => Answer.Write(json => Answer.SettingsCatalogue(json)),
-                    "settings.state" => OpenPiece.SettingsState(fields),
-                    "project.summary" => ProjectSummary(fields),
-                    "project.metadata" => ProjectMetadata(fields),
-                    "project.drafts" => DraftRequest.Of(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), Words.For(fields.Text("language"))),
-                    "project.online" => SyncRequest.Online(fields),
-                    "project.sync" => SyncRequest.Next(fields),
-                    "project.pulled" => SyncRequest.Pulled(fields),
-                    "project.resolve" => SyncRequest.Resolve(fields),
-                    "project.same" => SyncRequest.Same(fields),
-                    "project.join" => SyncRequest.Join(fields),
-                    "recording.parts" => RecordingPartsOf(fields),
-                    _ when name.StartsWith("reference.", StringComparison.Ordinal) => ReferenceRequest.Call(name, fields),
-                    "scan.join" => ScanRequest.Join(fields),
-                    "scan.insert" => ScanRequest.Insert(fields),
-                    "scan.vector" => ScanRequest.Vector(fields),
-                    "assistant.tools" => AssistantRequest.Tools(),
-                    "parts.split" => PartsRequest.Split(fields),
-                    "library.plan" => LibraryRequest.Plan(fields),
-                    "library.confirm" => LibraryRequest.Confirm(fields),
-                    "library.relink" => LibraryRequest.Relink(fields),
-                    "library.linked" => LibraryRequest.Linked(fields),
-                    "library.link" => LibraryRequest.Link(fields),
-                    _ when Count == 0 && IsPieceCall(name) => throw new FacadeException("noPiece", "Open a piece first."),
-                    _ => throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece."),
-                };
+                return CallRegistry.WithoutPiece.TryGetValue(name, out FacadeCall<MusicCoreFacade>? call) ? call.Run(this, fields)
+                    : Count == 0 && CallRegistry.OpensFirst(name) ? throw new FacadeException("noPiece", "Open a piece first.")
+                    : throw new FacadeException("unknownCall", $"There is no call \"{name}\" without a piece.");
             }
 
             if (_documents.TryGetValue(piece, out OpenDocument? document))
@@ -222,22 +157,7 @@ public sealed partial class MusicCoreFacade
                 throw new FacadeException("noPiece", $"Piece {piece} is not open.");
             }
 
-            if (name.StartsWith("drafts.", StringComparison.Ordinal))
-            {
-                return CallOnDrafts(piece, open, name, fields);
-            }
-
-            if (open.ReadOnly && !IsShowingCall(name))
-            {
-                throw new FacadeException("readOnly", "These notes are open only to be shown; make them the working notes to work on them.");
-            }
-
-            return name switch
-            {
-                "sources.makeWorking" => MakeWorking(piece, open, fields),
-                "sources.notes.open" => OpenNotes(piece, open, fields),
-                _ => open.Call(name, fields),
-            };
+            return name.StartsWith("drafts.", StringComparison.Ordinal) ? CallOnDrafts(piece, open, name, fields) : CallOnPiece(piece, open, name, fields);
         }
         catch (Exception exception)
         {
@@ -246,11 +166,62 @@ public sealed partial class MusicCoreFacade
     }
 
     /// <summary>
-    /// The calls that only show a piece, answered on Notes or a draft opened to be shown; "select" too (v1.1), which keeps
-    /// the passage on that number alone and saves nothing, so a fragment is taken there into a draft and a place is played.
+    /// A call on a piece with notes: on Notes, a version or a draft open only to be shown, only a call flagged
+    /// <see cref="CallFlags.Showing"/> (drafts.* go to the piece the view was opened from); with the corrections off, of the
+    /// names starting "corrections" only those flagged <see cref="CallFlags.WhileCorrectionsOff"/>.
     /// </summary>
-    private static bool IsShowingCall(string name) =>
-        name is "piece" or "phrases" or "select" or "notation" or "playback" or "roll" or "dna" or "marks" or "check" or "language";
+    private string CallOnPiece(int number, OpenPiece open, string name, Request fields)
+    {
+        FacadeCall<PieceCall>? call = CallRegistry.OnPiece.GetValueOrDefault(name);
+        CallFlags flags = call?.Flags ?? CallFlags.None;
+        if (open.ReadOnly && !flags.HasFlag(CallFlags.Showing))
+        {
+            throw new FacadeException("readOnly", "These notes are open only to be shown; make them the working notes to work on them.");
+        }
+
+        if (name.StartsWith("corrections", StringComparison.Ordinal) && !flags.HasFlag(CallFlags.WhileCorrectionsOff))
+        {
+            open.RefuseWhileOff();
+        }
+
+        return call is null ? throw new FacadeException("unknownCall", $"There is no call \"{name}\".") : call.Run(new PieceCall(this, number, open), fields);
+    }
+
+    /// <summary>The calls on piece 0 (<see cref="CallRegistry.WithoutPiece"/>), the Reference's apart (<see cref="ReferenceRequest.Calls"/>).</summary>
+    internal static readonly FacadeCall<MusicCoreFacade>[] CallsWithoutPiece =
+    [
+        new("version", static (_, _) => Version()),
+        new("catalogue", static (_, fields) => Answer.Write(json => Answer.Catalogue(json, Words.For(fields.Text("language"))))),
+        new("settings", static (_, _) => Answer.Write(json => Answer.SettingsCatalogue(json))),
+        new("settings.state", static (_, fields) => OpenPiece.SettingsState(fields)),
+        new("project.summary", static (_, fields) => ProjectSummary(fields)),
+        new("project.metadata", static (_, fields) => ProjectMetadata(fields)),
+        new("project.drafts", static (_, fields) => DraftRequest.Of(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), Words.For(fields.Text("language")))),
+        new("project.online", static (_, fields) => SyncRequest.Online(fields)),
+        new("project.sync", static (_, fields) => SyncRequest.Next(fields)),
+        new("project.pulled", static (_, fields) => SyncRequest.Pulled(fields)),
+        new("project.resolve", static (_, fields) => SyncRequest.Resolve(fields)),
+        new("project.same", static (_, fields) => SyncRequest.Same(fields)),
+        new("project.join", static (_, fields) => SyncRequest.Join(fields)),
+        new("recording.parts", static (_, fields) => RecordingPartsOf(fields)),
+        new("scan.join", static (_, fields) => ScanRequest.Join(fields)),
+        new("scan.insert", static (_, fields) => ScanRequest.Insert(fields)),
+        new("scan.vector", static (_, fields) => ScanRequest.Vector(fields)),
+        new("assistant.tools", static (_, _) => AssistantRequest.Tools()),
+        new("parts.split", static (_, fields) => PartsRequest.Split(fields)),
+        new("library.plan", static (_, fields) => LibraryRequest.Plan(fields)),
+        new("library.confirm", static (_, fields) => LibraryRequest.Confirm(fields)),
+        new("library.relink", static (_, fields) => LibraryRequest.Relink(fields)),
+        new("library.linked", static (_, fields) => LibraryRequest.Linked(fields)),
+        new("library.link", static (_, fields) => LibraryRequest.Link(fields)),
+    ];
+
+    /// <summary>The calls on a piece with notes that open it again or open other notes under a new number.</summary>
+    internal static readonly FacadeCall<PieceCall>[] CallsOnPiece =
+    [
+        new("sources.makeWorking", static (call, fields) => call.Facade.MakeWorking(call.Number, call.Piece, fields)),
+        new("sources.notes.open", static (call, fields) => call.Facade.OpenNotes(call.Number, call.Piece, fields)),
+    ];
 
     /// <summary>
     /// «Открыть» on Notes that are not the working ones (version 0.6): "id", other Notes or a version, opened under a new
@@ -420,10 +391,6 @@ public sealed partial class MusicCoreFacade
         json.WriteNumber("projectFile", ProjectFile.Version);
         json.WriteString("runtime", Runtime);
     });
-
-    private static bool IsPieceCall(string name) =>
-        name is "piece" or "phrases" or "select" or "understand" or "circle" or "try" or "notation" or "playback" or "roll" or "dna" or "marks" or "bookmarks" or "resume" or "ideas" or "check" or "performances" or "performance" or "corrections" or "sources"
-        || (name.Contains('.') && !name.StartsWith("settings.", StringComparison.Ordinal));
 
     /// <summary>A PDF the player added to read as it is (0023): by its first bytes, or by its name with bytes that are not a project file.</summary>
     private static bool IsPdf(string fileName, byte[] data) =>
