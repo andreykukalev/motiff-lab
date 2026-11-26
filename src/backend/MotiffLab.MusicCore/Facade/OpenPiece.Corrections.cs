@@ -213,9 +213,9 @@ internal sealed partial class OpenPiece
         bool on = request.Bool("on") ?? throw FacadeException.BadRequest("Send \"on\": true or false.");
         Corrections.RefuseWhileEditing(Words);
         Bar bar = LayerBar(request);
-        SavedVariation? working = Selection.WorkingVariation;
         if (Corrections.Switch(on))
         {
+            SavedVariation? working = Selection.WorkingVariation;
             // The piece remembers it in its file (version 0.5), so it opens so again on any device.
             Project = Project with { EditsOff = Corrections.Layer == EditsLayer.Off };
             RefreshNotes();
