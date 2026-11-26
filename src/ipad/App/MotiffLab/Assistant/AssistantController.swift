@@ -51,6 +51,10 @@ final class AssistantController: ObservableObject {
     private var piece: String?
     /// The score whose notes a draft is accepted on (`corrections.acceptDraft`).
     private weak var score: ScoreController?
+    /// The screen it serves now, by its score (`load`), and how many it has served: a draft's visit hands one controller to
+    /// each screen its view opens again on (v1.4), and what belonged to the screen before goes.
+    private var screen: ObjectIdentifier?
+    private var screens = 0
 
     init(store: AssistantStore = .standard, defaults: UserDefaults = .standard) {
         self.store = store
@@ -66,15 +70,31 @@ final class AssistantController: ObservableObject {
     var current: AssistantChat? { chats.first { $0.id == currentId } }
 
     /// The piece's conversations from the iPad; the newest is the one open until an Ask opens the panel empty (`open`).
-    /// `score` is the screen's, where a draft is accepted.
+    /// `score` is the screen's, where a draft is accepted; another screen's score on the same visit drops what belonged to
+    /// the screen before (`leaveScreen`, v1.4).
     func load(piece key: String, score: ScoreController? = nil) {
-        if let score { self.score = score }
+        if let score {
+            if let before = screen, before != ObjectIdentifier(score) { leaveScreen() }
+            screen = ObjectIdentifier(score)
+            self.score = score
+        }
         guard key != piece else { return }
         piece = key
         here = nil
         inDraft = nil
         chats = store.chats(of: key)
         currentId = chats.first?.id
+        listShown = false
+    }
+
+    /// The same visit on a screen made again (a draft's view opened again after a step, v1.4): what belonged to the screen
+    /// before goes (the assistant at its selection, what the next question looks at, the list shown), and a panel question
+    /// still on its way, asked on that screen's piece, is dropped; the conversation in a draft's place, the piece's
+    /// conversations and whether the panel is open stay.
+    private func leaveScreen() {
+        screens += 1
+        here = nil
+        scope = .selection
         listShown = false
     }
 
@@ -157,7 +177,10 @@ final class AssistantController: ObservableObject {
             phase = .idle
         }
         let chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
+        let asked = screens
         let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
+        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped.
+        guard screens == asked else { return }
         var kept = chat
         kept.join(exchange, answered: answered)
         keep(kept)

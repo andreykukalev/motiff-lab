@@ -8,6 +8,11 @@ import XCTest
 /// of the draft its toast undoes. Over the music-core of the tests and a pretend API (`AssistantStub`), no network.
 @MainActor
 final class DraftAssistantTests: XCTestCase {
+    /// Holds a check made to wait, to be let go by the test.
+    private final class Gate {
+        var waiting: CheckedContinuation<Void, Never>?
+    }
+
     private var opened: [Int32] = []
     private var folder: URL?
 
@@ -286,6 +291,57 @@ final class DraftAssistantTests: XCTestCase {
         let kept = await sources.acceptProposal(proposal.callFields, of: draft.id, words: proposal.words) { await proposal.proposedAgain(on: sources.piece) }
         XCTAssertEqual(kept, .kept, sources.status ?? "")
         XCTAssertEqual(sources.layers.drafts.first?.taken, 1)
+    }
+
+    /// Review round 1 (v1.4): while «Принять» asks music-core again whether the proposal still fits, no other step of the
+    /// draft starts; it is held as any step on its way holds another.
+    func testNoStepStartsWhileAProposalIsAskedAgain() async throws {
+        let (sources, draft, place, _, _) = try await placeWithVariant()
+        let gate = Gate()
+        let accepting = Task {
+            await sources.acceptProposal(["tool": "place.take"], of: draft.id, words: "x") {
+                await withCheckedContinuation { gate.waiting = $0 }
+                return false
+            }
+        }
+        for _ in 0..<1000 where gate.waiting == nil { await Task.yield() }
+        XCTAssertNotNil(gate.waiting, "asked again")
+        XCTAssertTrue(sources.stepping, "a step on its way meanwhile")
+        let other = await sources.takeSure(place, of: draft.id)
+        XCTAssertFalse(other, "another step is not sent")
+        gate.waiting?.resume()
+        let answer = await accepting.value
+        XCTAssertEqual(answer, .refused(""), "no longer fits")
+        XCTAssertFalse(sources.stepping)
+        XCTAssertEqual(sources.layers.drafts.first?.taken, 0, "nothing taken")
+    }
+
+    /// Review round 1 (v1.4): the controller a draft's screen hands on keeps the conversation in a draft's place across
+    /// the screens its view opens again on, and nothing of the screen before: the assistant at its selection, what the next
+    /// question looks at.
+    func testAScreenMadeAgainKeepsTheDraftsConversationAndNothingOfTheScreenBefore() async throws {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
+        opened.append(piece.id)
+        let assistant = controller()
+        let first = ScoreWorkspace(piece: piece, viewing: "draft", assistant: assistant)
+        await first.appeared()
+        let here = AssistantDraftPlace(draft: "d_0001", place: "pl_0001", label: "① Notes 1–4 · 2 variants")
+        assistant.openInDraft(here, role: AssistantDraftPlace.explainer)
+        let bars = ScoreSelection(onset: 3840, end: 5760, firstBar: 3, lastBar: 3)
+        assistant.openHere(on: bars, role: "mentor")
+        assistant.choose(wholePiece: true, selection: bars)
+        assistant.listShown = true
+        first.disappeared()
+
+        let second = ScoreWorkspace(piece: piece, viewing: "draft", assistant: assistant)
+        await second.appeared()
+        XCTAssertEqual(assistant.inDraft?.place, here, "the conversation in the draft's place stays")
+        XCTAssertEqual(assistant.inDraft?.chat.role, "explainer")
+        XCTAssertNil(assistant.here, "the assistant at the selection of the screen before goes")
+        XCTAssertEqual(assistant.scope, .selection, "and what its next question looked at")
+        XCTAssertFalse(assistant.listShown)
+        second.disappeared()
     }
 
     /// F5 (v1.4): in a bridge place, the bridge chooser's conversation proposes a candidate as the base, music-core's

@@ -310,9 +310,8 @@ struct AssistantChat: Codable, Equatable, Sendable, Identifiable {
     }
 
     /// The turn's body (format v1): the role, the language, the context and the history, the oldest finished exchanges
-    /// left out while there are more than `maxEntries` entries, as music-core's AssistantSession.Request does, and (v1.4)
-    /// while the body is larger than a turn takes (`maxBytes`), so a long conversation goes on and only a question whose
-    /// context alone is too large is refused.
+    /// left out while there are more than `maxEntries` entries or (v1.4) while the body is larger than a turn takes
+    /// (`maxBytes`), so a long conversation goes on and only a question whose context alone is too large is refused.
     func request(language: String, context: JSONValue) -> JSONValue {
         var history = history
         while history.count > Self.maxEntries, let next = Self.nextQuestion(in: history) {

@@ -157,9 +157,12 @@ extension SourcesController {
     /// while another step is on its way (`stepping`).
     func acceptProposal(_ fields: [String: Any], of draft: String, words: String, still: () async -> Bool = { true }) async -> DraftAcceptance {
         guard !stepping else { return .held }
-        // Still what its card says (v1.4), asked once no other step is on its way; else refused in no words of music-core's.
-        guard await still() else { return .refused("") }
-        guard !stepping else { return .held }
+        // Still what its card says (v1.4), asked once no other step is on its way, and none starts while it is asked; else
+        // refused in no words of music-core's.
+        stepping = true
+        let fits = await still()
+        stepping = false
+        guard fits else { return .refused("") }
         return await draftStep("drafts.accept", fields, of: draft, toast: text.format("drafts.toastProposal", words)) ? .kept : .refused(status ?? "")
     }
 
