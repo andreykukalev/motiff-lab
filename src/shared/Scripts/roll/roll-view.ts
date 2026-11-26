@@ -66,9 +66,14 @@ export function frameOf(value: unknown): ViewFrame | null {
     return frame.zoom > 0 && frame.rowScale > 0 ? frame : null;
 }
 
+/** The ticks a distance across the roll spans at a zoom, signed: the one conversion of pixels to ticks. */
+export function ticksForPixels(pixels: number, zoom: number): number {
+    return (pixels * TICKS_PER_QUARTER) / zoom;
+}
+
 /** The ticks a width of pixels shows at a zoom. */
 export function ticksIn(width: number, zoom: number): number {
-    return (Math.max(1, width) * TICKS_PER_QUARTER) / Math.max(1e-6, zoom);
+    return ticksForPixels(Math.max(1, width), Math.max(1e-6, zoom));
 }
 
 /** The rows from the lowest to the highest pitch: an octave at least (minSpan semitones), with one free row above and below. */
@@ -105,7 +110,7 @@ export interface FitInput {
  */
 export function fitFrame(input: FitInput): ViewFrame {
     const zoom = fitZoom(input, input.width, input.margin, input.zoomLimits);
-    const scroll = Math.round(Math.max(0, input.start - (input.margin * TICKS_PER_QUARTER) / zoom));
+    const scroll = Math.round(Math.max(0, input.start - ticksForPixels(input.margin, zoom)));
     if (input.pitches === null) {
         return { ...input.before, zoom, scroll };
     }

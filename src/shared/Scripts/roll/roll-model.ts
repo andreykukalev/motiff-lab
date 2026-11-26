@@ -2,6 +2,8 @@
 // timeline, its bar and beat grid, the lanes notes are coloured by, and the notes sounding at a
 // tick. Kept free of the DOM so Node can test it.
 
+import { TICKS_PER_QUARTER } from "../score/score-timeline.js";
+
 /** How the roll groups notes for colour and pattern. */
 export type ColourBy = "track" | "voice" | "hand";
 
@@ -119,7 +121,7 @@ export function rowWindow(low: number, high: number, visible: number, top: numbe
 
 /** "Fit" (testing item 13): the horizontal zoom, in pixels per quarter, that lays a stretch of ticks across a width. */
 export function fitZoom(ticks: number, width: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, (width * 480) / Math.max(1, ticks)));
+    return Math.min(max, Math.max(min, (width * TICKS_PER_QUARTER) / Math.max(1, ticks)));
 }
 
 /** "Fit": the row height that shows a number of rows in a height, within the rows' limits. */
