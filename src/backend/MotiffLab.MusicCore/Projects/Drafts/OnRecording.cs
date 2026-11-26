@@ -41,10 +41,7 @@ public static class OnRecording
             return null;
         }
 
-        int margin = Math.Max(1, ours.Length / 4);
         int gap = Math.Max(1, 2 * ours.Length / Math.Max(1, place.BaseVariant.Music.Bars.Count));
-        TickSpan Window(int from, int to) =>
-            TickSpan.FromBounds(recording.BarAt(theirs[from].Span.Onset).Bar.Span.Onset, recording.BarAt(theirs[to - 1].Span.Onset).Bar.Span.End);
         List<(int From, int To)> compared = [];
         (TickSpan Span, int Matched)? best = null;
         foreach (int start in Starts(ours, theirs))
@@ -60,18 +57,8 @@ public static class OnRecording
                 continue;
             }
 
-            // First as many notes as the base has and two of its bars either side; where the music found reaches an edge,
-            // that side again with the margin. Other music aligned by chance far from the place would else pull its notes away.
-            (int from, int to) = (Math.Max(0, start - gap), Math.Min(theirs.Length, start + ours.Length + gap));
-            TickSpan window = Window(from, to);
-            (TickSpan Span, int Matched)? found = Bounded(place, recording, window, gap);
-            if (found is { Span: var near } && ((near.Onset == window.Onset && from > 0) || (near.End == window.End && to < theirs.Length)))
-            {
-                (from, to) = (near.Onset == window.Onset ? Math.Max(0, from - margin) : from, near.End == window.End ? Math.Min(theirs.Length, to + margin) : to);
-                found = Bounded(place, recording, Window(from, to), gap);
-            }
-
-            compared.Add((from, to));
+            ((int From, int To) window, (TickSpan Span, int Matched)? found) = Around(place, recording, theirs, start, ours.Length, gap);
+            compared.Add(window);
             if (found is { } candidate && (best is not { } kept || candidate.Matched > kept.Matched || (candidate.Matched == kept.Matched && candidate.Span.Onset < kept.Span.Onset)))
             {
                 best = candidate;
@@ -85,6 +72,32 @@ public static class OnRecording
 
         PlaceMatch match = SameMusic.In(place, DraftFragment.Of(recording, span, DraftPart.All));
         return match.IsSameMusic ? (span, match) : null;
+    }
+
+    /// <summary>
+    /// The run of <paramref name="length"/> notes of the recording from <paramref name="start"/> compared with the base: first
+    /// with <paramref name="gap"/> notes (two of the base's bars) either side; where the music found reaches an edge, that
+    /// side again with a quarter of the base's notes more, as the recording may add bars. Other music aligned by chance far
+    /// from the place would else pull its notes away. The notes compared (indices) and the stretch found there.
+    /// </summary>
+    private static ((int From, int To) Window, (TickSpan Span, int Matched)? Found) Around(DraftPlace place, SourceMusic recording, Note[] theirs, int start, int length, int gap)
+    {
+        TickSpan Window(int from, int to) =>
+            TickSpan.FromBounds(recording.BarAt(theirs[from].Span.Onset).Bar.Span.Onset, recording.BarAt(theirs[to - 1].Span.Onset).Bar.Span.End);
+
+        (int from, int to) = (Math.Max(0, start - gap), Math.Min(theirs.Length, start + length + gap));
+        TickSpan window = Window(from, to);
+        (TickSpan Span, int Matched)? found = Bounded(place, recording, window, gap);
+        bool before = found is { Span: var first } && first.Onset == window.Onset && from > 0;
+        bool after = found is { Span: var last } && last.End == window.End && to < theirs.Length;
+        if (!before && !after)
+        {
+            return ((from, to), found);
+        }
+
+        int margin = Math.Max(1, length / 4);
+        (from, to) = (before ? Math.Max(0, from - margin) : from, after ? Math.Min(theirs.Length, to + margin) : to);
+        return ((from, to), Bounded(place, recording, Window(from, to), gap));
     }
 
     /// <summary>
