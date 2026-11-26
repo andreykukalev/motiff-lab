@@ -122,18 +122,28 @@ struct DraftSheetRequest: Identifiable {
 /// (`drafts.sheet`, asked again when another part is chosen, as the same music depends on it); `sources` is the piece
 /// whose drafts they are, which keeps the answer and the project file. Under «Куда», after this piece's, the drafts of the
 /// other pieces in the folder, grouped by each piece's title (v1.2, collage, `OtherPieceDrafts`), read once the sheet shows.
-struct DraftSheet: View {
+/// Since v1.5 (d-11, DRAFT-11) the card «Новый черновик» first searches the piece's recordings for the passage and, where
+/// it is found, also offers «С ассистентом · Pro» (`assist`), in the words the screen hands it (`assistLabel`, the
+/// draft's map's own).
+struct DraftSheet<AssistLabel: View>: View {
     let request: DraftSheetRequest
     @ObservedObject var sources: SourcesController
     let text: UIText
     /// Once added, where it went: the sheet goes, and the screen says so.
     let added: (DraftChoice) -> Void
+    /// Once a new draft is made with the stretch found on a recording (v1.5 d-11), its id: the sheet goes, and the screen
+    /// opens the draft's view with its map and the assistant on ①. Nil where the screen cannot open a draft's view (one
+    /// shown over the piece, which has no switch): no «С ассистентом · Pro» there (E-drafts-2).
+    let assist: ((String) -> Void)?
+    let assistLabel: AssistLabel
     let cancel: () -> Void
     @State private var sheet: DraftSheetAnswer?
     @State private var others: [OtherPieceDrafts] = []
     @State private var choice: DraftChoice?
     @State private var problem: String?
     @State private var adding = false
+    /// What the card «Новый черновик» found on the recordings for the passage (v1.5 d-11).
+    @State private var recording: DraftRecordingOffer = .ready
 
     var body: some View {
         ScrollView {
@@ -156,6 +166,14 @@ struct DraftSheet: View {
             await load(part: nil)
             others = await OtherPieceDrafts.list(except: sources.file, project: sources.projectId, language: text.language)
         }
+        // Searched again for another part, the search before dropped; none for a draft that is there.
+        .task(id: newDraftPart) { await search(newDraftPart) }
+    }
+
+    /// The part of the passage a new draft would take, which its card searches on the recordings; nil while the sheet is
+    /// for a draft that is there, or not read yet.
+    private var newDraftPart: String? {
+        choice?.into == .new ? choice?.part : nil
     }
 
     @ViewBuilder private func choices(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
@@ -193,12 +211,16 @@ struct DraftSheet: View {
 
     /// The card «Новый черновик» (v1.4, F4; the drafts spec «Ноты + запись»), in place of «Как»: the name it takes and its
     /// base (the notes selected, the part chosen); «Создать» (`buttons`) makes the draft with the fragment as its first
-    /// place, the one way a new draft has (`DraftChoice.ways(nil)`).
+    /// place, the one way a new draft has (`DraftChoice.ways(nil)`). Since v1.5 (d-11) also where the passage is on the
+    /// recordings, how much and how many приёмы, or that it searches (`DraftRecordingOffer.newDraftLine`).
     private func newDraftCard(_ sheet: DraftSheetAnswer, _ choice: DraftChoice) -> some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["drafts.new"]).overline()
             Text(sheet.newName).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
             Text(text.format("drafts.newBase", DraftChoice.word(part: choice.part, text))).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+            if let line = recording.newDraftLine(text) {
+                Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(CGFloat.ds("s-3"))
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,15 +228,39 @@ struct DraftSheet: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
     }
 
+    /// In one row where they fit; else (Split View, the Russian words) one under another at the trailing edge (v1.5 d-11).
     private var buttons: some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            Button(text["common.cancel"], action: cancel).buttonStyle(DSButtonStyle(kind: .quiet))
-            Spacer(minLength: 0)
-            Button(text[choice?.into == .new ? "drafts.create" : "drafts.addButton"]) { Task { await add() } }
-                .buttonStyle(DSButtonStyle(kind: .primary))
-                .disabled(choice == nil || adding)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: CGFloat.ds("s-2")) {
+                cancelButton
+                Spacer(minLength: 0)
+                actions
+            }
+            VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
+                actions
+                cancelButton
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.top, CGFloat.ds("s-2"))
+    }
+
+    private var cancelButton: some View {
+        Button(text["common.cancel"], action: cancel).buttonStyle(DSButtonStyle(kind: .quiet))
+    }
+
+    /// «С ассистентом · Pro», only once the passage is found on a recording (v1.5 d-11): Pro, said as on the draft's map,
+    /// the assistant telling in the draft what the account allows; and «Создать» or «Добавить».
+    @ViewBuilder private var actions: some View {
+        if choice?.into == .new, assist != nil, let found = recording.adds {
+            Button { Task { await create(with: found) } } label: { assistLabel }
+                .buttonStyle(DSButtonStyle(kind: .secondary))
+                .disabled(adding)
+                .accessibilityHint(text["drafts.newWithAssistantHint"])
+        }
+        Button(text[choice?.into == .new ? "drafts.create" : "drafts.addButton"]) { Task { await add() } }
+            .buttonStyle(DSButtonStyle(kind: .primary))
+            .disabled(choice == nil || adding)
     }
 
     private func title(_ way: DraftChoice.Way) -> String {
@@ -275,8 +321,9 @@ struct DraftSheet: View {
         choice = DraftChoice.first(read, part: read.part, into: choice?.into ?? request.into)
     }
 
+    /// «Добавить» or «Создать»; a second tap while one is on its way does nothing (v1.5 d-11).
     private func add() async {
-        guard let choice else { return }
+        guard let choice, !adding else { return }
         adding = true
         defer { adding = false }
         if await sources.addToDraft(choice, span: request.span, from: request.piece) {
@@ -284,6 +331,34 @@ struct DraftSheet: View {
         } else {
             problem = sources.status
         }
+    }
+
+    /// «С ассистентом · Pro» (v1.5 d-11): the new draft made with the stretch `found` as a variant of ①, then the screen's
+    /// `assist` with its id; refused, why, under the card.
+    private func create(with found: DraftRecordingAnswer.Found) async {
+        guard let choice, let assist, !adding else { return }
+        adding = true
+        defer { adding = false }
+        if let draft = await sources.createWithRecording(choice, found: found, span: request.span, from: request.piece) {
+            assist(draft)
+        } else {
+            problem = sources.status
+        }
+    }
+
+    /// The card's search for `part` of the passage (nil: none, the card not shown); a search the sheet left (closed, or
+    /// another part chosen) says nothing once it ends.
+    private func search(_ part: String?) async {
+        guard let part else {
+            recording = .ready
+            return
+        }
+        recording = sources.hasHeardNotes ? .searching : .noRecording
+        guard recording == .searching else { return }
+        let found = await sources.findNewOnRecording(span: request.span, part: part, from: request.piece)
+        // E-drafts-3: the sheet closed or another part chosen meanwhile: this search's end says nothing.
+        guard !Task.isCancelled else { return }
+        recording = found
     }
 }
 

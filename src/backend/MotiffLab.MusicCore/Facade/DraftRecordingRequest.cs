@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using MotiffLab.MusicCore.Assembly;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Pieces;
@@ -25,50 +27,96 @@ internal static class DraftRecordingRequest
     public static string Find(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        IReadOnlyList<Found> found = Search(owner.Project, draft, draft.FindPlace(placeId)!, draft.CreatedAt, null);
+        IReadOnlyList<Found> found = Search(owner.Project, draft, draft.FindPlace(placeId)!, draft.CreatedAt, null, null);
         return Answer.Write(json =>
         {
             json.WriteString("draft", draft.Id);
             json.WriteString("place", placeId);
-            json.WriteStartArray("found");
-            foreach (Found each in found)
+            Write(json, found, owner.Words, null);
+        });
+    }
+
+    /// <summary>
+    /// What «С ассистентом · Pro» on the card «Новый черновик» would put in (version 1.5, d-11; spec «Ноты + запись»:
+    /// «место на записи, % совпадения, число приёмов»), before the draft is made, nothing changed: the fragment the
+    /// «В черновик» sheet reads ("span" or "bars", "part") as the first place of the draft «Создать» makes, searched on the
+    /// piece's recordings as «Найти на записи» searches a place (<see cref="OnRecording"/>), never on the Notes the
+    /// fragment is taken from. Answers "recordings", how many recordings were searched (0: none to search, so nothing to say), and
+    /// "found" as drafts.findOnRecording does, each also "techniques", how many приёмы the place would have with that
+    /// stretch as its variant; empty when no recording searched has the fragment's music.
+    /// </summary>
+    public static string FindNew(OpenPiece owner, FragmentOrigin from, Request request)
+    {
+        Draft draft = DraftRequest.Started(owner, from, request);
+        DraftPlace place = draft.Places[0];
+        string? own = Own(owner, from);
+        IReadOnlyList<Found> found = Search(owner.Project, draft, place, draft.CreatedAt, null, own);
+        return Answer.Write(json =>
+        {
+            json.WriteNumber("recordings", Recordings(owner.Project, null, own).Count());
+            Write(json, found, owner.Words, each => json.WriteNumber("techniques", draft.With(each.Variant, DraftDrop.Variant, place.Id).TechniquesOf(place.Id).Count));
+        });
+    }
+
+    /// <summary>
+    /// The new draft <paramref name="draft"/> (drafts.add with "recording", version 1.5, d-11) with the stretch of the
+    /// recording heard as the Notes <paramref name="notes"/> that is its first place's music put in as a variant of that
+    /// place, as drafts.findNewOnRecording found it; and the variant's id. Unavailable when that recording has no stretch of
+    /// the fragment's music (no longer there, or the fragment taken from it).
+    /// </summary>
+    internal static (Draft Draft, string Variant) WithStretch(OpenPiece owner, FragmentOrigin from, Draft draft, string notes)
+    {
+        DraftPlace place = draft.Places[0];
+        Found chosen = Search(owner.Project, draft, place, draft.CreatedAt, notes, Own(owner, from)).FirstOrDefault()
+            ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of the music selected.", "На записи нет выделенной музыки."));
+        return (draft.With(chosen.Variant, DraftDrop.Variant, place.Id), chosen.Variant.Id);
+    }
+
+    /// <summary>The Notes of this piece a fragment is taken from, which a search for it leaves out: the stretch it is; null for another piece's.</summary>
+    private static string? Own(OpenPiece owner, FragmentOrigin from) => from.Project == owner.Project.Id ? from.Notes : null;
+
+    /// <summary>"found", each stretch as a variant of it would be named and where it is, and what <paramref name="more"/> writes of it.</summary>
+    private static void Write(Utf8JsonWriter json, IReadOnlyList<Found> found, Words words, Action<Found>? more)
+    {
+        json.WriteStartArray("found");
+        foreach (Found each in found)
+        {
+            DraftSource from = each.Variant.From;
+            json.WriteStartObject();
+            json.WriteString("notes", from.Notes);
+            json.WriteString("label", DraftLabels.Variant(each.Variant, words));
+            json.WriteNumber("percent", each.Match.Percent);
+            Answer.Span(json, "span", from.Span);
+            json.WriteStartObject("bars");
+            json.WriteNumber("first", from.Bars!.Value.First);
+            json.WriteNumber("last", from.Bars!.Value.Last);
+            json.WriteEndObject();
+            if (from.Milliseconds is (long start, long end))
             {
-                DraftSource from = each.Variant.From;
-                json.WriteStartObject();
-                json.WriteString("notes", from.Notes);
-                json.WriteString("label", DraftLabels.Variant(each.Variant, owner.Words));
-                json.WriteNumber("percent", each.Match.Percent);
-                Answer.Span(json, "span", from.Span);
-                json.WriteStartObject("bars");
-                json.WriteNumber("first", from.Bars!.Value.First);
-                json.WriteNumber("last", from.Bars!.Value.Last);
-                json.WriteEndObject();
-                if (from.Milliseconds is (long start, long end))
-                {
-                    json.WriteStartObject("ms");
-                    json.WriteNumber("from", start);
-                    json.WriteNumber("to", end);
-                    json.WriteEndObject();
-                }
-                else
-                {
-                    json.WriteNull("ms");
-                }
-
-                if (each.Already is { } already)
-                {
-                    json.WriteString("variant", already);
-                }
-                else
-                {
-                    json.WriteNull("variant");
-                }
-
+                json.WriteStartObject("ms");
+                json.WriteNumber("from", start);
+                json.WriteNumber("to", end);
                 json.WriteEndObject();
             }
+            else
+            {
+                json.WriteNull("ms");
+            }
 
-            json.WriteEndArray();
-        });
+            if (each.Already is { } already)
+            {
+                json.WriteString("variant", already);
+            }
+            else
+            {
+                json.WriteNull("variant");
+            }
+
+            more?.Invoke(each);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     /// <summary>
@@ -81,7 +129,7 @@ internal static class DraftRecordingRequest
     public static string Add(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, SourceRequest.Now(request), request.Text("notes")).FirstOrDefault()
+        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, SourceRequest.Now(request), request.Text("notes"), null).FirstOrDefault()
             ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of this place's music.", "На записи нет музыки этого места."));
         if (chosen.Already is not null)
         {
@@ -95,10 +143,11 @@ internal static class DraftRecordingRequest
     private sealed record Found(DraftVariant Variant, PlaceMatch Match, string? Already);
 
     /// <summary>
-    /// The stretch of each recording of <paramref name="project"/> (only the Notes <paramref name="only"/> when it is given)
-    /// that is the music of <paramref name="place"/>, the most found first, then in the Sources' order.
+    /// The stretch of each recording of <paramref name="project"/> (only the Notes <paramref name="only"/> when it is given,
+    /// never the Notes <paramref name="except"/>) that is the music of <paramref name="place"/>, the most found first, then
+    /// in the Sources' order.
     /// </summary>
-    private static IReadOnlyList<Found> Search(Project project, Draft draft, DraftPlace place, DateTimeOffset at, string? only)
+    private static IReadOnlyList<Found> Search(Project project, Draft draft, DraftPlace place, DateTimeOffset at, string? only, string? except)
     {
         if (place.Bridge)
         {
@@ -106,7 +155,7 @@ internal static class DraftRecordingRequest
         }
 
         List<Found> found = [];
-        foreach (SourceNotes notes in PieceViews.Of(project, HoldingDevice.Ipad).Notes.Where(each => each.Provenance.Op == NotesProvenance.AudioRecognition && (only is null || each.Id == only)))
+        foreach (SourceNotes notes in Recordings(project, only, except))
         {
             if (Opened(project, notes.Id, EditsLayer.Lenient) is not var (heard, piece, music) || OnRecording.Find(place, music) is not var (span, match))
             {
@@ -120,6 +169,10 @@ internal static class DraftRecordingRequest
 
         return [.. found.OrderByDescending(static each => each.Match.Matched)];
     }
+
+    /// <summary>The Notes of <paramref name="project"/> heard in a recording, in the Sources' order: only <paramref name="only"/> when it is given, never <paramref name="except"/>.</summary>
+    private static IEnumerable<SourceNotes> Recordings(Project project, string? only, string? except) =>
+        PieceViews.Of(project, HoldingDevice.Ipad).Notes.Where(each => each.Provenance.Op == NotesProvenance.AudioRecognition && (only is null || each.Id == only) && each.Id != except);
 
     /// <summary>
     /// The Notes <paramref name="id"/> of the project (or a version) as they open, their corrections laid as

@@ -340,15 +340,17 @@ enum DraftAcceptance: Equatable, Sendable {
 /// changed: on each recording of the piece heard as notes, the stretch that is the place's music, the most found first:
 /// the recording's Notes, music-core's words for the variant it would make («Запись 9–16»), how much of it is in the
 /// place's base, and the place's variant made of that very stretch already (null when none). Empty when no recording has
-/// the place's music, and for a bridge place.
+/// the place's music, and for a bridge place. Found for a new draft (`DraftNewRecordingAnswer`, v1.5 d-11), each also
+/// tells how many приёмы the new draft's first place would have with it ("techniques"; nil for a place's).
 struct DraftRecordingAnswer: Decodable, Equatable, Sendable {
     struct Found: Decodable, Equatable, Sendable {
         let notes: String
         let label: String
         let percent: Int
         let variant: String?
+        let techniques: Int?
 
-        private enum CodingKeys: String, CodingKey { case notes, label, percent, variant }
+        private enum CodingKeys: String, CodingKey { case notes, label, percent, variant, techniques }
 
         init(from decoder: Decoder) throws {
             let fields = try decoder.container(keyedBy: CodingKeys.self)
@@ -356,12 +358,22 @@ struct DraftRecordingAnswer: Decodable, Equatable, Sendable {
             label = try fields.decode(String.self, forKey: .label)
             percent = try fields.decode(Int.self, forKey: .percent)
             variant = try fields.decodeNullable(String.self, forKey: .variant)
+            techniques = try fields.decodeIfPresent(Int.self, forKey: .techniques)
         }
     }
 
     let draft: String
     let place: String
     let found: [Found]
+}
+
+/// What the card «Новый черновик» finds on the piece's recordings for the passage selected, before the draft is made
+/// (`drafts.findNewOnRecording`, DraftRecordingRequest.FindNew, v1.5 d-11), nothing changed: how many recordings were
+/// searched (the Notes the passage is taken from left out: 0, nothing to say), and what was found, as for a place, each
+/// with "techniques".
+struct DraftNewRecordingAnswer: Decodable, Equatable, Sendable {
+    let recordings: Int
+    let found: [DraftRecordingAnswer.Found]
 }
 
 /// A place's length (`drafts.length`, DraftLengthRequest.Length, v1.4 c-3b), nothing changed: the bars of its source its

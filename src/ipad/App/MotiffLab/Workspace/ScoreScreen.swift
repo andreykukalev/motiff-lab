@@ -100,6 +100,8 @@ struct ScoreScreenContent: View {
     @State private var shownView: ShownView?
     /// The «В черновик» sheet for the selection (v1.1); nil while it is not open.
     @State private var draftSheet: DraftSheetRequest?
+    /// The draft just made there with «С ассистентом · Pro» (v1.5 d-11), whose view opens once the sheet has gone.
+    @State private var assisted: String?
     /// A draft's map, open or not, kept by the draft's screen (`ShownDraftScreen`); nil on any other screen.
     @Environment(\.draftMap) private var draftMap
     /// Where the pill of a draft's view ends, in the layers' space: in landscape the map starts below it.
@@ -610,6 +612,8 @@ extension ScoreScreenContent {
         let piece: OpenPiece
         /// Shown as a PDF (another original) rather than as notes.
         let pdf: Bool
+        /// A draft's view opened with its map and the assistant on its first place (v1.5 d-11).
+        var assisting = false
         var id: Int32 { piece.id }
 
         /// The number a view was shown under, closed in music-core once its screen has gone.
@@ -638,13 +642,21 @@ extension ScoreScreenContent {
     /// The «В черновик» sheet (ScoreWorkspaceDrafts.swift), over the screen; once a fragment is added the screen says so.
     @ViewBuilder func draftSheetScreen(_ request: DraftSheetRequest) -> some View {
         if let owner = workspace.draftOwner(under: pieceUnder) {
-            DraftSheet(request: request, sources: owner, text: text) { choice in
-                draftSheet = nil
-                // Into another piece's draft, its own toast says so, with «Открыть» (`toastsOverSelection`).
-                if choice.into.elsewhere == nil { score.showNotice("drafts.added") }
-            } cancel: {
-                draftSheet = nil
-            }
+            DraftSheet(
+                request: request, sources: owner, text: text,
+                added: { choice in
+                    draftSheet = nil
+                    // Into another piece's draft, its own toast says so, with «Открыть» (`toastsOverSelection`).
+                    if choice.into.elsewhere == nil { score.showNotice("drafts.added") }
+                },
+                // Only where the switch is, which shows a draft's view (E-drafts-2).
+                assist: panels.sourcesOn ? { (draft: String) in
+                    assisted = draft
+                    draftSheet = nil
+                } : nil,
+                assistLabel: DraftAssistantLabel(text: text),
+                cancel: { draftSheet = nil }
+            )
         }
     }
 
@@ -676,9 +688,17 @@ extension ScoreScreenContent {
     func sourcing(_ content: some View) -> some View {
         content
             .fullScreenCover(item: $shownView) { view in shownViewScreen(view) }
-            .sheet(item: $draftSheet) { request in draftSheetScreen(request) }
+            .sheet(item: $draftSheet, onDismiss: openAssisted) { request in draftSheetScreen(request) }
             .task(id: sourcesOn) { await workspace.loadSources(reopen: reopen, pick: pickView) }
             .onChange(of: panels[.versions]) { _, open in workspace.sourcesOpened(open) }
+    }
+
+    /// A draft just made with «С ассистентом · Pro» (v1.5 d-11), once the sheet has gone (a cover is not presented while a
+    /// sheet goes): its view over the score, its map open and the assistant on ① (`ScoreWorkspace.showDraft`).
+    private func openAssisted() {
+        guard let draft = assisted else { return }
+        assisted = nil
+        Task { await workspace.showDraft(draft, assisting: true) { shownView = $0 } }
     }
 
     /// The view shown now: the working notes (the recording heard is over the view, not one: v0.10, finding 24; a draft's
@@ -706,7 +726,7 @@ extension ScoreScreenContent {
                 PdfScreen(piece: view.piece, linked: true, readOnlyNote: text["sources.sheet.viewOnly"])
             } else if view.piece.draft != nil {
                 // Opened again in its place after each step (v1.1), closing each number it was open under itself.
-                ShownDraftScreen(piece: view.piece, owner: sources, viewing: text["sources.sheet.viewOnly"])
+                ShownDraftScreen(piece: view.piece, owner: sources, viewing: text["sources.sheet.viewOnly"], assisting: view.assisting)
             } else {
                 ScoreScreen(piece: view.piece, viewing: text["sources.sheet.viewOnly"], openFile: openFile.map { open in { (file: URL, landing: Landing) async in
                     // The piece under the view, kept, opens it, the view closing first.

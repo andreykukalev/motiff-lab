@@ -57,6 +57,7 @@
     { "name": "drafts.carry", "on": ["piece"] },
     { "name": "drafts.carryPlaces", "on": ["piece"] },
     { "name": "drafts.context", "on": ["piece"] },
+    { "name": "drafts.findNewOnRecording", "on": ["piece"] },
     { "name": "drafts.findOnRecording", "on": ["piece"] },
     { "name": "drafts.leave", "on": ["piece"] },
     { "name": "drafts.leaveBridge", "on": ["piece"] },

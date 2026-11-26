@@ -145,5 +145,9 @@
   "folderImport.recheck": "Проверить папку",
   "rollMode.label": "Режим пиано-ролла",
   "padAssistant.accepted": "Черновик принят. Правка в «Моих правках».",
-  "padAssistant.new": "Новый разговор"
+  "padAssistant.new": "Новый разговор",
+
+  "drafts.techniqueCount.one": "{0} приём",
+  "drafts.techniqueCount.few": "{0} приёма",
+  "drafts.techniqueCount.many": "{0} приёмов"
 }

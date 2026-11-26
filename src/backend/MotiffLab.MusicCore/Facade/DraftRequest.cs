@@ -79,18 +79,35 @@ internal static class DraftRequest
     /// its place "place", as a new "place" at the end or on the "shelf"; with no "draft", a new draft named "name" (else
     /// «Черновик N») of one place, "now" its time. From another piece the variant names that piece; from notes heard in a
     /// recording it keeps the stretch of the recording they were played in (<see cref="DraftFragment.Heard"/>). Answers the
-    /// sources with "draft", "place" (null on the shelf) and "variant", the ids.
+    /// sources with "draft", "place" (null on the shelf) and "variant", the ids. Since version 1.5 (d-11, «С ассистентом ·
+    /// Pro» on the card «Новый черновик») a new draft with "recording", the Notes of a recording drafts.findNewOnRecording
+    /// found the fragment on, has that stretch as a variant of its first place too, made with it in one change, and answers
+    /// its id as "recording" (<see cref="DraftRecordingRequest.WithStretch"/>); a draft that is there takes none.
     /// </summary>
     public static string Add(OpenPiece owner, FragmentOrigin from, Request request)
     {
-        (Draft? draft, DraftDrop drop, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
-        if (draft is null)
+        if (request.Text("draft") is null)
         {
-            string newId = owner.Project.NextDraftId();
-            string name = request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words);
-            return owner.Changed(request, piece => piece.WithNewDraft(Draft.Start(newId, name, variant.AddedAt, place!, variant)), json => Added(json, newId, place, variant.Id));
+            Draft started = Started(owner, from, request);
+            (Draft made, string? recorded) = request.Text("recording") is { } recording ? DraftRecordingRequest.WithStretch(owner, from, started, recording) : (started, null);
+            DraftPlace first = made.Places[0];
+            return owner.Changed(request, piece => piece.WithNewDraft(made), json =>
+            {
+                Added(json, made.Id, first.Id, first.Base);
+                if (recorded is not null)
+                {
+                    json.WriteString("recording", recorded);
+                }
+            });
         }
 
+        if (request.Has("recording"))
+        {
+            throw FacadeException.BadRequest("Only a new draft takes \"recording\"; a place finds its stretch with drafts.addFromRecording.");
+        }
+
+        (Draft? into, DraftDrop drop, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
+        Draft draft = into!;
         return Forgetting(owner, draft.Id, owner.Changed(request, piece => piece.ChangeDraft(draft.Id, each => each.With(variant, drop, place)), json => Added(json, draft.Id, place, variant.Id)));
     }
 
@@ -125,6 +142,19 @@ internal static class DraftRequest
         Answer.Project(json, "project", project);
         Answer.Drafts(json, project, words);
     });
+
+    /// <summary>
+    /// The draft «Создать» makes of the fragment selected in <paramref name="from"/> (as <see cref="Sheet"/> reads it), named
+    /// "name", else «Черновик N», its one place the fragment, "now" its time; not yet in the piece. A request naming a
+    /// "draft" is a bad request.
+    /// </summary>
+    internal static Draft Started(OpenPiece owner, FragmentOrigin from, Request request)
+    {
+        (Draft? draft, _, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
+        return draft is null
+            ? Draft.Start(owner.Project.NextDraftId(), request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words), variant.AddedAt, place!, variant)
+            : throw FacadeException.BadRequest("A new draft is asked for without \"draft\".");
+    }
 
     /// <summary>
     /// The fragment selected in <paramref name="from"/> as «Добавить» takes it into the drafts of <paramref name="into"/>:

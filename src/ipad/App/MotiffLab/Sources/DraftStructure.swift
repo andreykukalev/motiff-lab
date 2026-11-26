@@ -26,11 +26,16 @@ enum DraftRecordingOffer: Equatable, Sendable {
     /// The offer of music-core's answer, from the stretch it found most only (the first); with no answer, `refused`, its
     /// words, if any.
     init(_ answer: DraftRecordingAnswer?, refused: String? = nil) {
-        guard let answer else {
+        self.init(found: answer?.found, refused: refused)
+    }
+
+    /// The offer of what music-core found (`found`, a place's or a new draft's, v1.5 d-11), as `init(_:refused:)`.
+    init(found: [DraftRecordingAnswer.Found]?, refused: String? = nil) {
+        guard let found else {
             self = .failed(refused)
             return
         }
-        guard let best = answer.found.first else {
+        guard let best = found.first else {
             self = .notFound
             return
         }
@@ -63,6 +68,20 @@ enum DraftRecordingOffer: Equatable, Sendable {
         case .notFound: text["drafts.recordingNotFound"]
         case .failed(let refused): refused ?? text["drafts.recordingFailed"]
         case .already(let found): text.format("drafts.recordingAlready", found.label)
+        }
+    }
+
+    /// The line of the card «Новый черновик» (v1.5 d-11; spec «Ноты + запись»: «место на записи, % совпадения, число
+    /// приёмов»): where on the recording the passage is, how much of it, and how many приёмы the place would have; that it
+    /// searches, or why nothing was found; nil before the search and on a piece with no recording heard.
+    func newDraftLine(_ text: UIText) -> String? {
+        switch self {
+        case .ready, .noRecording: nil
+        case .searching: text["drafts.recordingSearching"]
+        case .notFound: text["drafts.newNotFound"]
+        case .failed(let refused): refused ?? text["drafts.recordingFailed"]
+        case .add(let found), .already(let found):
+            text.format("drafts.newOnRecording", found.label, String(found.percent), text.count("drafts.techniqueCount", found.techniques ?? 0))
         }
     }
 }

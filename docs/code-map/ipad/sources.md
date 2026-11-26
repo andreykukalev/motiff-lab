@@ -24,7 +24,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   bridges by the places count), reads `findOnRecording` (on a tap; none searched without Notes `isHeard`), `length`,
   `carryPlaces` (`PieceCore`); `refusal(_:told:otherwise:)`, music-core's words for these when "unavailable"
   (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи», not shown without a recording heard, `offered`, a-1: the stretch
-  found most, else the variant it is named) and `DraftLengthChoice` (bars within the Notes).
+  found most, else the variant it is named; v1.5 d-11 `newDraftLine`, the card «Новый черновик») and `DraftLengthChoice` (bars within the Notes).
+  v1.5 d-11: the card searches its passage (`findNewOnRecording`) and offers «С ассистентом · Pro» (`createWithRecording`,
+  the sheet's `assist`: the screen opens the draft's view with its map and the assistant on ①, `ShownDraftScreen.assist`).
 
 - `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
   `SourcesSheet.swift` in v0.9).

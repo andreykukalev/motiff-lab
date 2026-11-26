@@ -67,7 +67,7 @@ through the facade; the API references it.
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
-  `Draft*Request` (`DraftRecordingRequest`: «Найти на записи»; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
+  `Draft*Request` (`DraftRecordingRequest`: «Найти на записи», and since v1.5 a new draft's passage, `FindNew`, `WithStretch`; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
   `DraftAssistantRequest`), `ShownView`.
 
 ## The native build (`src/ipad/Core`)
