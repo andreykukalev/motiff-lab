@@ -1538,7 +1538,7 @@ struct MorePanel: View {
                     .dsType(.label)
                     .foregroundStyle(Color.ds("danger"))
             }
-            if score.check.hasFlags {
+            if score.check.hasEntries {
                 Button(action: openCheck) {
                     HStack(spacing: CGFloat.ds("s-2")) {
                         Icon(name: "check")

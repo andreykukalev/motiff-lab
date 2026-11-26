@@ -31,7 +31,7 @@ public class HeardLengthsTests
     {
         (ImportedPiece piece, Note[] notes) = Heard();
 
-        IReadOnlyList<UncertainLengths> lengths = HeardLengths.Of(piece, notes);
+        IReadOnlyList<UncertainLengths> lengths = HeardLengths.Of(piece, notes, []);
 
         Assert.Contains(lengths, bar => bar.Bar == BarOf(piece, notes[0]) && bar.NoteIds.Contains(notes[0].Id) && bar.Reasons.Contains(LengthDoubt.Long));
         Assert.Contains(lengths, bar => bar.Bar == BarOf(piece, notes[2]) && bar.NoteIds.Contains(notes[2].Id) && bar.Reasons.Contains(LengthDoubt.Pedal));
@@ -45,11 +45,25 @@ public class HeardLengthsTests
         (ImportedPiece piece, Note[] notes) = Heard();
         Note[] fixedNotes = [.. notes.Select(note => note.Id == notes[0].Id || note.Id == notes[2].Id ? note with { Attribution = Attribution.UserEdited } : note)];
 
-        Assert.Empty(HeardLengths.Of(piece, fixedNotes));
+        Assert.Empty(HeardLengths.Of(piece, fixedNotes, []));
 
         ImportedPiece imported = PieceImporter.Import("take.mid", Melody()).Piece!;
         Note[] longImported = [.. imported.Notes.Select(note => note with { Span = new TickSpan(note.Span.Onset, 8 * CanonicalTime.TicksPerQuarter) })];
-        Assert.Empty(HeardLengths.Of(imported with { Notes = longImported }, longImported));
+        Assert.Empty(HeardLengths.Of(imported with { Notes = longImported }, longImported, []));
+    }
+
+    [Fact]
+    public void A_bar_the_player_said_looks_right_has_no_lengths_to_check_and_checked_again_has_them_back()
+    {
+        (ImportedPiece piece, Note[] notes) = Heard();
+        int bar = BarOf(piece, notes[2]);
+        CheckFlag seam = new(bar, CheckSource.Transcription, CheckReason.PartSeam, Resolved: false);
+
+        Assert.Contains(HeardLengths.Of(piece, notes, CheckFlag.CheckedBars([seam])), lengths => lengths.Bar == bar);
+        Assert.DoesNotContain(HeardLengths.Of(piece, notes, CheckFlag.CheckedBars([seam with { Resolved = true }])), lengths => lengths.Bar == bar);
+        // Another flag on the bar still open: the bar is not checked yet.
+        CheckFlag dense = new(bar, CheckSource.Transcription, CheckReason.DenseCluster, Resolved: false);
+        Assert.Contains(HeardLengths.Of(piece, notes, CheckFlag.CheckedBars([seam with { Resolved = true }, dense])), lengths => lengths.Bar == bar);
     }
 
     [Fact]
@@ -57,7 +71,7 @@ public class HeardLengthsTests
     {
         (ImportedPiece piece, Note[] notes) = Heard();
 
-        Assert.Equal(HeardLengths.Of(piece, notes), HeardLengths.Of(piece, [.. notes.Reverse()]));
+        Assert.Equal(HeardLengths.Of(piece, notes, []), HeardLengths.Of(piece, [.. notes.Reverse()], []));
         foreach (LengthDoubt reason in Enum.GetValues<LengthDoubt>())
         {
             Assert.NotEqual(HeardLengths.NameOf(reason, Words.English), HeardLengths.NameOf(reason, Words.Russian));
