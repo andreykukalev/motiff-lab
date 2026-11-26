@@ -228,7 +228,7 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 184,
+              "left": 185,
               "top": 164,
               "right": 191,
               "bottom": 182
@@ -553,7 +553,7 @@
           "messages": [
             {
               "phraseHeld": 1,
-              "left": 184.453125,
+              "left": 185,
               "bottom": 182.1875
             }
           ]
