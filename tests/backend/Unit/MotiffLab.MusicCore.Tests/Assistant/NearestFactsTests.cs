@@ -37,9 +37,7 @@ public class NearestFactsTests
 
         Assert.Equal("form.section_2", section[0]);
         Assert.Equal(section, Cited(AssistantContext.OfPiece(s_russian), Words.Russian, "Что происходит в части B?"));
-        // A′ starts in bar 39, where B ends: the section named comes first, not the neighbour that shares the bar.
-        Assert.Equal("form.section_3", Cited(context, Words.English, "Is part A' the same as A?")[0]);
-        Assert.Equal("form.section_5", Cited(context, Words.English, "And section A''?")[0]);
+        Assert.Equal("form.section_4", Cited(context, Words.English, "What happens in section C?")[0]);
     }
 
     [Fact]

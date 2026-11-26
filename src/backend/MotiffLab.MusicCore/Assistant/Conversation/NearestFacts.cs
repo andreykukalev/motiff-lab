@@ -9,9 +9,8 @@ namespace MotiffLab.MusicCore.Assistant.Conversation;
 /// from what the digest itself says. A fact is near when its bars meet the bars the question names, in words («такты 5–8»,
 /// «bar 12») or by a section's capital letter («часть B», «section A′»), or, when it names none, the selected bars of a passage's
 /// digest; and when its kind is one the question's words ask about («аккорды», «tempo», «как учить»), in either language.
-/// Facts near both ways come first, then near by bars, then by kind, then the rest; within each, a section the question
-/// names by its letter, then the nearest bars, then the narrowest (when the question names bars), then the digest's order,
-/// one fact of each kind before a second of any.
+/// Facts near both ways come first, then near by bars, then by kind, then the rest; within each, the nearest bars, then the
+/// narrowest (when the question names bars), then the digest's order, one fact of each kind before a second of any.
 /// </summary>
 internal static partial class NearestFacts
 {
@@ -45,8 +44,7 @@ internal static partial class NearestFacts
     {
         Fact[] facts = [.. Facts(digest)];
         string asked = question ?? "";
-        string[] letters = [.. NamedSections(asked)];
-        List<(int From, int To)> named = [.. NamedBars(asked), .. facts.Where(fact => Named(fact, letters) && fact.Bars is not null).Select(static fact => fact.Bars!.Value)];
+        List<(int From, int To)> named = [.. NamedBars(asked), .. NamedSections(asked, facts)];
         bool narrowest = named.Count > 0;
         if (!narrowest && Text(digest, "scope") == "selection" && Bars(digest) is { } selection)
         {
@@ -57,8 +55,7 @@ internal static partial class NearestFacts
         var ranked = facts
             .Select(fact => (Fact: fact, Distance: Distance(fact, named), Kind: kinds.Contains(fact.Kind)))
             .Select(static near => (near.Fact, near.Distance, Group: near.Distance == 0 ? (near.Kind ? 0 : 1) : near.Kind ? 2 : 3))
-            // The section named comes before a neighbour that shares a bar with it, as B and A′ share the bar where A′ starts.
-            .OrderBy(static near => near.Group).ThenBy(near => Named(near.Fact, letters) ? 0 : 1).ThenBy(static near => near.Distance).ThenBy(near => narrowest ? near.Fact.Width : 0).ThenBy(static near => near.Fact.Index);
+            .OrderBy(static near => near.Group).ThenBy(static near => near.Distance).ThenBy(near => narrowest ? near.Fact.Width : 0).ThenBy(static near => near.Fact.Index);
         return [.. ranked.GroupBy(static near => near.Group).SelectMany(static group => KindsFirst([.. group.Select(static near => near.Fact)])).Select(static fact => (fact.Id, fact.Line))];
     }
 
@@ -90,13 +87,11 @@ internal static partial class NearestFacts
             return (Math.Min(from, to), Math.Max(from, to));
         });
 
-    /// <summary>Whether the fact is a section the question names by its letter.</summary>
-    private static bool Named(Fact fact, string[] letters) => fact.Label is { } label && letters.Contains(label);
-
-    /// <summary>The letters of the sections named: «часть B», «section A′» (an apostrophe for the prime).</summary>
-    private static IEnumerable<string> NamedSections(string question) =>
+    /// <summary>The bars of the sections named by their letter: «часть B», «section A′» (an apostrophe for the prime).</summary>
+    private static IEnumerable<(int From, int To)> NamedSections(string question, Fact[] facts) =>
         SectionWords().Matches(question)
-            .Select(static match => match.Groups["label"].Value.Replace("''", "″", StringComparison.Ordinal).Replace('\'', '′'));
+            .Select(static match => match.Groups["label"].Value.Replace("''", "″", StringComparison.Ordinal).Replace('\'', '′'))
+            .SelectMany(label => facts.Where(fact => fact.Label == label && fact.Bars is not null).Select(static fact => fact.Bars!.Value));
 
     private static IEnumerable<Fact> Facts(JsonElement digest) =>
         digest.ValueKind == JsonValueKind.Object && digest.TryGetProperty("items", out JsonElement items) && items.ValueKind == JsonValueKind.Array

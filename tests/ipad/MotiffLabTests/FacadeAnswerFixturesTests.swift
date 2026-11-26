@@ -214,7 +214,7 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(first.motifs.map { [$0.firstBar, $0.lastBar] }, [[0, 1], [2, 4]])
         XCTAssertEqual(read[0].unit(2)?.why, "after a half close and where an earlier passage comes back note for note")
         XCTAssertTrue(read[0].units.allSatisfy { !$0.own }, "all found")
-        XCTAssertEqual(read[0].sections.map(\.label), ["A", "B", "A′", "C", "A″"], "the rondo (#365)")
+        XCTAssertEqual(read[0].sections.map(\.label), ["A", "B", "A", "C", "A"], "the rondo (#365)")
         XCTAssertEqual(read[0].sections.first?.sharesWith, ["section_3", "section_5"], "the same type as Piece DNA's form")
         let episode = try XCTUnwrap(read[0].sections.first { $0.id == "section_4" })
         XCTAssertEqual([episode.onset, episode.selectableOnset, episode.selectableEnd], [43200, 43200, 59760], "a tap selects all of it")

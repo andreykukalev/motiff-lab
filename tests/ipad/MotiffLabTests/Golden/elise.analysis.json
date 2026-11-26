@@ -1051,7 +1051,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -1096,7 +1096,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -1141,7 +1141,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -1186,7 +1186,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -2177,7 +2177,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -2222,7 +2222,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -2267,7 +2267,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -2312,7 +2312,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -2449,7 +2449,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -2494,7 +2494,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -2539,7 +2539,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -2584,7 +2584,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -2614,7 +2614,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Form A B A′ B A″ B A‴ B A⁴ · A minor · 14 half closes · busiest in bar 2",
+    "summary": "Form A B A B A B A B A′ · A minor · 14 half closes · busiest in bar 2",
     "firstBar": 0,
     "lastBar": 96,
     "barStarts": [
@@ -2761,7 +2761,7 @@
       },
       {
        "id": "section_3",
-       "label": "A′",
+       "label": "A",
        "passage": {
         "onset": 16080,
         "end": 24480,
@@ -2800,7 +2800,7 @@
       },
       {
        "id": "section_5",
-       "label": "A″",
+       "label": "A",
        "passage": {
         "onset": 31920,
         "end": 40320,
@@ -2839,7 +2839,7 @@
       },
       {
        "id": "section_7",
-       "label": "A‴",
+       "label": "A",
        "passage": {
         "onset": 47760,
         "end": 56160,
@@ -2878,7 +2878,7 @@
       },
       {
        "id": "section_9",
-       "label": "A⁴",
+       "label": "A′",
        "passage": {
         "onset": 63600,
         "end": 69360,
@@ -3706,7 +3706,7 @@
        "bar": 22,
        "at": 15960,
        "kind": "half",
-       "explanation": "Bar 22. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A′."
+       "explanation": "Bar 22. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A."
       },
       {
        "bar": 26,
@@ -3724,7 +3724,7 @@
        "bar": 44,
        "at": 31800,
        "kind": "half",
-       "explanation": "Bar 44. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A″."
+       "explanation": "Bar 44. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A."
       },
       {
        "bar": 48,
@@ -3742,7 +3742,7 @@
        "bar": 66,
        "at": 47640,
        "kind": "half",
-       "explanation": "Bar 66. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A‴."
+       "explanation": "Bar 66. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A."
       },
       {
        "bar": 70,
@@ -3760,7 +3760,7 @@
        "bar": 88,
        "at": 63480,
        "kind": "half",
-       "explanation": "Bar 88. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A⁴."
+       "explanation": "Bar 88. A half close: the phrase's melody stops on E5, not on the tonic, and the music waits to go on. Then section A′."
       },
       {
        "bar": 92,
@@ -4357,7 +4357,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -4935,7 +4935,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -5513,7 +5513,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -6091,7 +6091,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -8299,7 +8299,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -8344,7 +8344,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -8389,7 +8389,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -8434,7 +8434,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -9425,7 +9425,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -9470,7 +9470,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -9515,7 +9515,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -9560,7 +9560,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -9697,7 +9697,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -9742,7 +9742,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -9787,7 +9787,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -9832,7 +9832,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,
@@ -9862,7 +9862,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Форма A B A′ B A″ B A‴ B A⁴ · ля минор · 14 половинных кадансов · плотнее всего такт 2",
+    "summary": "Форма A B A B A B A B A′ · ля минор · 14 половинных кадансов · плотнее всего такт 2",
     "firstBar": 0,
     "lastBar": 96,
     "barStarts": [
@@ -10009,7 +10009,7 @@
       },
       {
        "id": "section_3",
-       "label": "A′",
+       "label": "A",
        "passage": {
         "onset": 16080,
         "end": 24480,
@@ -10048,7 +10048,7 @@
       },
       {
        "id": "section_5",
-       "label": "A″",
+       "label": "A",
        "passage": {
         "onset": 31920,
         "end": 40320,
@@ -10087,7 +10087,7 @@
       },
       {
        "id": "section_7",
-       "label": "A‴",
+       "label": "A",
        "passage": {
         "onset": 47760,
         "end": 56160,
@@ -10126,7 +10126,7 @@
       },
       {
        "id": "section_9",
-       "label": "A⁴",
+       "label": "A′",
        "passage": {
         "onset": 63600,
         "end": 69360,
@@ -10954,7 +10954,7 @@
        "bar": 22,
        "at": 15960,
        "kind": "half",
-       "explanation": "Такт 22. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A′."
+       "explanation": "Такт 22. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A."
       },
       {
        "bar": 26,
@@ -10972,7 +10972,7 @@
        "bar": 44,
        "at": 31800,
        "kind": "half",
-       "explanation": "Такт 44. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A″."
+       "explanation": "Такт 44. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A."
       },
       {
        "bar": 48,
@@ -10990,7 +10990,7 @@
        "bar": 66,
        "at": 47640,
        "kind": "half",
-       "explanation": "Такт 66. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A‴."
+       "explanation": "Такт 66. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A."
       },
       {
        "bar": 70,
@@ -11008,7 +11008,7 @@
        "bar": 88,
        "at": 63480,
        "kind": "half",
-       "explanation": "Такт 88. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A⁴."
+       "explanation": "Такт 88. Половинный каданс: мелодия фразы останавливается на E5, не на тонике, музыка ждёт продолжения. Дальше раздел A′."
       },
       {
        "bar": 92,
@@ -11605,7 +11605,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 16080,
        "end": 24480,
@@ -12183,7 +12183,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 31920,
        "end": 40320,
@@ -12761,7 +12761,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 47760,
        "end": 56160,
@@ -13339,7 +13339,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A′",
       "passage": {
        "onset": 63600,
        "end": 69360,

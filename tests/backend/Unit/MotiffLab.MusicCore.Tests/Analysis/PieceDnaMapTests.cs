@@ -44,14 +44,13 @@ public class PieceDnaMapTests
     }
 
     [Fact]
-    public void Sections_that_bring_back_the_opening_take_its_letter_with_a_prime()
+    public void Sections_that_bring_back_the_opening_take_its_letter()
     {
         PieceDna dna = Dna(FurElise());
 
-        // The returns of the opening theme take A with primes; the material between takes letters of its own.
+        // The returns of the opening theme take A, unchanged without a prime (#365); the material between takes letters of its own.
         Assert.Equal("A", dna.Form[0].Label);
-        Assert.StartsWith("A", dna.Form[^1].Label);
-        Assert.NotEqual("A", dna.Form[^1].Label);
+        Assert.Equal("A", dna.Form[^1].Label);
         Assert.Contains(dna.Form, section => !section.Label.StartsWith('A'));
         Assert.Contains(dna.Form[^1].Id, dna.Form[0].SharesWith);
         Assert.Equal(dna.Form.OrderBy(section => section.Span.Onset).Select(section => section.Id), dna.Form.Select(section => section.Id));

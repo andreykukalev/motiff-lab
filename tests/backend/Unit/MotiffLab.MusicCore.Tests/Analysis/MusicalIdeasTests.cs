@@ -45,13 +45,14 @@ public class MusicalIdeasTests
         Assert.Equal([IdeaKind.Theme, IdeaKind.Contrast, IdeaKind.Motif, IdeaKind.Peak], dna.Ideas.Select(idea => idea.Kind));
         Assert.Equal(["idea_1", "idea_2", "idea_3", "idea_4"], dna.Ideas.Select(idea => idea.Id));
 
-        // The theme: a, then a again closing on the tonic; its opening comes back in every refrain and opens A′ (A″ starts
-        // on the theme's first full bar, straight out of the chromatic run, so its opening with the upbeat is not heard there).
+        // The theme: a, then a again closing on the tonic; its opening comes back in every refrain and opens the second A
+        // (the last A starts on the theme's first full bar, straight out of the chromatic run, so its opening with the upbeat
+        // is not heard there).
         DnaIdea theme = dna.Ideas[0];
         Assert.Equal("Theme · bars 0–7", theme.Title);
         Assert.StartsWith("The first two phrases begin alike; the first ends on a half close, the second on a full one", theme.Summary);
         int returns = theme.Occurrences.Count - 1;
-        Assert.EndsWith($" Its opening comes back {returns} times and opens A′.", theme.Summary);
+        Assert.EndsWith($" Its opening comes back {returns} times and opens A.", theme.Summary);
         Assert.All(theme.Occurrences.Skip(1), place => Assert.Equal(OccurrenceKind.Exact, place.Kind));
 
         // The first episode, B: the F major phrase, busier and higher than the theme.
@@ -60,10 +61,10 @@ public class MusicalIdeasTests
         Assert.Equal("Section B begins here, with material not heard in A: denser (3.9 notes a beat against 2.2) and reaching 6 semitones higher.", contrast.Summary);
         Assert.Equal(dna.Form.Single(section => section.Label == "B").Span.Onset, contrast.Span.Onset);
 
-        // The figure that opens the refrain's middle (the second ending), heard in every refrain, outside the theme's places.
+        // The figure that opens the refrain's middle (the second ending), heard in every refrain, outside the theme's places, so only in A.
         DnaIdea motif = dna.Ideas[2];
         Assert.Equal("Motif · bar 9", motif.Title);
-        Assert.Equal("Heard 4 times, always exactly.", motif.Summary);
+        Assert.Equal("Heard 4 times, always exactly. Only in A.", motif.Summary);
 
         // The arpeggio that climbs to the top E before the return.
         DnaIdea peak = dna.Ideas[3];
@@ -85,6 +86,7 @@ public class MusicalIdeasTests
         Assert.StartsWith("Первые две фразы начинаются одинаково; первая кончается половинным кадансом, вторая полным", dna.Ideas[0].Summary);
         Assert.Equal("Здесь начинается раздел B, с материалом, которого не было в A: плотнее (3,9 ноты на долю против 2,2) и поднимается на 6 полутонов выше.", dna.Ideas[1].Summary);
         Assert.Equal("Мотив · такт 9", dna.Ideas[2].Title);
+        Assert.Equal("Звучит 4 раза, всегда точно. Только в A.", dna.Ideas[2].Summary);
         Assert.Equal("Здесь самая высокая нота пьесы, в такте 81, на 2 октавы выше всего в теме.", dna.Ideas[3].Summary);
     }
 

@@ -113,9 +113,9 @@ public class FactsDigestTests
         string[] ids = [.. items.EnumerateArray().Select(item => item.GetProperty("id").GetString()!)];
 
         // The summary line has an id now, and is no plain field any more.
-        Assert.StartsWith("Форма A B A′ C A″", Text("summary"), StringComparison.Ordinal);
+        Assert.StartsWith("Форма A B A C A", Text("summary"), StringComparison.Ordinal);
         Assert.False(Json(Written(FactsDigest.OfPiece(piece))).TryGetProperty("summary", out _));
-        Assert.Equal("A′, такты 39–60, общий материал с A (такты 0–23) и A″ (такты 84–105)", Text("form.section_3"));
+        Assert.Equal("A, такты 39–60, общий материал с A (такты 0–23) и A (такты 84–105)", Text("form.section_3"));
         Assert.Equal("Темп: четверть 72 BPM на всём протяжении.", Text("piece.tempo.profile"));
         Assert.Equal(["range.L", "range.R"], ids.Where(id => id.StartsWith("range.", StringComparison.Ordinal)));
         Assert.Equal("Такт 32, самый плотный: 7 нот на долю", Text("density.32"));

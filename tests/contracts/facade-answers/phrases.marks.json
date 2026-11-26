@@ -1045,7 +1045,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -1084,7 +1084,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -2160,7 +2160,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -2199,7 +2199,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -3345,7 +3345,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -3384,7 +3384,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -4598,7 +4598,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 33120,
@@ -4643,7 +4643,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 37920,
        "end": 43200,
@@ -4685,7 +4685,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 64800,
@@ -4730,7 +4730,7 @@
      },
      {
       "id": "section_11",
-      "label": "A⁵",
+      "label": "A",
       "passage": {
        "onset": 69600,
        "end": 75600,
@@ -5890,7 +5890,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 33120,
@@ -5914,7 +5914,7 @@
      },
      {
       "id": "section_6",
-      "label": "B′",
+      "label": "B",
       "passage": {
        "onset": 33120,
        "end": 37920,
@@ -5935,7 +5935,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 37920,
        "end": 43200,
@@ -5977,7 +5977,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 64800,
@@ -6001,7 +6001,7 @@
      },
      {
       "id": "section_10",
-      "label": "B″",
+      "label": "B",
       "passage": {
        "onset": 64800,
        "end": 69600,
@@ -6022,7 +6022,7 @@
      },
      {
       "id": "section_11",
-      "label": "A⁵",
+      "label": "A",
       "passage": {
        "onset": 69600,
        "end": 75600,
@@ -7128,10 +7128,10 @@
        "end": 2400
       },
       "sharesWith": [
-       "section_3",
-       "section_5",
-       "section_7",
-       "section_9"
+       "section_4",
+       "section_6",
+       "section_8",
+       "section_10"
       ],
       "phrase": 1,
       "bar": 0,
@@ -7142,24 +7142,42 @@
       "label": "B",
       "passage": {
        "onset": 2400,
-       "end": 27840,
+       "end": 5760,
        "firstBar": 4,
-       "lastBar": 39
+       "lastBar": 8
       },
       "selectable": {
        "onset": 2400,
-       "end": 25200
+       "end": 5760
       },
-      "sharesWith": [
-       "section_4",
-       "section_8"
-      ],
+      "sharesWith": [],
       "phrase": 2,
       "bar": 4,
       "beat": 1
      },
      {
       "id": "section_3",
+      "label": "C",
+      "passage": {
+       "onset": 5760,
+       "end": 27840,
+       "firstBar": 9,
+       "lastBar": 39
+      },
+      "selectable": {
+       "onset": 5760,
+       "end": 27840
+      },
+      "sharesWith": [
+       "section_5",
+       "section_9"
+      ],
+      "phrase": 3,
+      "bar": 9,
+      "beat": 1
+     },
+     {
+      "id": "section_4",
       "label": "A′",
       "passage": {
        "onset": 27840,
@@ -7173,17 +7191,17 @@
       },
       "sharesWith": [
        "section_1",
-       "section_5",
-       "section_7",
-       "section_9"
+       "section_6",
+       "section_8",
+       "section_10"
       ],
       "phrase": 9,
       "bar": 39,
       "beat": 3
      },
      {
-      "id": "section_4",
-      "label": "B′",
+      "id": "section_5",
+      "label": "C",
       "passage": {
        "onset": 33120,
        "end": 37920,
@@ -7195,15 +7213,15 @@
        "end": 37920
       },
       "sharesWith": [
-       "section_2",
-       "section_8"
+       "section_3",
+       "section_9"
       ],
       "phrase": 11,
       "bar": 47,
       "beat": 1
      },
      {
-      "id": "section_5",
+      "id": "section_6",
       "label": "A″",
       "passage": {
        "onset": 37920,
@@ -7217,17 +7235,17 @@
       },
       "sharesWith": [
        "section_1",
-       "section_3",
-       "section_7",
-       "section_9"
+       "section_4",
+       "section_8",
+       "section_10"
       ],
       "phrase": 12,
       "bar": 53,
       "beat": 3
      },
      {
-      "id": "section_6",
-      "label": "C",
+      "id": "section_7",
+      "label": "D",
       "passage": {
        "onset": 43200,
        "end": 59760,
@@ -7244,7 +7262,7 @@
       "beat": 1
      },
      {
-      "id": "section_7",
+      "id": "section_8",
       "label": "A‴",
       "passage": {
        "onset": 59760,
@@ -7258,17 +7276,17 @@
       },
       "sharesWith": [
        "section_1",
-       "section_3",
-       "section_5",
-       "section_9"
+       "section_4",
+       "section_6",
+       "section_10"
       ],
       "phrase": 17,
       "bar": 84,
       "beat": 1
      },
      {
-      "id": "section_8",
-      "label": "B″",
+      "id": "section_9",
+      "label": "C",
       "passage": {
        "onset": 64800,
        "end": 69600,
@@ -7280,15 +7298,15 @@
        "end": 69600
       },
       "sharesWith": [
-       "section_2",
-       "section_4"
+       "section_3",
+       "section_5"
       ],
       "phrase": 19,
       "bar": 91,
       "beat": 1
      },
      {
-      "id": "section_9",
+      "id": "section_10",
       "label": "A⁴",
       "passage": {
        "onset": 69600,
@@ -7302,17 +7320,17 @@
       },
       "sharesWith": [
        "section_1",
-       "section_3",
-       "section_5",
-       "section_7"
+       "section_4",
+       "section_6",
+       "section_8"
       ],
       "phrase": 20,
       "bar": 97,
       "beat": 3
      },
      {
-      "id": "section_10",
-      "label": "D",
+      "id": "section_11",
+      "label": "E",
       "passage": {
        "onset": 72480,
        "end": 75600,
@@ -8490,7 +8508,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 33120,
@@ -8514,7 +8532,7 @@
      },
      {
       "id": "section_6",
-      "label": "B′",
+      "label": "B",
       "passage": {
        "onset": 33120,
        "end": 37920,
@@ -8535,7 +8553,7 @@
      },
      {
       "id": "section_7",
-      "label": "A‴",
+      "label": "A",
       "passage": {
        "onset": 37920,
        "end": 43200,
@@ -8577,7 +8595,7 @@
      },
      {
       "id": "section_9",
-      "label": "A⁴",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 64800,
@@ -8601,7 +8619,7 @@
      },
      {
       "id": "section_10",
-      "label": "B″",
+      "label": "B",
       "passage": {
        "onset": 64800,
        "end": 69600,
@@ -8622,7 +8640,7 @@
      },
      {
       "id": "section_11",
-      "label": "A⁵",
+      "label": "A",
       "passage": {
        "onset": 69600,
        "end": 75600,
@@ -9754,7 +9772,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -9793,7 +9811,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,

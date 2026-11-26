@@ -8,8 +8,8 @@ namespace MotiffLab.MusicCore.Tests.Analysis;
 
 /// <summary>
 /// The sections of the form on pieces built here (#365): a return of the opening starts a section, even inside a sentence,
-/// and the music between two returns is one section; where the opening never comes back, the sentences stay the sections.
-/// Für Elise's rondo is in <see cref="PieceStructureTests"/>.
+/// and the music between two returns keeps its own sentences; where the opening never comes back, the sentences stay the
+/// sections. Für Elise's rondo is in <see cref="PieceStructureTests"/>.
 /// </summary>
 public class FormAnalyzerTests
 {
@@ -23,6 +23,16 @@ public class FormAnalyzerTests
 
     /// <summary>A third four bars, closing on the second degree, a half close too.</summary>
     private static readonly int[] s_c = [57, 59, 60, 62, 64, 62, 60, 59, 57, 60, 64, 65, 62];
+
+    /// <summary>b a fifth lower, closing on the tonic: b transposed.</summary>
+    private static readonly int[] s_bLower = [.. s_b.Select(pitch => pitch - 7)];
+
+    /// <summary>Three more four bars of material of their own, each closing on the tonic, so each is a sentence.</summary>
+    private static readonly int[] s_d = [76, 74, 72, 74, 76, 79, 77, 76, 74, 72, 71, 74, 72];
+
+    private static readonly int[] s_e = [55, 57, 55, 53, 52, 53, 55, 60, 59, 57, 55, 59, 60];
+
+    private static readonly int[] s_f = [48, 50, 52, 48, 53, 52, 50, 47, 48, 55, 52, 55, 48];
 
     [Fact]
     public void A_return_of_the_opening_inside_a_sentence_starts_a_section_a_b_a_c_a()
@@ -40,14 +50,41 @@ public class FormAnalyzerTests
     }
 
     [Fact]
-    public void Music_between_two_returns_is_one_section()
+    public void An_episode_keeps_its_own_sentences_as_sections_a_b_c_d_a()
     {
-        // b and c between the opening and its return: one episode, a ternary A B A.
-        (Note[] notes, SentenceMap sentences) = Piece(s_a, s_b, s_c, s_a);
+        // d, e and f between the opening and its return each close on the tonic: three sentences, three sections (f reads
+        // as one sentence with the return it runs into, yet closes, so it does not lead back into it).
+        (Note[] notes, SentenceMap sentences) = Piece(s_a, s_d, s_e, s_f, s_a);
+        Assert.All(sentences.Closes.Skip(1).Take(3), close => Assert.Equal(CloseKind.Full, close.Kind));
+
+        IReadOnlyList<DnaSection> form = FormAnalyzer.Sections(notes, MeterMap.Default, sentences);
+
+        Assert.Equal([("A", 1, 4), ("B", 5, 8), ("C", 9, 12), ("D", 13, 16), ("A", 17, 20)], form.Select(section => (section.Label, section.FirstBar, section.LastBar)));
+    }
+
+    [Fact]
+    public void The_last_sentence_of_an_episode_that_does_not_close_is_its_lead_in()
+    {
+        // d closes on the tonic, b on a half close that runs on into the return: b leads back, so d b is one episode.
+        (Note[] notes, SentenceMap sentences) = Piece(s_a, s_d, s_b, s_a);
+        Assert.Equal([(1, 4), (5, 8), (9, 16)], sentences.Sentences.Select(sentence => (sentence.FirstBar, sentence.LastBar)));
 
         IReadOnlyList<DnaSection> form = FormAnalyzer.Sections(notes, MeterMap.Default, sentences);
 
         Assert.Equal([("A", 1, 4), ("B", 5, 12), ("A", 13, 16)], form.Select(section => (section.Label, section.FirstBar, section.LastBar)));
+    }
+
+    [Fact]
+    public void A_sonata_rondo_reads_a_b_a_c_a_b_prime_a()
+    {
+        // The first episode comes back a fifth lower after the second: the same letter with a prime, the refrain without.
+        (Note[] notes, SentenceMap sentences) = Piece(s_a, s_b, s_a, s_c, s_a, s_bLower, s_a);
+
+        IReadOnlyList<DnaSection> form = FormAnalyzer.Sections(notes, MeterMap.Default, sentences);
+
+        Assert.Equal(["A", "B", "A", "C", "A", "B′", "A"], form.Select(section => section.Label));
+        Assert.Equal([(1, 4), (5, 8), (9, 12), (13, 16), (17, 20), (21, 24), (25, 28)], form.Select(section => (section.FirstBar, section.LastBar)));
+        Assert.Equal(["section_6"], form[1].SharesWith);
     }
 
     [Fact]
@@ -62,12 +99,13 @@ public class FormAnalyzerTests
     [Fact]
     public void A_refrain_heard_again_and_again_is_a_return_each_time()
     {
-        // (a a b) three times, then a: each return of a a is a refrain of its own, not one refrain twice as long.
+        // (a a b) three times, then a: each return of a a is a refrain of its own, not one refrain twice as long; the last
+        // brings back only its first a, which is no change.
         (Note[] notes, SentenceMap sentences) = Piece(s_a, s_a, s_b, s_a, s_a, s_b, s_a, s_a, s_b, s_a);
 
         IReadOnlyList<DnaSection> form = FormAnalyzer.Sections(notes, MeterMap.Default, sentences);
 
-        Assert.Equal(["A", "B", "A", "B", "A", "B", "A′"], form.Select(section => section.Label));
+        Assert.Equal(["A", "B", "A", "B", "A", "B", "A"], form.Select(section => section.Label));
         Assert.Equal([(1, 8), (9, 12), (13, 20)], form.Take(3).Select(section => (section.FirstBar, section.LastBar)));
     }
 

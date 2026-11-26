@@ -1021,7 +1021,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -1060,7 +1060,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -2128,7 +2128,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -2167,7 +2167,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -2362,7 +2362,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -2401,7 +2401,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -2429,7 +2429,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Form A B A′ C A″ · A minor · 3 full closes, 11 half closes · busiest in bar 32",
+    "summary": "Form A B A C A · A minor · 3 full closes, 11 half closes · busiest in bar 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -2579,7 +2579,7 @@
       },
       {
        "id": "section_3",
-       "label": "A′",
+       "label": "A",
        "passage": {
         "onset": 27840,
         "end": 43200,
@@ -2612,7 +2612,7 @@
       },
       {
        "id": "section_5",
-       "label": "A″",
+       "label": "A",
        "passage": {
         "onset": 59760,
         "end": 75600,
@@ -2637,7 +2637,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Idea 1 · bars 0–1",
-       "summary": "Heard 11 times, always exactly. Opens A and A′.",
+       "summary": "Heard 11 times, always exactly. Opens A and A.",
        "passage": {
         "onset": 0,
         "end": 960,
@@ -2881,7 +2881,7 @@
        "id": "idea_2",
        "fromSelection": false,
        "title": "Idea 2 · bar 9",
-       "summary": "Heard 4 times, always exactly.",
+       "summary": "Heard 4 times, always exactly. Only in A.",
        "passage": {
         "onset": 5760,
         "end": 6480,
@@ -4656,7 +4656,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -5423,7 +5423,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -7752,7 +7752,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -7791,7 +7791,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -8859,7 +8859,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -8898,7 +8898,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -9093,7 +9093,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -9132,7 +9132,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
@@ -9160,7 +9160,7 @@
    "request": null,
    "answer": {
     "status": "partial",
-    "summary": "Форма A B A′ C A″ · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32",
+    "summary": "Форма A B A C A · ля минор · 3 полных каданса, 11 половинных кадансов · плотнее всего такт 32",
     "firstBar": 0,
     "lastBar": 105,
     "barStarts": [
@@ -9310,7 +9310,7 @@
       },
       {
        "id": "section_3",
-       "label": "A′",
+       "label": "A",
        "passage": {
         "onset": 27840,
         "end": 43200,
@@ -9343,7 +9343,7 @@
       },
       {
        "id": "section_5",
-       "label": "A″",
+       "label": "A",
        "passage": {
         "onset": 59760,
         "end": 75600,
@@ -9368,7 +9368,7 @@
        "id": "idea_1",
        "fromSelection": false,
        "title": "Идея 1 · такты 0–1",
-       "summary": "Звучит 11 раз, всегда точно. Открывает A и A′.",
+       "summary": "Звучит 11 раз, всегда точно. Открывает A и A.",
        "passage": {
         "onset": 0,
         "end": 960,
@@ -9612,7 +9612,7 @@
        "id": "idea_2",
        "fromSelection": false,
        "title": "Идея 2 · такт 9",
-       "summary": "Звучит 4 раза, всегда точно.",
+       "summary": "Звучит 4 раза, всегда точно. Только в A.",
        "passage": {
         "onset": 5760,
         "end": 6480,
@@ -11387,7 +11387,7 @@
      },
      {
       "id": "section_3",
-      "label": "A′",
+      "label": "A",
       "passage": {
        "onset": 27840,
        "end": 43200,
@@ -12154,7 +12154,7 @@
      },
      {
       "id": "section_5",
-      "label": "A″",
+      "label": "A",
       "passage": {
        "onset": 59760,
        "end": 75600,
