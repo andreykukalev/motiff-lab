@@ -19,8 +19,9 @@ final class ScoreWorkspace: ObservableObject {
     let score = ScoreController()
     let roll = RollController()
     let insights = InsightsController()
-    /// The model-backed assistant (#582 item 17): its side panel and the piece's conversations.
-    let assistant = AssistantController()
+    /// The model-backed assistant (#582 item 17): its side panel and the piece's conversations; on a draft's view, the
+    /// draft's screen's, handed to each screen its view opens again on (v1.4).
+    let assistant: AssistantController
     let contents = ContentsController()
     /// The piece's originals on this iPad (version 0.3): where each one is, and the PDF linked where it lies in Files; known
     /// from the piece's opening, so PDF | Notes is whole from the first frame (#495 BUG-02).
@@ -35,9 +36,11 @@ final class ScoreWorkspace: ObservableObject {
     /// (#582 item 2), as the first is already saving, closing and opening the piece.
     var handingOver = false
 
-    /// `viewing` is the tag of a view shown over the piece (ScoreScreen.viewing): it has no Sources.
-    init(piece: OpenPiece, viewing: String? = nil) {
+    /// `viewing` is the tag of a view shown over the piece (ScoreScreen.viewing): it has no Sources. `assistant` is one
+    /// that outlasts this workspace (a draft's screen's); nil, it makes its own.
+    init(piece: OpenPiece, viewing: String? = nil, assistant: AssistantController? = nil) {
         self.piece = piece
+        self.assistant = assistant ?? AssistantController()
         originals = OriginalsController(opened: piece.own)
         // The switch of all views as the screen before had it, until this one has read its own (SourcesHandover).
         sources = SourcesController(layers: SourcesHandover.layers(for: piece.file))

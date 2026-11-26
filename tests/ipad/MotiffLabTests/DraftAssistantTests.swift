@@ -86,12 +86,12 @@ final class DraftAssistantTests: XCTestCase {
         XCTAssertTrue(UIText(language: "ru")["mentor.draftConsentNot"].contains("звук записи"))
     }
 
-    func testAQuestionInAPlaceProposesAStepThePlayerHearsRefusesAndAccepts() async throws {
+    /// The kit's piece open with its Sources, and a draft of bars 1–4 (`then`: what else goes into it before it is opened).
+    private func drafted(then: (SourcesController, SourceLayers.Draft, DraftViewAnswer.Place) async -> Void) async throws -> (SourcesController, SourceLayers.Draft, OpenPiece) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "en", title: example.title).get()
         opened.append(piece.id)
-        let workspace = ScoreWorkspace(piece: piece)
-        let sources = workspace.sources
+        let sources = ScoreWorkspace(piece: piece).sources
         await sources.load(piece: piece.id, file: nil)
         let made = await sources.change("drafts.add", ["bars": ["first": 1, "last": 4], "now": "2026-11-20T10:00:00Z"])
         XCTAssertNotNil(made, sources.status ?? "")
@@ -100,16 +100,31 @@ final class DraftAssistantTests: XCTestCase {
         let first = try XCTUnwrap(opening, sources.status ?? "")
         opened.append(first.id)
         let place = try XCTUnwrap(first.draft?.places.first)
-        let fields: [String: Any] = ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "variant", "place": place.id, "now": "2026-11-20T10:05:00Z"]
-        let added = await sources.change("drafts.add", fields)
-        XCTAssertNotNil(added, sources.status ?? "")
+        await then(sources, draft, place)
         let reopened = await sources.openDraft(draft)
         let view = try XCTUnwrap(reopened, sources.status ?? "")
         opened.append(view.id)
+        return (sources, draft, view)
+    }
+
+    /// A draft whose place ① has bars 5–8 as a variant besides its base, bars 1–4: its first приём's number.
+    private func placeWithVariant() async throws -> (SourcesController, SourceLayers.Draft, DraftViewAnswer.Place, OpenPiece, Int) {
+        let (sources, draft, view) = try await drafted { sources, draft, place in
+            let fields: [String: Any] = ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "variant", "place": place.id, "now": "2026-11-20T10:05:00Z"]
+            let added = await sources.change("drafts.add", fields)
+            XCTAssertNotNil(added, sources.status ?? "")
+        }
+        let place = try XCTUnwrap(view.draft?.places.first)
         let techniques = DraftTechniquesModel()
         await techniques.load(view.draft, on: view.id)
         let number = try XCTUnwrap(techniques.spots.first?.technique.number, "Für Elise's bar 8 against bar 4: one приём")
+        return (sources, draft, place, view, number)
+    }
 
+    private let allowed = (200, Data(#"{"configured": true, "allowed": true, "pro": true, "left": 5}"#.utf8))
+
+    func testAQuestionInAPlaceProposesAStepThePlayerHearsRefusesAndAccepts() async throws {
+        let (sources, draft, place, view, number) = try await placeWithVariant()
         let assistant = controller()
         let here = AssistantDraftPlace(draft: draft.id, place: place.id, label: place.label)
         assistant.consent(true)
@@ -173,6 +188,149 @@ final class DraftAssistantTests: XCTestCase {
                 XCTAssertNotEqual(UIText(language: language)[key], key, "\(key) in \(language)")
             }
         }
+    }
+
+    /// The plan's answer 8 (v1.4): in a draft's place the assistant holds a conversation, the panel's own model, in one
+    /// role: each question goes with the ones before it; the explainer (F5) proposes nothing; Try again asks the question
+    /// that got no answer again in its place; a new conversation starts empty in the role chosen.
+    func testAPlaceHoldsAConversationInOneRole() async throws {
+        let (sources, _, place, view, number) = try await placeWithVariant()
+        let assistant = controller()
+        let shown = try XCTUnwrap(view.draft)
+        let here = DraftAssistantSection.named(place, of: shown)
+        XCTAssertEqual(here.basis.count, 2, "the base and the variant built from")
+        XCTAssertTrue(DraftAssistantSection.offered(place))
+        XCTAssertEqual(AssistantDraftPlace.roles(bridge: false), ["placeAssembler", "explainer"])
+        XCTAssertEqual(AssistantDraftPlace.roles(bridge: true), ["seamChooser"])
+        assistant.consent(true, inDraft: true)
+        assistant.openInDraft(here, role: AssistantDraftPlace.explainer)
+        let ask = AssistantAsk(piece: sources.piece, selection: nil, wholePiece: false, scope: place.label, language: "en", role: AssistantDraftPlace.explainer, relay: stubbed(), place: here)
+        AssistantStub.answers = ["status": allowed]
+        AssistantStub.turns = [Data(#"{"kind": "answer", "text": "The variant fills bar 4 [[technique.\#(number)]]", "fallback": false}"#.utf8)]
+        await assistant.askInDraft("How do they differ?", about: ask)
+        AssistantStub.turns = [Data(#"{"kind": "answer", "text": "From bars 5–8 of the notes", "fallback": false}"#.utf8)]
+        await assistant.askInDraft("Where does it come from?", about: ask)
+
+        let chat = try XCTUnwrap(assistant.inDraft?.chat)
+        XCTAssertEqual(chat.role, "explainer", "the conversation keeps its role")
+        XCTAssertEqual(chat.exchanges.map(\.question), ["How do they differ?", "Where does it come from?"])
+        XCTAssertEqual(chat.exchanges.first?.answer.compactMap(\.cites), ["technique.\(number)"], "the place's fact, cited")
+        XCTAssertNil(assistant.inDraft?.exchange?.proposals, "the explainer proposes nothing")
+        let turn = chat.asking("And bar 2?").request(language: "en", context: .object([:]))
+        let questions = turn["history"]?.items.filter { $0["kind"] == .string("question") }.compactMap { $0["text"]?.string }
+        XCTAssertEqual(questions, ["How do they differ?", "Where does it come from?", "And bar 2?"], "the next question goes with the ones before it")
+        XCTAssertEqual(turn["role"], .string("explainer"))
+
+        AssistantStub.answers = ["status": allowed]
+        await assistant.askInDraft("And bar 3?", about: ask)
+        let failed = try XCTUnwrap(assistant.inDraft?.exchange)
+        XCTAssertNotNil(failed.note, "no answer: the turn did not go through")
+        let again = assistant.forget(failed)
+        XCTAssertEqual(again, "And bar 3?", "Try again asks it again")
+        let left = assistant.inDraft?.chat.exchanges.count
+        XCTAssertEqual(left, 2, "in its place, not after itself")
+
+        assistant.startInDraft(role: AssistantDraftPlace.role)
+        let started = try XCTUnwrap(assistant.inDraft?.chat)
+        XCTAssertEqual(started.role, "placeAssembler")
+        XCTAssertEqual(started.exchanges, [], "a new conversation starts empty")
+        XCTAssertEqual(assistant.inDraft?.place, here)
+        for language in ["en", "ru"] {
+            for key in ["drafts.assistantAssemble", "drafts.assistantExplain", "drafts.assistantChoose", "drafts.assistantExplainSuggest",
+                        "drafts.assistantBridgeSuggest", "drafts.assistantRoles", "drafts.withAssistantBridgeHint"] {
+                XCTAssertNotEqual(UIText(language: language)[key], key, "\(key) in \(language)")
+            }
+        }
+    }
+
+    /// v1.4: the assistant's conversation goes with a place the draft no longer offers it in as it was (gone, another
+    /// base, its variant moved out), and the draft's screen hands one assistant to each screen its view opens again on.
+    func testTheConversationGoesWithThePlaceAsItWas() throws {
+        let assistant = controller()
+        let here = AssistantDraftPlace(draft: "d_0001", place: "pl_0001", label: "① Notes 1–4 · 2 variants", basis: ["v_0001", "v_0002"])
+        assistant.openInDraft(here)
+        assistant.closeInDraft(unlessOffered: [here])
+        XCTAssertEqual(assistant.inDraft?.place, here, "offered there still: kept")
+        let rebased = AssistantDraftPlace(draft: "d_0001", place: "pl_0001", label: here.label, basis: ["v_0002", "v_0001"])
+        assistant.closeInDraft(unlessOffered: [rebased])
+        XCTAssertNil(assistant.inDraft, "another base: the conversation of the place as it was goes")
+        let piece = OpenPiece(id: 9_000_401, title: "Draft", pages: [], timemap: "")
+        let handed = ScoreWorkspace(piece: piece, assistant: assistant)
+        XCTAssertTrue(handed.assistant === assistant, "the draft's screen's assistant, handed on")
+        XCTAssertFalse(ScoreWorkspace(piece: piece).assistant === assistant, "else the screen's own")
+    }
+
+    /// v1.4, stale proposals: «Принять» keeps a proposal only while its call, made again on the draft as it is now, still
+    /// proposes what its card says; else nothing is taken and the card says it no longer fits.
+    func testAProposalNoLongerWhatItsCardSaysIsNotTaken() async throws {
+        let (sources, draft, place, _, number) = try await placeWithVariant()
+        let arguments = JSONValue.object(["techniques": .array([.int(number)]), "bar": .null])
+        let call = AssistantPlaceProposal(
+            id: "p1", tool: "place.take", parameters: arguments, role: AssistantDraftPlace.role, draft: draft.id, place: place.id, title: nil, explanation: "", structure: false
+        )
+        let here = AssistantDraftPlace(draft: draft.id, place: place.id, label: place.label)
+        let answer = await AssistantController.run(AssistantToolCall(id: "t1", name: "place.take", arguments: arguments), role: call.role, place: here, piece: sources.piece)
+        let now = try XCTUnwrap(answer["drafts"]?.items.first, answer.text)
+        var proposal = call
+        proposal.title = now["title"]?.string
+        proposal.explanation = now["explanation"]?.string ?? ""
+        let fresh = await proposal.proposedAgain(on: sources.piece)
+        XCTAssertTrue(fresh, "the draft as it was: the same proposal")
+        var other = proposal
+        other.explanation = "Into ① from Notes 5–8: technique \(number), another bass."
+        let stale = await other.proposedAgain(on: sources.piece)
+        XCTAssertFalse(stale, "what the card says is not what the call proposes now")
+        let refused = await sources.acceptProposal(other.callFields, of: draft.id, words: other.words) { await other.proposedAgain(on: sources.piece) }
+        XCTAssertEqual(refused, .refused(""), "refused in no words of music-core's: «уже не подходит»")
+        XCTAssertEqual(sources.layers.drafts.first?.taken, 0, "nothing taken")
+        let kept = await sources.acceptProposal(proposal.callFields, of: draft.id, words: proposal.words) { await proposal.proposedAgain(on: sources.piece) }
+        XCTAssertEqual(kept, .kept, sources.status ?? "")
+        XCTAssertEqual(sources.layers.drafts.first?.taken, 1)
+    }
+
+    /// F5 (v1.4): in a bridge place, the bridge chooser's conversation proposes a candidate as the base, music-core's
+    /// step; only «Принять» makes it the base.
+    func testTheBridgeChooserProposesACandidateInTheBridgesCard() async throws {
+        let (sources, draft, view) = try await drafted { sources, draft, _ in
+            // ② a new place in another key, and the bridge's candidates put before it.
+            let steps: [(String, [String: Any])] = [
+                ("drafts.add", ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "place", "now": "2026-11-20T10:05:00Z"]),
+                ("drafts.transpose", ["draft": draft.id, "place": "pl_0002", "semitones": 2, "now": "2026-11-20T10:10:00Z"]),
+                ("drafts.bridge", ["draft": draft.id, "place": "pl_0002", "now": "2026-11-20T10:12:00Z"]),
+            ]
+            for (name, fields) in steps {
+                let changed = await sources.change(name, fields)
+                XCTAssertNotNil(changed, "\(name): \(sources.status ?? "")")
+            }
+        }
+        let bridge = try XCTUnwrap(view.draft?.places.first { $0.bridge }, "a bridge place between ① and ②")
+        let candidate = try XCTUnwrap(bridge.variants.first { !$0.base }?.bridge, "a candidate besides the base")
+        XCTAssertTrue(DraftAssistantSection.offered(bridge))
+        let shown = try XCTUnwrap(view.draft)
+        let here = DraftAssistantSection.named(bridge, of: shown)
+        XCTAssertEqual(here.basis, [], "the chooser's own step changes the base")
+        let assistant = controller()
+        assistant.consent(true, inDraft: true)
+        assistant.openInDraft(here, role: AssistantDraftPlace.roles(bridge: true)[0])
+        let ask = AssistantAsk(piece: sources.piece, selection: nil, wholePiece: false, scope: bridge.label, language: "en", role: AssistantDraftPlace.seamChooser, relay: stubbed(), place: here)
+        AssistantStub.answers = ["status": allowed]
+        AssistantStub.turns = [
+            Data(#"{"kind": "toolCalls", "entry": {"kind": "toolCalls", "calls": [{"id": "s1", "name": "place.bridge", "arguments": {"kind": "\#(candidate)"}}]}}"#.utf8),
+            Data(#"{"kind": "answer", "text": "This one leads best", "fallback": false}"#.utf8),
+        ]
+        await assistant.askInDraft("Which bridge?", about: ask)
+        let proposal = try XCTUnwrap(assistant.inDraft?.exchange?.proposals?.first, "music-core's place.bridge, proposed")
+        XCTAssertTrue(proposal.structure)
+        XCTAssertEqual(proposal.role, "seamChooser")
+        let kept = await assistant.accept(proposal) {
+            await sources.acceptProposal(proposal.callFields, of: proposal.draft, words: proposal.words) { await proposal.proposedAgain(on: sources.piece) }
+        }
+        XCTAssertTrue(kept, sources.status ?? "")
+        let reopened = await sources.openDraft(draft)
+        let after = try XCTUnwrap(reopened, sources.status ?? "")
+        opened.append(after.id)
+        let base = after.draft?.places.first { $0.bridge }?.variants.first { $0.base }?.bridge
+        XCTAssertEqual(base, candidate, "«Принять»: the candidate is the bridge's base")
     }
 
     /// «Принять» while another step of the draft is on its way (v1.4, i-3): held, not sent, the proposal as it was and no

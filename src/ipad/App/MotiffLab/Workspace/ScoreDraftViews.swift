@@ -235,12 +235,15 @@ struct DraftStepToast: View {
 }
 
 /// A draft's view on its screen over the piece (v1.1): after each step it opens again in its place (`reopen`, the
-/// `ScoreScreen`'s), at the place asked, as music-core rebuilt it, its map as it was; each number it was open under is
-/// closed once the next shows or the screen goes.
+/// `ScoreScreen`'s), at the place asked, as music-core rebuilt it, its map and the assistant as they were; each number it
+/// was open under is closed once the next shows or the screen goes.
 struct ShownDraftScreen: View {
     @State private var piece: OpenPiece
     /// The draft's map, open or not, as the view opens again after each step.
     @State private var map: DraftMapOpen?
+    /// The assistant of the draft's visit (v1.4): each screen the view opens again on is handed it, so a conversation in a
+    /// place, and a question on its way, outlast the step that opened the view again; it goes with this screen.
+    @StateObject private var assistant = AssistantController()
     let owner: SourcesController
     let viewing: String
 
@@ -251,7 +254,7 @@ struct ShownDraftScreen: View {
     }
 
     var body: some View {
-        ScoreScreen(piece: piece, viewing: viewing, reopen: reopen)
+        ScoreScreen(piece: piece, viewing: viewing, reopen: reopen, assistant: assistant)
             .environment(\.draftMap, $map)
             .onDisappear { [id = piece.id] in ScoreScreenContent.ShownView.close(id) }
             .id(piece.id)
