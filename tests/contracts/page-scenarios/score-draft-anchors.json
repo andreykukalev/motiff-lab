@@ -180,15 +180,15 @@
        "bar": 3,
        "text": "",
        "state": null,
-       "left": 365,
+       "left": 373,
        "top": 195,
-       "right": 389,
+       "right": 397,
        "bottom": 219
       }
      ]
     }
    },
-   "note": "the page draws each mark over its bar in the order it is given, the anchor's amber mark beside the приём's number over bar 3"
+   "note": "the page draws each mark over its bar in the order it is given, the anchor's amber mark beside the приём's number over bar 3, a touch apart from its frame (v1.4, F7: it ran 4 px onto it)"
   },
   {
    "pointer": "pen",
