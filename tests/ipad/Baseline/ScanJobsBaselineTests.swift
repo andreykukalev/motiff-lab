@@ -191,12 +191,15 @@ final class ScanJobsBaselineTests: XCTestCase {
 
     /// SCAN-04 (Andrei, 2026-11-25): with «Четыре движка», «Распознать ноты» on the open PDF goes to the library's
     /// recognition; while one goes on none starts, and the banner and the PDF's line say whose it is and how far.
-    func testSCAN04WithFourEnginesThePieceOpenOnScreenIsSentAndOnlyItsReadingsWait() {
+    func testSCAN04WithFourEnginesThePieceOpenOnScreenIsSentAfterTheRestAndOnlyItsReadingsWait() {
         var batch = RecognitionBatch(address: "https://scan.example.org/", hosted: false, items: [
             RecognitionItem(file: "a.motiff.json", title: "Arabesque", pages: 5), RecognitionItem(file: "b.motiff.json", title: "Ballade", pages: 12),
         ])
 
+        XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json", jobs: true), 1, "the rest of a batch first: not held behind the open piece")
+        batch.items[1].state = .done
         XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json", jobs: true), 0, "«Распознать ноты» on the open PDF goes on in the background (Andrei, 2026-11-25)")
+        XCTAssertNil(RecognitionQueue.next(in: batch, open: "a.motiff.json"), "with one engine the open piece waits for its screen to close")
         batch.items[0].job = ScanJobRecord(id: "j1", pages: [1])
         XCTAssertEqual(RecognitionQueue.next(in: batch, open: "a.motiff.json"), 0, "a job kept: followed while the piece is open, its readings wait for the screen")
     }
