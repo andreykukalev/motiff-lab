@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Facade;
 
 namespace MotiffLab.MusicCore.Tests.Facade;
 
-/// <summary>Through the facade (contract 11): doubt about recognised notes reaches chords and facts, and goes when checked (#352).</summary>
+/// <summary>Through the facade (contract 11; the circles' within 15): doubt about recognised notes reaches chords and facts, and goes when checked (#352).</summary>
 public class NoteDoubtFacadeTests
 {
     private static byte[] Fixture(params string[] path) => File.ReadAllBytes(Path.Combine([AppContext.BaseDirectory, .. path]));
@@ -74,7 +74,16 @@ public class NoteDoubtFacadeTests
     {
         MusicCoreFacade facade = Heard();
         Call(facade, "select", """{"bars": {"first": 1, "last": 8}}""");
-        bool doubtedDna = Call(facade, "dna").GetProperty("harmony").GetProperty("bars").EnumerateArray().Any(chord => chord.TryGetProperty("doubt", out _));
+        JsonElement before = Call(facade, "dna");
+        bool doubtedDna = before.GetProperty("harmony").GetProperty("bars").EnumerateArray().Any(chord => chord.TryGetProperty("doubt", out _));
+        // A circle drawn as uncertain because of the notes says why (dashed alone said nothing, #352).
+        JsonElement[] doubtedCircles = [.. before.GetProperty("circles").EnumerateArray().Where(circle => circle.TryGetProperty("doubt", out _))];
+        Assert.NotEmpty(doubtedCircles);
+        Assert.All(doubtedCircles, circle =>
+        {
+            Assert.Equal("uncertain", circle.GetProperty("circle").GetProperty("certainty").GetString());
+            Assert.StartsWith("Rests on recognised notes still to check", circle.GetProperty("doubt").GetString());
+        });
 
         foreach (int bar in Call(facade, "check").GetProperty("flags").EnumerateArray().Select(flag => flag.GetProperty("bar").GetInt32()).Distinct())
         {
@@ -85,6 +94,7 @@ public class NoteDoubtFacadeTests
         JsonElement dna = Call(facade, "dna");
         Assert.DoesNotContain(dna.GetProperty("harmony").GetProperty("bars").EnumerateArray(), chord => chord.TryGetProperty("doubt", out _));
         Assert.DoesNotContain(dna.GetProperty("keys").GetProperty("spans").EnumerateArray(), key => key.TryGetProperty("doubt", out _));
+        Assert.DoesNotContain(dna.GetProperty("circles").EnumerateArray(), circle => circle.TryGetProperty("doubt", out _));
         // The seams flag at least one bar, whose chord in the map was marked before it was checked.
         Assert.True(doubtedDna);
     }

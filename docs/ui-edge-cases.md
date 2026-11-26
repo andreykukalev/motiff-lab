@@ -23,6 +23,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 
 ## Menus, sheets and popovers
 
+- `E-sheets-1` · A recording heard with note lengths to check (#352) but no Check flag · More offers Check (as for flags);
+  the drawer's heading is «Длительности под вопросом» instead of «Все такты проверены» (no bar was checked), the line on
+  flagged bars is left out (only where the notes were heard), and the lengths' own heading is not repeated under it; once
+  those notes are fixed, «Все такты проверены». · Pattern: a list's heading names what it holds; a text never states what
+  did not happen (robustness rule); Check is offered wherever it holds something. · v1.5 c-15b.
+
 ## Pen and marks
 
 ## Library, import and scan

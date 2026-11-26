@@ -152,4 +152,23 @@ public class NoteDoubtTests
         });
         Assert.Same(dna, NoteDoubt.None.On(dna));
     }
+
+    [Fact]
+    public void A_circle_of_fifths_read_from_doubtful_notes_is_uncertain_and_says_where_they_are()
+    {
+        Note[] notes = Heard();
+        int second = BarOf(notes.Single(note => note.Id == "f1"));
+        PieceDna dna = PieceDna.Build(notes, MeterMap.Default, [], new Tick(notes.Max(note => note.Span.End.Value)), null, null);
+
+        PieceDna doubted = NoteDoubt.Of(notes, MeterMap.Default, [second]).On(dna);
+        PieceDna resolved = NoteDoubt.Of(notes, MeterMap.Default, []).On(dna);
+
+        DnaCircle circle = Assert.Single(doubted.Circles, read => read.FirstBar <= second && second <= read.LastBar);
+        Assert.Equal(FactCertainty.Uncertain, circle.Circle.Certainty);
+        Assert.Equal($"Rests on recognised notes still to check in bar {second}.", circle.Doubt);
+        Assert.All(doubted.Circles.Where(read => read != circle), read => Assert.Null(read.Doubt));
+        // Checked: the circle reads as the analysers gave it.
+        Assert.All(resolved.Circles, read => Assert.Null(read.Doubt));
+        Assert.Equal(dna.Circles.Select(read => read.Circle.Certainty), resolved.Circles.Select(read => read.Circle.Certainty));
+    }
 }

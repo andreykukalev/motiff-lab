@@ -139,6 +139,10 @@ struct CheckShelf: Equatable, Sendable {
 
     var hasFlags: Bool { !flags.isEmpty }
 
+    /// Something to check: a flag, or a recording's notes of uncertain length (#352), which a recording heard without a
+    /// flag can have too; More offers Check for either (E-sheets-1).
+    var hasEntries: Bool { hasFlags || !lengths.isEmpty }
+
     /// The reason of a scan's bar no two engines agree on some staff of (v1.3), as `check` writes music-core's CheckReason.
     static let enginesDisagree = "enginesDisagree"
 
@@ -160,6 +164,28 @@ struct CheckShelf: Equatable, Sendable {
             if bars.last?.bar == flag.bar { bars[bars.count - 1].flags.append(flag) } else { bars.append(BarFlags(bar: flag.bar, flags: [flag])) }
         }
         return bars
+    }
+
+    /// The drawer's heading (E-sheets-1): the bars to review, every bar checked, or, for a recording heard without a flag,
+    /// its note lengths to check (#352), since «Every bar checked» would be false where no bar was checked; once those notes
+    /// are fixed, every bar checked again.
+    func heading(_ text: UIText) -> String {
+        open > 0 ? text.count("check.toReview", openBars.count)
+            : hasFlags || lengths.isEmpty ? text["check.allDone"] : text["check.lengthsHeading"]
+    }
+
+    /// "Read from a scan by homr 0.7.0. Compare each flagged bar with the page: …"; without a flag, where the notes come
+    /// from alone, since there is no flagged bar to compare (E-sheets-1).
+    func how(_ text: UIText) -> String {
+        let source: String
+        switch (origin, engine) {
+        case ("scanned", let engine?): source = text.format("check.fromScan", engine)
+        case ("transcribed", let engine?): source = text.format("check.fromRecording", engine)
+        default: source = ""
+        }
+        guard hasFlags else { return source }
+        let flagged = text[origin == "transcribed" ? "check.howRecordingShort" : "check.howScanShort"]
+        return source.isEmpty ? flagged : source + " " + flagged
     }
 
     /// "Bar too long, grace notes": a bar's reasons, each once.
@@ -235,8 +261,8 @@ struct NoteCorrections: Equatable, Sendable {
 }
 
 /// The Check drawer (0018 section 9, the web app's `.check-sheet`): where the doubts come from, the bars still to check with
-/// their reasons, Show, Fix notes and Looks right, then the bars checked, to check again. Over the right of the page in
-/// landscape and the lower half in portrait, as Insights. Fixing the bars of a transcription stays in the web app for now.
+/// their reasons, Show, Fix notes and Looks right, a recording's note lengths to check, then the bars checked, to check
+/// again. Over the right of the page in landscape and the lower half in portrait, as Insights.
 struct CheckDrawer: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
@@ -249,6 +275,7 @@ struct CheckDrawer: View {
 
     var body: some View {
         let check = score.check
+        let how = check.how(text)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-1")) {
@@ -257,7 +284,7 @@ struct CheckDrawer: View {
                             .padding(.leading, -CGFloat.ds("s-2"))
                     }
                     Text(text["check.title"]).overline()
-                    Text(title(check))
+                    Text(check.heading(text))
                         .dsType(.heading)
                         .foregroundStyle(Color.ds("ink"))
                         .accessibilityAddTraits(.isHeader)
@@ -274,9 +301,11 @@ struct CheckDrawer: View {
             .padding(.top, CGFloat.ds("s-4"))
             ScrollView {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
-                    Text(howText(check))
-                        .dsType(.caption)
-                        .foregroundStyle(Color.ds("ink-2"))
+                    if !how.isEmpty {
+                        Text(how)
+                            .dsType(.caption)
+                            .foregroundStyle(Color.ds("ink-2"))
+                    }
                     if check.open == 0 && check.hasFlags {
                         Text(text["check.allDoneHint"])
                             .dsType(.caption)
@@ -298,8 +327,11 @@ struct CheckDrawer: View {
                     }
                     ForEach(check.openBars(in: check.pieces.first { $0.firstBar == shownPiece })) { bar in openEntry(bar) }
                     if !check.lengths.isEmpty {
-                        // A recording's note lengths are heard less surely than their starts (#352): shown apart.
-                        Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        // A recording's note lengths are heard less surely than their starts (#352): shown apart, under
+                        // their own heading unless they are all there is, when the title says it.
+                        if check.hasFlags {
+                            Text(text["check.lengthsHeading"]).overline().padding(.top, CGFloat.ds("s-2"))
+                        }
                         Text(text["check.lengthsHint"])
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
@@ -320,21 +352,6 @@ struct CheckDrawer: View {
         .background(Color.ds("surface"))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["check.title"])
-    }
-
-    private func title(_ check: CheckShelf) -> String {
-        check.open > 0 ? text.count("check.toReview", check.openBars.count) : text["check.allDone"]
-    }
-
-    /// "Read from a scan by homr 0.7.0. Compare each flagged bar with the page: …"
-    private func howText(_ check: CheckShelf) -> String {
-        let source: String
-        switch (check.origin, check.engine) {
-        case ("scanned", let engine?): source = text.format("check.fromScan", engine) + " "
-        case ("transcribed", let engine?): source = text.format("check.fromRecording", engine) + " "
-        default: source = ""
-        }
-        return source + text[check.origin == "transcribed" ? "check.howRecordingShort" : "check.howScanShort"]
     }
 
     /// A piece of the layer: its title and bars, its bars to check, Open (the list keeps to its bars; again, every piece's)

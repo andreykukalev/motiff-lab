@@ -189,8 +189,9 @@ public sealed class NoteDoubt
     }
 
     /// <summary>
-    /// Piece DNA with the doubt in its harmony lane and its keys: a bar's chord over doubtful notes is drawn as
-    /// uncertain and says so; a key read from the notes of a stretch with doubtful notes says so too.
+    /// Piece DNA with the doubt in its harmony lane, its keys and its circles: a bar's chord over doubtful notes is drawn
+    /// as uncertain and says so; a key read from the notes of a stretch with doubtful notes says so too, and so does the
+    /// circle of fifths of such a stretch, drawn as uncertain.
     /// </summary>
     public PieceDna On(PieceDna dna)
     {
@@ -204,8 +205,8 @@ public sealed class NoteDoubt
             ? chord with { Clear = false, Doubt = doubt }
             : chord)];
         DnaKey[] keys = [.. dna.Keys.Select(key => key.Inferred && Sentence(BarsIn(key.Span)) is { } doubt ? key with { Doubt = doubt } : key)];
-        DnaCircle[] circles = [.. dna.Circles.Select(circle => circle.Circle.Certainty == FactCertainty.Inferred && BarsIn(circle.Span).Count > 0
-            ? circle with { Circle = circle.Circle with { Certainty = FactCertainty.Uncertain } }
+        DnaCircle[] circles = [.. dna.Circles.Select(circle => circle.Circle.Certainty == FactCertainty.Inferred && Sentence(BarsIn(circle.Span)) is { } doubt
+            ? circle with { Circle = circle.Circle with { Certainty = FactCertainty.Uncertain }, Doubt = doubt }
             : circle)];
         return dna with { Harmony = harmony, Keys = keys, Circles = circles };
     }
