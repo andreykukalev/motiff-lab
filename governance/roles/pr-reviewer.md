@@ -46,8 +46,12 @@ What the tests and the quality checks cannot see (`CLAUDE.md`, «Writing code»)
    literals, Russian and English, no note content leaving the device.
 7. Platform focus and scope: the change stays in its track's area (`roles/common.md`).
 8. Robustness (`roles/developer.md`, step 6): a pull request on a user-facing feature has its «Robustness» list; each
-   fix in it stays inside defined behaviour and has its test; a fix that changes defined behaviour is a blocking
-   finding (it moves to «Needs from Andrei»).
+   fix in it stays inside defined behaviour and has its test; a decision taken by a common pattern names its source
+   and covers a case no spec, mockup or baseline entry defines, with its `docs/ui-edge-cases.md` entry and the code
+   comment naming it; a fix that changes defined behaviour, or a spec, mockup or baseline edited to record a decision,
+   is a blocking finding (it moves to «Needs from Andrei»).
+9. Comments (`roles/developer.md`, step 6): a non-obvious rule the diff adds has its one-line «why» with a source; a new
+   file has its responsibility line; no comment retells the code.
 
 ## Output
 

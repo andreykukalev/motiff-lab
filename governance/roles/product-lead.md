@@ -45,8 +45,9 @@ for feedback:
 
 1. Open a pull request to `develop` that sets `VERSION` to `0.<n>` and merge it on green: the `Version` workflow tags
    that commit `v0.<n>` and starts the iPad tests on the tag (a cloud thread cannot push tags itself).
-2. Write the version note: what is new, what to check (what is new, as
-   `provisional` entries of `docs/ux-baseline.md` with ids), what is uncertain, «Решено без вас» (3–5 lines with links),
+2. Write the version note: what is new, what to check (what is new, as `provisional` entries of `docs/ux-baseline.md`
+   with ids), what is uncertain, «Решено без вас» (3–5 lines with links), «Подпилено без вас» (the robustness fixes
+   and the new entries of `docs/ui-edge-cases.md`, one line each),
    which models were used and roughly how much of the limits.
 3. Ask the coordinator to open the thread «Версия 0.<n>» with the note, and close the previous version's thread.
 4. Rewrite `state.md` and write the handover: what is done, what is in work, what waits for Andrei.
