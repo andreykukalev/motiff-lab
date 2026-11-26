@@ -3,9 +3,10 @@ import SwiftUI
 /// A place's card (v1.1 on the draft's map; v1.4, F3, also the ▾ menu at the place's label on the page, the drafts spec
 /// «Экран (iPad)»: «① Ноты 9–16 + Запись · 2 варианта ▾»): its variants, the base marked «основа», any other made the base
 /// («Сделать основой», asked first, as the place's steps go) or moved to another place, a new place at the end or the shelf
-/// («Перенести…», asked first when steps take from it), and «Взять всё уверенное · N». Each step is music-core's
-/// (`drafts.base`, `drafts.place`, `drafts.takeSure`), undone from its toast; once taken, the card at the label goes
-/// (`taken`) and the draft's view opens again where the player is, the map as it was.
+/// («Перенести…», asked first when steps take from it), «Найти на записи» and the place's length (v1.4,
+/// `DraftRecordingRow`, `DraftLengthRow`), and «Взять всё уверенное · N». Each step is music-core's (`drafts.base`,
+/// `drafts.place`, `drafts.addFromRecording`, `drafts.resize`, `drafts.takeSure`), undone from its toast; once taken, the
+/// card at the label goes (`taken`) and the draft's view opens again where the player is, the map as it was.
 struct DraftPlaceContent: View {
     @ObservedObject var score: ScoreController
     @ObservedObject var techniques: DraftTechniquesModel
@@ -17,8 +18,8 @@ struct DraftPlaceContent: View {
     /// What else a step taken does here: the card at the label goes; nothing on the map.
     var taken: @MainActor () -> Void = {}
     @State private var asked: Asked?
-    /// The last step was not taken: the card says so in its own words, never music-core's.
-    @State private var refused = false
+    /// Why the last step was not taken: in the card's own words, or music-core's for a change of the draft's structure.
+    @State private var refusal: String?
 
     /// A step the card asks about first, as it drops what was taken from the variant (a new base, a variant moved out).
     private struct Asked {
@@ -34,16 +35,18 @@ struct DraftPlaceContent: View {
             ForEach(place.variants, id: \.id) { variant in
                 variantRow(variant)
             }
+            DraftRecordingRow(place: place, draft: draft, owner: owner, text: text) { take(told: true, $0) }
+            DraftLengthRow(place: place, draft: draft, owner: owner, text: text) { take(told: true, $0) }
             Button(text.format("drafts.takeSureCount", String(sure))) { take { await owner.takeSure(place, of: draft.id) } }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                 .disabled(sure == 0)
-            if refused {
-                Text(text["drafts.refused"]).dsType(.caption).foregroundStyle(Color.ds("danger"))
+            if let refusal {
+                Text(refusal).dsType(.caption).foregroundStyle(Color.ds("danger")).fixedSize(horizontal: false, vertical: true)
             }
         }
         // A step on its way (`SourcesController.stepping`): the card's steps wait for it.
         .disabled(owner.stepping)
-        .onChange(of: place) { _, _ in refused = false }
+        .onChange(of: place) { _, _ in refusal = nil }
         .confirmationDialog(asked?.title ?? "", isPresented: Binding(get: { asked != nil }, set: { if !$0 { asked = nil } }), titleVisibility: .visible, presenting: asked) { asked in
             Button(asked.button, role: .destructive) { take(asked.step) }
             Button(text["common.cancel"], role: .cancel) {}
@@ -93,15 +96,16 @@ struct DraftPlaceContent: View {
         asked = Asked(title: text.format("drafts.moveTitle", variant.label), line: text["drafts.moveLine"], button: text["drafts.moveButton"], step: step)
     }
 
-    /// A step on the draft: taken, the view opens again where the player is; refused, the card says so.
-    private func take(_ step: @escaping @MainActor () async -> Bool) {
+    /// A step on the draft: taken, the view opens again where the player is; refused, the card says so, in music-core's
+    /// words when `told` (a change of the draft's structure, v1.4).
+    private func take(told: Bool = false, _ step: @escaping @MainActor () async -> Bool) {
         Task {
             let done = await step()
             guard done else {
-                refused = owner.refused(done)
+                refusal = owner.refusal(done, told: told, otherwise: text["drafts.refused"])
                 return
             }
-            refused = false
+            refusal = nil
             taken()
             await reopen?(.tick(await score.tickInView() ?? 0))
         }

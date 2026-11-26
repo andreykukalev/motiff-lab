@@ -172,5 +172,18 @@
   "drafts.toastProposal": "Принято: {0}",
   "sources.sheet.readHostedJob.one": "{0} страница уйдёт на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов.",
   "sources.sheet.readHostedJob.few": "{0} страницы уйдут на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов.",
-  "sources.sheet.readHostedJob.many": "{0} страниц уйдут на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов."
+  "sources.sheet.readHostedJob.many": "{0} страниц уйдут на сервер распознавания Motiff Lab; он хранит PDF, пока iPad не заберёт прочитанное, но не дольше 24 часов.",
+  "drafts.toastMoved": "Порядок мест изменён",
+  "drafts.toastResized": "Место: такты {0}–{1} источника",
+  "drafts.toastCarried": "Приём {0} перенесён: «{1}»",
+  "drafts.goneBridges.one": "ушла {0} связка",
+  "drafts.goneBridges.few": "ушли {0} связки",
+  "drafts.goneBridges.many": "ушли {0} связок",
+  "drafts.goneSteps.one": "ушёл {0} шаг",
+  "drafts.goneSteps.few": "ушли {0} шага",
+  "drafts.goneSteps.many": "ушли {0} шагов",
+  "drafts.recordingNone": "У пьесы нет записи, распознанной в ноты.",
+  "drafts.recordingSearching": "Ищу на записях…",
+  "drafts.recordingNotFound": "На записях нет музыки этого места.",
+  "drafts.recordingAlready": "Уже вариант этого места: «{0}»"
 }

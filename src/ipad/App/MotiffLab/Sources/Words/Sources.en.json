@@ -159,5 +159,16 @@
   "drafts.toastProposal": "Accepted: {0}",
   "sources.sheet.readHostedJob.one": "{0} page goes to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours.",
   "sources.sheet.readHostedJob.few": "{0} pages go to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours.",
-  "sources.sheet.readHostedJob.many": "{0} pages go to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours."
+  "sources.sheet.readHostedJob.many": "{0} pages go to the Motiff Lab recognition server, which keeps the PDF until this iPad has fetched what was read, at most 24 hours.",
+  "drafts.toastMoved": "The places' order changed",
+  "drafts.toastResized": "The place: bars {0}–{1} of its source",
+  "drafts.toastCarried": "Technique {0} carried: “{1}”",
+  "drafts.goneBridges.one": "{0} bridge went",
+  "drafts.goneBridges.many": "{0} bridges went",
+  "drafts.goneSteps.one": "{0} step went",
+  "drafts.goneSteps.many": "{0} steps went",
+  "drafts.recordingNone": "The piece has no recording heard as notes.",
+  "drafts.recordingSearching": "Searching the recordings…",
+  "drafts.recordingNotFound": "No recording has this place's music.",
+  "drafts.recordingAlready": "Already a variant of this place: “{0}”"
 }
