@@ -16,7 +16,10 @@ A task brief is one page with the same headings: Goal (in the product's words, w
 and paths (`allowed_paths`) and the code map to read first; UX baseline entries in the area (they stay green) and the
 entries the task changes, with Andrei's wording; Contracts touched and the track that leads each; Tests to add, by
 layer (a failing test first for a defect, the scenario for a new behaviour); Not in scope; Done when (checks green, the
-«UX baseline» line in the pull request, code map updated).
+«UX baseline» line and the «Robustness» list in the pull request, code map updated).
+
+The reviewer's start message gives the pull request and the one section of the spec, decision record or design note
+the change follows (a path and a heading), not the brief or the task's history (`roles/pr-reviewer.md`, «Input»).
 
 ## Recording what Andrei writes
 

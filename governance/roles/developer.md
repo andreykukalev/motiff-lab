@@ -3,6 +3,10 @@
 One agent per change, from start to end. Automated tests, the code-quality checks and the pull request reviewer
 (`roles/pr-reviewer.md`, at most two rounds of changes) are its feedback loop.
 
+The developer owns the feature's quality (Andrei, 2026-11-26): it keeps the whole task's context (`roles/common.md`,
+«Context and completeness») and finds the edge cases of what it touches before the pull request opens. The reviewer
+sees only the diff and the spec section (`roles/pr-reviewer.md`) and cannot find a case the developer did not think of.
+
 ## Work
 
 1. Branch from the current `develop` (or the stable tag for a hotfix).
@@ -18,9 +22,12 @@ One agent per change, from start to end. Automated tests, the code-quality check
 5. The cleanup pass, once the change works (`CLAUDE.md`, «Writing code» 10): read the whole diff against `develop` as a
    reviewer would and simplify it: duplicates, dead code, broken conventions, abstractions the task does not need,
    anything added that existing code already does.
-6. The robustness pass (Andrei, 2026-11-25), once the change works: walk each user-facing flow of the files you
-   changed and look for its edges, as a careful developer does, so the product feels solid. Try the piece kinds
-   (MusicXML, MIDI, vector PDF, scan, recording, draft), an empty piece, one bar, a pickup, the last bar, a long piece;
+6. The robustness pass (Andrei, 2026-11-25), once the change works and before the pull request opens: walk each
+   user-facing flow of the files you changed and look for its edges, as a careful developer does, so the product feels
+   solid. Go through the touched feature's edge cases one by one and list the ones this pull request handles in its
+   «Robustness» section, one short line each with its test; a pull request on a feature with no such list is not
+   ready. Try the piece kinds (MusicXML, MIDI, vector PDF, scan, recording, draft), an empty piece, one bar, a pickup,
+   the last bar, a long piece;
    during play and loop and during a long step (scan, assistant, save); after the app goes to the background; rotation
    and Split View; Russian and English; finger and Pencil; fast repeated taps; undo and redo after the action; a view
    switch mid-action; no or slow network and a sleeping server; an older file.
@@ -29,19 +36,24 @@ One agent per change, from start to end. Automated tests, the code-quality check
      action cannot work (disable it and say why); a text that states something false; two places doing the same thing
      differently where one matches the spec, an approved mockup or `docs/ux-baseline.md` (align the other to it); a
      missing loading or error state. Each fix has a test that fails without it where it can be tested, and a line in
-     the pull request's «Robustness» section; the lead copies them into the version note.
+     «Robustness»; the lead copies them into the version note.
    - Ask, never decide: what a gesture or button does, adding or removing a setting or control, anything that differs
      from a spec, an approved mockup or a baseline entry, any doubt about selection or playback, a case where both
-     behaviours have a source. List these as «Questions for Andrei»; the lead asks him once per version.
+     behaviours have a source. List these under «Needs from Andrei»; the lead asks him once per version.
    - Robustness fixes stay under about a third of the change; more is a separate task for the lead.
 7. Check before the push: build, unit tests, the node tests in `tests/shared`, whitespace,
    `node tools/quality/quality.mjs`; for `src/ipad/App`, the expectations in `tests/ipad/MotiffLabTests`. Fix what the
    quality checks find instead of adding baseline entries; an entry that cannot be avoided gets its reason in `why` and
    a line in the pull request.
-8. Open the pull request to `develop` (template `.github/pull_request_template.md`), assignee Andrei. When `build-test`
-   is green, tell the lead, which starts the reviewer; fix its blocking findings (at most two rounds). After «APPROVE»
-   or the lead's decision, merge it yourself (in a cloud thread through the GitHub tools; on Andrei's computer the deny rules leave
-   the merge to him). A red CI: reproduce it locally, fix, push once.
+8. Open the pull request to `develop` (template `.github/pull_request_template.md`), assignee Andrei. Its description
+   is a few lines (Andrei, 2026-11-26): what changed, why, how it was checked, what is needed from him; details stay in
+   the code, the commit messages and the version note. When `build-test` is green, tell the lead, which starts the
+   reviewer; fix its blocking findings (at most two rounds). A red CI: reproduce it locally, fix, push once.
+9. Catch up with `develop` once, right before the merge (Andrei, 2026-11-26): after «APPROVE» or the lead's decision,
+   merge the current `develop` into the branch (or GitHub's «Update branch»), run the checks again and push. Not after
+   every other pull request lands: each catch-up restarts CI and the iPad run on the one Mac. Earlier only when a
+   conflict or a change on `develop` blocks the work itself. Then, on green, merge it yourself (in a cloud thread
+   through the GitHub tools; on Andrei's computer the deny rules leave the merge to him).
 
 ## Leave to Andrei
 
