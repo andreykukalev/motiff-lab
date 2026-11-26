@@ -194,9 +194,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 305,
+              "left": 310,
               "top": 444,
-              "right": 313,
+              "right": 318,
               "bottom": 456
             },
             {
@@ -206,9 +206,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 315,
+              "left": 320,
               "top": 438,
-              "right": 334,
+              "right": 339,
               "bottom": 458
             },
             {
@@ -218,9 +218,9 @@
               "own": false,
               "selected": false,
               "current": false,
-              "left": 338,
+              "left": 343,
               "top": 438,
-              "right": 345,
+              "right": 350,
               "bottom": 456
             },
             {
@@ -230,9 +230,9 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 202,
+              "left": 204,
               "top": 705,
-              "right": 210,
+              "right": 212,
               "bottom": 717
             },
             {
@@ -242,7 +242,7 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 212,
+              "left": 214,
               "top": 699,
               "right": 219,
               "bottom": 717
@@ -352,18 +352,18 @@
               "phrase": null,
               "section": "section_2",
               "label": "Часть B, такты 9–23",
-              "left": 303,
+              "left": 307,
               "top": 416,
-              "right": 333,
+              "right": 338,
               "bottom": 460
             },
             {
               "phrase": 3,
               "section": null,
               "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции",
-              "left": 333,
+              "left": 338,
               "top": 416,
-              "right": 364,
+              "right": 368,
               "bottom": 460
             },
             {
@@ -562,9 +562,9 @@
               "own": false,
               "selected": false,
               "current": true,
-              "left": 305,
+              "left": 310,
               "top": 444,
-              "right": 313,
+              "right": 318,
               "bottom": 456
             },
             {
@@ -574,9 +574,9 @@
               "own": false,
               "selected": false,
               "current": true,
-              "left": 315,
+              "left": 320,
               "top": 438,
-              "right": 334,
+              "right": 339,
               "bottom": 458
             },
             {
@@ -586,9 +586,9 @@
               "own": false,
               "selected": false,
               "current": true,
-              "left": 338,
+              "left": 343,
               "top": 438,
-              "right": 345,
+              "right": 350,
               "bottom": 456
             },
             {
@@ -598,9 +598,9 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 202,
+              "left": 204,
               "top": 705,
-              "right": 210,
+              "right": 212,
               "bottom": 717
             },
             {
@@ -610,7 +610,7 @@
               "own": true,
               "selected": false,
               "current": false,
-              "left": 212,
+              "left": 214,
               "top": 699,
               "right": 219,
               "bottom": 717
