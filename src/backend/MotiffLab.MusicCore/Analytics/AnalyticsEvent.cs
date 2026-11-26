@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Analytics;
 /// so a file name, a title or anything about the notes cannot be put in one.
 /// </summary>
 /// <param name="Properties">Each value is an <see cref="int"/>, a <see cref="bool"/> or one of the property's choices.</param>
-public sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, object> Properties)
+internal sealed record AnalyticsEvent(string Name, IReadOnlyDictionary<string, object> Properties)
 {
     /// <summary>The app was opened: once per load of the app, for days of use in the study.</summary>
     public static AnalyticsEvent AppOpened() => AnalyticsCatalogue.Create("app_opened");

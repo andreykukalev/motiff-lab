@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>Where an original's bytes are, or where the original of Notes is, as the Sources sheet says it (0030, section 3).</summary>
-public enum SourceState
+internal enum SourceState
 {
     /// <summary>The bytes are on this device: in the project file, or held here.</summary>
     Here,
@@ -22,7 +22,7 @@ public enum SourceState
 }
 
 /// <summary>What Notes are to the piece.</summary>
-public enum NotesRole
+internal enum NotesRole
 {
     /// <summary>The working notes, everything the player makes stands on.</summary>
     Working,
@@ -35,7 +35,7 @@ public enum NotesRole
 }
 
 /// <summary>What a view of the switch at the top of the score shows.</summary>
-public enum ViewKind
+internal enum ViewKind
 {
     /// <summary>A PDF or photos as they are («PDF»).</summary>
     Original,
@@ -54,7 +54,7 @@ public enum ViewKind
 /// <param name="RemovedAt">When the player removed it; null while it is live.</param>
 /// <param name="Notes">The ids of the Notes made from it, in the order the sheet lists them.</param>
 /// <param name="PageMarks">How many marks its pages have (strokes and bookmarks), kept with its tombstone when removed.</param>
-public sealed record SourceOriginal(PieceOriginal Original, SourceState State, DateTimeOffset? RemovedAt, bool Hidden, IReadOnlyList<string> Notes, int PageMarks);
+internal sealed record SourceOriginal(PieceOriginal Original, SourceState State, DateTimeOffset? RemovedAt, bool Hidden, IReadOnlyList<string> Notes, int PageMarks);
 
 /// <summary>Notes as the Sources sheet lists them: their role, provenance, corrections and the state of their original.</summary>
 /// <param name="Name">The player's name for them, or a version's name; null for the working notes and unnamed Notes.</param>
@@ -62,20 +62,20 @@ public sealed record SourceOriginal(PieceOriginal Original, SourceState State, D
 /// <param name="State">Their original's state; null without an original.</param>
 /// <param name="Edits">How many corrections they carry.</param>
 /// <param name="Taken">For a version, how many bars were taken from it into the working notes.</param>
-public sealed record SourceNotes(string Id, NotesRole Role, string? Name, NotesProvenance Provenance, string? Original, SourceState? State, int Edits, int Taken, bool Hidden);
+internal sealed record SourceNotes(string Id, NotesRole Role, string? Name, NotesProvenance Provenance, string? Original, SourceState? State, int Edits, int Taken, bool Hidden);
 
 /// <summary>A view of the switch: what it shows, the original it is grouped under, and whether it is working or hidden.</summary>
 /// <param name="Id">The original's id for an original or a recording's sound, the Notes' id for Notes, the draft's for a draft.</param>
 /// <param name="Group">The original whose group it is in («PDF» and the notes read from it, the working ones too); null for Notes of no original here.</param>
 /// <param name="Operation">What made it, for its pictogram: the Notes' operation (<see cref="NotesProvenance.Op"/>), "pdf", "recording" or "draft".</param>
-public sealed record SourceView(string Id, ViewKind Kind, string? Group, bool Working, bool Hidden, string Operation);
+internal sealed record SourceView(string Id, ViewKind Kind, string? Group, bool Working, bool Hidden, string Operation);
 
 /// <summary>
 /// The piece's sources for the Sources sheet and the switch of views (decision record 0030, sections 3 and 7.5; sources
 /// sheet, 2026-11-14), worked out on every call, never stored: the originals live and removed with where their bytes are,
 /// the Notes with the state of their originals, and the ordered views of the switch.
 /// </summary>
-public sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOnlyList<SourceNotes> Notes, IReadOnlyList<SourceView> Views)
+internal sealed record PieceViews(IReadOnlyList<SourceOriginal> Originals, IReadOnlyList<SourceNotes> Notes, IReadOnlyList<SourceView> Views)
 {
     /// <summary>How many views the player hid from the switch.</summary>
     public int HiddenCount => Views.Count(static view => view.Hidden);

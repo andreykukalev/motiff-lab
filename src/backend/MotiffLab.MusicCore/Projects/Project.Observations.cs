@@ -12,7 +12,7 @@ public sealed partial record Project
     public IReadOnlyList<Observation> Observations { get; init; } = [];
 
     /// <summary>The observations about the phrase, in the order they were kept (<see cref="Observation.IsAbout"/>).</summary>
-    public IReadOnlyList<Observation> ObservationsAbout(TickSpan phrase) => [.. Observations.Where(observation => observation.IsAbout(phrase))];
+    internal IReadOnlyList<Observation> ObservationsAbout(TickSpan phrase) => [.. Observations.Where(observation => observation.IsAbout(phrase))];
 
     /// <summary>The project with the observation kept after the others.</summary>
     /// <exception cref="ArgumentException">An observation with the same id is already kept.</exception>

@@ -17,7 +17,7 @@ public sealed partial record Project
 
     public BookmarkCategory? FindCategory(string id) => Categories.FirstOrDefault(category => category.Id == id);
 
-    public Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
+    internal Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
 
     /// <summary>The project with the bookmark at the end of the player's order.</summary>
     /// <exception cref="ArgumentException">

@@ -64,7 +64,7 @@ public sealed record ToolResult
 /// and accepting a draft, taking a variant or closing a Check flag is the player's alone (no tool does it). Pure: the same
 /// piece, tool and parameters give the same answer.
 /// </summary>
-public static class AssistantTools
+internal static class AssistantTools
 {
     /// <summary>The highest bar number a schema allows; the piece's own bars are checked when the tool runs.</summary>
     public const int MaxBarNumber = 9999;

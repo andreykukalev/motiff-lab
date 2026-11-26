@@ -29,7 +29,7 @@ public static partial class AnswerCheck
     public const int MaxLength = 2000;
 
     /// <summary>How many facts the template lists.</summary>
-    public const int TemplateFacts = 4;
+    internal const int TemplateFacts = 4;
 
     // Why an answer is the template (CheckedAnswer.Reason, the reply's "reason"): first the check's own reasons ...
 

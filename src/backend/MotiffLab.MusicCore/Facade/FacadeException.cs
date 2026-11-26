@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Facade;
 /// A call the facade could not answer, with the code the client reads (0020): import, noPiece,
 /// unknownCall, badRequest, noSelection, noVariation, unavailable or internal.
 /// </summary>
-public sealed class FacadeException(string code, string message) : Exception(message)
+internal sealed class FacadeException(string code, string message) : Exception(message)
 {
     public string Code { get; } = code;
 

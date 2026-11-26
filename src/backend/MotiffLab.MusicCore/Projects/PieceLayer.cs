@@ -5,10 +5,10 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>One piece of the pieces layer: its bookmark, its title, and its bars from its first to the bar before the next piece.</summary>
-public sealed record LayerPiece(string BookmarkId, string Title, TickSpan Span, int FirstBar, int LastBar);
+internal sealed record LayerPiece(string BookmarkId, string Title, TickSpan Span, int FirstBar, int LastBar);
 
 /// <summary>Where a piece starts, as the player confirmed it, with its title; a blank title is «Пьеса N».</summary>
-public sealed record PieceStart(string? Title, int FirstBar);
+internal sealed record PieceStart(string? Title, int FirstBar);
 
 /// <summary>
 /// The pieces layer (version 0.5): the pieces of a long score or recording, kept as ordinary bookmarks in the reserved
@@ -20,7 +20,7 @@ public sealed record PieceStart(string? Title, int FirstBar);
 /// Read: the bookmarks by onset; where two overlap (after two copies were merged, 0026 S9, bookmarks join by id), the later
 /// cuts the earlier short, and an empty one is left out. Save replaces the whole layer and touches no other category.
 /// </remarks>
-public static class PieceLayer
+internal static class PieceLayer
 {
     /// <summary>The pieces of the layer in score order; empty when the project has none.</summary>
     public static IReadOnlyList<LayerPiece> Read(Project project, MeterMap meter)

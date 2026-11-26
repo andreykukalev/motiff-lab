@@ -9,11 +9,11 @@ namespace MotiffLab.MusicCore.Assistant.Repairs;
 
 /// <summary>One way to repair a flagged bar: its id, its title for a button, and the draft (the notes before and after, as corrections).</summary>
 /// <param name="Id">Stable for the same notes, for example "barTooLong.doubled.7.R.4".</param>
-public sealed record RepairCandidate(string Id, string Title, AssistantDraft Draft);
+internal sealed record RepairCandidate(string Id, string Title, AssistantDraft Draft);
 
 /// <summary>The repairs music-core offers for one Check flag, best first, or why it offers none.</summary>
 /// <param name="NoneReason">Why there is no safe candidate, in the player's language; null when there are candidates.</param>
-public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason)
+internal sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason)
 {
     /// <summary>The bars a repair reads and changes: the flagged bar, with the short bar the importer split off after it when the scan read it too long; empty for a bar outside the piece.</summary>
     public TickSpan Measure { get; init; }
@@ -26,7 +26,7 @@ public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate
 /// Corrections never change the bars (the meter), a note's hand or the Check flag itself: the player resolves the flag.
 /// Pure: the same notes and flag give the same candidates in the same order.
 /// </summary>
-public static partial class CheckRepairs
+internal static partial class CheckRepairs
 {
     /// <summary>The most candidates offered for one flag.</summary>
     public const int MostCandidates = 3;

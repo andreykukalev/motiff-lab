@@ -9,7 +9,7 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>The kinds of bridge candidate (the plan's answer 2), in the order they are offered.</summary>
-public enum BridgeKind
+internal enum BridgeKind
 {
     /// <summary>«Доминанта»: the bar on V7 of the key after the seam.</summary>
     Dominant,
@@ -22,7 +22,7 @@ public enum BridgeKind
 }
 
 /// <summary>A bridge candidate: its kind and its one bar of music, from 0.</summary>
-public sealed record BridgeCandidate(BridgeKind Kind, SourceMusic Music);
+internal sealed record BridgeCandidate(BridgeKind Kind, SourceMusic Music);
 
 /// <summary>
 /// Bridges at a seam (decision record 0034, section 5; the plan's answer 2): where the keys either side differ, two or three
@@ -39,7 +39,7 @@ public sealed record BridgeCandidate(BridgeKind Kind, SourceMusic Music);
 /// the first after, above the bass. Each chord has its root in the bass and the rest of its tones (a seventh's without
 /// the root) in the right hand.
 /// </remarks>
-public static class DraftBridges
+internal static class DraftBridges
 {
     /// <summary>The most candidates offered.</summary>
     public const int Most = 3;

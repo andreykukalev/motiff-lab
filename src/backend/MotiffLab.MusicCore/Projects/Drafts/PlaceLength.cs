@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// stays as it is. What the place's journal and its other variants hold in the base's ticks or bars moves with its start;
 /// what falls outside the new span goes. The length is the draft's structure, not a step. Pure: it gives a new draft.
 /// </summary>
-public static class PlaceLength
+internal static class PlaceLength
 {
     /// <summary>
     /// Why the base of <paramref name="place"/> cannot be cut again, whatever its source: a bridge place, whose one bar is

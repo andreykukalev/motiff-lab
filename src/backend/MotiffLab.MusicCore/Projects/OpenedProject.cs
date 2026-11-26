@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>A project opened for work: the source imported again, the edit log applied, and its motifs and variations rebuilt.</summary>
 /// <param name="Project">The project, with its Check flags worked out when the file it came from had none (before version 12).</param>
 /// <param name="Notes">The piece's notes with the project's corrections applied; <see cref="ImportedPiece.Notes"/> stays as imported.</param>
-public sealed record OpenedProject(
+internal sealed record OpenedProject(
     Project Project,
     ImportedPiece Piece,
     IReadOnlyList<Note> Notes,

@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Assembly;
 namespace MotiffLab.MusicCore.Projects.Drafts;
 
 /// <summary>How much of a fragment the alignment finds in a place's base: the share of the fragment's notes, in whole per cent.</summary>
-public sealed record PlaceMatch(string Place, int Matched, int Total)
+internal sealed record PlaceMatch(string Place, int Matched, int Total)
 {
     /// <summary>The share in whole per cent, rounded down.</summary>
     public int Percent => Total == 0 ? 0 : Matched * 100 / Total;
@@ -20,7 +20,7 @@ public sealed record PlaceMatch(string Place, int Matched, int Total)
 /// base of each place of a draft by the comparison of 0024 (the alignment of 0022, then each note looked for at its place),
 /// so a variant of the place where it is the same music is offered first, with the percentage.
 /// </summary>
-public static class SameMusic
+internal static class SameMusic
 {
     /// <summary>The fragment against the base of every place of the draft, in the draft's order.</summary>
     public static IReadOnlyList<PlaceMatch> Of(Draft draft, SourceMusic fragment)

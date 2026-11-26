@@ -3,13 +3,13 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>A page put into a scan's notes (<see cref="ScanPageInsert.Into"/>): the piece, and the bars the page became; or why not.</summary>
 /// <param name="Project">The piece with the page in; null when <paramref name="Refused"/> says why not.</param>
 /// <param name="FirstBar">The page's first bar; the bars from it on before moved on by <paramref name="Bars"/>.</param>
-public sealed record PageInserted(Project? Project, int FirstBar, int Bars, PageRefusal Refused = PageRefusal.None)
+internal sealed record PageInserted(Project? Project, int FirstBar, int Bars, PageRefusal Refused = PageRefusal.None)
 {
     public static PageInserted Not(PageRefusal why) => new(null, 0, 0, why);
 }
 
 /// <summary>Why a page read again is not put into the notes (v1.3 i-1b); nothing is dropped.</summary>
-public enum PageRefusal
+internal enum PageRefusal
 {
     None,
 

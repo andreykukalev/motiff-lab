@@ -69,7 +69,7 @@ public sealed record PlaceTechnique(int Number, string Variant, TechniqueKind Ki
 /// taken out and put in) are one приём. Numbered from 1 in the order of their first bar, then of the variants. Worked out,
 /// never stored: a step keeps only its notes and the приём as a label.
 /// </summary>
-public static class PlaceTechniques
+internal static class PlaceTechniques
 {
     /// <summary>The grid the shape of a difference is read on: a 16th.</summary>
     internal const long ShapeGrid = CanonicalTime.TicksPerQuarter / 4;

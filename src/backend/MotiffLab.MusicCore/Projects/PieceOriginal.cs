@@ -181,7 +181,7 @@ public sealed record PieceOriginal(string Id, OriginalKind Kind, string FileName
 /// the provenance the piece's data shows for its Notes, from those originals (<see cref="OfWorkingNotes"/>,
 /// <see cref="OfVersion"/>, <see cref="SourcesOf"/>).
 /// </summary>
-public static class PieceOriginals
+internal static class PieceOriginals
 {
     /// <summary>
     /// The originals the piece's own data shows, as a file written before originals were kept reads (version 0.3): the PDF

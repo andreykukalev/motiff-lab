@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>One piece of the pieces layer in Check: its title and bars, and how many of its flagged bars are still open, of how many.</summary>
-public sealed record CheckPiece(string Title, int FirstBar, int LastBar, int Open, int Total);
+internal sealed record CheckPiece(string Title, int FirstBar, int LastBar, int Open, int Total);
 
 /// <summary>
 /// Check by pieces (version 0.5): the Check flags of a score or recording of several pieces grouped by the pieces layer
@@ -12,7 +12,7 @@ public sealed record CheckPiece(string Title, int FirstBar, int LastBar, int Ope
 /// bar in it resolved, one new project, as <see cref="Project.ResolveCheck"/> resolves one (a scan confirms the bars).
 /// Counts are of bars, not flags: a bar with two reasons is one bar to check. The project file does not change.
 /// </summary>
-public static class CheckPieces
+internal static class CheckPieces
 {
     /// <summary>The pieces of the layer with their flagged bars, open and in all, in score order; empty without a layer or flags.</summary>
     public static IReadOnlyList<CheckPiece> Of(Project project, MeterMap meter)

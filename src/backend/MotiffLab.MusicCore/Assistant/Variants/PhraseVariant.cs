@@ -7,7 +7,7 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Assistant.Variants;
 
 /// <summary>Who asked for a variant's steps.</summary>
-public enum VariantOrigin
+internal enum VariantOrigin
 {
     /// <summary>The player picked an engine operation (a «Что если» chip), with no AI.</summary>
     Variation,
@@ -21,7 +21,7 @@ public enum VariantOrigin
 /// "assistant"), when, and its parameters (the chip, or the player's request and the model). The engine made every note
 /// either way; the model only chose the tool calls.
 /// </summary>
-public sealed record VariantProvenance(VariantOrigin Origin, DateTimeOffset At)
+internal sealed record VariantProvenance(VariantOrigin Origin, DateTimeOffset At)
 {
     /// <summary>The Try chip the player picked (<see cref="Experiments.TryChips"/>), or null.</summary>
     public string? ChipId { get; init; }
@@ -52,7 +52,7 @@ public sealed record VariantProvenance(VariantOrigin Origin, DateTimeOffset At)
 }
 
 /// <summary>One note under a variant as it was when the variant was made, to tell when the notes under it changed.</summary>
-public sealed record BaseNote(string Id, NoteValues Values);
+internal sealed record BaseNote(string Id, NoteValues Values);
 
 /// <summary>
 /// A variant of a phrase (the AI companion study, sections 2.4 and 4.6): replayable steps (the variation operations and
@@ -69,7 +69,7 @@ public sealed record BaseNote(string Id, NoteValues Values);
 /// <param name="Steps">Every step from the phrase's notes, the parent's first.</param>
 /// <param name="Keep">The properties the steps run with, in Keep table order; a child keeps its parent's.</param>
 /// <param name="Key">The key the steps count scale steps in, or null; the reading they ran with, not a fact.</param>
-public sealed record PhraseVariant(
+internal sealed record PhraseVariant(
     string Id,
     string Name,
     SavedPassage Phrase,

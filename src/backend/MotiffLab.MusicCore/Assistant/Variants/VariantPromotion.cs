@@ -12,7 +12,7 @@ namespace MotiffLab.MusicCore.Assistant.Variants;
 /// (<see cref="AssemblyBars.Splice"/>), and the notes before the assembly are kept («Ноты до сборки»). The original is
 /// never changed. Pure: the same work, variant music and time give the same step.
 /// </summary>
-public static class VariantPromotion
+internal static class VariantPromotion
 {
     /// <summary>What a variant's source id starts with in the journal: "variant:o_0003".</summary>
     public const string SourcePrefix = "variant:";

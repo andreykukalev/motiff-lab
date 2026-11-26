@@ -108,6 +108,15 @@ as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFac
 The root's classes (`Words`, `JsonWrite`) are called by their name, never through `using static`, which the check
 reads as a namespace.
 
+## What is public
+
+Only what another project uses, and the types its public signatures name; the rest is `internal`, seen by
+`MotiffLab.MusicCore.Tests` (`InternalsVisibleTo`). The API uses `Accounts`, `Assistant.Conversation`, `ProjectFile`
+(`ReadEnvelope`), `ProjectEnvelope`, `ProjectSummary` and `Words`; its tests also `Project.Create`, `ProjectFile.Write`
+and the assistant run in-process (`AssistantPiece`, `AssistantContext`, `TurnRunner`, `FactsDigest`, `PieceImporter`);
+`src/ipad/Core` and the acceptance tests `MusicCoreFacade`. W1.12 makes it so a layer at a time, top first: done for
+`Facade`, `Assistant`, `Analytics`, `Projects` (v1.5 c-12w); a new type there is `internal` unless one of these needs it.
+
 ## Rules not to break
 
 - No other project, web, cloud or AI package; no floating point for time.

@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Projects;
 
 /// <summary>What a device does next with one project against its copy saved online (version 0.2 sync).</summary>
-public enum SyncStep
+internal enum SyncStep
 {
     /// <summary>Both copies are as they were when the device last synced them, or the piece is not synced.</summary>
     Nothing,
@@ -28,10 +28,10 @@ public enum SyncStep
 /// <param name="ChangedHere">Saved on this device since it last synced (or never synced).</param>
 /// <param name="ChangedOnline">The online copy's save time is not the one this device saw last.</param>
 /// <param name="DeletedOnline">This device saw the online copy go and keeps its own without sending it again.</param>
-public sealed record SyncFacts(bool Here, bool Online, bool Known, bool ChangedHere, bool ChangedOnline, bool DeletedOnline = false);
+internal sealed record SyncFacts(bool Here, bool Online, bool Known, bool ChangedHere, bool ChangedOnline, bool DeletedOnline = false);
 
 /// <summary>How the merge treats a field of the project file (0026 S8).</summary>
-public enum FieldClass
+internal enum FieldClass
 {
     /// <summary>The player's own data: on a conflict over the same field both values are kept.</summary>
     Player,
@@ -50,7 +50,7 @@ public enum FieldClass
 /// <param name="Kept">The project to keep on this device.</param>
 /// <param name="Upload">True when <paramref name="Kept"/> goes online over the online copy (the device's copy won).</param>
 /// <param name="PreviousCopy">The copy that lost, kept beside as a piece of its own with a new id; null when nothing was lost.</param>
-public sealed record SyncResolution(Project Kept, bool Upload, Project? PreviousCopy);
+internal sealed record SyncResolution(Project Kept, bool Upload, Project? PreviousCopy);
 
 /// <summary>
 /// The rules both apps sync projects by (version 0.2, decided by Andrei 2026-11-11: new pieces and their changes go between
@@ -59,7 +59,7 @@ public sealed record SyncResolution(Project Kept, bool Upload, Project? Previous
 /// what changed here with that ETag (<c>If-Match</c>) and fetches what changed online. A project deleted on this device is
 /// never deleted online from here, and one deleted online stays here. The full merge of 0026 comes in a later version.
 /// </summary>
-public static class ProjectSync
+internal static class ProjectSync
 {
     /// <summary>
     /// The class of every top-level field of the project file, and of the fields within one that a version added on its own
