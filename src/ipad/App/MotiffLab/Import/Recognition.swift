@@ -149,6 +149,8 @@ final class RecognitionQueue: ObservableObject {
     private(set) var open: String?
     /// The batch stopped only at the open piece, to go on once it closes.
     private var waiting = false
+    /// The pieces whose screen saved them and let them go (`released`), so their notes need not wait for a closing save.
+    private var letGoSaved: Set<String> = []
     /// After a relaunch, only the pieces whose scan job goes on on the server are followed, until «Продолжить».
     private var jobsOnly = false
 
@@ -266,6 +268,7 @@ final class RecognitionQueue: ObservableObject {
     /// 2026-11-25): its notes may be written now. The screen then opens it again, which tells the queue as any opening does.
     func released(_ file: URL) {
         guard open == file.lastPathComponent else { return }
+        letGoSaved.insert(file.lastPathComponent)
         opened(nil)
     }
 
@@ -307,6 +310,8 @@ final class RecognitionQueue: ObservableObject {
         awaiting = file
         defer { if awaiting == file { awaiting = nil } }
         while wanted(), open == file { try? await Task.sleep(nanoseconds: 500_000_000) }
+        // Closed rather than let go: the screen's own save on leaving (in the background) lands before the file is read.
+        if letGoSaved.remove(file) == nil { try? await Task.sleep(nanoseconds: 2_000_000_000) }
         return wanted()
     }
 
