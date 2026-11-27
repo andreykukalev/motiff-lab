@@ -386,13 +386,13 @@ four of the web's rule files these were ported from are archived, so the Swift f
 | `Insights.swift` | 821 | SwiftUI | 3: facts decoded from JSON; `InsightsController` (13 published values, 6 music-core calls); 7 views | `InsightsModel`, `InsightsController`, `InsightsViews` |
 | `Bookmarks.swift` | 722 | SwiftUI | 4: bookmark types and their decode; `ContentsController`; the card; the drawer with 9 views | `BookmarkModel`, `ContentsController`, `BookmarkCard`, `ContentsDrawer` |
 | `Versions.swift` | 708 | SwiftUI, UTType | 3: four decoded shelves (`VersionShelf`, `MergeInfo`, `SourcesInfo`, …); the version bar; the merge views (18 types) | `VersionModel`, `MergeModel` types, `VersionViews`, `MergeViews` |
-| `LibraryView.swift` | 598 | SwiftUI, UTType | 4: the library screen (31 pieces of view state); file operations; opening and switching views of a piece; online copies | `LibraryModel` (open, switch, delete as one owner: UI review «three guards for one switch»), `LibraryView` |
+| `LibraryView.swift` | 598 | SwiftUI, UTType | 4: the library screen (31 pieces of view state); file operations; opening and switching views of a piece; online copies | `LibraryModel` (open, switch, delete as one owner: UI review «three guards for one switch»), `LibraryView`. Done (v1.6 i-11b): `Library/LibraryModel` owns the files, the shelf and the piece on screen and opens (one at a time, `openOnce`), switches and deletes; the screen, which composes it with the account, the imports and the Reference, is `Workspace/LibraryView` with `LibraryOnline` (34 folder edges went, 9 moved with their code) |
 | `SourcesSheet.swift` | 596 | SwiftUI, UTType | 2: the sheet; rows, menus and dialogs | Rows and dialogs in their own files |
 | `Player.swift` | 566 | AVFoundation, QuartzCore, SwiftUI | 4: the audio graph; the playback model's state (14 published); loading scores from music-core; polling reports | `PlayerAudio` (engine node), `PlayerModel`, `PlaybackScore` decode |
 | `SettingsView.swift` | 560 | PhotosUI, SwiftUI | 3: `DeviceSettings` (a store); the settings sheet; the account panel and profile editor | `DeviceSettings` to its own file; `AccountPanel` to the account feature |
 | `Check.swift` | 558 | SwiftUI | 3: Check types and decode; corrections; the drawer | `CheckModel`, `CheckDrawer` (v1.6 i-8: `CheckModel` done) |
 | `RollController.swift` | 550 | SwiftUI, WebKit | 3: the web view and its messages; the editor; input rules | 0031 step 12: a typed `RollPage` port |
-| `LibraryTools.swift` | 550 | SwiftUI | 11 view types of the library's list | By view group |
+| `LibraryTools.swift` | 550 | SwiftUI | 11 view types of the library's list | By view group. Done (v1.6 i-11b): `LibraryTabs` (tabs, filter, search, index), `LibraryList` (list, line, field, icons, groups), `PieceActions` in `LibrarySwipe`, `LibraryEntry.of` in `LibraryShelf` |
 | `Account.swift` | 521 | Foundation, UIKit | 4: MSAL sign-in; the plan and Pro features; the profile; HTTP requests | `AccountSession`, `PlanModel`, `ProfileModel`, `ApiClient` |
 | `Design.swift` | 520 | CoreText, SwiftUI, UIKit | 3: parsing `tokens.css`; fonts; 10 styles and components | `DesignTokens`, `DSType`, `DSStyles` |
 | `PencilPalette.swift` | 506 | SwiftUI, UIKit | 3: Pencil gestures; the palette's geometry; the palette view | `PencilGestures`, `PaletteLayout`, `PencilPalette` |
@@ -673,7 +673,7 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 | W2.3 | C4: the transcript tests of the score screen over fake ports | Green before W2.4 |
 | W2.4 – W2.10 | 0031 steps 3–9, one model a step: Pen, Selection, Marks, Check, Sources, Merge, Focus | C4; `MotiffLabTests`; the device check at the next version |
 | W2.11 | 0031 step 10: `ScoreScreen` wiring by concern; its 12 view types into files | UI walk |
-| W2.12 | Feature files cut into model, controller and views: `Dna`, `Pdf`, `Insights`, `Bookmarks`, `Versions`, `Player`, `Account`, `Metronome`, `Reference`, `SettingsView` (addition 3), one a pull request. `Pdf` done (v1.6 i-11) | Their tests; UI walk |
+| W2.12 | Feature files cut into model, controller and views: `Dna`, `Pdf`, `Insights`, `Bookmarks`, `Versions`, `Player`, `Account`, `Metronome`, `Reference`, `SettingsView` (addition 3), one a pull request. `Pdf` done (v1.6 i-11), `Library` (v1.6 i-11b) | Their tests; UI walk |
 | W2.13 | 0031 step 11: `score.js` to TypeScript behind `page-contract.ts`; `src/ipad/App/Web` enters the type, lint and duplicate checks. Done (v1.2 i-1): the page is 15 modules in `src/shared/Scripts/score/ipad-page` behind `Scripts/score/page-contract.ts`, in `tsc`, ESLint, jscpd and the ratchet; `Web/score.js` is only its entry (`docs/code-map/score-page.md`) | C5 |
 | W2.14 | 0031 step 12: the roll's port (`RollPage`) with its contract file in `tests/contracts` | C6; `iPad` workflow |
 

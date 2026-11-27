@@ -6,6 +6,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
+- `LibraryView.swift`, `LibraryOnline.swift` (v1.6 i-11b): the library's screen ([`library.md`](library.md)): `LibraryModel`
+  with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
   It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix).

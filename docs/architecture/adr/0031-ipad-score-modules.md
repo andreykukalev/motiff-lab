@@ -337,3 +337,15 @@ composes the PDF's model with the pen, the metronome, the Reference, Sources, th
 `PdfScreenReading`, `PdfScreenSources` as section 4's extensions), and the 27 folder edges `Pdf/` had for it went;
 the model keeps the nine edges of the pen's state to `Ink/`. «Пьесы в этом файле»'s model (`PieceSplitter.swift`) is
 made from values and answers the pieces made, so it names no `PdfController`; the sheet writes the PDF's family.
+
+## Note (W2.12, the library on its model and views, v1.6 i-11b)
+
+`LibraryView.swift` is cut by the same pattern. `LibraryModel` (`Library/LibraryModel.swift`) owns the project files and
+their summaries, the shelf made from them (its query, tab and group picked) and the piece on screen, and is the one
+owner of opening a piece, whatever asks, of PDF | Notes and of deleting: one opening at a time (`openOnce`), so the
+library's two guards for a switch (`opening` and the screen shown) are one; the screens' `handingOver` stays, as it only
+keeps their save before they ask. It reads the recognition queue (Import) through a closure it is handed, and names
+three `Pdf/` types of the opening (`Landing`, `OtherView`, `PieceFamily`), as `OpenPiece` does. The screen composes the
+model with the account, the imports, the Reference and `PieceScreen`, so it moved to `Workspace/` (`LibraryView.swift`,
+with `LibraryOnline.swift`: sync and the copies online), and 26 of its folder edges went. `LibraryTools.swift` is cut by
+view group (`LibraryTabs`, `LibraryList`, `PieceActions` beside `LineSwipe`).

@@ -30,7 +30,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
 | `Sources/` | [sources](ipad/sources.md) | sources, versions, originals |
 | `Pdf/` | [pdf](ipad/pdf.md) | the PDF view, its notes, its parts |
-| `Library/` | [library](ipad/library.md) | the library screen and its shelf |
+| `Library/` | [library](ipad/library.md) | the library's model (open, switch, delete) and its shelf; its screen is in `Workspace/` |
 | `Import/` | [import](ipad/import.md) | Add piece, folders, scans, photos, recordings, recognition |
 | `Insights/` | [insights](ipad/insights.md) | Insights, the piece's map (DNA), the circle of fifths |
 | `Reference/` | [reference](ipad/reference.md) | the reference sheet |
