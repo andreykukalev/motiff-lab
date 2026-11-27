@@ -252,16 +252,19 @@ public class PageInsertTests
     }
 
     [Fact]
-    public void Checked_bars_and_flags_move_on_with_the_bars_after_the_page()
+    public void Checked_bars_flags_and_marks_move_on_with_the_bars_after_the_page()
     {
         Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        ScanOrigin marked = read.Scan!.Confirm([1, 3]).WithMark(new ReadingMark(ReadingMarkKind.Hands, 3, 4, null, null)).WithMark(new ReadingMark(ReadingMarkKind.Octave, 1, 3, 1, "8va"));
         Project confirmed = read with
         {
-            Scan = read.Scan!.Confirm([1, 3]),
+            Scan = marked with { UnknownMarks = ["""{"kind":"fingering","bar":3,"last":4}"""] },
             Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.BarTooLong, true), new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooLong, false)],
         };
         PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3);
         Assert.Equal([1, 5], inserted.Project!.Scan!.ConfirmedBars);
+        Assert.Equal([(1, 5), (5, 6)], inserted.Project.Scan.Marks.Select(static mark => (mark.Bar, mark.Last)));
+        Assert.Equal(["""{"kind":"fingering","bar":5,"last":6}"""], inserted.Project.Scan.UnknownMarks);
         Assert.Equal([(1, true), (6, false)], inserted.Project.Check!.Select(flag => (flag.Bar, flag.Resolved)));
     }
 

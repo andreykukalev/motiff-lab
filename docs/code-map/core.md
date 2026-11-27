@@ -16,7 +16,7 @@ through the facade; the API references it.
   `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`), where Notes came from
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`; `ScanMerge`: engines' readings per staff, bar levels, settled by the page: `ScanEvidence`, `ScanAssembly`, `ScanMerge.Staffing` reads a reading's clefs; `ScanMerge.Variants`: a Check bar's other readings and crop box, v1.3 i-2, put in by `corrections.variant`; `ScanMerge.Meter`: homr's time signatures over the agreement of the printed-meter engines that wrote one, #647), a page no engine read put in later by `ScanJoin.Insert` (v1.3 i-1b, `ScanPageInsert.Into`, `Project.CanInsertPage`, the bookmarks and resume points (v1.5 i-7), the phrases, ideas, motifs and marks (r-2b, notes by `NoteEditLog.IdsMovedOn`) moved on by its length by `FollowedWork.Inserted`; its corrections carried by `NoteEditLog.CarriedOver`, `NoteEditLog.Insert.cs`; facade `scan.insert`, `ScanRequest.Insert.cs`), `StaffPitch` (steps, clefs, key alterations, MIDI of a written note: MusicXML, Vector, Scan), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
-  `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
+  `TranscriptionOrigin`), PDFs (`Vector`), folders; the player's marks «что не так» (`Scan/ReadingMark`, kept in `ScanOrigin.Marks`) put into the next reading of the pages by `ReadingMarks.Apply` (hands, clef, octave, key, meter; «Как напечатано» step 3, c-14b1); the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`;
   `.Writing`: how each note is written, `WrittenNotes`, `Spaces`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
@@ -71,7 +71,7 @@ through the facade; the API references it.
   adapter `OpenPiece.Corrections` (`Calls.Corrections`, every call's bar read before anything changes);
   `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
   iPad's mark, «Распознать ещё раз» with the corrections carried over (`CarriedOver`), each answering the project it makes, the time taken as `now`) answers `KeptFile`,
-  `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
+  `ReadScore`, `DocumentVersion`; the working notes' marks placed on the new reading and carried (`Marked`, `WithMarks`, `MarksCarried`); its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
   `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
   each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
   notes again) answers the comparison (`Answer.Performance`) and `AddedVersion`; its adapter `OpenPiece.Performance` (`Calls.Performances`);
@@ -80,6 +80,7 @@ through the facade; the API references it.
   adapter `OpenPiece.Marks` (`Calls.Marks`; the resume points, ideas, settings and Check stay in `OpenPiece.Project`);
   the time of a call is read once, `Request.Now` («now», else the clock) and `Request.SentNow` (project.save), by the
   adapters only (D15); the one exception is sync.online's «now», read as its other times are (`SyncRequest.Time`);
+  check.mark and check.unmark in `ReadingMarkRequest` (with check's "marks");
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
