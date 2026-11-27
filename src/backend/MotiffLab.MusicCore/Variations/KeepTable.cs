@@ -14,6 +14,9 @@ internal sealed record KeepFootnote(int Number, string Text, KeepProperty? Confl
 {
     /// <summary>The footnote in Russian (#134).</summary>
     public string RussianText { get; init; } = Text;
+
+    /// <summary>The footnote in the player's language.</summary>
+    public string TextIn(Words words) => words.IsRussian ? RussianText : Text;
 }
 
 /// <summary>One operation's row of the Keep table (S1-E2).</summary>

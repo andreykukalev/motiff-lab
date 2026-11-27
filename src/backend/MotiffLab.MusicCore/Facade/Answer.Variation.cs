@@ -153,7 +153,7 @@ internal static partial class Answer
                     json.WriteStartObject();
                     json.WriteString("property", JsonWrite.Name(property));
                     json.WriteNumber("number", footnote.Number);
-                    json.WriteString("text", footnote.Text);
+                    json.WriteString("text", footnote.TextIn(words));
                     json.WriteEndObject();
                 }
 
