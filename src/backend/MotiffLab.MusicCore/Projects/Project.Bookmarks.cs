@@ -10,7 +10,7 @@ public sealed partial record Project
     /// <summary>The bookmark categories (0018, section 5): the four built-in ones, as named here, then the player's own.</summary>
     public IReadOnlyList<BookmarkCategory> Categories { get; init; } = BookmarkCategory.BuiltIn;
 
-    /// <summary>The player's bookmarks, in the player's order; <see cref="BookmarksInScoreOrder"/> sorts them by place.</summary>
+    /// <summary>The player's bookmarks, in the player's order; the app sorts them by place (`Bookmarks.swift`, `inScoreOrder`).</summary>
     public IReadOnlyList<Bookmark> Bookmarks { get; init; } = [];
 
     public BookmarkCategory? FindCategory(string id) => Categories.FirstOrDefault(category => category.Id == id);

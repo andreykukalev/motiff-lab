@@ -94,9 +94,7 @@ internal sealed record ReferenceChord(string Numeral, HarmonicFunction Function,
 /// <param name="Count">"5 sharps", "1 flat", "no sharps or flats"; «5 диезов», «1 бемоль», «без знаков».</param>
 /// <param name="Accidentals">The notes the signature alters, in the order they are written: "F♯", "C♯", "G♯"…</param>
 /// <param name="TrebleSteps">Each accidental's place on the treble staff, in diatonic steps above its bottom line (E4 is 0, F5 on the top line is 8).</param>
-internal sealed record SignatureCard(int Fifths, string Label, string Count, IReadOnlyList<string> Accidentals, IReadOnlyList<int> TrebleSteps)
-{
-}
+internal sealed record SignatureCard(int Fifths, string Label, string Count, IReadOnlyList<string> Accidentals, IReadOnlyList<int> TrebleSteps);
 
 /// <summary>A choice of the reverse lookup: a number of sharps or flats, with its short and its spoken label.</summary>
 /// <param name="Label">"0", "5♯", "2♭".</param>
