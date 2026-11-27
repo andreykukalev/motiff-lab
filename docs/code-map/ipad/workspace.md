@@ -13,7 +13,7 @@ Screen ([screen](workspace-screen.md)): `LibraryOnline`, `LibraryView`, `PanelSt
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`,
 `ScoreWorkspaceSources`. Controller ([controller](workspace-controller.md)): `ScoreController`, `ScoreColouring`,
 `ScoreFocus`, `ScoreInput`, `ScoreMarks`, `ScorePageLayout`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePlayheads`,
-`ScorePractice`, `ScoreScreenViews`, `ScoreSelecting`, `ScoreUnreadPages`, `ScoreVersions`. Drafts
+`ScorePractice`, `ScoreScreenViews`, `ScoreSelecting`, `ScoreUnreadPages`, `ScoreMarkedReading`, `ScoreVersions`. Drafts
 ([drafts](workspace-drafts.md)): `DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`,
 `DraftSeamCard`, `DraftStructureControls`, `DraftVisitPieces`, `ScoreDraftPlaces`, `ScoreDraftViews` (`.swift`).
 

@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-14, c-14b3):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -39,7 +39,10 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   2026-11-25) and the panel already waits for it; before, both went to the server, and the first, coming back, cleared
   the second's progress and gave its Send back (`SourcesController.reading` holds one original). The time line before
   Send (E-scan-5) is asked again when what blocks the panel changes (another recognition, the library's), so it comes
-  back once that ends · v1.6 i-13
+  back once that ends · v1.6 i-13; since c-14b3 Check's «Распознать заново с отметками» holds the same `reading` for its
+  PDF (`setReading`): while it reads, Sources' Send of that PDF shows its progress and others wait, and while Sources
+  recognises, the button in Check is off and says which original is being recognised; no second job, no quota charged
+  twice
 - `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
   original) · read as a file picked for «Привязать оригинал» is (`LinkedFile.read`: coordinated, off the main thread, so
   a file only in iCloud is downloaded first), and when it cannot be read the sheet's danger line says why in the same
@@ -144,6 +147,47 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   read by no engine · the pages go with the notes the same way (`DocumentRead.request` of the `ScanResult`, one rule for
   both flows), so the score marks them and Check lists them after the app restarts · robustness rule: a page no engine
   read is never forgotten silently · v1.6 c-14a
+- `E-scan-12` · A mark «что не так» on a bar that has a Check flag already, or a mark over several bars · one flag at its
+  first bar: on a flagged bar its words join that flag's label, and a tap opens Check, which lists both · as E-scan-1;
+  HIG: no control hidden under another · v1.6 c-14b3
+- `E-scan-13` · «Размер» or «Тональность» chosen from the selection menu over several bars · the mark is put at the
+  selection's first bar, from where it holds until the next of its kind · music-core keeps a meter or key from its bar on;
+  a time or key signature is printed once at the bar where it changes · v1.6 c-14b3
+- `E-scan-14` · A clef or an octave sign on notes with one staff, or on more than two · the menu always offers the upper and
+  the lower staff · a piano score's two staves, as the marks' words say them (`верхний стан`, `нижний стан`) · v1.6 c-14b3
+- `E-scan-15` · A mark made from the selection menu, where nothing else shows that it was kept · a word over the pill says
+  it is marked and that Check reads the marked pages again; from Check, whose list shows it at once, nothing more · as a
+  bookmark saved from the menu is told; HIG: confirm an action whose result is not in view · v1.6 c-14b3
+- `E-scan-16` · Notes not read from a PDF or photos, or notes only shown over the piece · no «Что не так?» in Check or the
+  selection menu (music-core refuses the marks there); on notes only shown, Check lists the marks without «Убрать» and
+  without «Распознать заново с отметками» · a control is offered only where it works (robustness rule) · v1.6 c-14b3
+- `E-scan-17` · «Распознать заново с отметками» tapped again while the marked pages are read, while the library
+  recognises a piece, or while Sources recognises an original (E-sources-1) · the button is disabled and the progress,
+  «Идёт распознавание «…»» or «Сейчас распознаётся «…»» shows; a tap that comes before it does nothing · as E-scan-9; one
+  recognition at a time (Andrei, 2026-11-25) · v1.6 c-14b3
+- `E-scan-18` · A marked page no engine reads again · the whole reading fails with «Ни один движок не прочитал заново
+  страницы: N»; no new Notes, the working notes as they were, the marks kept · a page kept with its old reading beside
+  pages read again would take the marks twice or not at all (hands, octave); nothing half done (robustness rule) · v1.6
+  c-14b3
+- `E-scan-19` · Which marked pages leave the iPad, and what goes · a page the vector reader reads stays on the iPad (free,
+  no server), unless a bar on it is marked as read badly, which only the server's other engines read otherwise; when a
+  page has to go, the whole PDF goes, as a scan job of Sources' «Распознать» does, to the scan server set in Settings,
+  with only the marked pages to be read; before the press Check says how many pages are read on the iPad and where the
+  others go, in Sources' words («2 страницы уйдут на сервер распознавания Motiff Lab…» or «… на ваш сервер распознавания
+  http://…»), Pro only then on Motiff Lab's; that needs a server that takes jobs («Четыре движка») and, on Motiff Lab's,
+  sign-in and Pro, else Check says why and nothing is sent; pages with no mark are not read again and keep their reading.
+  When the notes name no pages read and the PDF has another number of pages than they have, nothing is read («У этих нот
+  и PDF … разное число страниц…»), so a second reading never reads the wrong page; with the PDF not kept in the piece the
+  button says so and is off · ADR 0011 section 2: where the pages go is named before they go; on the device = free,
+  cloud = Pro (0025); only what the player asked is read; a control is offered only where it works · v1.6 c-14b3
+- `E-scan-20` · The screen left while the marked pages are read · the reading stops, its job is deleted on the server, and
+  nothing changes in the piece · as the PDF's own panel closed mid-reading (`ScanProblem.stopped`); a job no screen
+  waits for is not left on the server · v1.6 c-14b3
+- `E-scan-21` · What the new Notes of a reading with marks keep · the readings and crops of the bars to check of the pages
+  read again, under the new notes' fingerprint; no page reports, as only some pages were read, so Check does not tell a
+  page's print quality for them; a bar read again (its flag «Прочитан другим движком») shows its crop and readings when
+  selected, as a bar the engines disagree on, so the earlier reading can be taken back · as E-scan-6 (one report per page
+  or none) · v1.6 c-14b3
 
 ## Insights
 
