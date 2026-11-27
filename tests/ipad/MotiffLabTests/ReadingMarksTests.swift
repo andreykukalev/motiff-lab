@@ -112,7 +112,7 @@ final class ReadingMarksTests: XCTestCase {
         XCTAssertEqual(SourcesController.toastText("Read again", adding: nil, marked), "Read again · 1 mark used")
     }
 
-    func testOnlyThePagesAMarkLiesOnAreReadAgainEachWithItsBarsReadBadly() {
+    func testOnlyThePagesAMarkLiesOnAreReadAgainEachWithItsBarsReadBadly() throws {
         let starts = [
             CheckPageStart(page: 1, bar: 1, tick: 0, lastBar: 4, lastTick: 5760), CheckPageStart(page: 2, bar: 5, tick: 7680, lastBar: 8, lastTick: 13440),
             CheckPageStart(page: 3, bar: 9, tick: 15360, lastBar: 12, lastTick: 21120),
@@ -121,7 +121,7 @@ final class ReadingMarksTests: XCTestCase {
             ReadingMarkEntry(kind: "meter", bar: 2, last: 2, value: "5/4", text: ""), ReadingMarkEntry(kind: "badlyRead", bar: 8, last: 10, text: ""),
         ]
 
-        let pages = MarkedPages.of(marks, starts: starts, read: [1, 3, 4], pdfPages: 4)
+        let pages = try XCTUnwrap(MarkedPages.of(marks, starts: starts, read: [1, 3, 4], pdfPages: 4))
 
         XCTAssertEqual(pages, [
             ScanMarkedPages.Page(place: 1, pdf: 1), ScanMarkedPages.Page(place: 2, pdf: 3, bad: [8]), ScanMarkedPages.Page(place: 3, pdf: 4, bad: [9, 10]),
