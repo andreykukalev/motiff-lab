@@ -282,4 +282,21 @@ final class Drafts12BaselineTests: XCTestCase {
         await sources.undo()
         XCTAssertEqual(sources.layers.drafts.first?.taken, 0, "Undo")
     }
+
+    /// DRAFT-14 (since 1.5, answer 15 of 1.4): «С такта» and «По такт» step a bar a tap and on while held, never past the
+    /// bars the place's Notes have nor so that the place is shorter than one bar, so a hold stops at those ends, where the
+    /// button goes off. Taken through the choice the card's steppers change, over music-core's answer of `drafts.length`;
+    /// the hold itself (SwiftUI's repeat) is the device's.
+    func testDRAFT14TheLengthCountersStopAtTheEndsOfTheNotes() throws {
+        let lengths = try FacadeAnswerFixturesTests.answers("drafts.length")
+        let answer = try XCTUnwrap(FacadeAnswer.decode(DraftLengthAnswer.self, lengths[2].text, of: "drafts.length"))
+        var held = try XCTUnwrap(DraftLengthChoice(answer), "a place whose length can change")
+        XCTAssertNil(held.asked, "at the place's own bars: nothing to apply")
+        for _ in 0..<300 { held.step(last: 1) }
+        XCTAssertEqual(held.asked?.upperBound, held.lastBars.upperBound, "«По такт» held on: it stops at the Notes' last bar")
+        for _ in 0..<300 { held.step(first: -1) }
+        XCTAssertEqual(held.asked?.lowerBound, held.firstBars.lowerBound, "«С такта» held back: it stops at their first")
+        for _ in 0..<600 { held.step(first: 1) }
+        XCTAssertEqual(held.asked?.lowerBound, held.asked?.upperBound, "held on, «С такта» stops where the place is one bar long")
+    }
 }

@@ -237,4 +237,20 @@ final class AddPieceBaselineTests: XCTestCase {
         XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: true, page: 1), .tick(0), "the first notes open as notes")
         XCTAssertEqual(PdfScreen.reopening(hadNotes: false, hasNotes: false, page: 1), .page(1), "anything else stays on the PDF")
     }
+
+    /// ADD-03 (v1.5 r-2b, the lead's a-2/2): a piece added is saved under the work's title as the library shows it, with a
+    /// number when that name is taken, so the same file opened twice is a second piece; a character a file name cannot hold
+    /// is a space, and a title with none it can hold is «Piece». Taken through the name the library gives a new project
+    /// file; Files' look is the device's.
+    func testADD03APieceIsSavedUnderTheWorksTitleNumberedWhenTaken() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("add-baseline-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        made.append(folder)
+        let first = ProjectFiles.newURL(for: "Für Elise", in: folder)
+        XCTAssertEqual(first.lastPathComponent, "Für Elise.motiff.json", "named by the work's title")
+        try Data("{}".utf8).write(to: first)
+        XCTAssertEqual(ProjectFiles.newURL(for: "Für Elise", in: folder).lastPathComponent, "Für Elise 2.motiff.json", "taken: a second piece, numbered")
+        XCTAssertEqual(ProjectFiles.fileName(for: "Прелюдия: до мажор"), "Прелюдия  до мажор")
+        XCTAssertEqual(ProjectFiles.fileName(for: "???"), "Piece")
+    }
 }

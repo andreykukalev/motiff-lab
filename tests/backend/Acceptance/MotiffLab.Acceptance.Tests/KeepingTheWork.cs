@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace MotiffLab.Acceptance.Tests;
 
-/// <summary>Scenarios h to j: the player saves and reopens a project, and opens project files of other versions (README.md).</summary>
+/// <summary>Scenarios h to j and q: the player saves and reopens a project, and opens project files of other versions (README.md).</summary>
 public class KeepingTheWork
 {
     [Fact(DisplayName = "h. The player saves a project with a selection and a variation, reopens it and gets the same project")]
@@ -80,6 +80,22 @@ public class KeepingTheWork
         Assert.Equal(0, player.OpenPieces);
         Assert.Equal("noPiece", Player.Parse(player.Saves()).GetProperty("error").GetString());
         Assert.Equal(copy, future);
+    }
+
+    [Fact(DisplayName = "q. The player saves a variation, tries another of the same passage and saves again: both variations are kept")]
+    public void A_save_keeps_every_variation_saved()
+    {
+        (Player player, _) = Player.OpensFixture("fur-elise-original.musicxml", $$"""{"id": "p_elise", "now": "{{Player.Now}}"}""");
+        player.Does("select", """{"bars": {"first": 1, "last": 2}, "filter": {"hand": "right"}}""");
+        player.Does("try", """{"chip": "v1.halfTime"}""");
+        (Player reopened, JsonElement opened) = Player.Reopens(player.Saves());
+        Assert.Equal(1, opened.GetProperty("project").GetProperty("variations").GetInt32());
+
+        reopened.Does("try", """{"chip": "v1.doubleTime"}""");
+        (_, JsonElement again) = Player.Reopens(reopened.Saves());
+
+        // docs/ux-baseline.md FILE-01: the saved one stays, the one tried after it is saved beside it, on the same motif.
+        Assert.Equal((2, 1), (again.GetProperty("project").GetProperty("variations").GetInt32(), again.GetProperty("project").GetProperty("motifs").GetInt32()));
     }
 
     private static string[] Ids(JsonElement selection) => [.. selection.GetProperty("noteIds").EnumerateArray().Select(id => id.GetString()!)];
