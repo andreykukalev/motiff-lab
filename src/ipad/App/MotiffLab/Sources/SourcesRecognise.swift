@@ -123,32 +123,3 @@ struct SourcesRecognisePanel: View {
         }
     }
 }
-
-extension SourcesController {
-    /// What recognising pages says with no scan server set (scanning off in Settings, or a build without Motiff Lab's): what
-    /// the PDF's own panel says (`ReadNotesPanel`), never that a server found no notes, which none was asked (v1.5 r-2b).
-    static func noScanServer(_ text: UIText) -> String {
-        text["import.scanSetUp"] + " " + text["import.scanSetUpLink"] + "."
-    }
-
-    /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
-    /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
-    struct Recognised {
-        var fields: [String: Any]
-        var dropped: String?
-        var toast: String
-    }
-
-    /// Why an original was not recognised, in the player's words.
-    struct Refusal: Error {
-        let words: String
-    }
-
-    /// A toast's text, then music-core's line of what became of the player's work, an answer's object's "text", when it
-    /// says something: the corrections on notes recognised again («Как напечатано», step 2: "carried"), the bookmarks and
-    /// phrases on notes made working (v1.5 c-11b: "followed").
-    nonisolated static func toastText(_ done: String, adding part: Any?) -> String {
-        guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return done }
-        return "\(done) · \(line)"
-    }
-}

@@ -147,5 +147,9 @@
   "padAssistant.new": "New conversation",
 
   "drafts.techniqueCount.one": "{0} technique",
-  "drafts.techniqueCount.many": "{0} techniques"
+  "drafts.techniqueCount.many": "{0} techniques",
+
+  "sources.sheet.photos": "Photos of pages",
+  "sources.sheet.recording": "Recording",
+  "drafts.new": "New draft"
 }

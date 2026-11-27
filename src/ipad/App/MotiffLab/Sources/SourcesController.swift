@@ -1,73 +1,6 @@
 import PDFKit
 import SwiftUI
 
-/// What was just done in the Sources sheet, with Undo where it can be undone (sources sheet, 0.6).
-struct SourcesToast: Identifiable, Equatable {
-    enum Undo: Equatable {
-        /// The project file as it was just before: written back, and the piece opened again from it.
-        case restore(String)
-        /// The last step of this draft undone (`drafts.undo`, v1.1): a приём, a hand or a span taken or left, a seam's offer
-        /// taken or the seam left, or, while the piece is open, a change of its places (a new base, a variant put or moved).
-        case draftStep(String)
-    }
-
-    let id = UUID()
-    var text: String
-    var undo: Undo?
-}
-
-/// What passes from one screen of a piece to the next when the piece is opened again (version 0.6): the toast of what
-/// was done, with its Undo, or a view of the switch to show, by the project file. Sources itself opens where it is asked
-/// for, the PDF included (#582 item 4).
-@MainActor
-enum SourcesHandover {
-    private static var toasts: [URL: SourcesToast] = [:]
-    private static var views: [URL: String] = [:]
-
-    static func give(_ toast: SourcesToast, to file: URL) { toasts[file.standardizedFileURL] = toast }
-
-    static func toast(for file: URL?) -> SourcesToast? {
-        guard let file else { return nil }
-        return toasts.removeValue(forKey: file.standardizedFileURL)
-    }
-
-    static func show(_ view: String, on file: URL) { views[file.standardizedFileURL] = view }
-
-    static func view(for file: URL?) -> String? {
-        guard let file else { return nil }
-        return views.removeValue(forKey: file.standardizedFileURL)
-    }
-
-    /// The switch of all views as the screen handing over had it (v0.6.4 spec section 13): the next screen of the same
-    /// file draws it from its first frame, instead of PDF | Notes or no switch until it has read its own. Read as often as
-    /// the screen is made, and dropped once that screen has read the sources itself.
-    private static var layers: [URL: SourceLayers] = [:]
-
-    static func give(_ shown: SourceLayers, to file: URL?) {
-        guard let file, shown.working != nil else { return }
-        layers[file.standardizedFileURL] = shown
-    }
-
-    static func layers(for file: URL?) -> SourceLayers? {
-        file.flatMap { layers[$0.standardizedFileURL] }
-    }
-
-    static func drop(_ file: URL?) {
-        if let file { layers[file.standardizedFileURL] = nil }
-    }
-
-    /// The recording heard over the views as the screen hands over (v0.10, finding 24), by the project file of the next
-    /// screen: it opens there again and its sound goes on. Read once.
-    private static var performances: [URL: String] = [:]
-
-    static func give(performance id: String, to file: URL) { performances[file.standardizedFileURL] = id }
-
-    static func performance(for file: URL?) -> String? {
-        guard let file else { return nil }
-        return performances.removeValue(forKey: file.standardizedFileURL)
-    }
-}
-
 /// The piece's sources on its screen (version 0.6; decision record 0030): music-core's
 /// `sources.layers` for this iPad, with the recordings whose sound is kept here, and the Sources sheet's operations, each
 /// saved to the project file at once. What changes the working notes («Сделать рабочими», an Undo) opens the piece
@@ -218,7 +151,8 @@ final class SourcesController: ObservableObject {
         if hidden, performance == id { performance = nil }
     }
 
-    /// A PDF or photos added as an original without recognising it: kept in the project file on this iPad, never online.
+    /// A PDF or photos added as an original without recognising it (photos of pages as one PDF of images, `kind`
+    /// "images", made by the sheet from the document camera): kept in the project file on this iPad, never online.
     /// The first added to a piece that is only its recording opens the piece again in its place (`reopen`, v1.1).
     func addPages(_ data: Data, fileName: String, kind: String) async {
         var fields: [String: Any] = ["kind": kind, "fileName": fileName, "kept": "file", "data": data.base64EncodedString(), "now": Self.now()]
@@ -228,13 +162,6 @@ final class SourcesController: ObservableObject {
         if await change(.sourcesOriginalAdd, fields) != nil {
             await tell(SourcesToast(text: text.format("sources.sheet.toastAdded", fileName)), reopening: onlyRecording)
         }
-    }
-
-    /// Photos of pages from the iPad's document camera, as one PDF of images (v0.4 «Фото страниц»), added as an original.
-    func addPhotos(_ images: [UIImage]) async {
-        let pages = images.compactMap(PhotoImages.jpeg).map { PhotoPage(photo: $0) }
-        guard !pages.isEmpty else { return }
-        await addPages(PhotoImages.pdf(pages), fileName: text["sources.sheet.photosFile"] + ".pdf", kind: "images")
     }
 
     /// A recording added as an original without hearing it: its sound copied here (kept "device"), its description in the
@@ -312,7 +239,7 @@ final class SourcesController: ObservableObject {
             progress = nil
         }
         if original.isRecording {
-            switch await hearRecording(original, account: account) {
+            switch await hearRecording(original, account: account, progress: { self.progress = $0 }) {
             case .failure(let refusal): return refusal.words
             case .success(let heard): return await keepRecognised(.sourcesNotesHear, heard)
             }
@@ -324,93 +251,14 @@ final class SourcesController: ObservableObject {
         }
     }
 
-    /// The line before an original's pages are sent as a scan job (0035 section 6; v1.5 i-7, the 1.4 plan's answer 9: in
-    /// Sources too): what the iPad reads itself, what goes to the server and about how long; nil when the server takes no jobs.
-    func jobPlanLine(_ original: SourceLayers.Original, address: URL) async -> String? {
-        guard case .success(let kept) = await keptPdf(original) else { return nil }
-        return await ScanServer.jobPlanLine(data: kept.data, address: address, text: text)
-    }
-
-    /// The original's pages as kept in the piece, and its file's name; music-core's words when it has none.
-    private func keptPdf(_ original: SourceLayers.Original) async -> Result<(data: Data, fileName: String), Refusal> {
+    /// The original's pages as kept in the piece, and its file's name; music-core's words when it has none. Read to be
+    /// recognised (`SourcesRecognising.swift`) or opened (`openOriginal`).
+    func keptPdf(_ original: SourceLayers.Original) async -> Result<(data: Data, fileName: String), Refusal> {
         let kept = await call(.sourcesPdf, ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(Refusal(words: facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]))
         }
         return .success((data, object["fileName"] as? String ?? original.fileName))
-    }
-
-    /// The original's pages, as kept in the piece, read by the scan server, for `sources.notes.recognise`.
-    private func readPages(_ original: SourceLayers.Original, address: URL, account: Account) async -> Result<Recognised, Refusal> {
-        let kept: (data: Data, fileName: String)
-        switch await keptPdf(original) {
-        case .failure(let refusal): return .failure(refusal)
-        case .success(let pdf): kept = pdf
-        }
-        let result: ScanResult
-        switch await ScanServer.recognise(fileName: kept.fileName, data: kept.data, address: address, account: account) {
-        case .failure(let problem): return .failure(Refusal(words: problem.text(text)))
-        case .success(let read): result = read
-        }
-        let pages = max(1, original.pages ?? result.pages)
-        var fields: [String: Any] = ["original": original.id, "musicXml": result.musicXml.base64EncodedString(), "engine": result.engine, "pages": pages, "now": Self.now()]
-        if let reports = result.reports { fields["reports"] = reports }
-        // The reports may not match the pages read: then the notes are kept without them.
-        let dropped: String? = result.reports == nil ? nil : "reports"
-        return .success(Recognised(fields: fields, dropped: dropped, toast: text.count("sources.sheet.toastRead", pages)))
-    }
-
-    /// The recording's sound, kept on this iPad, heard by Motiff Lab's scan server part by part (0014), for
-    /// `sources.notes.hear`: the notes of the whole recording, their bars found as for a live performance ("tempo":
-    /// "live"); the working notes' metre and tempo as the hint, none on a piece with no notes yet (v1.1, finding 29).
-    private func hearRecording(_ original: SourceLayers.Original, account: Account) async -> Result<Recognised, Refusal> {
-        guard let projectId, let url = OriginalSounds.file(project: projectId, original: original.id) else {
-            return .failure(Refusal(words: text["sources.sheet.soundNotHere"]))
-        }
-        switch await RecordingHearing.hear(url, account: account, text: text, progress: { self.progress = $0 }) {
-        case .failure(let problem):
-            return .failure(Refusal(words: problem.message))
-        case .success(let heard):
-            let hint = await gridHint()
-            let fields = Self.hearFields(heard, original: original.id, hint: hint, now: Self.now())
-            // A metre music-core offers no grid for is refused: the notes heard are sent again without the hint.
-            return .success(Recognised(fields: fields, dropped: hint == nil ? nil : "hint", toast: text["sources.sheet.toastHeard"]))
-        }
-    }
-
-    /// The fields of `sources.notes.hear` for the whole recording heard: the transcription's ("tempo": "live"), the
-    /// original's id, the time and, when there is one, the working notes' metre and tempo as the grid's "hint", so the
-    /// recording's bars come out in the piece's metre (v0.10 s-3).
-    nonisolated static func hearFields(_ heard: HeardRecording, original: String, hint: [String: Any]?, now: String) -> [String: Any] {
-        var fields = heard.request
-        fields["tempo"] = "live"
-        fields["original"] = original
-        fields["now"] = now
-        if let hint { fields["hint"] = hint }
-        return fields
-    }
-
-    /// The grid hint a recording is heard with: the working notes' metre and tempo (`hint`); none on a piece with no notes
-    /// yet, which has neither (v1.1, finding 29).
-    func gridHint() async -> [String: Any]? {
-        guard layers.working != nil else { return nil }
-        return Self.hint(await PieceCore(piece: piece).playback().value)
-    }
-
-    /// The working notes' metre and tempo as music-core's grid hint ({"signature": "3/4", "quarterNotesPerMinute"}): the
-    /// signature of their first bar, and the tempo the player set for the piece, else the one its notes state or
-    /// music-core inferred; no tempo when nothing states one (the default, or a recording's clock); nil without bars.
-    nonisolated static func hint(_ playback: PlaybackAnswer?) -> [String: Any]? {
-        // A whole note in music-core's ticks (480 a quarter): the beat's note value is counted from it.
-        let wholeNote = 1920.0
-        guard let bar = playback?.bars.first, bar.beatTicks > 0, bar.beatsPerBar >= 1,
-              wholeNote.truncatingRemainder(dividingBy: bar.beatTicks) == 0 else { return nil }
-        var hint: [String: Any] = ["signature": "\(Int(bar.beatsPerBar))/\(Int(wholeNote / bar.beatTicks))"]
-        let stated = playback?.tempo?.piece.flatMap { ["notated", "inferred"].contains($0.source ?? "") ? $0.perMinute : nil }
-        if let perMinute = playback?.tempo?.player ?? stated {
-            hint["quarterNotesPerMinute"] = perMinute
-        }
-        return hint
     }
 
     /// The notes recognised kept by music-core (`name`, the call of the kind of original read) as new Notes of their
@@ -471,10 +319,12 @@ final class SourcesController: ObservableObject {
     /// The bytes of another PDF or photos kept in the piece, opened in music-core as a PDF of its own for its view,
     /// shown as it is (nothing drawn on it is kept: music-core keeps page marks for the first PDF only).
     func openOriginal(_ original: SourceLayers.Original, title: String) async -> OpenPiece? {
-        let kept = await call(.sourcesPdf, ["id": original.id])
-        guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
-            status = facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]
+        let data: Data
+        switch await keptPdf(original) {
+        case .failure(let refusal):
+            status = refusal.words
             return nil
+        case .success(let kept): data = kept.data
         }
         let name = original.fileName.lowercased().hasSuffix(".pdf") ? original.fileName : original.fileName + ".pdf"
         let request = facadeRequest(["language": text.language])

@@ -199,5 +199,17 @@
   "focus.alternate": "Alternate",
   "focus.versionHear": "Version",
   "focus.notes": "Notes",
-  "padAssistant.open": "Ask the assistant"
+  "padAssistant.open": "Ask the assistant",
+  "performance.close": "Close Other versions",
+  "sources.sheet.add": "Add",
+  "sources.sheet.addMore": "Add more",
+  "sources.sheet.addPdfHint": "The pages as they are, not recognised",
+  "sources.sheet.addPhotosHint": "Photograph the pages with the iPad's camera",
+  "sources.sheet.addRecordingHint": "The sound stays on this iPad only",
+  "sources.sheet.addScore": "MIDI or MusicXML",
+  "sources.sheet.addScoreHint": "Notes from a file, read on the iPad",
+  "sources.sheet.looseNotesCount": "Notes without an original · {0}",
+  "sources.sheet.originalsCount": "Originals · {0}",
+  "sources.sheet.photosFile": "Photos of pages",
+  "drafts.group": "Drafts · {0}"
 }
