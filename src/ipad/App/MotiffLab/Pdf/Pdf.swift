@@ -405,7 +405,7 @@ struct PdfScreen: View {
         }) {
             if pdf.isPhotos {
                 PhotoReadingPanel(reader: photos, pdf: pdf, address: scanAddress, text: text) { read in
-                    readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
+                    ScanServer.jobs ? readPanel(readNotes, pdf: pdf.original) : readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
                 } open: { musicXml, engine, pages, reports in
                     await fill(musicXml, engine: engine, pages: pages, reports: reports)
                 }
@@ -661,8 +661,8 @@ struct PdfScreen: View {
     /// reads at once goes in parts, with the panel's bar (issue #479).
     private func readNotes() async -> String? {
         guard let address = scanAddress, let data = pdf.original else { return text["pdf.readNone"] }
-        // With four engines the piece is read in the background by the library's recognition (Andrei, 2026-11-25): its job
-        // is kept on this iPad, so it goes on after the app is closed, and the line under the bar says how far it is.
+        // With four engines the piece, photos of pages too (v1.5 i-7), is read in the background by the library's recognition
+        // (Andrei, 2026-11-25): its job is kept on this iPad, so it goes on after the app is closed, and the bar's line says how far.
         if ScanServer.jobs, let file = piece.file {
             try? await ProjectFiles.save(piece: piece.id, to: file)
             guard await background.send(file, address, hosted) else { return text["pdf.readNone"] }

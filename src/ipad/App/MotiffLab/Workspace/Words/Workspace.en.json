@@ -175,5 +175,8 @@
   "drafts.carryBars.many": "in {0} bars",
   "drafts.carryNoPlace": "The draft has no other place for the technique.",
   "drafts.carryNoFit": "The technique fits no other place.",
-  "drafts.lengthChange": "Change the length…"
+  "drafts.lengthChange": "Change the length…",
+  "recognition.unreadBefore": "Page {0} not recognised · its place is before bar {1}",
+  "recognition.unreadAfter": "Page {0} not recognised · its place is after bar {1}",
+  "recognition.unreadHeading": "Pages not recognised"
 }

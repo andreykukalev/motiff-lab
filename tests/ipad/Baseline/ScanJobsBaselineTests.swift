@@ -157,7 +157,7 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual(queue.batch?.items.first?.state, .reading, "the piece stays in the library, being read")
         let heard = try XCTUnwrap(queue.job)
         XCTAssertEqual(heard.file, url.lastPathComponent, "its own line shows the job")
-        XCTAssertEqual(RecognitionTop.jobLine(heard.status.progress, russian), "распознаётся · 1 из 2 страниц · ещё около 2 мин.")
+        XCTAssertEqual(RecognitionTop.jobLine(heard.status.progress, russian), "распознаётся · страница 2 из 2 · около 1 мин 10 с")
         XCTAssertEqual(heard.status.pages.map { ScanJobDetail.engines($0, russian) }, ["homr: прочитал · copisteria: прочитал", "homr: читает · copisteria: ждёт"])
 
         // The app is closed while the job runs: the batch stays on the device as it was then.
@@ -313,13 +313,14 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j2"), 1)
     }
 
-    /// SCAN-05: a page read again that music-core does not put in (here a bookmark stands on the notes, which would move)
+    /// SCAN-05: a page read again that music-core does not put in (here a margin note stands on the notes, which would move;
+    /// a bookmark moves on with the page since v1.5 i-7)
     /// leaves the notes as they were and the line with «Повторить» and the reason, «Не вставлено: …».
     func testSCAN05APageReadAgainThatCannotGoInLeavesTheNotesAndSaysWhyBesideRetry() async throws {
         jobsBefore = await ScanSupport.jobsOn()
         let url = try piece(pages: 2)
         let queue = try await readFirst(url)
-        try ScanSupport.change(url, "bookmark.add", #"{"bars": {"first": 1, "last": 1}, "title": "Тема", "category": "teacher", "now": "2026-11-24T19:05:00Z"}"#)
+        try ScanSupport.change(url, "note.add", #"{"bars": {"first": 1, "last": 1}, "text": "Тема", "now": "2026-11-24T19:05:00Z"}"#)
 
         StubAPI.reset(newJob("j3", [(2, "E")]))
         queue.retryUnread(url.lastPathComponent)

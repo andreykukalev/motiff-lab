@@ -47,8 +47,11 @@ public sealed partial record Project
     /// Whether the player put on the score what is kept by its place in the bars, but corrections and checked bars: taken bars,
     /// phrase changes, marks, bookmarks, motifs, variations, observations, or what this build cannot read.
     /// </summary>
-    private bool PlacedInBars => TakenBars.Any() || !Phrases.IsEmpty || !ShortPhrases.IsEmpty || !Sentences.IsEmpty
-        || !Marks.IsEmpty || Bookmarks.Count > 0 || Motifs.Count > 0 || Variations.Count > 0 || Observations.Count > 0
+    private bool PlacedInBars => Bookmarks.Count > 0 || PlacedInBarsBesideBookmarks;
+
+    /// <summary>As <see cref="PlacedInBars"/>, leaving out the bookmarks, which a page put in moves on (<see cref="CanInsertPage"/>).</summary>
+    private bool PlacedInBarsBesideBookmarks => TakenBars.Any() || !Phrases.IsEmpty || !ShortPhrases.IsEmpty || !Sentences.IsEmpty
+        || !Marks.IsEmpty || Motifs.Count > 0 || Variations.Count > 0 || Observations.Count > 0
         || Unknown.Count > 0 || Marks.Unknown.Count > 0;
 
     /// <summary>

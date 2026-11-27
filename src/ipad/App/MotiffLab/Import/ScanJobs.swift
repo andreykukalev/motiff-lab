@@ -36,15 +36,23 @@ struct ScanHealth: Equatable, Sendable {
     /// Whether the server takes scan jobs (version 1.3): only such a server times its engines.
     var takesJobs: Bool { !secondsPerPage.isEmpty }
 
-    /// About how many minutes `pages` pages take there, at least one: every engine reads each page, after the units already
-    /// queued (each at the engines' mean time), as many at once as the server reads, and never less than its slowest
-    /// engine takes for a page; nil for no page or no timed engine.
+    /// About how many minutes `pages` pages take there, at least one; nil for no page or no timed engine.
     func minutes(pages: Int) -> Int? {
-        guard pages > 0, takesJobs, let slowest = secondsPerPage.values.max() else { return nil }
+        seconds(pieces: [pages]).map { max(1, Int(($0 / 60).rounded(.up))) }
+    }
+
+    /// About how many seconds pieces of these pages take there, read one after another as the library's recognition reads
+    /// them (one at a time, v1.5 i-7's batch estimate): every engine reads each page, the first piece after the units
+    /// already queued (each at the engines' mean time), as many at once as the server reads, and no piece in less than its
+    /// slowest engine takes for a page; nil for no page or no timed engine.
+    func seconds(pieces: [Int]) -> Double? {
+        let sent = pieces.filter { $0 > 0 }
+        guard !sent.isEmpty, takesJobs, let slowest = secondsPerPage.values.max() else { return nil }
         let all = secondsPerPage.values.reduce(0, +)
         let ahead = Double(queue) * all / Double(secondsPerPage.count)
-        let seconds = max(slowest, (Double(pages) * all + ahead) / Double(workers))
-        return max(1, Int((seconds / 60).rounded(.up)))
+        return sent.enumerated().reduce(0) { sum, piece in
+            sum + max(slowest, (Double(piece.element) * all + (piece.offset == 0 ? ahead : 0)) / Double(workers))
+        }
     }
 }
 
@@ -90,12 +98,12 @@ struct ScanJobStatus: Equatable, Sendable {
     /// Every unit has finished: the readings can be fetched.
     var finished: Bool { state == "done" || state == "failed" }
 
-    /// As the bars and lines of a score being read show it: the pages finished, and the server's minutes left; while the
+    /// As the bars and lines of a score being read show it: the pages finished, and the server's seconds left; while the
     /// server wakes, only that; while the job is sent, its pages with nothing read yet.
     var progress: ScanProgress {
         if state == "waking" { return ScanProgress.waking(pages: pages.count) }
         if state == "sending" { return ScanProgress(pages: pages.count) }
-        return ScanProgress(pages: pages.count, done: pages.filter(\.finished).count, minutesLeft: finished ? nil : max(1, (etaSeconds + 59) / 60))
+        return ScanProgress(pages: pages.count, done: pages.filter(\.finished).count, secondsLeft: finished ? nil : etaSeconds)
     }
 }
 

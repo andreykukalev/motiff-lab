@@ -59,6 +59,24 @@ public class ScanMergeTests
         Assert.All(Import(page.MusicXml).MusicXml!.Measures, measure => Assert.Equal(1920, measure.Span.Duration));
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void Homr_s_5_4_over_bars_of_four_quarters_gives_way_to_the_4_4_the_printed_meter_engines_read(int bars)
+    {
+        // Issue #647: homr writes no upper number it reads, only the median of its bars, and on a page of few bars the
+        // repair keeps the 5/4 it wrote; the engines that read the printed signature say 4/4.
+        string[][] music = [.. Enumerable.Range(0, bars).Select(index => index % 2 == 0 ? First : Second)];
+        ScanReading homr = new("homr", Score(2, "5", [.. music.Select(bar => Bar(bar))]));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, Reading("copisteria", music), Reading("audiveris", music)]);
+
+        ImportedPiece merged = Import(page.MusicXml);
+        Assert.Equal(4, merged.Meter.SignatureAt(MotiffLab.MusicCore.Time.Tick.Zero).Numerator);
+        Assert.All(merged.MusicXml!.Measures, measure => Assert.Equal(1920, measure.Span.Duration));
+        Assert.All(page.Bars, bar => Assert.Equal(ScanLevel.Sure, bar.Level));
+    }
+
     [Fact]
     public void A_staff_from_a_reading_in_other_divisions_is_written_in_divisions_both_share()
     {

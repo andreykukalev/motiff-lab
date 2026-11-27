@@ -234,16 +234,22 @@ struct RecognitionTop: View {
             parts.append(text.format("recognition.pieceOf", String(index + 1), String(batch.items.count)))
             parts.append(text.format("recognition.pageOf", String(page), String(current.progress.pages)))
         }
-        if let minutes { parts.append(text.format("recognition.left", String(minutes))) }
+        // A scan job's server tells the seconds left (spec part 2a, «около 1 мин 40 с»), else the pages timed here.
+        if let told = current?.progress.secondsLeft {
+            parts.append(ScanProgress.about(seconds: told, text))
+        } else if let minutes {
+            parts.append(text.format("recognition.left", String(minutes)))
+        }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// A piece read by a scan job (spec part 5): «распознаётся · 2 из 5 страниц · ещё около 2 мин.», the pages every engine is
-    /// done with and the server's estimate; «Сервер распознавания просыпается…» before the job is sent to a server that is waking up.
+    /// A piece read by a scan job (spec part 2a): «распознаётся · страница 3 из 5 · около 1 мин 40 с», the page after those
+    /// every engine is done with (the last once all are) and the server's estimate; «Сервер распознавания просыпается…»
+    /// before the job is sent to a server that is waking up.
     static func jobLine(_ progress: ScanProgress, _ text: UIText) -> String {
         if progress.waking { return progress.line(text) }
-        let pages = text.format("recognition.jobPages." + UIText.pluralForm(text.language, progress.pages), String(progress.done), String(progress.pages))
-        return progress.minutesLeft.map { pages + " · " + text.format("recognition.left", String($0)) } ?? pages
+        let page = text.format("recognition.jobPage", String(progress.current ?? progress.pages), String(progress.pages))
+        return progress.left(text).map { page + " · " + $0 } ?? page
     }
 
     /// «стр. 3, 5 не распознаны»: the pages no engine read, left out of the notes.
@@ -320,7 +326,13 @@ struct RecogniseConsentSheet: View {
     let text: UIText
     let settings: () -> Void
     let send: () -> Void
+    /// Each piece's pages, for the server's own estimate with «Четыре движка» (v1.5 i-7).
+    var piecePages: [Int] = []
     @Environment(\.dismiss) private var dismiss
+    /// How long, as the scan server times its engines and its queue (`/health`, v1.5 i-7, the 1.4 plan's answer 9: the
+    /// estimate before sending in the batch too); nil before it answers, or when it takes no jobs.
+    @State private var timed: String?
+    @State private var asking = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
@@ -354,6 +366,23 @@ struct RecogniseConsentSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface").ignoresSafeArea())
         .presentationDetents([.medium, .large])
+        .task { await time() }
+    }
+
+    /// Asks the scan server how long the pieces take there, with «Четыре движка» and nothing blocking the send.
+    private func time() async {
+        guard ScanServer.jobs, let offer, offer.allowed else { return }
+        asking = true
+        defer { asking = false }
+        guard case .success(let server) = await ScanServer.health(offer.address), let seconds = server.seconds(pieces: piecePages.isEmpty ? [pages] : piecePages) else { return }
+        timed = text.format("recognition.howLongJob", ScanProgress.about(seconds: Int(seconds.rounded(.up)), text))
+    }
+
+    /// «Сколько ждать»: the server's estimate once it answers; meanwhile that it is asked; else half a minute a page (E-scan-4).
+    private var howLong: String {
+        if let timed { return timed }
+        if asking { return text["recognition.howLongAsking"] }
+        return text.format("recognition.howLongLine", String(DailyPages.minutes(pages)))
     }
 
     @ViewBuilder
@@ -362,7 +391,7 @@ struct RecogniseConsentSheet: View {
         // As a scan job (version 1.3), Motiff Lab's server keeps them until the iPad has fetched what was read, at most 24 hours.
         let hosted = ScanServer.jobs ? "recognition.whereHostedJob" : "recognition.whereHosted"
         line(text["recognition.where"], offer.hosted ? text[hosted] : text.format(local ? "recognition.whereHere" : "recognition.whereOwn", offer.address.host ?? offer.address.absoluteString))
-        line(text["recognition.howLong"], text.format("recognition.howLongLine", String(DailyPages.minutes(pages))))
+        line(text["recognition.howLong"], howLong)
         if offer.hosted {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 line(text["recognition.today"], text.format("recognition.todayLine", String(min(DailyPages.limit, offer.usedToday + pages)), String(DailyPages.limit)))
@@ -426,12 +455,12 @@ struct RecognitionLayer: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $consenting) {
-                RecogniseConsentSheet(pieces: picked.count, pages: picked.reduce(0) { $0 + $1.pages }, offer: RecognitionOffer.of(account), text: text, settings: settings) {
+                RecogniseConsentSheet(pieces: picked.count, pages: picked.reduce(0) { $0 + $1.pages }, offer: RecognitionOffer.of(account), text: text, settings: settings, send: {
                     guard let offer = RecognitionOffer.of(account), offer.allowed else { return }
                     let items = picked.map { RecognitionItem(file: $0.url.lastPathComponent, title: $0.title, pages: max(1, $0.pages)) }
                     RecognitionQueue.shared.start(items, address: offer.address, hosted: offer.hosted)
                     chosen = nil
-                }
+                }, piecePages: picked.map { max(1, $0.pages) })
             }
             .onChange(of: queue.revision) { _, _ in Task { await reload() } }
             .task(id: on) {

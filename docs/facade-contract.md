@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.5 c-11b):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-27, v1.5 i-7):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -227,6 +227,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 Also within 16 (version 1.5, c-11b, the v1.4 plan's answer 5): sources.makeWorking moves the work kept in ticks with the piece (bookmarks, a title still by their bars retitled, phrase boundaries at every level, resume points, ideas kept with a note alone, the versions compared: their anchors, bars dismissed and Check flags) into the new working notes by bars, as the two are matched for the corrections carried (`ReadingMatch`, `FollowedWork`), a place in a bar with no match kept where the music before it went; when there was such work it answers "followed": "moved" (how many bookmarks, phrase boundaries of the level shown and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are now) and "text" (the toast's line, or null); without such work the answer is as before. A field added; the project file stays version 17.
 
 Also within 16 (version 1.5, d-11, DRAFT-11: «С ассистентом · Pro» on the card «Новый черновик»): drafts.findNewOnRecording answers, before a draft is made and nothing changed, the stretch of each of the piece's recordings that is the music of the fragment the «В черновик» sheet reads, as drafts.findOnRecording answers it for a place (the Notes the fragment is taken from left out, "recordings" how many were searched), each with "techniques", the приёмы the new draft's first place would have with it; drafts.add of a new draft takes "recording", those Notes, and makes the draft with that stretch as a variant of its first place in one change, answering "recording", the variant's id, and refuses it ("badRequest") into a draft that is there, this piece's or another file's (`DraftRecordingRequest.FindNew`, `WithStretch`, `OnRecording`); a call and a field added. The project file stays version 17.
+
+Also within 16 (version 1.5, i-7, the v1.4 plan's answer 9): check answers "pageStarts", where each page of a scan's notes starts and ends as scan.join joined the pages read ("page", "bar", "tick", "lastBar", "lastTick"; empty for other notes), so the app marks a page of the PDF no engine read at its place; scan.insert no longer refuses a page for the bookmarks, which move on by the page's length with the resume points (a span across its place takes it in, a title still by its bars retitled; `FollowedWork.Inserted`), where it put resume points at or after the page back to the start; and a page merged from several engines' readings whose backbone is homr takes the time signature that two or more of the engines reading the printed signature agree on (#647, `ScanMerge.PrintedMeters`). Fields added; the project file stays version 17.
 
 ### 15
 

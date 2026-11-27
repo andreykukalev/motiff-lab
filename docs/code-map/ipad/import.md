@@ -38,6 +38,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   notes have before it, kept as `RecognitionItem.read` at the first read; the file read again once the job is done), the bars to check carried to the new fingerprint (`keepReview`'s "was"); the file written
   (`RecognitionQueue.recognise(again:)`), then the job deleted; a page again unread keeps the line with «Повторить» and the reason (`RecognitionItem.reason`, «Не вставлено: …»).
 
+- v1.5 i-7 (the v1.4 plan's answer 9): a page no engine read is marked in the notes (`Workspace/ScoreUnreadPages.swift`:
+  `UnreadPage`, from `RecognitionItem.read` and `check`'s "pageStarts", drawn with the Check flags) and listed in Check
+  with «Показать» and «Повторить» (`ScanUnreadPagesCheck`, `ScanPageAgain.swift`); the server's estimate before sending
+  in the batch's consent (`ScanHealth.seconds(pieces:)`) and in Sources (`SourcesController.jobPlanLine`); photos of
+  pages with «Четыре движка» go to the background recognition as a PDF does (`Pdf.swift`), the job's page reports kept
+  with the notes; the progress «страница 3 из 5 · около 1 мин 40 с» (`ScanProgress.secondsLeft`, `about(seconds:)`,
+  `RecognitionTop.jobLine`).
 - `ScanCrops.swift` (v1.3 i-2, 0035 section 6): `ScanCrop` (a bar's evidence box on the server's turned image as a rect on the PDF page, and its turn), `ScanCrops.keepReview`, run by `readByJob` after `scan.join`: the Check bars' variants and crops cut from the PDF kept on this iPad (`ScanReviewStore`); nothing is sent. Tests: `ScanReviewTests`.
 
 - `PhotoReview.swift`: the photos of pages put in order and made one PDF piece (`PhotoPiece.make(pdf:pages:title:language:)`,

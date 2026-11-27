@@ -81,7 +81,29 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             return null;
         }
 
-        var follow = new Following(new ReadingMatch(before, after), before.Meter, after.Meter);
+        var match = new ReadingMatch(before, after);
+        return Followed(made, new Following((at, end) => match.Place(at, end), span => match.Place(span), before.Meter, after.Meter));
+    }
+
+    /// <summary>
+    /// The work of <paramref name="project"/> in its notes' ticks (<paramref name="was"/>'s meter) placed in the same notes with
+    /// a page of <paramref name="length"/> ticks put in at <paramref name="at"/> (<paramref name="meter"/> theirs; v1.5 i-7,
+    /// the 1.4 plan's answer 9: «закладки и точки продолжения сдвигаются на длину вставленной страницы, а не
+    /// сбрасываются»): a place at or after it moves on by the page, a span's end only when it is after it, so a span across
+    /// it takes the page in; the rest stays. Every place is matched, so nothing is kept near.
+    /// </summary>
+    public static FollowedWork Inserted(Project project, MeterMap was, MeterMap meter, Tick at, long length)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        Tick Moved(Tick tick, bool end) => (end ? tick > at : tick >= at) ? new Tick(tick.Value + length) : tick;
+        // A span that starts at the place moves on whole, its end too, even when it is empty.
+        TickSpan Span(TickSpan span) => span.Onset >= at ? new TickSpan(Moved(span.Onset, false), span.Duration) : TickSpan.FromBounds(span.Onset, Moved(span.End, true));
+        return Followed(project, new Following((tick, end) => (Moved(tick, end), true), span => (Span(span), true), was, meter));
+    }
+
+    /// <summary><paramref name="made"/> with its work placed one by one by <paramref name="follow"/>, and what that moved.</summary>
+    private static FollowedWork Followed(Project made, Following follow)
+    {
         Project followed = made with
         {
             Phrases = follow.Edits(made.Phrases, Told.Phrase),
@@ -131,8 +153,11 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
         Idea,
     }
 
-    /// <summary>The places of the work placed one by one, counted as they are told.</summary>
-    private sealed class Following(ReadingMatch match, MeterMap was, MeterMap meter)
+    /// <summary>
+    /// The places of the work placed one by one, counted as they are told: <paramref name="place"/> places a tick (a span's
+    /// end with <c>end</c>) and <paramref name="span"/> a span, each saying whether it was matched.
+    /// </summary>
+    private sealed class Following(Func<Tick, bool, (Tick At, bool Matched)> place, Func<TickSpan, (TickSpan Span, bool Matched)> span, MeterMap was, MeterMap meter)
     {
         private readonly int[] _moved = new int[4];
 
@@ -196,15 +221,15 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
 
         public Tick At(Tick at, Told told)
         {
-            (Tick placed, bool matched) = match.Place(at, end: false);
+            (Tick placed, bool matched) = place(at, false);
             Count(told, placed, placed != at, matched);
             return placed;
         }
 
-        public TickSpan Span(TickSpan span, Told told)
+        public TickSpan Span(TickSpan given, Told told)
         {
-            (TickSpan placed, bool matched) = match.Place(span);
-            Count(told, placed.Onset, placed != span, matched);
+            (TickSpan placed, bool matched) = span(given);
+            Count(told, placed.Onset, placed != given, matched);
             return placed;
         }
 

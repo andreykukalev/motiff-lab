@@ -14,8 +14,8 @@ internal static class ScanPageInsert
     /// numbered on. The player's corrections are carried over to the same music (<see cref="NoteEditLog.CarriedOver"/>), the
     /// checked bars and Check flags after it move on by its bars, its own bars get the scan's flags, the page's report goes in
     /// at its place when the notes keep reports (<paramref name="report"/> is then required), the PDF's
-    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and a resume point at or
-    /// after the page goes back to the start, as <see cref="Project.ChangeBars"/> does. Refused, with why, while <see cref="Project.CanInsertPage"/>
+    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and the bookmarks and resume
+    /// points at or after the page move on by its length (<see cref="FollowedWork.Inserted"/>, v1.5 i-7). Refused, with why, while <see cref="Project.CanInsertPage"/>
     /// is false or when the corrections or the bars cannot be carried over exactly: nothing is dropped.
     /// </summary>
     /// <exception cref="ArgumentException">The place or the page is not one, or the notes keep reports and none is sent.</exception>
@@ -58,15 +58,14 @@ internal static class ScanPageInsert
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
         ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
-        Project inserted = project with
+        // Bookmarks and resume points move on with the bars after the page (v1.5 i-7); nothing else in ticks is there to move (CanInsertPage).
+        Project inserted = FollowedWork.Inserted(project, before.Meter, after.Meter, at, length).Project with
         {
             Source = score,
             Edits = edits,
             Scan = scan,
             Check = [.. (project.Check ?? []).Select(flag => new CheckFlag(MovedOn(flag.Bar, first, bars), flag.Source, flag.Reason, flag.Resolved)), .. own],
             DocumentPages = PageMap.Of(after, Math.Max(1, documentPages)),
-            ResumePoints = [.. project.ResumePoints.Select(point => point.At < at && (point.Passage is null || point.Passage.Span.End <= at) ? point
-                : point with { At = Tick.Zero, Passage = null, Focused = false, Loop = false })],
         };
         return new PageInserted(inserted, first, bars);
     }

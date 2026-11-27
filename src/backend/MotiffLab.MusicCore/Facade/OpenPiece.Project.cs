@@ -74,12 +74,13 @@ internal sealed partial class OpenPiece
         return Answer.Write(answer);
     }
 
-    /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
+    /// <summary>The Check flags, a recording's uncertain lengths, a scan's pages as its page reports count them (version 0.4) and where they start (v1.5 i-7).</summary>
     private void CheckAnswer(Utf8JsonWriter json)
     {
         Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes, CheckFlag.CheckedBars(Project.Check)),
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
+        ScanRequest.PageStarts(json, Project, Piece);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
         // beside a scan's Check bars on the device is found by it.
         json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));

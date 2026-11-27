@@ -128,6 +128,7 @@ internal static partial class ScanMerge
                 : new ScanMergedBar(level, staves));
         }
 
+        PrintedMeters(backbone, compared);
         XElement root = Written(backbone, taken, bars);
         ScanRepair.Say(root, $"Motiff Lab scan merge: each staff of each bar from the reading most of {string.Join(", ", ordered.Select(reading => reading.Engine))} agree on; "
             + (page is null ? "" : "without agreement, the reading the page's symbols agree with; ")

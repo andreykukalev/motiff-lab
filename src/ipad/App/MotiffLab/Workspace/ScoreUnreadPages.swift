@@ -1,0 +1,102 @@
+import SwiftUI
+
+/// A page of a scanned PDF no engine read, at its place in the notes (v1.5 i-7; the spec «Распознавание сканов четырьмя
+/// движками в фоне», «Если страница засбоила»: «в пьесе на месте этой страницы стоит пометка»): the bar beside its place,
+/// the first of the notes' page it comes before, or the last bar for a page at the end. Which PDF pages the notes have is
+/// kept only by this iPad's recognition (`RecognitionItem.read`, not the project file); where the notes' pages start is
+/// music-core's (`check`'s "pageStarts"). Nothing here decides what is read or sent.
+struct UnreadPage: Equatable, Identifiable {
+    /// The page of the PDF, from 1.
+    let page: Int
+    let bar: Int
+    let tick: Double
+    /// Its place is after `bar`, the notes' last, rather than before it.
+    let after: Bool
+    var id: Int { page }
+
+    /// The pages `unread` of a PDF whose notes have its pages `read`, placed by the notes' pages as they start; none when
+    /// those are not the notes read (other working notes, or as many pages as the notes have not).
+    @MainActor
+    static func of(unread: [Int], read: [Int], starts: [CheckPageStart]) -> [UnreadPage] {
+        guard let last = starts.last, starts.count == read.count else { return [] }
+        return unread.sorted().map { page in
+            let place = ScanPageAgain.place(of: page, read: read)
+            // E-scan-2: a page after every page the notes have is marked at their last bar.
+            guard starts.indices.contains(place - 1) else { return UnreadPage(page: page, bar: last.lastBar, tick: last.lastTick, after: true) }
+            return UnreadPage(page: page, bar: starts[place - 1].bar, tick: starts[place - 1].tick, after: false)
+        }
+    }
+
+    /// «Стр. 3 не распознана · её место перед тактом 9».
+    func line(_ text: UIText) -> String {
+        text.format(after ? "recognition.unreadAfter" : "recognition.unreadBefore", String(page), String(bar))
+    }
+}
+
+extension ScoreController {
+    /// This piece's recognition on this iPad while it left pages of its PDF unread, or reads them again.
+    var unreadRecognition: RecognitionItem? {
+        guard let file = piece?.file, let item = RecognitionQueue.shared.status(of: file), item.unread != nil else { return nil }
+        return item
+    }
+
+    /// The working notes' unread pages at their place; none while they are read again or once they are in.
+    var unreadPages: [UnreadPage] {
+        guard let item = unreadRecognition, item.state == .done, let unread = item.unread, let read = item.read else { return [] }
+        return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+    }
+
+    /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
+    func unreadPagesCheck(_ text: UIText) -> some View {
+        UnreadPagesCheck(score: self, text: text)
+    }
+
+    /// The Check flags with each unread page's mark, the amber flag a bar to check has (spec part 6: «тем же знаком»): its
+    /// own at the bar beside its place, or its words added to the label of the flag that bar has already, so two never lie
+    /// on one another. A tap opens Check, which offers «Повторить» (`UnreadPagesCheck`).
+    func withUnreadPages(_ flags: [[String: Any]]) -> [[String: Any]] {
+        var all = flags
+        for page in unreadPages {
+            // E-scan-1: one flag on a bar, its label telling both.
+            if let index = all.firstIndex(where: { $0["bar"] as? Int == page.bar }) {
+                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(page.line(text))"
+            } else {
+                all.append(["bar": page.bar, "tick": page.tick, "label": page.line(text)])
+            }
+        }
+        return all
+    }
+}
+
+/// Check's part about the PDF's pages no engine read (v1.5 i-7): each at its place in the notes with «Показать», and the
+/// recognition's «Повторить» for them (`UnreadPagesRetry`, as on the piece's line in the library).
+struct UnreadPagesCheck: View {
+    @ObservedObject var score: ScoreController
+    let text: UIText
+    @ObservedObject private var queue = RecognitionQueue.shared
+
+    var body: some View {
+        if let item = score.unreadRecognition, let unread = item.unread {
+            VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+                Text(text["recognition.unreadHeading"]).overline()
+                if item.state == .done {
+                    let placed = score.unreadPages
+                    if placed.isEmpty {
+                        Text(RecognitionTop.unreadLine(unread, text)).dsType(.caption).foregroundStyle(Color.ds("warning"))
+                    }
+                    ForEach(placed) { page in
+                        HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
+                            Text(page.line(text)).dsType(.caption).foregroundStyle(Color.ds("warning")).fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                            Button(text["scanCheck.show"]) { score.selectBars(page.bar, page.bar, extend: false) }
+                                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+                        }
+                    }
+                }
+                UnreadPagesRetry(item: item, text: text) { Task { await score.drawChecks() } }
+            }
+            // The queue moves on its own (read again, in, or not): the flags on the score follow it.
+            .onChange(of: queue.revision) { _, _ in Task { await score.drawChecks() } }
+        }
+    }
+}
