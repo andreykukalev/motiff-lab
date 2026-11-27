@@ -153,8 +153,8 @@ struct LibraryView: View {
             .fileImporter(isPresented: $choosing, allowedContentTypes: OpenPiece.openable) { result in
                 Task { await library.open(result) }
             }
-            .folderImport(folderImport, text: text, summaries: library.summaries, on: true, account: account) { await library.reload() } open: { url in await library.openProject(url) }
-            .recognition(chosen: $chosen, consenting: $consenting, account: account, entries: library.entries, on: true, text: text) { settings = true } reload: { await library.reload() }
+            .folderImport(folderImport, text: text, summaries: library.summaries, account: account) { await library.reload() } open: { url in await library.openProject(url) }
+            .recognition(chosen: $chosen, consenting: $consenting, account: account, entries: library.entries, text: text) { settings = true } reload: { await library.reload() }
             .task {
                 // «Нет на этом iPad» is not kept as the tab to start on: it is there only once the list online has come.
                 if library.tab == .online { library.tab = .all }
@@ -169,8 +169,6 @@ struct LibraryView: View {
                 if let screensFile { if ScreensHook.bothViews, let both = await ScreensHook.withNotes(screensFile) { await library.reload(); await library.openProject(both) } else { await library.open(.success(screensFile)) } }
                 #endif
             }
-            // The batch never writes the notes of the piece on screen: the screen saves it as it closes.
-            .onChange(of: library.piece?.file) { _, file in recognitionQueue.opened(file) }
             .onChange(of: library.piece == nil) { _, closed in
                 // Back from a score: its project was saved as the screen closed.
                 if closed { Task { await library.reload(); await refreshOnline() } }

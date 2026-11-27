@@ -23,9 +23,14 @@ final class LibraryModelTests: XCTestCase {
         defaults.removePersistentDomain(forName: "LibraryModelTests")
     }
 
+    /// What the library's recognition was told is on screen, in order.
+    private var onScreen: [URL?] = []
+
     private func model(remove: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }) -> LibraryModel {
         let folder = folder!
-        return LibraryModel(text: UIText(language: "en"), folder: { folder }, defaults: defaults, remove: remove)
+        return LibraryModel(text: UIText(language: "en"), folder: { folder }, defaults: defaults, remove: remove) { [weak self] file in
+            self?.onScreen.append(file)
+        }
     }
 
     /// The kit's Für Elise as a file picked in Files, outside the library's folder.
@@ -131,10 +136,26 @@ final class LibraryModelTests: XCTestCase {
         library.delete(file)
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
         XCTAssertEqual(library.entries.map(\.url), [file], "the piece is still here, and so is its line")
-        XCTAssertNotNil(library.problem, "why it was not deleted")
+        XCTAssertEqual(library.problem, UIText(language: "en").format("library.deleteFailed", "Für Elise"), "why, in the interface's language")
 
         try FileManager.default.removeItem(at: file)
         library.delete(file)
         XCTAssertTrue(library.entries.isEmpty, "a file gone already is taken off")
+    }
+
+    /// The library's recognition is told the piece on screen by the model alone, so it never writes the notes under it:
+    /// the file opened, nothing once Back leaves it, and the piece still shown when another could not be opened.
+    func testTheRecognitionIsToldThePieceOnScreen() async throws {
+        let library = model()
+        await library.open(.success(try pickedFile()))
+        let piece = try XCTUnwrap(library.piece, library.problem ?? "not opened")
+        opened.append(piece.id)
+        XCTAssertEqual(onScreen.last, piece.file, "the piece opened")
+
+        await library.openProject(folder.appendingPathComponent("Gone.motiff.json"))
+        XCTAssertEqual(onScreen.last, piece.file, "not opened: the piece still on screen")
+
+        library.piece = nil
+        XCTAssertEqual(onScreen.last, .some(nil), "Back: none")
     }
 }

@@ -347,5 +347,6 @@ library's two guards for a switch (`opening` and the screen shown) are one; the 
 keeps their save before they ask. It reads the recognition queue (Import) through a closure it is handed, and names
 three `Pdf/` types of the opening (`Landing`, `OtherView`, `PieceFamily`), as `OpenPiece` does. The screen composes the
 model with the account, the imports, the Reference and `PieceScreen`, so it moved to `Workspace/` (`LibraryView.swift`,
-with `LibraryOnline.swift`: sync and the copies online), and 26 of its folder edges went. `LibraryTools.swift` is cut by
+with `LibraryOnline.swift`: sync and the copies online). In the quality baseline 34 folder edges went and 9 came with the
+code they serve, 25 fewer in all; 3 of the 9 are now on `LibraryModel`. `LibraryTools.swift` is cut by
 view group (`LibraryTabs`, `LibraryList`, `PieceActions` beside `LineSwipe`).

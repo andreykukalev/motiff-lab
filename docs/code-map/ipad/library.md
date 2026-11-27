@@ -10,7 +10,8 @@ v1.6 i-11b); the screen that composes it is `Workspace/LibraryView` ([`workspace
   them (`entries`, `composers`, `tags`, `playlists`, `query`, `picked`, and `tab`, kept in `library.tab`: another tab
   forgets the group picked and starts its order, Recent the last opened first), the piece on screen (`piece`), a PDF not
   found where it lies (`away`), the line under the header (`problem`, `showProblem`) and `opening`. Made with the folder,
-  the defaults, how a file is removed and the recognition's `opened` (Import's queue, handed in).
+  the defaults, how a file is removed and the recognition's `opened` (Import's queue, handed in), which `piece` alone
+  tells the file on screen (and an open under way the file it reads).
 - `LibraryShelf.swift`: the shelf's values and rules: tabs, sort, query, `LibraryEntry` (and `LibraryEntry.of`, a line
   from a project file and its summary), `LibraryPage`, search, filters, order, the index's letters, `LibrarySource`.
 - `LibraryShelfView.swift`: the tabs, then the list, the groups, the Sessions' cards or the copies online; the empty

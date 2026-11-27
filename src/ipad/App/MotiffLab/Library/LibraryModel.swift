@@ -31,8 +31,11 @@ final class LibraryModel: ObservableObject {
     }
     /// The composer or playlist picked on its tab.
     @Published var picked: LibraryGroup?
-    /// The piece on screen; nil while the library shows (Back sets it so).
-    @Published var piece: OpenPiece?
+    /// The piece on screen; nil while the library shows (Back sets it so). The library's recognition is told its file
+    /// here, the one place, so the batch never writes the notes of the piece on screen: the screen saves it as it closes.
+    @Published var piece: OpenPiece? {
+        didSet { opened(piece?.file) }
+    }
     /// A piece whose PDF could not be read where it lies (version 0.5), and what can be done.
     @Published var away: AwayPrompt?
     @Published private(set) var problem: String?
@@ -108,13 +111,14 @@ final class LibraryModel: ObservableObject {
     }
 
     /// Deletes a piece's project file and takes its line off the shelf: the one way a piece is deleted. A file that could
-    /// not be removed keeps its line, and the library says why (one already gone is taken off as deleted).
+    /// not be removed keeps its line, and the library says why (one already gone is taken off as deleted; E-library-5).
     func delete(_ url: URL) {
         do {
             try remove(url)
         } catch {
             if FileManager.default.fileExists(atPath: url.path) {
-                problem = error.localizedDescription
+                let title = entries.first { $0.url == url }?.title ?? ProjectFiles.title(of: url.lastPathComponent)
+                problem = text.format("library.deleteFailed", title)
                 return
             }
         }
@@ -137,7 +141,7 @@ final class LibraryModel: ObservableObject {
 
     /// One opening at a time, whatever asks (#582 item 2; the UI review's «three guards for one switch»): `opening` from
     /// the ask until the piece is on screen or the step has failed, and an ask meanwhile does nothing. The screens' own
-    /// hand-over only keeps their save before they ask.
+    /// hand-over only keeps their save before they ask (E-library-4).
     private func openOnce(_ step: () async -> Void) async {
         guard !opening else { return }
         opening = true
@@ -220,6 +224,7 @@ final class LibraryModel: ObservableObject {
     func openFile(_ file: URL, at landing: Landing) async {
         await openOnce {
             opened(file)
+            // Not opened: the batch is told the piece still on screen (opened, `piece` tells it the new one).
             defer { opened(piece?.file) }
             do {
                 let data = try Data(contentsOf: file)
@@ -240,6 +245,7 @@ final class LibraryModel: ObservableObject {
     private func project(_ url: URL) async {
         // Open for the batch before its file is read, so notes it writes meanwhile are not lost under the screen.
         opened(url)
+        // Not opened: the batch is told the piece still on screen (opened, `piece` tells it the new one).
         defer { opened(piece?.file) }
         if let summary = summaries[url], AwayPdf.isAway(summary) {
             switch await AwayPdf.read(url, summary) {

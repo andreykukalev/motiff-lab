@@ -10,8 +10,6 @@ struct LibraryTabs: View {
     let tags: [String]
     let playlists: [String]
     let text: UIText
-    /// «Без нот» among the filters (version 0.5, experiment «Импорт папки»).
-    var withoutNotes = false
     /// Whether a piece saved online is not on this iPad, for its tab.
     var online = false
 
@@ -51,12 +49,11 @@ struct LibraryTabs: View {
         }
     }
 
-    /// The Composer, Tag and Playlist filters, on the lists of pieces only; «Без нот» on every tab of pieces, with the
-    /// experiment on.
+    /// The Composer, Tag and Playlist filters, on the lists of pieces only; «Без нот» on every tab of pieces.
     @ViewBuilder
     private var filters: some View {
         let lists = tab == .all || tab == .recent
-        let notes = withoutNotes && tab != .online
+        let notes = tab != .online
         if lists || notes {
             HStack(spacing: CGFloat.ds("s-3")) {
                 if lists && !composers.isEmpty {

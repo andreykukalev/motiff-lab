@@ -62,5 +62,6 @@
   "library.edit": "Изменить",
   "library.tabOnline": "Нет на этом iPad",
   "recognition.withoutNotes": "Без нот",
-  "library.recordingAsIs": "Запись как есть"
+  "library.recordingAsIs": "Запись как есть",
+  "library.deleteFailed": "«{0}» не удалось удалить с этого iPad: пьеса осталась в библиотеке."
 }

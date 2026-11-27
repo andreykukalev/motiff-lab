@@ -59,5 +59,6 @@
   "library.edit": "Edit",
   "library.tabOnline": "Not on this iPad",
   "recognition.withoutNotes": "Without notes",
-  "library.recordingAsIs": "The recording, as it is"
+  "library.recordingAsIs": "The recording, as it is",
+  "library.deleteFailed": "“{0}” could not be deleted from this iPad: the piece is still in the library."
 }
