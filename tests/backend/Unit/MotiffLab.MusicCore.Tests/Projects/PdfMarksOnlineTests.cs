@@ -73,7 +73,7 @@ public class PdfMarksOnlineTests
     }
 
     [Fact]
-    public void A_pull_keeps_the_writers_own_marks_and_brings_the_others_the_online_ones()
+    public void A_pull_brings_the_online_marks_to_a_device_with_or_without_the_pdf()
     {
         Project before = OnIpad(Stroke("k1", 1));
         Project browser = LinkedInBrowser(RoundTrip(before.ForOnline()!));
@@ -90,9 +90,12 @@ public class PdfMarksOnlineTests
         // A device without the PDF keeps them too, to show once it links the PDF.
         Assert.Equal(after.DocumentMarks, ProjectSync.Pulled(online, RoundTrip(before.ForOnline()!), HoldingDevice.Web).DocumentMarks);
 
-        // The iPad keeps its own, whatever the online copy says.
-        Project stale = RoundTrip(before.ForOnline()!);
-        Assert.Equal(after.DocumentMarks, ProjectSync.Pulled(stale, after, HoldingDevice.Ipad).DocumentMarks);
+        // Another iPad that holds the PDF wrote more since: this one, which changed nothing since (a pull), takes them with
+        // its PDF kept (v1.6 r-3: it kept its own and dropped the other iPad's, which its next send then took away online).
+        Project other = after with { DocumentMarks = after.DocumentMarks.WithInk([Stroke("k1", 1), Stroke("k2", 1), Stroke("k3", 2)]) };
+        Project fromOther = ProjectSync.Pulled(RoundTrip(other.ForOnline()!), after, HoldingDevice.Ipad);
+        Assert.Equal(other.DocumentMarks, fromOther.DocumentMarks);
+        Assert.Equal(s_pdf, fromOther.Document);
     }
 
     [Fact]
@@ -121,14 +124,18 @@ public class PdfMarksOnlineTests
         Assert.Equal(after.DocumentMarks, resolved.Kept.DocumentMarks);
         Assert.Equal(after.DocumentMarks, resolved.Kept.ForOnline()!.DocumentMarks);
 
-        // The iPad's copy that wins sends its own.
+        // The iPad's copy that wins sends its own: against the base, the stroke it took away stays away; with none, the
+        // union by kind (S4) keeps the online copy's too, as for every other entity.
         Project ipadNewer = after with { Metadata = new Pieces.PieceMetadata("Exam", null, [], []) };
-        SyncResolution ipad = ProjectSync.Resolve(ipadNewer, s_now.AddHours(2), RoundTrip(before.ForOnline()!), s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad);
+        Project stale = RoundTrip(before.ForOnline()!);
+        SyncResolution ipad = ProjectSync.Resolve(ipadNewer, s_now.AddHours(2), stale, s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad, stale);
         Assert.Same(ipadNewer, ipad.Kept);
+        SyncResolution union = ProjectSync.Resolve(ipadNewer, s_now.AddHours(2), stale, s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad);
+        Assert.Equal(["k2", "k1"], union.Kept.DocumentMarks.Ink.Select(static stroke => stroke.Id));
     }
 
     [Fact]
-    public void Page_marks_two_ipads_made_since_the_base_merge_mark_by_mark_and_the_same_page_on_both_is_a_conflict()
+    public void Page_marks_two_ipads_made_merge_mark_by_mark_with_or_without_a_base_and_the_same_page_on_both_is_a_conflict()
     {
         // The second review of c-17a, finding 3: each original's page marks were the copy saved last's and the pull keeps
         // this iPad's, so a bookmark another iPad made was lost with no conflict and no copy beside.
@@ -153,15 +160,17 @@ public class PdfMarksOnlineTests
         Assert.Equal([new MergeConflict("originals.marks.bookmarks", "1")], both.Conflicts);
         Assert.Equal(["Coda"], both.PreviousCopy!.DocumentMarks.Bookmarks.Select(static bookmark => bookmark.Name));
 
-        // With no base, a stroke one took away would come back from a union: the writer's own stand, the other's beside.
+        // With no base (an iPad that keeps none), the union by kind of every other entity (S4): both iPads' marks stay in the
+        // piece (v1.6 r-3: the copy saved last's stood and the other iPad's left the piece for a copy beside).
         SyncResolution union = Resolved(online, null);
-        Assert.Equal(here.DocumentMarks, union.Kept.DocumentMarks);
-        Assert.Equal([new MergeConflict("originals.marks", PieceOriginal.DocumentId)], union.Conflicts.Where(static conflict => conflict.In.StartsWith("originals", StringComparison.Ordinal)));
-        Assert.Equal(online.DocumentMarks, union.PreviousCopy!.DocumentMarks);
+        Assert.Equal([1, 3], union.Kept.DocumentMarks.Bookmarks.Select(static bookmark => bookmark.Page));
+        Assert.Equal(["k1", "k2"], union.Kept.DocumentMarks.Ink.Select(static stroke => stroke.Id));
+        Assert.DoesNotContain(union.Conflicts, static conflict => conflict.In.StartsWith("originals", StringComparison.Ordinal));
+        Assert.Equal([new MergeConflict("originals.marks.bookmarks", "1")], Resolved(same, null).Conflicts.Where(static conflict => conflict.In.StartsWith("originals", StringComparison.Ordinal)));
     }
 
     [Fact]
-    public void The_ipad_sends_its_page_marks_through_the_facade_and_keeps_them_on_a_pull()
+    public void The_ipad_sends_its_page_marks_through_the_facade_and_takes_another_ipads_on_a_pull()
     {
         var facade = new MusicCoreFacade();
         string Text(Project project) => Encoding.UTF8.GetString(ProjectFile.Write(project));
@@ -179,7 +188,7 @@ public class PdfMarksOnlineTests
 
         Project other = RoundTrip(ipad.ForOnline()! with { DocumentMarks = DocumentMarks.Empty.WithInk([Stroke("w1", 1)]) });
         Project back = ProjectFile.Read(Encoding.UTF8.GetBytes(File("project.pulled", new { file = Text(other), here = Text(ipad) })));
-        Assert.Equal(ipad.DocumentMarks, back.DocumentMarks);
+        Assert.Equal(other.DocumentMarks, back.DocumentMarks);
         Assert.Equal(s_pdf, back.Document);
     }
 }

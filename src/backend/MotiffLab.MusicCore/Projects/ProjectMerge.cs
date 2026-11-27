@@ -28,7 +28,7 @@ internal sealed record MergedProject(Project Project, IReadOnlyList<MergeConflic
 /// on one side only takes that side; added on either side, it comes in; removed on one side and unchanged on the other, it
 /// goes; changed on both differently, the copy that won keeps its own and the merge records a <see cref="MergeConflict"/>.
 /// Removed on one side and changed on the other, the change stays, so nothing is lost. Without a base the merge is a union
-/// with no deletions (S4), but for the marks on a PDF's pages, the winner's. Fields this build does not know (a later
+/// with no deletions (S4), the marks on a PDF's pages too. Fields this build does not know (a later
 /// build's, S6), in the workspace, a Notes or an original, merge as whole values, so they are kept. A field
 /// that is not the player's (bookkeeping, derived, an import's) is the winner's. Pure and deterministic: the same three
 /// copies give the same project and conflicts.
@@ -222,7 +222,7 @@ internal static class ProjectMerge
                 return Set(mine as JsonArray, theirs as JsonArray, before as JsonArray);
             }
 
-            if (MergeRules.ByField(path, hasBase) && mine is JsonObject ours && theirs is JsonObject other)
+            if (MergeRules.ByField(path) && mine is JsonObject ours && theirs is JsonObject other)
             {
                 var merged = new JsonObject();
                 foreach (string name in MergeRules.Names(ours, other))
