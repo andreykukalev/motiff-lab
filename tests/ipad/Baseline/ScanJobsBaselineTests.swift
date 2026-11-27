@@ -363,4 +363,28 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 1), [60])
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [], "the notes as they were")
     }
+
+    /// SCAN-03 (v1.5 i-7, the v1.4 plan's answer 9): the library's «Распознать ноты в нескольких пьесах» says before sending
+    /// how long the pieces take there, one after another, at most so many whole minutes («Не дольше 8 минут…»), from the
+    /// server's times of its engines, a piece read whole on the iPad counting nothing; Sources' «Распознать ноты» asks the
+    /// server for a PDF's line only with «Четыре движка», not for a recording nor while the panel cannot send.
+    func testSCAN03TheLibrarysPickingAndSourcesSayHowLongBeforeSendingToo() async throws {
+        StubAPI.reset(["http://scan.test/health": ScanSupport.health])
+        let asked = await ScanServer.health(ScanSupport.server, session: StubAPI.session())
+        guard case .success(let health) = asked else { return XCTFail("health: \(asked)") }
+        // Pieces of 2 and 3 pages, a page 75, 90, 70 and 125 s by the four engines, four units at once, none queued.
+        let seconds = try XCTUnwrap(health.seconds(pieces: [2, 0, 3]), "the server's estimate")
+        XCTAssertEqual(seconds, 450, accuracy: 0.001, "180 s and then 270 s; the piece read whole on the iPad counts nothing")
+        let minutes = ScanHealth.minutes(seconds: seconds)
+        XCTAssertEqual(minutes, 8, "whole minutes, rounded up")
+        XCTAssertTrue(RecogniseConsentSheet.howLong(timed: minutes, asking: false, pages: 5, russian).hasPrefix("Не дольше 8 минут, по замерам сервера распознавания"))
+        XCTAssertTrue(RecogniseConsentSheet.howLong(timed: minutes, asking: false, pages: 5, english).hasPrefix("At most 8 minutes, as the scan server times it"))
+        XCTAssertNil(health.seconds(pieces: [0]), "nothing to send: no estimate")
+
+        let address = ScanSupport.server
+        XCTAssertEqual(SourcesRecognisePanel.timedBy(jobs: true, recording: false, blocked: false, address: address), address, "a PDF's line asked of the server")
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: false, recording: false, blocked: false, address: address), "another engine: no line")
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: true, recording: true, blocked: false, address: address), "a recording: no line")
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: true, recording: false, blocked: true, address: address), "the panel cannot send: no line")
+    }
 }

@@ -3,10 +3,11 @@ import XCTest
 @testable import MotiffLab
 
 /// The assistant of 1.2, option A, on the iPad (docs/ux-baseline.md, ASST-01 to ASST-03; the plan of 1.2, item 3 and
-/// answer 6, approved 2026-11-20 11:26 UTC; ADR 0028): why a template answer stands in the model's place, said in words;
-/// the engine's practice action as a button that loops its bars at its tempo; the consent asked once more because its list
-/// grew. Taken through the assistant's own types and controller, and the score's workspace for the button, over the real
-/// music-core; no network: the answers are written here as the API sends them. The panel's look is the device's.
+/// answer 6, approved 2026-11-20 11:26 UTC; ADR 0028): why a template answer stands in the model's place, said in
+/// words; the engine's practice action as a button that loops its bars at its tempo; the consent asked once more
+/// because its list grew; and since 1.5 a question not sent kept by the closed panel (ASST-04). Taken through the
+/// assistant's own types and controller, and the score's workspace for the button, over the real music-core; no
+/// network: the answers are written here as the API sends them. The panel's look is the device's.
 @MainActor
 final class AssistantBaselineTests: XCTestCase {
     private var opened: [Int32] = []
@@ -89,5 +90,45 @@ final class AssistantBaselineTests: XCTestCase {
         XCTAssertTrue(later.consentGiven, "asked once")
         XCTAssertFalse(later.consentAskedAgain)
         XCTAssertFalse(later.draftConsentGiven, "a question in a draft asks its own")
+    }
+
+    /// ASST-04 (since 1.5, answer 16 of 1.4): a question typed in the assistant's panel and not sent outlives the closed
+    /// panel, also when the field's own change, emptied by the close, comes after it; the panel opened again, or by an
+    /// Ask, holds it, and so does the same piece on a screen made again (another score). Sent, it goes; another piece's
+    /// panel starts empty. The field's look is the device's.
+    func testASST04AQuestionNotSentOutlivesTheClosedPanel() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "assistant-baseline-\(UUID().uuidString)"))
+        let panel = assistant(over: defaults)
+        let typed = "Где в этой фразе кульминация?"
+        panel.load(piece: "elise", score: ScoreController())
+        panel.open(wholePiece: true, selection: nil)
+        var field = AskFlow(surface: .panel)
+        field.apply(.open)
+        field.apply(.type(typed))
+        panel.keepUnsent(field.draft)
+        field.apply(.close)
+        panel.close()
+        panel.keepUnsent(field.draft)
+        XCTAssertEqual(panel.unsentInPanel, typed, "closed, the panel keeps the question")
+
+        panel.show()
+        XCTAssertEqual(panel.unsentInPanel, typed, "the panel opened again")
+        panel.close()
+        panel.open(wholePiece: false, selection: nil)
+        XCTAssertEqual(panel.unsentInPanel, typed, "opened again by an Ask")
+        panel.load(piece: "elise", score: ScoreController())
+        XCTAssertEqual(panel.unsentInPanel, typed, "the same piece's screen made again, with another score")
+
+        var asking = AskFlow(surface: .panel)
+        asking.apply(.open)
+        asking.apply(.type(panel.unsentInPanel))
+        let sent = asking.apply(.send)
+        XCTAssertEqual(sent, typed, "sent as typed")
+        panel.keepUnsent(asking.draft)
+        XCTAssertEqual(panel.unsentInPanel, "", "sent, it goes")
+        panel.keepUnsent("Почему ля минор?")
+        panel.close()
+        panel.load(piece: "promenade")
+        XCTAssertEqual(panel.unsentInPanel, "", "another piece's panel starts empty")
     }
 }
