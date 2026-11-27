@@ -95,6 +95,9 @@ test("the piano roll's button is in the pill only", () => {
     const rollButton = /"roll"|bar\.roll|rollOpen|\(\.roll\)|\[\.roll\]/;
     assert.doesNotMatch(menu.slice(menu.indexOf("struct SelectionMenu"), menu.indexOf("struct ClearSelectionButton")), rollButton);
     assert.doesNotMatch(view("ScoreBar"), rollButton);
+    // Nor what the screen hangs under the bar (ScoreScreenBars' `bars`); its transport hands the pill the drawer.
+    const bars = view("ScoreScreenBars");
+    assert.doesNotMatch(bars.slice(bars.indexOf("func bars("), bars.indexOf("func askAboutPiece(")), rollButton);
 });
 
 // Andrei's answer 15 of 1.4 (2026-11-26 10:16 UTC, built in 1.5): a − or + that steps a number repeats while held, faster

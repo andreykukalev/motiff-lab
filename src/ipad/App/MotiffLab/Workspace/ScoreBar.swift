@@ -23,6 +23,8 @@ struct ScoreBar: View {
     let pdf: (() -> Void)?
     /// Piece DNA from More.
     let openDna: () -> Void
+    /// ⓘ: shows or hides what the app adds over the notes (`ScoreController.toggleExtra`).
+    let toggleExtra: () -> Void
     /// The Reference's circle of fifths; nil where there is none.
     var openReference: (() -> Void)?
     /// What went wrong, if anything did, which More says (the player's, else the score's).
@@ -102,9 +104,7 @@ struct ScoreBar: View {
         // lists each kind and the player's own marks.
         HStack(spacing: 0) {
             let on = !marksModel.hiddenLayers.contains("extra")
-            Button {
-                score.toggleExtra()
-            } label: {
+            Button(action: toggleExtra) {
                 Icon(name: "info", size: CGFloat.ds("icon-l")).frame(width: 40, height: 40)
             }
             .buttonStyle(BarActionStyle(on: on))
