@@ -5405,7 +5405,7 @@
        {
         "property": "melody",
         "number": 1,
-        "text": "Melody pitches stay; its rhythm changes, so Keep melody and Keep rhythm cannot both be on."
+        "text": "Высоты мелодии остаются, а её ритм меняется, поэтому мелодию и ритм нельзя сохранить одновременно."
        }
       ],
       "scopes": [
@@ -5492,7 +5492,7 @@
        {
         "property": "intervals",
         "number": 2,
-        "text": "Diatonic sequences keep interval sizes in scale steps, not semitones."
+        "text": "Секвенция по гамме сохраняет величину интервалов в ступенях гаммы, а не в полутонах."
        }
       ],
       "scopes": [
@@ -5539,12 +5539,12 @@
        {
         "property": "melody",
         "number": 3,
-        "text": "Melody pitch classes stay; its octave may change."
+        "text": "Звуковысотные классы мелодии остаются; её октава может измениться."
        },
        {
         "property": "bass",
         "number": 4,
-        "text": "Only spacing, register of upper voices and hand distribution change; inversions are off while Keep bass is on."
+        "text": "Меняются только расположение и регистр верхних голосов и распределение по рукам; обращения аккордов недоступны, пока сохраняется бас."
        }
       ],
       "scopes": [

@@ -153,6 +153,10 @@ public partial class RussianExplanationTests
             }
 
             AddLatin(found, row.OperationId, row.NameIn(Words.Russian));
+            foreach (KeepFootnote footnote in row.Footnotes.Values)
+            {
+                AddLatin(found, $"{row.OperationId} footnote {footnote.Number}", footnote.TextIn(Words.Russian));
+            }
         }
 
         foreach (KeepPreset preset in KeepTable.Presets)
@@ -164,6 +168,9 @@ public partial class RussianExplanationTests
         Assert.Equal(
             "«Изменение ритма» меняет, когда начинаются ноты и сколько они длятся, поэтому эту операцию нельзя применить, пока в «Сохранить» отмечено: ритм.",
             KeepTable.DisabledReason("V1", new HashSet<KeepProperty> { KeepProperty.Rhythm }, Words.Russian));
+        Assert.Equal(
+            "Звуковысотные классы мелодии остаются; её октава может измениться.",
+            KeepTable.MelodyPitchClasses.TextIn(Words.Russian));
     }
 
     [Fact]
