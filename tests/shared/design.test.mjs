@@ -77,23 +77,27 @@ test("the selection menu's Note has a note's icon, never the assistant's look", 
     const icons = readIcons();
     assert.ok("memo" in icons);
     assert.equal(new Set(["memo", "note", "insight", "search", "pages", "file"].map((name) => icons[name])).size, 6, "each its own drawing");
-    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
-    const menu = screen.slice(screen.indexOf("struct SelectionMenu"), screen.indexOf("struct ClearSelectionButton"));
+    const workspace = "src/ipad/App/MotiffLab/Workspace/";
+    const file = read(workspace + "SelectionMenu.swift").toString();
+    const menu = file.slice(file.indexOf("struct SelectionMenu"), file.indexOf("struct ClearSelectionButton"));
     assert.match(menu, /iconItem\("memo", text\["menu\.note"\]/);
     assert.doesNotMatch(menu, /Item\("note"/);
     assert.match(menu, /iconItem\("memo", text\["menu\.note"\][\s\S]*?iconItem\("bookmark", text\["menu\.bookmark"\]/, "Note before Bookmark, as the kit's menu");
-    assert.match(screen, /iconItem\("note", text\["pill\.assistant"\]/, "the bubble is the assistant's");
+    assert.match(read(workspace + "Pill.swift").toString(), /iconItem\("note", text\["pill\.assistant"\]/, "the bubble is the assistant's");
 });
 
 // Andrei's 0.8 test, finding 7 and answer 1: the piano roll's button is the pill's alone, not the top bar's or the
 // selection menu's.
 test("the piano roll's button is in the pill only", () => {
-    const screen = read("src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift").toString();
-    const between = (from, to) => screen.slice(screen.indexOf(from), screen.indexOf(to, screen.indexOf(from)));
-    assert.match(between("struct Pill", "struct SelectionMenu"), /iconItem\("roll", text\["bar\.roll"\]/);
+    const view = (name) => read(`src/ipad/App/MotiffLab/Workspace/${name}.swift`).toString();
+    const menu = view("SelectionMenu");
+    assert.match(view("Pill"), /iconItem\("roll", text\["bar\.roll"\]/);
     const rollButton = /"roll"|bar\.roll|rollOpen|\(\.roll\)|\[\.roll\]/;
-    assert.doesNotMatch(between("struct SelectionMenu", "struct ClearSelectionButton"), rollButton);
-    assert.doesNotMatch(between("struct ScoreBar", "struct Pill"), rollButton);
+    assert.doesNotMatch(menu.slice(menu.indexOf("struct SelectionMenu"), menu.indexOf("struct ClearSelectionButton")), rollButton);
+    assert.doesNotMatch(view("ScoreBar"), rollButton);
+    // Nor what the screen hangs under the bar (ScoreScreenBars' `bars`); its transport hands the pill the drawer.
+    const bars = view("ScoreScreenBars");
+    assert.doesNotMatch(bars.slice(bars.indexOf("func bars("), bars.indexOf("func askAboutPiece(")), rollButton);
 });
 
 // Andrei's answer 15 of 1.4 (2026-11-26 10:16 UTC, built in 1.5): a − or + that steps a number repeats while held, faster

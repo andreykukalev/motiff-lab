@@ -362,8 +362,6 @@
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"","value":852,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"","value":1359,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"type_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"class ScoreController","value":926,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift","symbol":"","value":2088,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"function_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreScreen.swift","symbol":"layers","value":143,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"tests/ipad/MotiffLabTests/FacadeTests.swift","symbol":"","value":701,"why":"existing before #332"}
   ]
 }
