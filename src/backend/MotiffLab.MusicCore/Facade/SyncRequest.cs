@@ -9,7 +9,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// <summary>
 /// The sync calls on piece 0 (contract 12, calls added; <see cref="ProjectSync"/>), for the iPad, which does not read
 /// project files itself (0026 S1): project.online, project.sync, project.pulled and project.resolve. Files travel as their
-/// text, as project.metadata has them.
+/// text, as project.metadata has them. A copy a later build saved (<see cref="Project.IsReadOnly"/>, version 1.6) is kept
+/// here as it came, read-only: project.pulled and project.resolve answer it with "readOnly": true, and project.online refuses
+/// it (<c>readOnly</c>), so this build never sends it over the online copy.
 /// </summary>
 internal static class SyncRequest
 {
@@ -41,12 +43,15 @@ internal static class SyncRequest
         });
     }
 
-    /// <summary>{"here", "online", "known", "changedHere", "changedOnline", "deletedOnline"} (true or false) → {"step"}.</summary>
+    /// <summary>
+    /// {"here", "online", "known", "changedHere", "changedOnline", "deletedOnline", "deletedHere"} (true or false) → {"step"}:
+    /// "nothing", "upload", "download", "resolve", "forget" or, for a piece the player removed here, "deleteOnline".
+    /// </summary>
     public static string Next(Request fields)
     {
         SyncStep step = ProjectSync.Next(new SyncFacts(
             Flag(fields, "here"), Flag(fields, "online"), Flag(fields, "known"),
-            Flag(fields, "changedHere"), Flag(fields, "changedOnline"), Flag(fields, "deletedOnline")));
+            Flag(fields, "changedHere"), Flag(fields, "changedOnline"), Flag(fields, "deletedOnline"), Flag(fields, "deletedHere")));
         return Answer.Write(json => json.WriteString("step", step switch
         {
             SyncStep.Nothing => "nothing",
@@ -54,40 +59,68 @@ internal static class SyncRequest
             SyncStep.Download => "download",
             SyncStep.Resolve => "resolve",
             SyncStep.Forget => "forget",
+            SyncStep.DeleteOnline => "deleteOnline",
             _ => throw new InvalidOperationException(),
         }));
     }
 
-    /// <summary>{"file": the online copy, "here"?: this device's} → {"file": what to keep here, with this device's PDF}.</summary>
+    /// <summary>
+    /// {"file": the online copy, "here"?: this device's} → {"file": what to keep here, with this device's PDF, "readOnly": true
+    /// when a later build saved it}.
+    /// </summary>
     public static string Pulled(Request fields)
     {
         Project online = Read(fields.Required("file"));
         Project? here = fields.Text("here") is { } text ? Read(text) : null;
-        return Answer.Write(json => json.WriteString("file", Text(ProjectSync.Pulled(online, here, HoldingDevice.Ipad))));
+        Project kept = ProjectSync.Pulled(online, here, HoldingDevice.Ipad);
+        return Answer.Write(json =>
+        {
+            json.WriteString("file", Kept(kept));
+            json.WriteBoolean("readOnly", kept.IsReadOnly);
+        });
     }
 
     /// <summary>
-    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "copyTitle"} → {"file": what to keep here, "upload": true
-    /// when it goes online, "copy": the previous copy as a piece of its own, or null}.
+    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "copyTitle", "base"?: the copy both last agreed on,
+    /// "sendsFile"?: true when the app sends "file" on "upload", false (before c-17b) when it sends "here"} →
+    /// {"file": what to keep here, "upload": true when "file" ("here" without "sendsFile") goes online, "copy": the previous copy as a piece of its own, or
+    /// null, "readOnly": true when "file" holds a later build's copy (kept here, never sent), "merged": false when the copies
+    /// were not merged entity by entity (the merge failed its self-check, or one is a later build's: "file" is then the online
+    /// copy and "copy" this device's), "conflicts": [{"in", "id"}] what of the copy that lost "file" does not hold}
+    /// (<see cref="ProjectSync.Resolve"/>, version 1.6).
     /// </summary>
     public static string Resolve(Request fields)
     {
         SyncResolution resolved = ProjectSync.Resolve(
             Read(fields.Required("here")), Time(fields, "savedHere"),
             Read(fields.Required("online")), Time(fields, "savedOnline"),
-            fields.Required("copyTitle"), MusicCoreFacade.NewProjectId(), HoldingDevice.Ipad);
+            fields.Required("copyTitle"), MusicCoreFacade.NewProjectId(), HoldingDevice.Ipad,
+            fields.Text("base") is { } shared ? Read(shared) : null, Flag(fields, "sendsFile"));
         return Answer.Write(json =>
         {
-            json.WriteString("file", Text(resolved.Kept));
+            json.WriteString("file", Kept(resolved.Kept));
             json.WriteBoolean("upload", resolved.Upload);
             if (resolved.PreviousCopy is { } copy)
             {
-                json.WriteString("copy", Text(copy));
+                json.WriteString("copy", Kept(copy));
             }
             else
             {
                 json.WriteNull("copy");
             }
+
+            json.WriteBoolean("readOnly", resolved.Kept.IsReadOnly);
+            json.WriteBoolean("merged", resolved.Merged);
+            json.WriteStartArray("conflicts");
+            foreach (MergeConflict conflict in resolved.Conflicts)
+            {
+                json.WriteStartObject();
+                json.WriteString("in", conflict.In);
+                json.WriteString("id", conflict.Id);
+                json.WriteEndObject();
+            }
+
+            json.WriteEndArray();
         });
     }
 
@@ -121,13 +154,17 @@ internal static class SyncRequest
     /// {"files": [project file texts that may be one piece], "stay"?: [indices of the files whose bytes are linked on this
     /// iPad, never joined away]} → {"joined": [{"keeper": index, "from": [indices that join it], "file": the keeper to save in
     /// its place}]}, only the pieces some file joined (version 0.6.1, #582 item 1; <see cref="SamePiece.Plan"/>). The files
-    /// that join a keeper are the same piece with nothing of their own: the app deletes them.
+    /// that join a keeper are the same piece with nothing of their own: the app deletes them. A file a later build saved
+    /// (version 1.6) is left out: this build neither writes it nor joins it away, and the others are joined as without it.
     /// </summary>
     public static string Join(Request fields)
     {
-        IReadOnlyList<Project> projects = [.. fields.Texts("files").Select(Read)];
-        HashSet<int> stay = [.. fields.Elements("stay").Select(static element => element.TryGetInt32(out int index) ? index : throw FacadeException.BadRequest("\"stay\" holds indices."))];
-        IReadOnlyList<JoinedPiece> joined = SamePiece.Plan(projects, stay, HoldingDevice.Ipad);
+        IReadOnlyList<Project> all = [.. fields.Texts("files").Select(Read)];
+        int[] writable = [.. Enumerable.Range(0, all.Count).Where(index => !all[index].IsReadOnly)];
+        HashSet<int> stayed = [.. fields.Elements("stay").Select(static element => element.TryGetInt32(out int index) ? index : throw FacadeException.BadRequest("\"stay\" holds indices."))];
+        HashSet<int> stay = [.. Enumerable.Range(0, writable.Length).Where(index => stayed.Contains(writable[index]))];
+        IReadOnlyList<JoinedPiece> joined = [.. SamePiece.Plan([.. writable.Select(index => all[index])], stay, HoldingDevice.Ipad)
+            .Select(piece => piece with { Keeper = writable[piece.Keeper], Joined = [.. piece.Joined.Select(index => writable[index])] })];
         return Answer.Write(json =>
         {
             json.WriteStartArray("joined");
@@ -147,6 +184,9 @@ internal static class SyncRequest
     private static Project Read(string file) => ProjectFile.Read(Encoding.UTF8.GetBytes(file));
 
     private static string Text(Project project) => Encoding.UTF8.GetString(ProjectFile.Save(project));
+
+    /// <summary>The file to keep here: as <see cref="Text"/>, and a later build's copy as it came, read-only (<see cref="ProjectFile.Write"/>).</summary>
+    private static string Kept(Project project) => project.IsReadOnly ? Encoding.UTF8.GetString(ProjectFile.Write(project)) : Text(project);
 
     private static bool Flag(Request fields, string name) => fields.Bool(name) ?? false;
 

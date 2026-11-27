@@ -49,20 +49,29 @@ internal static class SourcesMerge
     /// piece's Notes: its tombstones; the other Notes and compared versions it added, by id; and its corrections of notes the
     /// winner did not correct, in the working notes and in other Notes alike, while both are the same Notes with the same
     /// music (S9 and its source guard). A correction of the same note on both sides is a conflict the winner's side takes;
-    /// the loser's stays in the copy kept beside.
+    /// the loser's stays in the copy kept beside. Each such conflict is recorded (<see cref="MergeConflict"/>): a note's
+    /// corrections ("notes.edits", the note), all of the loser's when its notes are others (no id), a Notes' music, name,
+    /// file name or marks ("notes", "notes.name", "notes.fileName", "notes.marks"), a version ("notes.performance") and a
+    /// draft ("workspace.drafts").
     /// </summary>
-    public static Project Merged(Project winner, Project loser, Project? @base)
+    public static MergedProject Merged(Project winner, Project loser, Project? @base)
     {
+        List<MergeConflict> conflicts = [];
         Project merged = WithTombstones(winner, loser.Sources.Removed);
+        bool sameBase = @base is not null && @base.NotesId == merged.NotesId && @base.Source.AsSpan().SequenceEqual(merged.Source);
         if (merged.HasNotes && merged.NotesId == loser.NotesId && merged.Source.AsSpan().SequenceEqual(loser.Source))
         {
-            bool sameBase = @base is not null && @base.NotesId == merged.NotesId && @base.Source.AsSpan().SequenceEqual(merged.Source);
-            NoteEditLog edits = Edits(merged.Edits, loser.Edits, sameBase ? @base!.Edits : null);
+            NoteEditLog edits = Edits(merged.Edits, loser.Edits, sameBase ? @base!.Edits : null, conflicts);
             merged = edits.Equals(merged.Edits) ? merged : merged with { Edits = edits };
         }
+        else if (!loser.Edits.IsEmpty && !(@base is not null && @base.NotesId == loser.NotesId && @base.Source.AsSpan().SequenceEqual(loser.Source) && loser.Edits.Equals(@base.Edits)))
+        {
+            // S9's source guard: corrections of other notes are not put in.
+            conflicts.Add(new MergeConflict("notes.edits", null));
+        }
 
-        merged = OtherNotes(merged, loser, @base);
-        return Drafts(Versions(merged, loser, @base), loser, @base);
+        merged = OtherNotes(merged, loser, @base, conflicts);
+        return new MergedProject(Drafts(Versions(merged, loser, @base, conflicts), loser, @base, conflicts), conflicts);
     }
 
     /// <summary>
@@ -71,7 +80,7 @@ internal static class SourcesMerge
     /// changed on both is a conflict: the winner's stands, the other's stays in the copy kept beside. With the base, a
     /// draft removed on one side since then goes; without it, it comes back.
     /// </summary>
-    private static Project Drafts(Project merged, Project loser, Project? @base)
+    private static Project Drafts(Project merged, Project loser, Project? @base, List<MergeConflict> conflicts)
     {
         List<Draft> drafts = [];
         foreach (Draft mine in merged.Drafts)
@@ -85,6 +94,10 @@ internal static class SourcesMerge
             }
 
             drafts.Add(theirs is not null && unchanged ? theirs : mine);
+            if (theirs is not null && !unchanged && Changed(mine, theirs, before))
+            {
+                conflicts.Add(new MergeConflict("workspace.drafts", mine.Id));
+            }
         }
 
         HashSet<string> known = [.. merged.DraftIds];
@@ -93,7 +106,11 @@ internal static class SourcesMerge
         return drafts.SequenceEqual(merged.Drafts) ? merged : merged with { Drafts = drafts };
     }
 
-    private static Project OtherNotes(Project merged, Project loser, Project? @base)
+    /// <summary>Whether the other copy's draft differs from this one's and from the base's: changed there too.</summary>
+    private static bool Changed(Draft mine, Draft theirs, Draft? before) =>
+        !DraftsCodec.Same(mine, theirs) && !(before is not null && DraftsCodec.Same(before, theirs));
+
+    private static Project OtherNotes(Project merged, Project loser, Project? @base, List<MergeConflict> conflicts)
     {
         List<OtherNotes> notes = [];
         List<string> removed = [];
@@ -113,8 +130,7 @@ internal static class SourcesMerge
                 continue;
             }
 
-            bool sameBase = before is not null && before.Music.AsSpan().SequenceEqual(mine.Music);
-            notes.Add(theirs.Music.AsSpan().SequenceEqual(mine.Music) ? mine with { Edits = Edits(mine.Edits, theirs.Edits, sameBase ? before!.Edits : null) } : mine);
+            notes.Add(Both(mine, theirs, before, conflicts));
         }
 
         HashSet<string> known = [merged.NotesId, .. notes.Select(static each => each.Id), .. merged.Performances.Select(static each => each.Id), .. Project.UnknownIds(merged.Unknown, "notes")];
@@ -130,8 +146,62 @@ internal static class SourcesMerge
         return removed.Aggregate(result, static (project, id) => project.DeleteNotes(id));
     }
 
-    private static Project Versions(Project merged, Project loser, Project? @base)
+    /// <summary>
+    /// Other Notes on both copies: with other music, this copy's (a conflict when the other's changed since the base); else
+    /// their corrections note by note and their name, file name and marks each as <see cref="Taken"/> merges it.
+    /// </summary>
+    private static OtherNotes Both(OtherNotes mine, OtherNotes theirs, OtherNotes? before, List<MergeConflict> conflicts)
     {
+        if (!theirs.Music.AsSpan().SequenceEqual(mine.Music))
+        {
+            if (before is null || !before.Equals(theirs))
+            {
+                conflicts.Add(new MergeConflict("notes", mine.Id));
+            }
+
+            return mine;
+        }
+
+        bool sameBase = before is not null && before.Music.AsSpan().SequenceEqual(mine.Music);
+        return mine with
+        {
+            Edits = Edits(mine.Edits, theirs.Edits, sameBase ? before!.Edits : null, conflicts),
+            Name = Taken("notes.name", mine.Id, mine.Name, theirs.Name, before is null ? null : new(before.Name), conflicts),
+            FileName = Taken("notes.fileName", mine.Id, mine.FileName, theirs.FileName, before is null ? null : new(before.FileName), conflicts),
+            Marks = Taken("notes.marks", mine.Id, mine.Marks, theirs.Marks, before is null ? null : new(before.Marks), conflicts),
+        };
+    }
+
+    /// <summary>A field of one entity merged: the other side's when only it changed since the base, else this side's, a conflict when both changed it.</summary>
+    private static T Taken<T>(string where, string id, T mine, T theirs, Box<T>? before, List<MergeConflict> conflicts)
+    {
+        if (EqualityComparer<T>.Default.Equals(mine, theirs) || (before is not null && EqualityComparer<T>.Default.Equals(theirs, before.Value)))
+        {
+            return mine;
+        }
+
+        if (before is not null && EqualityComparer<T>.Default.Equals(mine, before.Value))
+        {
+            return theirs;
+        }
+
+        conflicts.Add(new MergeConflict(where, id));
+        return mine;
+    }
+
+    /// <summary>A base's value, which may itself be null.</summary>
+    private sealed record Box<T>(T Value);
+
+    private static Project Versions(Project merged, Project loser, Project? @base, List<MergeConflict> conflicts)
+    {
+        foreach (SavedPerformance theirs in loser.Performances)
+        {
+            if (merged.FindPerformance(theirs.Id) is { } mine && !mine.Equals(theirs) && !theirs.Equals(@base?.FindPerformance(theirs.Id)) && !mine.Equals(@base?.FindPerformance(theirs.Id)))
+            {
+                conflicts.Add(new MergeConflict("notes.performance", theirs.Id));
+            }
+        }
+
         HashSet<string> inBase = @base is null ? [] : [.. @base.Performances.Select(static each => each.Id)];
         HashSet<string> known = [merged.NotesId, .. merged.Sources.Notes.Select(static each => each.Id), .. merged.Performances.Select(static each => each.Id)];
         foreach (SavedPerformance theirs in loser.Performances.Where(theirs => !known.Contains(theirs.Id) && !inBase.Contains(theirs.Id)))
@@ -159,7 +229,7 @@ internal static class SourcesMerge
     /// on both is a conflict, and the winner's stand, unless with no base one side only goes further than the other. The
     /// winner's corrections come first in their order, then the other side's, in theirs.
     /// </summary>
-    public static NoteEditLog Edits(NoteEditLog winner, NoteEditLog loser, NoteEditLog? @base)
+    private static NoteEditLog Edits(NoteEditLog winner, NoteEditLog loser, NoteEditLog? @base, List<MergeConflict> conflicts)
     {
         if (winner.Equals(loser))
         {
@@ -170,10 +240,18 @@ internal static class SourcesMerge
         foreach (string id in winner.EditedIds.Concat(loser.EditedIds).Distinct(StringComparer.Ordinal))
         {
             fromLoser[id] = TakesLoser(Of(winner, id), Of(loser, id), @base is null ? null : Of(@base, id));
+            if (!fromLoser[id] && !Held(Of(winner, id), Of(loser, id), @base is null ? null : Of(@base, id)))
+            {
+                conflicts.Add(new MergeConflict("notes.edits", id));
+            }
         }
 
         return new NoteEditLog([.. winner.Edits.Where(edit => !fromLoser[edit.NoteId]), .. loser.Edits.Where(edit => fromLoser[edit.NoteId])]);
     }
+
+    /// <summary>Whether the winner's corrections of a note hold the loser's: the same, or the loser left them as the base had them, or (no base) the winner goes further along them.</summary>
+    private static bool Held(List<NoteEdit> winner, List<NoteEdit> loser, List<NoteEdit>? @base) =>
+        winner.SequenceEqual(loser) || (@base is not null ? loser.SequenceEqual(@base) : winner.Count > loser.Count && winner.Take(loser.Count).SequenceEqual(loser));
 
     private static List<NoteEdit> Of(NoteEditLog log, string id) => [.. log.Edits.Where(edit => edit.NoteId == id)];
 
