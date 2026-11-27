@@ -117,7 +117,7 @@ public class NoteEditLogTests
         Assert.Equal("a1", id);
         NoteEdit edit = Assert.Single(log.Edits);
         Assert.True(edit.IsAddition);
-        Assert.False(edit.IsRemoval);
+        Assert.NotNull(edit.After);
 
         IReadOnlyList<Note> notes = log.Apply(imported);
         Assert.Equal(["n1", "a1", "n2", "n3"], notes.Select(note => note.Id));

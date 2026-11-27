@@ -38,9 +38,6 @@ internal static class MusicXmlIssueCodes
     public const string MeterInPickup = "musicxml.meter-in-pickup";
     public const string SlurUnmatched = "musicxml.slur-unmatched";
 
-    /// <summary>The issue in plain English, as <see cref="ImportIssue.Message"/> keeps it.</summary>
-    public static string Describe(string code, int count) => Describe(code, count, Words.English);
-
     /// <summary>The issue in the language (0018, preparation item 13).</summary>
     public static string Describe(string code, int count, Words words) => code switch
     {

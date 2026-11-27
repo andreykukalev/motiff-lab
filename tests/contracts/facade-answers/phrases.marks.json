@@ -6,24 +6,6 @@
    "call": "phrases",
    "request": null,
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -1138,24 +1120,6 @@
     }
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 5
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -2353,24 +2317,6 @@
     }
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -3543,24 +3489,6 @@
     "start": 7680
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 22
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -4893,24 +4821,6 @@
     "remove": 10560
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -6234,24 +6144,6 @@
     }
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 38
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -7559,24 +7451,6 @@
     "putBack": 2400
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -8901,24 +8775,6 @@
     "resetAll": true
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {

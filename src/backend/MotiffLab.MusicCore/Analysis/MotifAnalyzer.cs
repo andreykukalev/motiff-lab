@@ -62,8 +62,6 @@ internal static partial class MotifAnalyzer
         public string Name(Words words) => words.T(One, RussianOne);
 
         public string Counted(int count, Words words) => words.Count(count, One, Many, RussianOne, RussianFew, RussianMany);
-
-        public string Plural(int count, Words words) => words.Noun(count, One, Many, RussianOne, RussianFew, RussianMany);
     }
 
     private static readonly NoteValue[] s_values =

@@ -36,11 +36,13 @@ final class FacadeTests: XCTestCase {
         XCTAssertEqual(opened["language"] as? String, "ru")
     }
 
-    func testPhrasesComeInThreeLevels() throws {
+    func testPhrasesAnswerTheUnitsOfThePhrases() throws {
         let phrases = try call("phrases")
-        let levels = try XCTUnwrap(phrases["levels"] as? [[String: Any]])
-        XCTAssertEqual(levels.map { $0["id"] as? String }, ["short", "phrase", "sentence"])
-        XCTAssertTrue(levels.allSatisfy { $0["available"] as? Bool == true })
+        XCTAssertNil(phrases["level"], "contract 17: the level shown is not answered")
+        XCTAssertNil(phrases["levels"], "contract 17: the levels are not listed")
+        let units = try XCTUnwrap(phrases["units"] as? [[String: Any]])
+        XCTAssertFalse(units.isEmpty)
+        XCTAssertTrue(units.allSatisfy { $0["level"] as? String == "phrase" })
     }
 
     func testThePhrasesAndTheSelectionAreReadFromMusicCore() throws {
