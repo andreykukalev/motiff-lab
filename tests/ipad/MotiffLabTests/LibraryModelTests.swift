@@ -23,9 +23,9 @@ final class LibraryModelTests: XCTestCase {
         defaults.removePersistentDomain(forName: "LibraryModelTests")
     }
 
-    private func model() -> LibraryModel {
+    private func model(remove: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }) -> LibraryModel {
         let folder = folder!
-        return LibraryModel(text: UIText(language: "en"), folder: { folder }, defaults: defaults)
+        return LibraryModel(text: UIText(language: "en"), folder: { folder }, defaults: defaults, remove: remove)
     }
 
     /// The kit's Für Elise as a file picked in Files, outside the library's folder.
@@ -64,8 +64,8 @@ final class LibraryModelTests: XCTestCase {
         let piece = try XCTUnwrap(library.piece, library.problem ?? "not opened")
         opened.append(piece.id)
         let file = try XCTUnwrap(piece.file)
-        XCTAssertEqual(file.deletingLastPathComponent().standardizedFileURL, folder.standardizedFileURL, "saved in the library's folder")
-        XCTAssertEqual(file.lastPathComponent, "Für Elise.motiff.json", "named by the work's title (ADD-03)")
+        XCTAssertEqual(ProjectFiles.list(in: folder).map(\.url.lastPathComponent), ["Für Elise.motiff.json"], "saved in the library's folder, named by the work's title (ADD-03)")
+        XCTAssertEqual(file.lastPathComponent, "Für Elise.motiff.json")
         XCTAssertEqual(library.entries.map(\.title), ["Für Elise"])
         XCTAssertFalse(library.opening)
 
@@ -75,11 +75,11 @@ final class LibraryModelTests: XCTestCase {
         XCTAssertEqual(library.piece?.id, piece.id, "a screen no longer shown switches nothing")
 
         library.piece = nil
-        library.delete(file)
+        library.delete(try XCTUnwrap(library.entries.first?.url))
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
         XCTAssertTrue(library.entries.isEmpty)
         XCTAssertTrue(library.projects.isEmpty)
-        XCTAssertNil(library.summaries[file])
+        XCTAssertTrue(library.summaries.isEmpty)
     }
 
     func testAFailedDownloadSaysWhyAndLeavesTheLibraryAsItWas() async {
@@ -116,5 +116,25 @@ final class LibraryModelTests: XCTestCase {
         XCTAssertNil(library.piece, "nothing opened meanwhile")
         XCTAssertTrue(ProjectFiles.list(in: folder).isEmpty, "and nothing saved")
         XCTAssertFalse(library.opening)
+    }
+
+    /// Robustness (v1.6 i-11b): a project file that could not be removed went off the list and came back at the next
+    /// reading, as if deleted; now its line stays and the library says why. One already gone is taken off as deleted.
+    func testAPieceWhoseFileCannotBeRemovedKeepsItsLineAndSaysWhy() async throws {
+        let library = model { _ in throw CocoaError(.fileWriteNoPermission) }
+        await library.open(.success(try pickedFile()))
+        let piece = try XCTUnwrap(library.piece, library.problem ?? "not opened")
+        opened.append(piece.id)
+        library.piece = nil
+        let file = try XCTUnwrap(library.entries.first?.url)
+
+        library.delete(file)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        XCTAssertEqual(library.entries.map(\.url), [file], "the piece is still here, and so is its line")
+        XCTAssertNotNil(library.problem, "why it was not deleted")
+
+        try FileManager.default.removeItem(at: file)
+        library.delete(file)
+        XCTAssertTrue(library.entries.isEmpty, "a file gone already is taken off")
     }
 }

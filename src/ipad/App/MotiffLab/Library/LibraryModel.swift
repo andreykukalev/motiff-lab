@@ -42,6 +42,8 @@ final class LibraryModel: ObservableObject {
     private let text: UIText
     private let folder: () -> URL
     private let defaults: UserDefaults
+    /// How a project file is removed from the folder.
+    private let remove: (URL) throws -> Void
     /// The library's recognition is told the file open on screen, so it never writes the notes under it.
     private let opened: @MainActor (URL?) -> Void
     private let summaryCache = ProjectFileCache<PieceSummary> { await PieceSummary.read($0) }
@@ -51,11 +53,13 @@ final class LibraryModel: ObservableObject {
         text: UIText = .current,
         folder: @escaping () -> URL = { ProjectFiles.folder },
         defaults: UserDefaults = .standard,
+        remove: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) },
         opened: @escaping @MainActor (URL?) -> Void = { _ in }
     ) {
         self.text = text
         self.folder = folder
         self.defaults = defaults
+        self.remove = remove
         self.opened = opened
         tab = defaults.string(forKey: Self.tabKey).flatMap(LibraryTab.init(rawValue:)) ?? .all
     }
@@ -103,9 +107,17 @@ final class LibraryModel: ObservableObject {
         }
     }
 
-    /// Deletes a piece's project file and takes its line off the shelf: the one way a piece is deleted.
+    /// Deletes a piece's project file and takes its line off the shelf: the one way a piece is deleted. A file that could
+    /// not be removed keeps its line, and the library says why (one already gone is taken off as deleted).
     func delete(_ url: URL) {
-        try? FileManager.default.removeItem(at: url)
+        do {
+            try remove(url)
+        } catch {
+            if FileManager.default.fileExists(atPath: url.path) {
+                problem = error.localizedDescription
+                return
+            }
+        }
         projects.removeAll { $0.url == url }
         summaries[url] = nil
         shelve()

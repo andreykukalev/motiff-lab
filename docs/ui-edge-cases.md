@@ -95,6 +95,9 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   сюда», a screen's PDF | Notes, a folder's piece) · the second ask does nothing; the library waits for the first, whose
   step always ends with the library answering again, a downloaded copy that cannot be read saying why · as PDF | Notes
   already did (#582 item 2), one opening owner (`LibraryModel.openOnce`); HIG: prevent a repeated submit · v1.6 i-11b
+- `E-library-5` · «Удалить» on a piece whose project file cannot be removed (no permission, the file busy) · its line
+  stays and the line over the library says why; a file already gone (deleted in Files meanwhile) is taken off as
+  deleted · the list states only what is on this iPad, as the next reading would show it · v1.6 i-11b
 - `E-pdf-1` · «Разделить на пьесы» pressed again while the collection's project file is saved, before its first piece
   is made · the split is under way from the press: «Разделяю: 0 из N» shows and the button is off until it ends, so the
   collection is split once (a press then made every piece twice) · a button's action runs once per press while it is
