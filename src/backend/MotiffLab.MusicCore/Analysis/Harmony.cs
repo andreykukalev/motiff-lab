@@ -243,152 +243,85 @@ internal static partial class HarmonyAnalyzer
             return HarmonyAnalysis.None;
         }
 
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
-        Words w = words;
-        var facts = new List<MotifFact>();
-        if (key is { } inKey)
-        {
-            facts.Add(MotionFact(chords, meter, inKey, w));
-        }
-
-        facts.Add(ChordsFact(chords, meter, spelling, w));
-        if (texture.Bass.Count > 0)
-        {
-            facts.Add(BassFact(texture.Bass, meter, spelling, w));
-        }
-
-        facts.AddRange(
-        [
-            RhythmFact(chords, meter, selection.Span, spelling, w),
-            VoicingFact(chords, chosen, meter, spelling, w),
-        ]);
-        if (chords.Skip(1).Where((chord, i) => chord.Chord != chords[i].Chord).Any())
-        {
-            facts.Add(SharedFact(chords, chosen, meter, spelling, w));
-        }
-
-        return new HarmonyAnalysis(chords, texture.Bass, facts);
+        return new HarmonyAnalysis(chords, texture.Bass, Facts(Measure(chords, chosen, texture.Bass, meter, selection.Span, key), meter, key, words));
     }
 
-    /// <summary>"Am from bar 1", "E from bar 2, beat 3"; "Am с такта 1", "E с доли 3 такта 2".</summary>
-    public static string From(Tick onset, MeterMap meter, Words words)
+    /// <summary>What the facts are written from (<c>Harmony.Facts.cs</c>): the chords, the bass and what was measured on them.</summary>
+    /// <param name="Steps">The chords with consecutive equal chords joined, for the motion.</param>
+    /// <param name="Cadence">How the steps end in the key; null without a key, when no motion is read.</param>
+    /// <param name="Bars">Bars the selection touches.</param>
+    /// <param name="Beats">Beats in the bar where the selection starts.</param>
+    /// <param name="Changes">Each change with the pitch classes the two chords share.</param>
+    private sealed record Measures(
+        IReadOnlyList<ChordSpan> Chords,
+        IReadOnlyList<Step> Steps,
+        Cadence? Cadence,
+        IReadOnlyList<Note> Bass,
+        BassMoves Moves,
+        HeldBass? Pedal,
+        int Bars,
+        int Beats,
+        IReadOnlyList<Spread> Spreads,
+        IReadOnlyList<Change> Changes);
+
+    /// <summary>The bass line's moves between neighbouring notes: a step is one or two semitones, a leap more.</summary>
+    private readonly record struct BassMoves(int Count, int Steps, int Leaps, int Repeats);
+
+    /// <summary>A bass held on one pitch (<see cref="Pedal"/>), with the bars it lasts.</summary>
+    private sealed record HeldBass(Note[] Notes, int FirstBar, int LastBar);
+
+    /// <summary>A chord's lowest and highest note sounding in it.</summary>
+    private readonly record struct Spread(ChordSpan Chord, Note Low, Note High)
     {
-        ArgumentNullException.ThrowIfNull(meter);
-        MetricPosition position = meter.ToPosition(onset);
-        return (position.Beat, position.BeatOffset) switch
-        {
-            (1, 0) => words.T($"from bar {position.Bar}", $"с такта {position.Bar}"),
-            (_, 0) => words.T($"from bar {position.Bar}, beat {position.Beat}", $"с доли {position.Beat} такта {position.Bar}"),
-            _ => words.T($"from bar {position.Bar}, after beat {position.Beat}", $"после доли {position.Beat} такта {position.Bar}"),
-        };
+        public int Size => High.Pitch.MidiNumber - Low.Pitch.MidiNumber;
     }
 
-    /// <summary>"first inversion"; "секстаккорд", by the chord's size; null in root position.</summary>
-    public static string? InversionName(ChordSpan chord, Words words)
+    /// <summary>A change of chord, the pitch classes both chords hold, and the notes from the first chord's start to the second's end on them.</summary>
+    private sealed record Change(ChordSpan From, ChordSpan To, int[] Shared, IReadOnlyList<string> NoteIds);
+
+    private static Measures Measure(IReadOnlyList<ChordSpan> chords, Note[] notes, IReadOnlyList<Note> bass, MeterMap meter, TickSpan span, MusicalKey? key)
     {
-        ArgumentNullException.ThrowIfNull(chord);
-        return (chord.Inversion, chord.Chord.IsSeventh) switch
-        {
-            (0, _) => null,
-            (-1, _) => words.T("over a bass outside the chord", "на басу вне аккорда"),
-            (1, false) => words.T("first inversion", "секстаккорд"),
-            (2, false) => words.T("second inversion", "квартсекстаккорд"),
-            (1, true) => words.T("first inversion", "квинтсекстаккорд"),
-            (2, true) => words.T("second inversion", "терцквартаккорд"),
-            _ => words.T("third inversion", "секундаккорд"),
-        };
-    }
-
-    /// <summary>The chords a brief names by symbol, then "…".</summary>
-    private const int MaxBriefChords = 6;
-
-    private static MotifFact ChordsFact(IReadOnlyList<ChordSpan> chords, MeterMap meter, MusicalKey spelling, Words w)
-    {
-        string[] named = [.. chords.Select(chord =>
-        {
-            string text = $"{chord.Symbol(spelling)} {From(chord.Span.Onset, meter, w)}";
-            return InversionName(chord, w) is { } inversion ? $"{text} ({inversion})" : text;
-        })];
-        string list = string.Join(", ", named);
-        string text = w.IsRussian
-            ? $"{w.Count(chords.Count, "", "", "аккорд", "аккорда", "аккордов")} по нотам: {list}."
-            : $"{(chords.Count == 1 ? "1 chord" : $"{chords.Count} chords")} read from the notes: {list}.";
-        ChordSpan[] doubtful = [.. chords.Where(static chord => chord.Alternatives.Count > 0)];
-        string basis = w.T(
-            "Inferred: the pitches sounding in each beat, weighed by how long they sound and with the lowest note counting most, are matched against major, minor, diminished, augmented, suspended and seventh chords; a beat whose notes fit the chord before it joins that chord.",
-            "Предположено: высоты, звучащие на каждой доле, с весом по длительности и с наибольшим весом самой низкой ноты, сравниваются с мажорными, минорными, уменьшёнными, увеличенными, задержанными и септаккордами; доля, ноты которой входят в предыдущий аккорд, присоединяется к нему.");
-        if (doubtful.Length > 0)
-        {
-            string others = string.Join("; ", doubtful.Select(chord =>
-                $"{chord.Symbol(spelling)} {From(chord.Span.Onset, meter, w)}: {string.Join(w.T(" or ", " или "), chord.Alternatives.Select(alternative => alternative.Symbol(spelling, chord.Bass.PitchClass)))}"));
-            basis += w.T($" Other readings that fit nearly as well: {others}.", $" Почти так же подходят: {others}.");
-        }
-
-        FactCertainty certainty = chords.Any(static chord => chord.Confidence < ClearConfidence) ? FactCertainty.Uncertain : FactCertainty.Inferred;
-        string symbols = string.Join(", ", chords.Take(MaxBriefChords).Select(chord => chord.Symbol(spelling))) + (chords.Count > MaxBriefChords ? " …" : "");
-        return new MotifFact("harmony.chords", FactLens.Harmony, certainty, text, basis)
-        {
-            Brief = w.IsRussian
-                ? $"{w.Count(chords.Count, "", "", "аккорд", "аккорда", "аккордов")}: {symbols}."
-                : $"{(chords.Count == 1 ? "1 chord" : $"{chords.Count} chords")}: {symbols}.",
-            Places = [.. chords.Select(chord => new FactPlace($"{chord.Symbol(spelling)}, {From(chord.Span.Onset, meter, w)}", chord.Span, chord.NoteIds))],
-        };
-    }
-
-    private static MotifFact BassFact(IReadOnlyList<Note> bass, MeterMap meter, MusicalKey spelling, Words w)
-    {
-        string[] names = [.. bass.Take(MaxNamedBassNotes).Select(note => spelling.Spell(note.Pitch.MidiNumber))];
-        string line = string.Join(" ", names) + (bass.Count > MaxNamedBassNotes ? " …" : "");
+        IReadOnlyList<Step> steps = Steps(chords);
         int[] moves = [.. bass.Zip(bass.Skip(1), static (a, b) => Math.Abs(b.Pitch.MidiNumber - a.Pitch.MidiNumber))];
-        int steps = moves.Count(static move => move is > 0 and <= 2);
-        int leaps = moves.Count(static move => move > 2);
-        int repeats = moves.Count(static move => move == 0);
-        string text = w.IsRussian
-            ? $"Бас: {w.Count(bass.Count, "", "", "нота", "ноты", "нот")} — {line}."
-            : $"The bass plays {(bass.Count == 1 ? "1 note" : $"{bass.Count} notes")}: {line}.";
-        string brief = w.IsRussian
-            ? $"Бас: {w.Count(bass.Count, "", "", "нота", "ноты", "нот")}"
-            : $"The bass plays {(bass.Count == 1 ? "1 note" : $"{bass.Count} notes")}";
-        if (moves.Length > 0)
+        HeldBass? pedal = Pedal(bass) is { } held
+            ? new HeldBass(held, meter.BarAt(held[0].Span.Onset).Number, meter.BarAt(new Tick(held[^1].Span.End.Value - 1)).Number)
+            : null;
+        Spread[] spreads = [.. chords.Select(chord =>
         {
-            string[] kinds = [.. new[]
-                {
-                    (steps, w.Count(steps, "step", "steps", "шаг", "шага", "шагов")),
-                    (leaps, w.Count(leaps, "leap", "leaps", "скачок", "скачка", "скачков")),
-                    (repeats, w.Count(repeats, "repeated note", "repeated notes", "повтор", "повтора", "повторов")),
-                }
-                .Where(static kind => kind.Item1 > 0)
-                .Select(static kind => kind.Item2)];
-            text += w.IsRussian
-                ? $" Из {w.Count(moves.Length, "", "", "хода", "ходов", "ходов")}: {w.Joined(kinds)}."
-                : $" Its {(moves.Length == 1 ? "move is" : $"{moves.Length} moves are")} {w.Joined(kinds)}.";
-            brief += $", {w.Joined(kinds)}";
+            Note[] sounding = [.. notes.Where(note => note.Span.Onset < chord.Span.End && note.Span.End > chord.Span.Onset)];
+            return new Spread(chord, sounding.MinBy(static note => note.Pitch.MidiNumber)!, sounding.MaxBy(static note => note.Pitch.MidiNumber)!);
+        })];
+        var changes = new List<Change>();
+        for (int i = 1; i < chords.Count; i++)
+        {
+            if (chords[i].Chord == chords[i - 1].Chord)
+            {
+                continue;
+            }
+
+            ChordSpan from = chords[i - 1];
+            ChordSpan to = chords[i];
+            int[] shared = [.. from.Chord.PitchClasses.Where(to.Chord.Contains)];
+            string[] ids = [.. notes
+                .Where(note => note.Span.Onset >= from.Span.Onset && note.Span.Onset < to.Span.End && shared.Contains(note.Pitch.PitchClass))
+                .Select(static note => note.Id)];
+            changes.Add(new Change(from, to, shared, ids));
         }
 
-        brief += ".";
-
-        var places = new List<FactPlace> { FactPlace.Of(w.T("the bass line", "линия баса"), bass) };
-        if (Pedal(bass) is { } held)
-        {
-            int first = meter.BarAt(held[0].Span.Onset).Number;
-            int last = meter.BarAt(new Tick(held[^1].Span.End.Value - 1)).Number;
-            string pitch = spelling.Spell(held[0].Pitch.MidiNumber);
-            string inBars = w.InBars(first, last);
-            text += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
-            brief += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
-            places.Add(FactPlace.Of(w.T($"stays on {pitch}", $"на {pitch}"), held));
-        }
-
-        return new MotifFact("harmony.bass", FactLens.Harmony, FactCertainty.Inferred, text, w.T(
-            "Inferred: the bass is the lowest note at each onset, among left-hand notes when there are any, leaving out notes over a bass note still held.",
-            "Предположено: бас — самая низкая нота каждой атаки, среди нот левой руки, если они есть, без нот над ещё звучащей нотой баса."))
-        {
-            Places = places,
-            Brief = brief,
-        };
+        return new Measures(
+            chords,
+            steps,
+            key is { } inKey ? CadenceOf([.. steps.Select(static step => step.Chord)], inKey) : null,
+            bass,
+            new BassMoves(moves.Length, moves.Count(static move => move is > 0 and <= 2), moves.Count(static move => move > 2), moves.Count(static move => move == 0)),
+            pedal,
+            meter.BarAt(new Tick(span.End.Value - 1)).Number - meter.BarAt(span.Onset).Number + 1,
+            meter.SignatureAt(span.Onset).Numerator,
+            spreads,
+            changes);
     }
 
-    /// <summary>The longest run of three or more bass notes on one pitch that lasts at least a bar, or null.</summary>
+    /// <summary>The longest run of three or more bass notes on one pitch that lasts at least three quarters (<c>TicksPerQuarter * 3</c>), or null.</summary>
     private static Note[]? Pedal(IReadOnlyList<Note> bass)
     {
         Note[]? best = null;
@@ -411,109 +344,6 @@ internal static partial class HarmonyAnalyzer
         }
 
         return best;
-    }
-
-    private static MotifFact RhythmFact(IReadOnlyList<ChordSpan> chords, MeterMap meter, TickSpan span, MusicalKey spelling, Words w)
-    {
-        int bars = meter.BarAt(new Tick(span.End.Value - 1)).Number - meter.BarAt(span.Onset).Number + 1;
-        ChordSpan[] changed = [.. chords.Skip(1).Where((chord, i) => chord.Chord != chords[i].Chord)];
-        int changes = changed.Length;
-        int beats = meter.SignatureAt(span.Onset).Numerator;
-        string rate = changes == 0
-            ? ""
-            : changes >= bars * beats ? w.T("on every beat", "на каждой доле")
-            : changes * 2 >= bars * 3 ? w.T("more than once a bar", "чаще раза в такт")
-            : changes * 4 >= bars * 3 ? w.T("about once a bar", "примерно раз в такт")
-            : changes * 8 >= bars * 3 ? w.T("about every 2 bars", "примерно раз в 2 такта")
-            : w.T("less often than every 2 bars", "реже, чем раз в 2 такта");
-        string barsText = w.Count(bars, "bar", "bars", "такт", "такта", "тактов");
-        string text = changes == 0
-            ? w.T($"The harmony stays on one chord, {chords[0].Symbol(spelling)}, for {barsText}.", $"Гармония держится на одном аккорде, {chords[0].Symbol(spelling)}, {w.Count(bars, "", "", "такт", "такта", "тактов")}.")
-            : w.IsRussian
-                ? $"Аккорд меняется {w.Times(changes)} за {w.Count(bars, "", "", "такт", "такта", "тактов")}: {rate}."
-                : $"The chord changes {w.Times(changes)} in {barsText}: {rate}.";
-        return new MotifFact("harmony.rhythm", FactLens.Harmony, FactCertainty.Inferred, text, w.T(
-            "Inferred from the chords read from the notes: each change is where a new chord starts.",
-            "Предположено по аккордам, прочитанным из нот: каждая смена — начало нового аккорда."))
-        {
-            Places = [.. changed.Select(chord => new FactPlace($"{chord.Symbol(spelling)}, {From(chord.Span.Onset, meter, w)}", chord.Span, chord.NoteIds))],
-        };
-    }
-
-    private static MotifFact VoicingFact(IReadOnlyList<ChordSpan> chords, Note[] notes, MeterMap meter, MusicalKey spelling, Words w)
-    {
-        (ChordSpan Chord, Note Low, Note High)[] spreads = [.. chords.Select(chord =>
-        {
-            Note[] sounding = [.. notes.Where(note => note.Span.Onset < chord.Span.End && note.Span.End > chord.Span.Onset)];
-            return (chord, sounding.MinBy(static note => note.Pitch.MidiNumber)!, sounding.MaxBy(static note => note.Pitch.MidiNumber)!);
-        })];
-        static int Size((ChordSpan Chord, Note Low, Note High) spread) => spread.High.Pitch.MidiNumber - spread.Low.Pitch.MidiNumber;
-        var widest = spreads.OrderByDescending(Size).First();
-        var narrowest = spreads.OrderBy(Size).First();
-        int open = spreads.Count(spread => Size(spread) > 12);
-        string Named((ChordSpan Chord, Note Low, Note High) spread) => $"{spread.Chord.Symbol(spelling)}, {From(spread.Chord.Span.Onset, meter, w)}";
-        string text = spreads.Length == 1 || Size(widest) == Size(narrowest)
-            ? w.T(
-                $"From bass to top, {(spreads.Length == 1 ? "the chord spans" : "every chord spans")} {w.IntervalBy(Size(widest))}: {(Size(widest) > 12 ? "open" : "close")} voicing.",
-                $"От баса до верхнего звука {(spreads.Length == 1 ? "аккорд занимает" : "каждый аккорд занимает")} {w.IntervalName(Size(widest))}: {(Size(widest) > 12 ? "широкое" : "тесное")} расположение.")
-            : w.IsRussian
-                ? $"От баса до верхнего звука аккорды занимают от {w.IntervalName(Size(narrowest))} ({Named(narrowest)}) до {w.IntervalName(Size(widest))} ({Named(widest)}); в широком расположении, шире октавы, — {open} {w.OutOf(spreads.Length, "", "", "аккорда", "аккордов")}."
-                : $"From bass to top, the chords span from {w.IntervalBy(Size(narrowest))} ({Named(narrowest)}) to {w.IntervalBy(Size(widest))} ({Named(widest)}); {open} of {spreads.Length} are open, wider than an octave.";
-        return new MotifFact("harmony.voicing", FactLens.Harmony, FactCertainty.Inferred, text, w.T(
-            "Measured from the lowest to the highest note sounding in each chord the finder read.",
-            "Измерено от самой низкой до самой высокой ноты, звучащей в каждом прочитанном аккорде."))
-        {
-            Brief = spreads.Length == 1 || Size(widest) == Size(narrowest)
-                ? null
-                : w.IsRussian
-                    ? $"В широком расположении, шире октавы, — {open} {w.OutOf(spreads.Length, "", "", "аккорда", "аккордов")}."
-                    : $"{open} of {spreads.Length} chords are open, wider than an octave.",
-            Places = spreads.Length == 1 || Size(widest) == Size(narrowest)
-                ? [FactPlace.Of(Named(widest), [widest.Low, widest.High])]
-                : [FactPlace.Of(Named(widest), [widest.Low, widest.High]), FactPlace.Of(Named(narrowest), [narrowest.Low, narrowest.High])],
-        };
-    }
-
-    private static MotifFact SharedFact(IReadOnlyList<ChordSpan> chords, Note[] notes, MeterMap meter, MusicalKey spelling, Words w)
-    {
-        var pairs = new List<(ChordSpan From, ChordSpan To, int[] Shared)>();
-        for (int i = 1; i < chords.Count; i++)
-        {
-            if (chords[i].Chord == chords[i - 1].Chord)
-            {
-                continue;
-            }
-
-            int[] shared = [.. chords[i - 1].Chord.PitchClasses.Where(chords[i].Chord.Contains)];
-            pairs.Add((chords[i - 1], chords[i], shared));
-        }
-
-        (ChordSpan From, ChordSpan To, int[] Shared)[] sharing = [.. pairs.Where(static pair => pair.Shared.Length > 0)];
-        string Pair((ChordSpan From, ChordSpan To, int[] Shared) pair) =>
-            $"{pair.From.Symbol(spelling)}–{pair.To.Symbol(spelling)}: {w.Joined([.. pair.Shared.Select(spelling.SpellClass)])}";
-        string text = sharing.Length == 0
-            ? w.T(
-                $"Neighbouring chords share no notes at any of the {(pairs.Count == 1 ? "1 change" : $"{pairs.Count} changes")}.",
-                $"Ни при одной из смен аккордов ({pairs.Count}) соседние аккорды не имеют общих звуков.")
-            : w.IsRussian
-                ? $"Общие звуки у соседних аккордов — в {sharing.Length} {w.OutOf(pairs.Count, "", "", "смены", "смен")}: {string.Join("; ", sharing.Select(Pair))}."
-                : $"Neighbouring chords share notes at {sharing.Length} of {(pairs.Count == 1 ? "1 change" : $"{pairs.Count} changes")}: {string.Join("; ", sharing.Select(Pair))}.";
-        return new MotifFact("harmony.shared", FactLens.Harmony, FactCertainty.Inferred, text, w.T(
-            "Inferred from the chords read from the notes: a shared note is a pitch class in both chords.",
-            "Предположено по аккордам, прочитанным из нот: общий звук — звуковысотный класс, входящий в оба аккорда."))
-        {
-            Brief = sharing.Length == 0
-                ? null
-                : w.IsRussian
-                    ? $"Общие звуки у соседних аккордов — в {sharing.Length} {w.OutOf(pairs.Count, "", "", "смены", "смен")}."
-                    : $"Neighbouring chords share notes at {sharing.Length} of {(pairs.Count == 1 ? "1 change" : $"{pairs.Count} changes")}.",
-            Places = [.. sharing.Select(pair => new FactPlace(
-                $"{Pair(pair)}, {From(pair.To.Span.Onset, meter, w)}",
-                TickSpan.FromBounds(pair.From.Span.Onset, pair.To.Span.End),
-                [.. notes
-                    .Where(note => note.Span.Onset >= pair.From.Span.Onset && note.Span.Onset < pair.To.Span.End && pair.Shared.Contains(note.Pitch.PitchClass))
-                    .Select(static note => note.Id)]))],
-        };
     }
 
     /// <summary>The key's scale as pitch classes: major, or natural minor with its leading tone.</summary>
