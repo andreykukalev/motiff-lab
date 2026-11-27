@@ -273,12 +273,12 @@ public class PieceOriginalTests
     /// opened those (see the README). Run with MOTIFF_UPDATE_SNAPSHOTS=1 to write them again when the format changes on purpose.
     /// </summary>
     [Theory]
-    [InlineData("v17-originals.motiff.json", false)]
-    [InlineData("v17-originals-online.motiff.json", true)]
+    [InlineData("v18-originals.motiff.json", false)]
+    [InlineData("v18-originals-online.motiff.json", true)]
     public void The_files_written_are_the_goldens_and_what_the_files_of_version_0_3_become(string golden, bool online)
     {
         Project project = online ? Recognised().ForOnline()! : Recognised();
-        GoldenFiles.AssertIs(golden, ProjectFile.Write(project), [golden.Replace("v17-", "v15-", StringComparison.Ordinal), golden.Replace("v17-", "v16-", StringComparison.Ordinal)]);
+        GoldenFiles.AssertIs(golden, ProjectFile.Write(project), [golden.Replace("v18-", "v15-", StringComparison.Ordinal), golden.Replace("v18-", "v16-", StringComparison.Ordinal), golden.Replace("v18-", "v17-", StringComparison.Ordinal)]);
     }
 
     /// <summary>

@@ -72,7 +72,7 @@ internal static class LibraryRequest
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", project);
-            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(project)));
         });
     }
 
@@ -181,7 +181,7 @@ internal static class LibraryRequest
     private static string Filed(Project project) => Answer.Write(json =>
     {
         Answer.Project(json, "project", project);
-        json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+        json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(project)));
     });
 
     private static FoundFile FoundOf(JsonElement element)

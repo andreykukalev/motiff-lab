@@ -1,0 +1,74 @@
+{
+  "format": "motiff-lab-project",
+  "version": 18,
+  "minReader": 18,
+  "id": "p_9c1d2e3f4a5b4c6d8e7f0a1b2c3d4e5f",
+  "fileName": "Etude in E.mid",
+  "createdAt": "2026-11-19T23:30:00.0000000\u002B00:00",
+  "lastOpened": "2026-11-19T23:30:00.0000000\u002B00:00",
+  "originals": [
+    {
+      "id": "src_rec",
+      "kind": "audio",
+      "fileName": "Etude in E.m4a",
+      "sha256": "f86e4f96bae331ce3ab221360afd1e90d6da2684ec7fb750e678ffd624486be4",
+      "bytes": 2940000,
+      "durationMs": 183500,
+      "addedAt": "2026-11-19T23:30:00.0000000\u002B00:00",
+      "kept": "device",
+      "held": [
+        {
+          "device": "ipad",
+          "at": "2026-11-19T23:30:00.0000000\u002B00:00"
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "workspace": {
+    "motifs": [],
+    "variations": [],
+    "observations": [],
+    "phrases": {
+      "added": [],
+      "removed": [],
+      "short": {
+        "added": [],
+        "removed": []
+      },
+      "sentences": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "marks": {
+      "ink": [],
+      "notes": [],
+      "highlights": [],
+      "fingering": []
+    },
+    "bookmarks": {
+      "categories": [
+        {
+          "id": "practise",
+          "ink": "Carmine"
+        },
+        {
+          "id": "performance",
+          "ink": "Forest"
+        },
+        {
+          "id": "structure",
+          "ink": "Graphite"
+        },
+        {
+          "id": "teacher",
+          "ink": "Ochre"
+        }
+      ],
+      "items": []
+    },
+    "resumePoints": [],
+    "settings": {}
+  }
+}

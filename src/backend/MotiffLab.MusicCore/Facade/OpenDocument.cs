@@ -227,7 +227,7 @@ internal sealed class OpenDocument
             Project = Project with { LastOpened = now };
         }
 
-        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project));
+        return System.Text.Encoding.UTF8.GetString(ProjectFile.Save(Project));
     }
 
     /// <summary>
@@ -272,6 +272,8 @@ internal sealed class OpenDocument
             read = Project.Recognised(musicXml, request.Text("engine") ?? "unknown engine", PageMap.Of(piece, pages), now, ScanRequest.ReportsIn(request));
             read = read with
             {
+                // Version 18: the PDF's pages no engine read ("unread") and those the notes have ("read"), as the app sent them.
+                Scan = read.Scan!.WithUnread(request.Ints("unread"), request.Ints("read")),
                 Check = CheckFlag.FromScan(read.Scan!.CheckOf(piece), []),
                 LastOpened = now,
             };
@@ -285,7 +287,7 @@ internal sealed class OpenDocument
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", Project);
-            json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project)));
+            json.WriteString("file", System.Text.Encoding.UTF8.GetString(ProjectFile.Save(Project)));
         });
     }
 

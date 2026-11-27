@@ -1,6 +1,7 @@
 {
   "format": "motiff-lab-project",
-  "version": 17,
+  "version": 18,
+  "minReader": 18,
   "id": "p_048b2ed641a249b4bdad47b006c83058",
   "fileName": "Fabrizio Paterlini - All my joy, all my pain.mid",
   "createdAt": "2026-10-31T01:49:51.6090000\u002B02:00",

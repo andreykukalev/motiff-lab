@@ -199,5 +199,6 @@
   "focus.alternate": "Alternate",
   "focus.versionHear": "Version",
   "focus.notes": "Notes",
-  "padAssistant.open": "Ask the assistant"
+  "padAssistant.open": "Ask the assistant",
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
 }

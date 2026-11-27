@@ -10,9 +10,10 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
-  It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix).
-- `PdfScreen.swift`, `PdfScreenBar`, `PdfScreenReading`, `PdfScreenSources` (v1.6 i-11): the PDF piece's screen
-  ([`pdf.md`](pdf.md)).
+  It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix), and
+  `readOnlyLine` for a project a newer version saved (v1.6 c-14a).
+- `PdfScreen.swift` with `PdfScreenBar`, `PdfScreenReading`, `PdfScreenSources` (v1.6 i-11): the PDF piece's screen,
+  mapped in [`pdf.md`](pdf.md).
 - `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
   or unreadable), `RecordingViewCapsule` under it. «Распознать · Pro» in Sources makes its notes; it opens again as
@@ -58,3 +59,4 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   ([`insights.md`](insights.md)); `MorePanel.swift`; `ScoreWebView.swift` (the page's web view, `prewarm` at launch).
 - `TopBar.swift`: the bar's layout over the score and over a PDF alike: the same start in both, then the pages, then
   each view's actions; where it is short the view's note goes first, then the pages, then the actions turn compact.
+  The read-only line (`readOnlyLine`, v1.6 c-14a) hangs under it on every view.

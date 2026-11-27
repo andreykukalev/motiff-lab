@@ -8,7 +8,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `VersionEntry` (out of `Sources/Versions.swift` in v1.6 i-10b: the version Expand is handed, `FocusScore.versionShown`), `ViewStates`, `WebContentWatch` (`.swift`).
 
-- `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
+- `MusicCore.swift`: `MusicCore.run` runs every call on the core's one thread (`CoreThread`, 8 MB stack, a FIFO queue,
+  v1.6 i-17) in the order issued: a call is queued in the caller's isolation (`isolation: isolated (any Actor)? =
+  #isolation`) before its first wait. Facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
   `facadeRequest` and the answer read by `facadeObject`. `FacadeAnswer.decode` (B5) reads an answer once into its typed
   answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
@@ -18,7 +20,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `ScanReview.swift` (v1.3 i-2): a scan's Check bars kept only on this iPad (`ScanReviewStore`, Application Support/ScanReview/<fingerprint>/: review.json, bar-<n>.png, newest 40), found by `check`'s "fingerprint"; `ScanVariant` as `scan.join` gave it.
 - `PieceCore.swift`: the port to music-core (0031 step 1b, #654), the one way to a call by name. Typed: `select`,
   `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, raw value the name), `variant`, the drafts'
-  calls, each answered as `PieceCore.Answer` (typed value, text, `message`).
+  calls, each answered as `PieceCore.Answer` (typed value, text, `message`), decoded on the core's thread (`typed`), each
+  taking the caller's isolation to `MusicCore.run` so it keeps its place in the order.
 - `PieceCoreCalls.swift`: the calls not typed yet, cases of `PieceCore.Call` (`send`, open piece) and `PieceCore.NoPiece`
   (`sendWithoutPiece`, piece 0) named by raw value, answering the text inside the caller's `MusicCore.run`. A helper
   takes a case, never a name (`SourcesController.change`, `PdfController.change`, `PenScore.changeMarks`).
@@ -51,7 +54,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   summaries, other pieces' drafts), `PieceSummary.shownTitle` (a library line's title); the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
   JPEG or PNG, a recording); `newURL(for:)`, the one way a new project file is named, by the work's title as the library
   shows it (v1.5 r-2b: a piece from Files, a folder import, a project kept from online), made safe by `fileName(for:)`
-  (no character a name cannot hold, no dot first, at most `nameBytes` of UTF-8 cut between letters), numbered when taken; `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
+  (no character a name cannot hold, no dot first, at most `nameBytes` of UTF-8 cut between letters), numbered when taken; `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording; `readOnly`: a file of a later version, v1.6 c-14a).
 - `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
   project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and
   bytes for the fingerprint, up to `fingerprintLimit`).
@@ -83,6 +86,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `RollCommand`, `RollEvent` and the examples of each call, answer and message are `tests/contracts/roll-page.json`,
   checked by `tests/shared/roll-page-contract.test.mjs` and `RollPageContractTests`; no other file builds a roll call.
 - Every `language:` sent to music-core or the assistant is `text.language`.
+- music-core's calls run in the order `MusicCore.run` is reached: an async helper around it that would hop off the
+  caller's actor first takes `isolation: isolated (any Actor)? = #isolation` (as `PieceCore` and `ProjectFiles.save`
+  do) where its calls must keep their order with the caller's others. A work never waits for another call.
 
 ## The state it owns
 

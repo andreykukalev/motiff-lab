@@ -98,7 +98,7 @@ internal static partial class ScanRepair
             return;
         }
 
-        foreach (Bar bar in stretch.Where(bar => bar.Retimed is not null && bar.RetimedLength == most && bar.Length != most))
+        foreach (Bar bar in stretch.Where(bar => bar.RetimesTo(most)))
         {
             Retime(bar);
             changes.Retimed++;
@@ -170,7 +170,7 @@ internal static partial class ScanRepair
     }
 
     /// <summary>The bar length a time signature writes, when it is one plain pair of numbers.</summary>
-    private static QuarterFraction? Written(XElement time) =>
+    internal static QuarterFraction? Written(XElement time) =>
         time.Elements("beats").Count() == 1 && time.Elements("beat-type").Count() == 1
             && int.TryParse(time.Element("beats")!.Value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out int beats)
             && int.TryParse(time.Element("beat-type")!.Value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out int beatType)
@@ -329,6 +329,9 @@ internal static partial class ScanRepair
         public QuarterFraction Length { get; private set; }
 
         public QuarterFraction RetimedLength { get; private set; }
+
+        /// <summary>Whether putting the split moments back gives the bar <paramref name="length"/>, which it does not have as read.</summary>
+        public bool RetimesTo(QuarterFraction length) => Retimed is not null && RetimedLength == length && Length != length;
 
         public static Bar Read(XElement measure, long divisions)
         {

@@ -106,6 +106,19 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   under way and shows that it waits (HIG: prevent a repeated submit), as `E-scan-9` · v1.6 i-11. Also while «Предложить»
   or «Подтвердить пьесы» is under way (it saves the piece's file): «Разделить на пьесы» is off and a press is refused,
   as those two are off while a split is under way · v1.6 i-11 (review)
+- `E-scan-10` · The unread pages of a scan whose queue item is gone (the app restarted, the job finished elsewhere) · the
+  pages kept in the project file (`check` answers `unreadPages`, `readPages`) are marked and listed in Check as before,
+  without «Повторить», which needs the queue's PDF · robustness rule: a page no engine read is never forgotten silently
+  · v1.6 c-14a
+- `E-library-4` · A project saved by a newer version of Motiff Lab that this build may read · it opens and plays; one line
+  hung under the bar of every view of the piece (PDF, Notes, the roll, a recording) says it is read-only and nothing done
+  is saved (Russian and English), written once by `PieceScreen` and drawn by `TopBar`, never one copy per screen; it takes
+  no touch and does not move the bar; the work done is not saved, and no save is offered as failed · robustness rule: the
+  app states what did not happen, the newer file is never written over · v1.6 c-14a
+- `E-scan-11` · A PDF read from its own panel's «Распознать ноты» rather than by the library's recognition, some pages
+  read by no engine · the pages go with the notes the same way (`DocumentRead.request` of the `ScanResult`, one rule for
+  both flows), so the score marks them and Check lists them after the app restarts · robustness rule: a page no engine
+  read is never forgotten silently · v1.6 c-14a
 
 ## Insights
 
