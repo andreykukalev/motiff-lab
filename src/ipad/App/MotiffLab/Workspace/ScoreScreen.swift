@@ -269,7 +269,7 @@ struct ScoreScreenContent: View {
     /// (#582 item 10), whatever the playback controls do.
     @ViewBuilder private var selectionMenu: some View {
         if selectionMenuOpen, let place = selectionModel.menuPlace {
-            SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() }, viewOnly: viewing != nil)
+            SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, checkModel: checkModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() }, viewOnly: viewing != nil)
                 .modifier(MenuDrag(score: score))
                 .offset(x: place.x, y: place.y)
         }

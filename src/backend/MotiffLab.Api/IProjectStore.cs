@@ -16,12 +16,17 @@ internal interface IProjectStore
     Task<StoredProject?> GetAsync(string ownerId, string id, CancellationToken cancellationToken);
 
     /// <summary>Writes the project and returns its new ETag.</summary>
-    /// <param name="ifMatch">When given, the write happens only if the stored project still has this ETag.</param>
-    /// <exception cref="ConflictException">The stored project has changed since <paramref name="ifMatch"/>.</exception>
+    /// <param name="ifMatch">
+    /// When given, the stored project is replaced only if it still has this ETag; when null, the project is created and
+    /// never written over one the player already keeps with its id (#321, 0026 S4).
+    /// </param>
+    /// <exception cref="ConflictException">The stored project has changed since <paramref name="ifMatch"/>, is gone, or, with none, is there already.</exception>
     Task<string> PutAsync(string ownerId, ProjectSummary summary, string packedFile, string? ifMatch, CancellationToken cancellationToken);
 
     /// <summary>False when the player has no project with this id.</summary>
-    Task<bool> DeleteAsync(string ownerId, string id, CancellationToken cancellationToken);
+    /// <param name="ifMatch">When given, the project is deleted only if it still has this ETag.</param>
+    /// <exception cref="ConflictException">The stored project has changed since <paramref name="ifMatch"/>.</exception>
+    Task<bool> DeleteAsync(string ownerId, string id, string? ifMatch, CancellationToken cancellationToken);
 
     /// <summary>Deletes everything the player keeps here, their profile too, and returns how many projects that was.</summary>
     Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken);

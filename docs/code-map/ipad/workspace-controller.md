@@ -13,6 +13,7 @@ parts by concern are extensions in their own files.
   the score's `UndoToast`) with Undo/Redo through `SelectionModel`; `setBarBeats` (the drag's caption). v1.2 i-3b:
   «Выделить фразу», «Начать фразу здесь» (`startPhrase`, the menu's More), the reset (`resetPhrases`, the ⓘ list),
   «Вся фраза» (`selectWholePhrase`), `PhraseOfferCard` in the menu («Выделить» = `takePhraseOffer`, a selection step).
+  v1.6 i-18: `reattachPhrases`, Insights' «Привязать заново» (#318), its count in the phrases' toast.
 - `ScorePractice.swift` (v1.2 i-4): `playSelection`, the selection just made played looped (Цикл on) or once, which
   `loopPlace` and the assistant's practice action use; `practiseSuggestion` (the chip of `practice.suggest`: bars, tempo, hand).
 - `ScoreColouring.swift` (v0.10 d-5, finding 31): `ScoreController`'s part of the pen's colour bars (`PenScore`'s
@@ -40,5 +41,16 @@ parts by concern are extensions in their own files.
   to Sources). `BundleSchemeHandler` is Platform's.
 - `ScoreScreenViews.swift`: `ScoreController`'s `whenRendered`, `viewPlace`, `showPlace` (where the page is scrolled,
   as a place in the notes), `arrive` and `tickInView` (resume, #327).
-- `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags; v1.6
-  c-14a: from the project file's `unreadPages` when the queue has no item.
+- `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags
+  (`CheckModel.adding`, E-scan-1); v1.6 c-14a: from the project file's `unreadPages` when the queue has no item.
+- `ScoreMarkedReading.swift` (v1.6 c-14b3, the 1.6 plan's decision 15): «Распознать заново с отметками». `MarkedPages`
+  (the notes' pages a mark «что не так» lies on, with their PDF page and bars read badly, none when the notes' pages and
+  the PDF's disagree; the working notes' music from the project file `project.save` answers), `MarkedPlan` (what a
+  reading reads, found before the press: `MarkedReading.plan`), `MarkedReading` (owned by `ScoreWorkspace.markedReading`;
+  its run holds `SourcesController.reading` through `setReading`, one recognition at a time: the marked pages
+  read by `Import/ScanMarkedPages`, put into the working notes' music with the marks by `scan.join` with the project
+  file, their bars to check kept (`ScanCrops.keepReview`) and kept as new Notes by `SourcesController.keepRecognised`
+  (`sources.notes.recognise`, whose "marked" the toast tells); the job deleted after; stopped with the screen) and
+  `MarkedReadingCheck` (the button in Check; before the press where the pages go, Sources' words for those that leave
+  the iPad, `SourcesRecognisePanel.pagesOffer`, Pro only then on the hosted server, or why it waits or cannot). Tests:
+  `MotiffLabTests/ReadingMarksTests`.

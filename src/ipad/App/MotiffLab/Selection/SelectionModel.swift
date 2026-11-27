@@ -35,6 +35,14 @@ final class SelectionModel: ObservableObject {
         var id = UUID()
     }
 
+    /// An edit of the phrases as their history keeps it: the edits it went from or to, and the number music-core answered
+    /// for it ("step"), which its Undo and Redo send back so the phrase anchors come back exactly as they were (#318); nil
+    /// for a step music-core no longer keeps, whose anchors then follow the edits.
+    struct PhraseStep: Equatable {
+        var edits: PhraseLevelEdits
+        var number: Int?
+    }
+
     /// How long the toast «Вернуть» stays (Andrei, 2026-11-14), and the hint to hold, in seconds.
     static let toastSeconds = 6.0
     static let holdHintSeconds = 2.0
@@ -42,8 +50,8 @@ final class SelectionModel: ObservableObject {
     /// The piece's phrases, whose starts are marked on the score (the phrases spec, decision 1).
     @Published private(set) var phrases: PiecePhrases?
     /// The edits of the phrases' boundaries, each one step of their own Undo and Redo (the phrases spec, v1.2 i-3a): from
-    /// the edits before it (`previous`) to those it left (`edits`), while the screen is open.
-    @Published private(set) var phraseSteps = SelectionHistory<PhraseLevelEdits>()
+    /// the edits before it (`previous`) to those it left (`edits`), with its number (`step`), while the screen is open.
+    @Published private(set) var phraseSteps = SelectionHistory<PhraseStep>()
     /// The toast after an edit of the phrases, its Undo or Redo, or why it could not be; nil while none shows.
     @Published private(set) var phraseToast: PhraseToast?
     /// «Выделение было фразой 2. Выделить её по новым границам?» for a while after an edit of the phrases changed the phrase
@@ -62,6 +70,8 @@ final class SelectionModel: ObservableObject {
     @Published private(set) var menuPlace: CGPoint?
     /// The piece as its selection's history knows it (SelectionHistories.key).
     private var historyKey: String?
+    /// «Привязать заново» is on its way to music-core: a second tap meanwhile does nothing (E-insights-4).
+    private var reattaching = false
 
     /// What the toast after a clear or a replace says: «Выделение заменено» for a replace by the place rule; otherwise
     /// «Выделение снято».
@@ -106,7 +116,8 @@ final class SelectionModel: ObservableObject {
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrasesEdit, request) }
         guard let edited = PiecePhrases(answer: answer) else { return refusedPhrases(answer) }
         phrases = edited
-        let step = edited.edits.flatMap { phraseSteps.record(from: edited.previous, to: $0) }
+        let before = edited.previous.map { PhraseStep(edits: $0, number: edited.step) }
+        let step = edited.edits.flatMap { phraseSteps.record(from: before, to: PhraseStep(edits: $0, number: edited.step)) }
         showPhraseToast(PhraseToast(words: words, offer: step == nil ? nil : .undo))
         if let change = edited.change(selected: selection) {
             showPhraseOffer(PhraseOffer(number: change.before.number, onset: change.after.span[0], end: change.after.span[1]))
@@ -116,12 +127,15 @@ final class SelectionModel: ObservableObject {
 
     /// Undo (`redo` false) or Redo of an edit of the phrases: music-core puts back the edits the step went from (or to),
     /// once those it left are the edits in force; otherwise the step goes from the history and the toast says why (c-2's
-    /// `restore` and `expected`). The selection stays as it is. Returns music-core's refusal, nil once done.
+    /// `restore` and `expected`). With the step's number (c-14d's "step") the phrase anchors come back as the step found or
+    /// left them, so the Undo of a join gives the second phrase back what was attached to it. The selection stays as it is.
+    /// Returns music-core's refusal, nil once done.
     func stepPhrases(in piece: Int32, redo: Bool, done words: String) async -> String? {
         guard let step = redo ? phraseSteps.redo() : phraseSteps.undo(), let from = redo ? step.before : step.after,
               let to = redo ? step.after : step.before else { return nil }
         phraseOffer = nil
-        let request = "{\"restore\": \(to.json), \"expected\": \(from.json)}"
+        let number = from.number.map { ", \"step\": \($0)" } ?? ""
+        let request = "{\"restore\": \(to.edits.json), \"expected\": \(from.edits.json)\(number)}"
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrasesEdit, request) }
         guard let restored = PiecePhrases(answer: answer) else {
             phraseSteps.dropLast(undone: !redo)
@@ -130,6 +144,24 @@ final class SelectionModel: ObservableObject {
         phrases = restored
         showPhraseToast(PhraseToast(words: words, offer: redo ? .undo : .redo))
         return nil
+    }
+
+    /// «Привязать заново» (#318, `phrases.reattach`): every phrase anchor that matches no phrase since the notes or their
+    /// analysis changed attached again, with what is attached to it, to the phrase that holds its start, else that it
+    /// overlaps most; the phrases as they are then, and the toast with `words` for how many were (no Undo: no boundary
+    /// moves). Refused, the toast says why. Nothing about the selection changes.
+    func reattachPhrases(in piece: Int32, done words: (Int) -> String) async {
+        // E-insights-4: a second tap while the first is on its way attaches nothing more and says nothing more.
+        guard !reattaching else { return }
+        reattaching = true
+        defer { reattaching = false }
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.phrasesReattach) }
+        guard let reattached = PiecePhrases(answer: answer) else {
+            _ = refusedPhrases(answer)
+            return
+        }
+        phrases = reattached
+        showPhraseToast(PhraseToast(words: words(reattached.reattached ?? 0), offer: nil))
     }
 
     /// An edit of the phrases refused: its reason in the toast, and returned.

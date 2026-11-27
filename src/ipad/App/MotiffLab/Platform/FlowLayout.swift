@@ -1,9 +1,16 @@
 import SwiftUI
 
-/// Views laid out in rows, wrapping to the next row when one is full, each centred in its row's height (chips, the
-/// circle's chords, the Reference's keys). Marks/Bookmarks.swift's `FlowRow` tops each row instead.
+/// Views laid out in rows, wrapping to the next row when one is full, each placed in its row's height by `alignment`:
+/// centred (chips, the circle's chords, the Reference's keys), or at the top (`.top`: the Contents' structure, Piece
+/// DNA's chips, the assistant's suggestions).
 struct FlowLayout: Layout {
+    /// Where a view shorter than its row sits in it.
+    enum RowAlignment {
+        case center, top
+    }
+
     var spacing: CGFloat
+    var alignment: RowAlignment = .center
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
@@ -18,11 +25,16 @@ struct FlowLayout: Layout {
             var x = bounds.minX
             for index in row.indices {
                 let size = subviews[index].sizeThatFits(.unspecified)
-                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: ProposedViewSize(size))
+                subviews[index].place(at: CGPoint(x: x, y: y + offset(of: size.height, in: row.height)), proposal: ProposedViewSize(size))
                 x += size.width + spacing
             }
             y += row.height + spacing
         }
+    }
+
+    /// How far down its row a view `height` tall sits.
+    private func offset(of height: CGFloat, in row: CGFloat) -> CGFloat {
+        alignment == .top ? 0 : (row - height) / 2
     }
 
     private struct Row {

@@ -49,6 +49,18 @@ extension ScoreController {
         editPhrases("{\"resetAll\": true}", done: text["phrases.resetDone"])
     }
 
+    /// «Привязать заново» (the Insights line «Границы фраз изменились», #318): the ideas and resume points of phrases that
+    /// no longer match attached to the phrases there now, with a toast saying how many; the marks do not change.
+    func reattachPhrases() {
+        guard let piece else { return }
+        Task {
+            await selectionModel.reattachPhrases(in: piece.id) { count in
+                // E-insights-7: none attached (no phrase left at their places) is said too; the line then stays.
+                count == 0 ? text["phrases.reattachedNone"] : text.count("phrases.reattached", count)
+            }
+        }
+    }
+
     /// «Выделить» on the card after an edit: the phrase the selection was, selected by its new boundaries, one step of the
     /// selection's history.
     func takePhraseOffer() {

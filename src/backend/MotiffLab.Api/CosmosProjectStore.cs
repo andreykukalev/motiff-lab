@@ -69,29 +69,33 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
             packedFile);
         try
         {
-            ItemResponse<ProjectDocument> written = await container.UpsertItemAsync(
-                document,
-                new PartitionKey(ownerId),
-                new ItemRequestOptions { IfMatchEtag = ifMatch, EnableContentResponseOnWrite = false },
-                cancellationToken);
+            var options = new ItemRequestOptions { IfMatchEtag = ifMatch, EnableContentResponseOnWrite = false };
+            ItemResponse<ProjectDocument> written = ifMatch is null
+                ? await container.CreateItemAsync(document, new PartitionKey(ownerId), options, cancellationToken)
+                : await container.ReplaceItemAsync(document, summary.Id, new PartitionKey(ownerId), options, cancellationToken);
             return written.ETag;
         }
-        catch (CosmosException error) when (error.StatusCode is HttpStatusCode.PreconditionFailed)
+        // 409: created over one kept with the id; 412: changed since; 404: gone since.
+        catch (CosmosException error) when (error.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.Conflict or HttpStatusCode.NotFound)
         {
             throw new ConflictException();
         }
     }
 
-    public async Task<bool> DeleteAsync(string ownerId, string id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteAsync(string ownerId, string id, string? ifMatch, CancellationToken cancellationToken)
     {
         try
         {
-            await container.DeleteItemAsync<ProjectDocument>(id, new PartitionKey(ownerId), cancellationToken: cancellationToken);
+            await container.DeleteItemAsync<ProjectDocument>(id, new PartitionKey(ownerId), new ItemRequestOptions { IfMatchEtag = ifMatch }, cancellationToken);
             return true;
         }
         catch (CosmosException error) when (error.StatusCode == HttpStatusCode.NotFound)
         {
             return false;
+        }
+        catch (CosmosException error) when (error.StatusCode == HttpStatusCode.PreconditionFailed)
+        {
+            throw new ConflictException();
         }
     }
 
@@ -111,7 +115,7 @@ internal sealed class CosmosProjectStore(Container container) : IProjectStore
 
         foreach (IdOnly row in rows)
         {
-            await DeleteAsync(ownerId, row.Id, cancellationToken);
+            await DeleteAsync(ownerId, row.Id, ifMatch: null, cancellationToken);
         }
 
         return rows.Count(row => row.Kind == Kind);

@@ -226,7 +226,7 @@ internal static partial class HarmonyAnalyzer
     private static MotifFact RhythmFact(Measures measures, MeterMap meter, MusicalKey spelling, Words w)
     {
         IReadOnlyList<ChordSpan> chords = measures.Chords;
-        IReadOnlyList<ChordSpan> changed = measures.Changed;
+        IReadOnlyList<ChordSpan> changed = [.. measures.Changes.Select(static change => change.To)];
         int bars = measures.Bars;
         int changes = changed.Count;
         int beats = measures.Beats;

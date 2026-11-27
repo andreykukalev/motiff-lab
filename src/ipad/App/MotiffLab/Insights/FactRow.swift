@@ -1,7 +1,7 @@
 import SwiftUI
 
 // A fact's row in the Insights stream and what hangs from it (its Try and the way being tried), shown from
-// InsightsController and calling its methods; the circle in a row is Circle.swift's `KeyCircleCard`.
+// InsightsController and calling its methods; the circle in a row is `KeyCircleCard` (KeyCircleCard.swift).
 
 /// A fact in the stream (ds.css `.fact`): the claim, which rings its places on the score; its certainty, how many places
 /// and Evidence, which opens in place; while it is chosen, its places as chips, each ringing only itself.

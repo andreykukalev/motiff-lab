@@ -1,8 +1,9 @@
 import UniformTypeIdentifiers
 import WebKit
 
-/// Serves the app's own files to the web view as `motiff://app/<path>`, so the score's modules load as modules do on
-/// the web: Web/score.html, score/*.js (the web app's compiled Scripts/score) and tokens.css.
+/// Serves the app's own files to the web views as `motiff://app/<path>`, so the pages' modules load as modules do on
+/// the web: the pages in Web/ (the score's and the roll's), the compiled modules the app bundles from src/shared/Scripts
+/// (score, roll, layout, storage, playback and selection, as `src/ipad/App/project.yml` lists them) and tokens.css.
 final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "motiff"
 
