@@ -93,14 +93,14 @@ final class AssistantBaselineTests: XCTestCase {
     }
 
     /// ASST-04 (since 1.5, answer 16 of 1.4): a question typed in the assistant's panel and not sent outlives the closed
-    /// panel, also when the field's own change, emptied by the close, comes after it; the panel opened again, by the pill
-    /// or by an Ask, holds it, and the same piece on a screen made again too. Sent, it goes; another piece's panel starts
-    /// empty. The field's look is the device's.
+    /// panel, also when the field's own change, emptied by the close, comes after it; the panel opened again, or by an
+    /// Ask, holds it, and so does the same piece on a screen made again (another score). Sent, it goes; another piece's
+    /// panel starts empty. The field's look is the device's.
     func testASST04AQuestionNotSentOutlivesTheClosedPanel() throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "assistant-baseline-\(UUID().uuidString)"))
         let panel = assistant(over: defaults)
         let typed = "Где в этой фразе кульминация?"
-        panel.load(piece: "elise")
+        panel.load(piece: "elise", score: ScoreController())
         panel.open(wholePiece: true, selection: nil)
         var field = AskFlow(surface: .panel)
         field.apply(.open)
@@ -112,12 +112,12 @@ final class AssistantBaselineTests: XCTestCase {
         XCTAssertEqual(panel.unsentInPanel, typed, "closed, the panel keeps the question")
 
         panel.show()
-        XCTAssertEqual(panel.unsentInPanel, typed, "opened again by the pill")
+        XCTAssertEqual(panel.unsentInPanel, typed, "the panel opened again")
         panel.close()
         panel.open(wholePiece: false, selection: nil)
         XCTAssertEqual(panel.unsentInPanel, typed, "opened again by an Ask")
-        panel.load(piece: "elise")
-        XCTAssertEqual(panel.unsentInPanel, typed, "the same piece's screen made again")
+        panel.load(piece: "elise", score: ScoreController())
+        XCTAssertEqual(panel.unsentInPanel, typed, "the same piece's screen made again, with another score")
 
         var asking = AskFlow(surface: .panel)
         asking.apply(.open)

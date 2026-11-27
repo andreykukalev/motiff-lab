@@ -7,18 +7,6 @@ import XCTest
 /// the recording, on release, and the time beside it says where.
 @MainActor
 final class RecordingSeekTests: XCTestCase {
-    /// Two seconds of silence in a file the test removes after it.
-    private func silence() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("seek-\(UUID().uuidString).caf")
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 8000, channels: 1))
-        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16000))
-        buffer.frameLength = 16000
-        let file = try AVAudioFile(forWriting: url, settings: format.settings)
-        try file.write(from: buffer)
-        return url
-    }
-
     func testTheSliderMovesTheSoundWithinTheRecording() throws {
         let listening = RecordingListening()
         listening.load(try silence())

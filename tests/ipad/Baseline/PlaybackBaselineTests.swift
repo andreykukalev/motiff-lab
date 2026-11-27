@@ -6,8 +6,9 @@ import XCTest
 
 /// PLAY-07 (docs/ux-baseline.md; answers 17 and 19 of 1.4, built in 1.4 by a-1, #812; answers 29 and 30, built in 1.5 by
 /// a-2, #823): what the player hears pauses when the app goes to the background (the screen locked too) or the headphones
-/// go, and stays paused when the player comes back: the piece's notes with the metronome clicking with them, «Образец»,
-/// the metronome on its own and a recording in its own player. Taken through the players the screens own, with the
+/// go, and stays paused when the player comes back: the piece's notes with the metronome clicking with them, the music
+/// of the Reference sheet opened by «Круг» (its chords, scales and progressions), the metronome on its own and a
+/// recording in its own player. Taken through the players the screens own, with the
 /// system's notifications posted as iOS posts them; the sound itself is the device's.
 @MainActor
 final class PlaybackBaselineTests: XCTestCase {
@@ -32,18 +33,7 @@ final class PlaybackBaselineTests: XCTestCase {
         await Task.yield()
     }
 
-    /// Two seconds of silence as a recording kept on this iPad, removed after the test.
-    private func recording() throws -> URL {
-        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 8000, channels: 1))
-        let seconds = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 16000))
-        seconds.frameLength = seconds.frameCapacity
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("play-07-\(UUID().uuidString).caf")
-        try AVAudioFile(forWriting: url, settings: format.settings).write(from: seconds)
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        return url
-    }
-
-    func testPLAY07TheNotesTheirMetronomeAndTheSamplePauseInTheBackgroundAndWithTheHeadphonesGone() async throws {
+    func testPLAY07TheNotesTheirMetronomeAndTheReferencesMusicPauseInTheBackgroundAndWithTheHeadphonesGone() async throws {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "ru", title: example.title).get()
         opened.append(piece.id)
@@ -56,6 +46,8 @@ final class PlaybackBaselineTests: XCTestCase {
         await until { player.state == .playing && player.tick > 480 }
         let metronome = Metronome.shared
         metronome.start()
+        let started = metronome.running
+        XCTAssertTrue(started, "the metronome clicks with the piece")
 
         await route(.newDeviceAvailable)
         let pluggedIn = player.state
@@ -78,29 +70,33 @@ final class PlaybackBaselineTests: XCTestCase {
 
         let answer = await PieceCore(piece: piece.id).playback()
         let score = try XCTUnwrap(answer.value.map(PlaybackScore.init), answer.message ?? "the piece's playback score")
-        let sample = ReferenceController()
-        defer { sample.stop() }
-        await sample.listen("chords", score, loop: true)
-        let sounding = sample.playing
+        let reference = ReferenceController()
+        defer { reference.stop() }
+        await reference.listen("chords", score, loop: true)
+        let sounding = reference.playing
         XCTAssertEqual(sounding, "chords")
         await appGoesAway()
-        let stopped = sample.playing
-        XCTAssertNil(stopped, "«Образец» stops too, its tab showing Play again")
+        let stopped = reference.playing
+        XCTAssertNil(stopped, "the Reference sheet's chords stop too, their Play shown again")
     }
 
     func testPLAY07TheMetronomeOnItsOwnAndARecordingStopInTheBackgroundAndWithTheHeadphonesGone() async throws {
         let metronome = Metronome()
         defer { metronome.stop() }
         metronome.start()
+        let clicking = metronome.running
+        XCTAssertTrue(clicking, "the metronome on its own clicks")
         await route(.oldDeviceUnavailable)
         let unplugged = metronome.running
         XCTAssertFalse(unplugged, "the metronome on its own: stopped with the headphones gone")
         metronome.start()
+        let again = metronome.running
+        XCTAssertTrue(again, "its button starts it again")
         await appGoesAway()
         let away = metronome.running
         XCTAssertFalse(away, "and in the background")
 
-        let url = try recording()
+        let url = try silence()
         let listening = RecordingListening()
         defer { listening.stop() }
         listening.toggle(url)
@@ -110,6 +106,9 @@ final class PlaybackBaselineTests: XCTestCase {
         let paused = listening.playing
         XCTAssertFalse(paused, "the headphones gone: the recording pauses")
         listening.toggle(url)
+        await until { listening.heardAt > 300 }
+        let playing = listening.playing
+        XCTAssertTrue(playing, "it plays on")
         await appGoesAway()
         let inBackground = listening.playing
         let shown = listening.elapsed
