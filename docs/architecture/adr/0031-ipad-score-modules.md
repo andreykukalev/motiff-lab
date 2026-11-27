@@ -259,3 +259,70 @@ drawn and the one gone to, and the lists of layers. The views observe the two mo
 or a highlight, going to a bookmark or a note and what the page hides stay in the root, with its page calls, until step
 9. The risk under Consequences holds: SwiftUI's update timing of the views that now observe these models is checked on
 the device at the next version.
+
+## Note (S6, `CheckModel`, v1.6 i-8)
+
+`CheckModel` (`Marks/CheckModel.swift`, reading `SelectionModel`) owns Check: the shelf as music-core answered the last
+`check` call, whether the drawer is open, what this iPad kept of the working notes' scan (variants and crops) and the
+variant chosen last, the bar listed to correct (Fix notes), «Мои правки» and the roll's note editor, with `editsKept`.
+It calls music-core itself and reaches the root through `CheckScore`, as `PenModel` does through `PenScore`: the bar
+selected and shown (`showSpan`), the flags drawn (`drawChecks`, which stays in the root because the pages of a scan no
+engine read are `Workspace`'s), what the page hides (`applyLayers`), the notes changed (`notesDidChange`) and the
+screen's two lines (`showNotice`, `showProblem`). Whether scans go as jobs (`ScanServer.jobs`, Import's) is handed in;
+the assistant's draft comes as its request and first bar, so the model names no Assistant type. The views observe the
+model (`CheckDrawer`, `EditsLayerSection`, `LayersList`, `MorePanel`, `UnreadPagesCheck`); Roll and Import get what they
+show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `NoteEditorState` and `CheckPageEntry` moved
+to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
+(`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
+(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
+
+## Note (S7 part 1, the score's screen by concern, v1.6 i-9)
+
+`ScoreScreen.swift` keeps `ScoreScreen`, the state only `ScoreScreenContent` keeps, `body`, `page` and `layers` (the
+chain of the layers, each layer's content a function beside it). Section 4's files are extensions of
+`ScoreScreenContent`, by the app's naming without `+`: `ScoreScreenBars` (the bar and what hangs under it, the transport),
+`ScoreScreenPanels` (the sheet over the right, the Contents), `ScoreScreenRoll` (the roll's drawer), `ScoreScreenSources`
+(the switch of views, Sources, the «В черновик» sheet) and `ScoreScreenReactions` (the covers and the reactions, in the
+order the code map pins; Expand and playback have no wiring of their own left in the view since `ScoreWorkspace`). The
+view's state they share is internal, no longer private. The view types are in their own files; the bar (`ScoreBar`) and
+the pill (`Pill`) are handed what they show and the actions they call, so the screen can place them elsewhere without
+touching what they do: the pill names no controller, and the bar holds `ScoreController` only to hand it to the modes,
+Practice, the layers list and More (since i-10 not even that). `ScoreController` itself is step i-10.
+
+## Note (S7 part 2, the score's controller by concern, v1.6 i-10)
+
+`SourcesModel` draws the versions on the page and acts on them: showing and comparing one, adding and renaming one, the
+sources read again, a version's bar shown, a marker's «Как в версии» and «Источники». It reaches the root through
+`SourcesScore`, as `CheckModel` does through `CheckScore`: the page, the piece, whether the pages are drawn, whether
+extra information of a kind shows, a draft's labels drawn with the markers, the bar shown (`showSpan`), and what
+follows (`versionsDrawn`: the version in focus and the page engraved again on even bars; `loadCheck`; `hear(version:)`,
+which needs the focus's version notes; `openSources(atBar:)`, the root's `versionPicked`). The Sources views observe
+the model (`MarkerPopover`, `SourcesSheet.versions`), so two folder edges to Workspace went. What stays the root's is
+split by concern into extension files beside it, each with one responsibility (`ScoreSelecting`, `ScoreMarks`,
+`ScoreFocus`, `ScoreInput`, `ScorePageLayout`, `ScorePlayheads`, `ScoreVersions`, resume in `ScoreScreenViews`), and
+`BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 576 lines and its
+two quality entries went. The bar holds no controller: the screen makes Practice and the layers list, and the modes get
+the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
+(`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
+Expand's calls into `FocusModel` and the marks' calls into `MarksModel`, each through its own protocol.
+
+## Note (S7 part 3, Expand and the marks through their own protocols, v1.6 i-10b)
+
+`FocusModel` opens and leaves Expand on the page (`enter`, `expandRoll`, `leave`), goes to the previous or the next
+phrase (`step`), engraves the card at the page's options with the variation tried as its ossia (`engraveCard`,
+`showOssia`; the root's `ossia` went) and keeps the version in focus (`updateVersion`), through `FocusScore`: the page,
+the piece, whether the pages are drawn and the Pen is on, the version shown and its differing bars (as values, so
+`VersionEntry` moved to Platform), the page held still under the veil (`holdPage`), a passage selected
+(`selectPassage`) and a tick revealed, and the problem line. `MarksModel` draws and changes the marks (`draw`,
+`changeMarks`), draws the bookmarks and goes to one, opens, keeps and deletes a margin note, shows the layers and the
+phrases' marks, follows the device's settings and clears the piece's own, and sends what the page hides
+(`applyLayers`), through `MarksScore`: the page, the piece, the pages drawn, the Pen on, Check's drawer open and the
+slate appearance (Check's and the device's, as values), a passage selected and revealed, Expand opened (`enterFocus`, the
+root connecting the two models), the versions drawn again, and the problem line. The model's former state-only
+methods (`open`, `close`, `takeCardOptions`, `showVersion`, `show`, `keepBookmarks`, `wentTo`) were folded into these
+or made private, so each state has one writer. The views call the models (`FocusBar`, `SelectionMenu`, `NoteCard`,
+`LayersList`, `NotesList`, `ContentsList`, the pill's ‹ ›, the roll's Expand). What stays the root's is its
+composition: its state, the page's events routed to the models, the render order, engraving the score, and one line
+per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
+`PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
+extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.

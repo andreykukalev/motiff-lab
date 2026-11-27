@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.5 r-2b):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-8):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -78,6 +78,10 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   must still be the project read at the start) and its line says «Пьесы больше нет в библиотеке», its job deleted on the
   server as one that did not work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not
   undone by a background job · v1.5 r-2b
+- `E-scan-9` · An engine's reading of a bar tapped again before music-core has put the first tap's in · the readings'
+  buttons are disabled until it is in, and a tap that comes before they show it does nothing, so the bar holds one
+  reading, which «Отменить выбор» takes back whole · a button's action runs once per press while it is under way and
+  shows that it waits (HIG: prevent a repeated submit); SCAN-06: one tap puts one reading in · v1.6 i-8
 - `E-library-1` · A very long title on a Sessions card · two lines at most, cut with an ellipsis; VoiceOver reads it
   whole · as the list's line, which takes one; HIG: truncate rather than let one card grow the grid · v1.5 r-2b
 - `E-library-2` · «Открыть файл» on a PDF this iPad cannot show (broken, no page, locked with a password) · refused with
@@ -87,7 +91,7 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   cannot · named by the title with those characters as spaces, no dot first (a hidden file is never listed), cut between
   letters to at most 200 bytes, numbered when the name is taken (a title the player or the score gives is shown as it
   is; one only the file's name gives shows that name) · the Files app's rules for a name · v1.5 r-2b
-- `E-scan-9` · The unread pages of a scan whose queue item is gone (the app restarted, the job finished elsewhere) · the
+- `E-scan-10` · The unread pages of a scan whose queue item is gone (the app restarted, the job finished elsewhere) · the
   pages kept in the project file (`check` answers `unreadPages`, `readPages`) are marked and listed in Check as before,
   without «Повторить», which needs the queue's PDF · robustness rule: a page no engine read is never forgotten silently
   · v1.6 c-14a
@@ -96,7 +100,7 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   is saved (Russian and English), written once by `PieceScreen` and drawn by `TopBar`, never one copy per screen; it takes
   no touch and does not move the bar; the work done is not saved, and no save is offered as failed · robustness rule: the
   app states what did not happen, the newer file is never written over · v1.6 c-14a
-- `E-scan-10` · A PDF read from its own panel's «Распознать ноты» rather than by the library's recognition, some pages
+- `E-scan-11` · A PDF read from its own panel's «Распознать ноты» rather than by the library's recognition, some pages
   read by no engine · the pages go with the notes the same way (`DocumentRead.request` of the `ScanResult`, one rule for
   both flows), so the score marks them and Check lists them after the app restarts · robustness rule: a page no engine
   read is never forgotten silently · v1.6 c-14a

@@ -396,7 +396,7 @@ final class AssistantController: ObservableObject {
         guard !busy, let score else { return false }
         busy = true
         defer { busy = false }
-        let problem = await score.acceptAssistantDraft(draft)
+        let problem = await score.checkModel.acceptAssistantDraft(draft.acceptRequest?.text)
         guard problem == nil else {
             decide(draft.id, .proposed, problem: problem)
             return false
@@ -413,7 +413,7 @@ final class AssistantController: ObservableObject {
         guard !busy, let score else { return }
         busy = true
         defer { busy = false }
-        let problem = await score.undoAssistantDraft(draft)
+        let problem = await score.checkModel.undoAssistantDraft(firstBar: draft.firstBar)
         decide(draft.id, problem == nil ? .proposed : .accepted, problem: problem)
     }
 

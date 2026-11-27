@@ -190,5 +190,7 @@
   "drafts.recordingAlready": "Уже вариант этого места: «{0}»",
   "drafts.newOnRecording": "На записи: «{0}» · совпадает на {1} % · {2}",
   "drafts.newNotFound": "На записях нет этой музыки.",
-  "drafts.newWithAssistantHint": "Создаёт черновик, добавляет найденное на записи вариантом к месту ① и открывает на нём ассистента. Pro."
+  "drafts.newWithAssistantHint": "Создаёт черновик, добавляет найденное на записи вариантом к месту ① и открывает на нём ассистента. Pro.",
+  "performance.markerLabel": "Такт {0} в версии «{1}»: {2}",
+  "performance.defaultName": "Версия"
 }
