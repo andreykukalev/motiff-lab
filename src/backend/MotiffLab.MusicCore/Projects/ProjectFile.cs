@@ -93,7 +93,8 @@ public static class ProjectFile
     /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
     internal const string SettingsPath = "workspace/settings";
 
-    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
+    /// <summary>The top-level fields of a file of <see cref="Version"/>; any other is a later build's, kept as it came (0026 S6).</summary>
+    internal static IReadOnlySet<string> RootFields { get; } = new HashSet<string>(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
     /// The project as a file of <see cref="Version"/> in the layers of decision record 0030: its originals, its Notes and
@@ -197,7 +198,7 @@ public static class ProjectFile
         JsonElement workspace = Property(root, WorkspacePath, JsonValueKind.Object);
         string? working = workspace.TryGetProperty("working", out _) ? Text(workspace, "working") : null;
         Dictionary<string, IReadOnlyList<UnknownField>> fields = new(StringComparer.Ordinal);
-        KeepFields(fields, "", root, s_rootFields);
+        KeepFields(fields, "", root, RootFields);
         KeepFields(fields, WorkspacePath, workspace, s_workspaceFields);
         Project project = ReadWork(root, workspace, version, unknowns);
         foreach ((string path, IReadOnlyList<UnknownField> kept) in unknowns.Fields)

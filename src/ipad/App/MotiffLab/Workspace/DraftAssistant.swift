@@ -121,7 +121,7 @@ struct DraftAssistantSection: View {
 
     /// What the conversation does, chosen before its first question: assemble the place, or explain its variants.
     private func roleChips(_ talk: AssistantInDraft) -> some View {
-        FlowRow(spacing: CGFloat.ds("s-2")) {
+        FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
             ForEach(roles, id: \.self) { role in
                 Button(text[Self.roleName(role)]) { assistant.startInDraft(role: role) }
                     .buttonStyle(DSChipStyle(on: role == talk.chat.role))

@@ -6,7 +6,7 @@ import Foundation
 /// places are ringed on the score and lit on the roll, or one place of it. A fact's Try opens the ways music-core offers
 /// for it; a way sounds at once (facade `try`, then the piece with the variation in place, `playback` of `inPlace`), and
 /// the row that holds it can Keep it as an idea (`idea.keep`) or Leave it (`variation.clear`). Each state is written only
-/// by its methods here; the views (InsightsStream.swift, FactRow.swift, Circle.swift's `KeyCircleCard`) show it and call
+/// by its methods here; the views (InsightsStream.swift, FactRow.swift, KeyCircleCard.swift) show it and call
 /// them, and the score's workspace hands in the callbacks to the player. No view and no player belong here.
 @MainActor
 final class InsightsController: ObservableObject {

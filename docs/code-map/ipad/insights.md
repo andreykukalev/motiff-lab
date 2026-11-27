@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
 ## Files
 
 `Circle`, `DnaBookmarks`, `DnaCards`, `DnaHarmony`, `DnaLanes`, `DnaModel`, `DnaPlayhead`, `DnaPlaying`, `DnaScreen`,
-`FactRow`, `InsightsController`, `InsightsModel`, `InsightsStream` (`.swift`).
+`FactRow`, `InsightsController`, `InsightsModel`, `InsightsStream`, `KeyCircleCard` (`.swift`).
 
 - Piece DNA, one view over seven files (split from `Dna.swift` in v0.10 d-1, #723; behaviour unchanged):
   - `DnaModel.swift`: `DnaMap`, the typed `dna` answer (form, ideas and their marks, keys, chords, closes, the
@@ -35,12 +35,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
   - `InsightsModel.swift`: `Fact` (with `Place`, `Try`) and `Understanding`, the typed `understand` answer (Main,
     the lenses in the stream's order, a lens's facts under Details). `Fact.Place` is also read by `Circle.swift`
     (`KeyCircle`, `CircleDrawing`), `Roll/RollController.highlight`, `Workspace/ScoreController` and
-    `ScorePageLayout` (the rings); `Understanding` by the tests (`FacadeTests`, `PencilTests`).
+    `ScorePageLayout` (the rings); `Understanding` by `FacadeTests` and `PencilTests`.
   - `InsightsController.swift`: the stream's state and rules (below), its six music-core calls (`understand`,
     `circle`, `try` then `playback` of `inPlace`, `idea.keep`, `variation.clear`), and the callbacks to the player that
     `ScoreWorkspace.wire()` hands in (`placeChosen`, `variationReady`, `variationLeft`, `scaleReady`, `scaleStop`).
   - `InsightsStream.swift`: the stream (the chips, a step's refusal, Main, Details by lens); `FactRow.swift`: a
-    fact's row with `TryRow` and `TrialRow`. The circle in a row is `Circle.swift`'s `KeyCircleCard`.
+    fact's row with `TryRow` and `TrialRow`; `KeyCircleCard.swift`: the circle in a row.
   - The sheet around it is the screen's: `Workspace/InsightsSheet.swift` (its head, `HearingSwitch`, the assistant's
     foot), beside `Workspace/HearingSwitch.swift`, which Expand's bar shares. `FlowLayout` is in Platform.
 

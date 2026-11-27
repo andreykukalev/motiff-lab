@@ -69,8 +69,8 @@ export const CORE_LAYERS = [
 /**
  * Which folder of src/shared/Scripts may import which, type-only imports included (the audit's W3.11): `selection` holds
  * the pure selection rules and the pages' hold timing and imports nothing; `playback` reads the hold timing; `score` and
- * `roll` draw on the rest, and the roll reads the score's modes and timeline. A folder may always import its own modules.
- * The table has no loop (tools/quality/dependencies.test.mjs checks it).
+ * `roll` draw on the rest, and the roll reads the score's modes, timeline and playheads. A folder may always import its
+ * own modules. The table has no loop (tools/quality/dependencies.test.mjs checks it).
  */
 export const SCRIPT_FOLDER_USES = {
   storage: [],
@@ -289,12 +289,15 @@ export function bundledFolders(projectYml) {
   return new Set([...projectYml.matchAll(/wwwroot\/js\/([\w-]+)\s*$/gm)].map((m) => m[1]));
 }
 
+// Anywhere on a line, so an import after another statement on it counts too; a dynamic import by a plain string or by a
+// template literal without an interpolation.
 const RUNTIME_IMPORTS = [
-  /^[ \t]*(?:import|export)[ \t]+(?!type[ \t{])[^;]*?from[ \t]*["'](\.[^"']+)["']/gm,
-  /^[ \t]*import[ \t]*["'](\.[^"']+)["']/gm,
+  /\b(?:import|export)[ \t]+(?!type[ \t{])[^;]*?from[ \t]*["'](\.[^"']+)["']/g,
+  /\bimport[ \t]*["'](\.[^"']+)["']/g,
   /\bimport\(\s*["'](\.[^"']+)["']\s*\)/g,
+  /\bimport\(\s*`(\.[^`$]+)`\s*\)/g,
 ];
-const TYPE_IMPORT = /^[ \t]*(?:import|export)[ \t]+type[ \t{][^;]*?from[ \t]*["'](\.[^"']+)["']/gm;
+const TYPE_IMPORT = /\b(?:import|export)[ \t]+type[ \t{][^;]*?from[ \t]*["'](\.[^"']+)["']/g;
 
 /** The relative modules a file loads when it runs; `import type` and `export type` are erased by the compiler. */
 export function runtimeImports(text) {
