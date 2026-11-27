@@ -59,6 +59,16 @@ final class BarPdfView: PDFView {
         setNeedsLayout()
     }
 
+    /// Shows the PDF loaded again (a page photographed again, `PhotoReadingPanel`) in place of the pages shown, `page` (from
+    /// 1) brought under the bar; the document shown already stays as it is. Before, the old pages stayed in view, and the
+    /// ink and the bookmarks' tabs went onto the document loaded again, which was not shown.
+    func show(_ document: PDFDocument, at page: Int) {
+        guard self.document !== document else { return }
+        self.document = document
+        autoScales = true
+        if let start = document.page(at: max(0, min(page, document.pageCount) - 1)) { rest(on: start) }
+    }
+
     /// Comes back to where the player left the pages (PDF | Notes, #511 section 10): the zoom they chose, then the page and the
     /// place on it under the bar, once the pages are laid out.
     func comeBack(to state: PdfViewState) {
@@ -224,6 +234,7 @@ struct PdfPages: UIViewRepresentable {
     }
 
     func updateUIView(_ view: BarPdfView, context: Context) {
+        view.show(document, at: controller.startPage)
         let mode: PDFDisplayMode = twoUp ? .twoUpContinuous : .singlePageContinuous
         if view.displayMode != mode {
             let at = view.currentPage

@@ -1,3 +1,4 @@
+import PDFKit
 import XCTest
 @testable import MotiffLab
 
@@ -73,5 +74,19 @@ final class PdfNotesTests: XCTestCase {
         XCTAssertEqual(PageRest.offset(page: 6_000, pageTop: top, lowest: lowest, highest: 5_000), 5_000, "the last pages stop at the end")
         XCTAssertEqual(PageRest.offset(page: 600, pageTop: top, lowest: lowest, highest: -200), lowest, "a short document stays at its top")
         XCTAssertEqual(PageRest.pageTop(barBottom: 56), 56 + CGFloat.ds("s-4"), "the gap is the kit's s-4")
+    }
+
+    /// A page photographed again loads the PDF again (`PhotoReadingPanel`): the pages' view shows the PDF loaded, at that
+    /// page, not the pages it showed before, where the ink and the bookmarks' tabs would no longer be drawn.
+    @MainActor
+    func testAPdfLoadedAgainIsShownInPlaceOfThePagesShown() throws {
+        let shown = try XCTUnwrap(PDFDocument(data: ScanSupport.scannedPdf(pages: 3)))
+        let again = try XCTUnwrap(PDFDocument(data: ScanSupport.scannedPdf(pages: 3)))
+        let pages = BarPdfView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+        pages.document = shown
+        pages.show(shown, at: 2)
+        XCTAssertTrue(pages.document === shown, "the document shown stays as it is")
+        pages.show(again, at: 2)
+        XCTAssertTrue(pages.document === again, "the PDF loaded again is the one shown")
     }
 }
