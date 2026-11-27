@@ -262,7 +262,7 @@ internal static class NotesCodec
 
         string? from = provenance.Original?.Original;
         ScanOrigin? scan = entry.TryGetProperty("scan", out JsonElement read)
-            ? ReadScanBlock(Expected(read, "scan"), EngineOf(provenance), from, provenance.At)
+            ? ReadScanBlock(Expected(read, "scan"), EngineOf(provenance), from, provenance.At, unknowns.Tolerant)
             : null;
         TranscriptionOrigin? heard = entry.TryGetProperty("transcription", out JsonElement transcription)
             ? ReadHeard(Expected(transcription, "transcription"), ProjectFile.Version, EngineOf(provenance), from, provenance.At)

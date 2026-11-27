@@ -24,7 +24,7 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | --- | --- |
 | `unknownCall` | a name the registry does not hold for the receiver (on piece 0: «There is no call "x" without a piece.») |
 | `noPiece` | the piece number is not open; on piece 0 with nothing open, a piece's call (`OpensFirst`: a name with a dot but `settings.*` and `reference.*`, or one flagged `OpenFirst`) |
-| `readOnly` | a call not flagged `Showing` on Notes, a version or a draft open only to be shown |
+| `readOnly` | a call not flagged `Showing` on Notes, a version or a draft open only to be shown; and a call that answers the project file (`project.save`, `project.metadata`, the library's, `document.read`, `scan.insert`, drafts', parts' and sync's) for a project of a later version open read-only (`ProjectFile.Save`, project file 18) |
 | `noNotes` | on a piece without notes, a name it does not hold, or one flagged `NeedsPdf` on a recording |
 | `unavailable` | the call cannot work now, for one: a name starting `corrections` not flagged `WhileCorrectionsOff` while the corrections are off |
 | `badRequest` | the request is not a JSON object, lacks a field the call needs or has one of another type |
@@ -63,7 +63,9 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `category.remove` | piece |  |
 | `category.rename` | piece |  |
 | `check` | piece | Showing, OpenFirst |
+| `check.mark` | piece |  |
 | `check.resolve` | piece |  |
+| `check.unmark` | piece |  |
 | `circle` | piece | OpenFirst |
 | `corrections` | piece | WhileCorrectionsOff, OpenFirst |
 | `corrections.acceptDraft` | piece |  |
@@ -221,6 +223,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ## History
 
 ### 16
+
+Also within 16 (version 1.6, c-14b1, «Как напечатано» step 3, the v1.4 plan's answer 5): check.mark and check.unmark keep and take away the player's marks «что не так» on working notes read from a PDF or photos ({"kind": "meter", "key", "clef", "octave", "triplets", "hands" or "badlyRead", "bar", "last", "staff" for a clef or octave, "value": "5/4", "-3", "treble"/"bass", "8va"/"8vb", "yes"/"no"}; one of a kind at the same bar and staff takes the earlier one's place, and over bars it joins the marks of its kind, staff and value it overlaps and takes its bars from those of another value; other notes refuse them, "unavailable"), each answering as check, which answers "marks" (each as the file keeps it, with "text"); sources.notes.recognise puts the working notes' marks of the PDF read again into the new reading (hands, clef, octave, key, time signature; triplets and a bar read badly are kept and wait for c-14b2), carries them to the new Notes on their bars (a mark whose bar's music starts no bar there placed where its music lies and not put in), flags a bar whose mark the reading cannot take (`MarkUnfit`) and answers "marked": {"used", "unfit", "bars", "text"}. Calls and fields added; the project file stays version 18 (`scan.marks`).
+
+Also within 16 (version 1.6, c-14a, #314, #315): the project file is version 18. The project answer says `"readOnly": true` for a file of a later version whose `minReader` this build meets, opened read-only, and lists in `"newerVariations"` and `"newerIdeas"` the ids of the variations and ideas kept whole for an operation this build does not know; a call that answers the file refuses such a project (`readOnly`). The settings catalogue no longer holds `phrases.granularity`, so overriding it answers `badRequest`; the answers' `level` / `levels` fields stay. `document.read` takes `"unread"` and `"read"`, the PDF pages no engine read and those of them read since, kept in the scan's notes; `scan.insert` takes `"pdfPage"`, the PDF page it puts in, which counts as read; check answers `"unreadPages"` and `"readPages"`. Fields added.
 
 16 removes bookmark.structure (version 1.5, c-16b, #366), a Structure bookmark for each detected sentence, which no app sends since the Contents files the form's sections with bookmark.form (#347); it answers unknownCall, as the calls 14 and 10 removed do. bookmark.form answers as before, and the project file stays version 17: Structure bookmarks the removed call made open and save as any other bookmark.
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.Drafts;
 using MotiffLab.MusicCore.Time;
 
@@ -37,7 +38,7 @@ internal static class DraftsCodec
         List<UnknownEntity> unknown = KeptUnknown(project.Unknown, Project.DraftsList, project.Drafts.Select(static draft => draft.Id), null, out _);
         if (project.Drafts.Count > 0 || unknown.Count > 0)
         {
-            WriteList(json, Project.DraftsList, project.Drafts, unknown, draft => WriteDraft(json, draft));
+            WriteList(json, Project.DraftsList, project.Drafts, unknown, draft => WriteDraft(json, draft, project.UnknownFieldsAt(FieldsPath(Project.DraftsList, draft.Id))));
         }
     }
 
@@ -49,7 +50,7 @@ internal static class DraftsCodec
             return [];
         }
 
-        List<Draft> read = ReadList(Expected(drafts, JsonValueKind.Array), Project.DraftsList, ReadDraft, unknowns);
+        List<Draft> read = ReadList(Expected(drafts, JsonValueKind.Array), Project.DraftsList, ReadDraft, unknowns, s_draftFields);
         return read.Select(static draft => draft.Id).Distinct(StringComparer.Ordinal).Count() == read.Count ? read : throw Damaged(What);
     }
 
@@ -73,7 +74,11 @@ internal static class DraftsCodec
         return element;
     }
 
-    private static void WriteDraft(Utf8JsonWriter json, Draft draft)
+    /// <summary>The fields of a draft this build reads; a file's others are kept (version 18).</summary>
+    private static readonly HashSet<string> s_draftFields = new(StringComparer.Ordinal) { "id", "name", "createdAt", "places", "shelf", "next", "steps" };
+
+    /// <param name="unknown">The fields of the draft this build did not know when it read it, written back after the others.</param>
+    private static void WriteDraft(Utf8JsonWriter json, Draft draft, IReadOnlyList<UnknownField>? unknown = null)
     {
         json.WriteStartObject();
         json.WriteString("id", draft.Id);
@@ -109,6 +114,7 @@ internal static class DraftsCodec
         }
 
         json.WriteEndArray();
+        WriteUnknownFields(json, unknown ?? []);
         json.WriteEndObject();
     }
 

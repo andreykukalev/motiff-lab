@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
@@ -38,6 +39,10 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 18 (version 1.6, 0026 S6) writes "minReader", keeps the fields it does not know in every entity of the workspace's
+    /// lists, an unknown per-piece setting and a variation of an unknown operation (written back unchanged), drops the
+    /// piece's level "phrases.granularity" (the phrases spec, v1.2) and keeps which pages of a scanned PDF no engine read
+    /// ("scan"."unread" and "read"); a file of a later version opens read-only when its "minReader" lets this build read it;
     /// 17 lets a piece with no notes be only its recording, kept on the device (version 1.1, finding 29; a file of an
     /// earlier version with no notes and no PDF stays damaged), and adds the piece's drafts (0034, the drafts step);
     /// 16 lays the file out in the three layers of decision record 0030: the originals (with the PDF's bytes and page marks,
@@ -67,7 +72,14 @@ public static class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 17;
+    public const int Version = 18;
+
+    /// <summary>
+    /// The oldest build version that reads a file this build writes (0026 S6, "minReader"): the first with the tolerant reader
+    /// that opens a later version read-only. A later build writes a larger one when its file changes what an older reader
+    /// would show or save; a build below a file's "minReader" refuses it.
+    /// </summary>
+    public const int MinReader = 18;
 
     /// <summary>The first version laid out in the three layers of decision record 0030; every later one keeps the layout.</summary>
     private const int LayersVersion = 16;
@@ -78,24 +90,31 @@ public static class ProjectFile
     /// <summary>Where the unknown fields of a Notes stand in <see cref="Project.UnknownFields"/>: this and the Notes' id.</summary>
     internal const string NotesPath = "notes/";
 
-    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
+    /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
+    internal const string SettingsPath = "workspace/settings";
+
+    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
     /// The project as a file of <see cref="Version"/> in the layers of decision record 0030: its originals, its Notes and
     /// its workspace, each with the fields this build did not know when it read them (0026 S6). The same project always
-    /// gives the same bytes.
+    /// gives the same bytes. A project read from a later version keeps its "version" and "minReader", the larger of its
+    /// own and this build's (S6), so it reads back read-only; such a file is only written to be read again here, never to
+    /// be kept (<see cref="Save"/>).
     /// </summary>
     public static byte[] Write(Project project)
     {
         ArgumentNullException.ThrowIfNull(project);
         project = project.AsFiled();
+        (int version, int minReader) = project.Newer is { } newer ? (Math.Max(newer.Version, Version), Math.Max(newer.MinReader, MinReader)) : (Version, MinReader);
 
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
         {
             json.WriteStartObject();
             json.WriteString("format", FormatName);
-            json.WriteNumber("version", Version);
+            json.WriteNumber("version", version);
+            json.WriteNumber("minReader", minReader);
             json.WriteString("id", project.Id);
             json.WriteString("fileName", project.FileName);
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
@@ -111,8 +130,26 @@ public static class ProjectFile
     }
 
     /// <summary>
+    /// The file a project is kept in, on the device or online, as <see cref="Write"/> writes it; a project read from a later
+    /// version (<see cref="Project.Newer"/>) is never kept (0026 S6, #315): this build would drop or misread what it does
+    /// not know.
+    /// </summary>
+    /// <exception cref="ProjectFileException">The project is read-only (<see cref="ProjectFileException.ReadOnly"/>).</exception>
+    public static byte[] Save(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return project.Newer is null ? Write(project) : throw new ProjectFileException("This project was saved by a newer version of Motiff Lab: it opens read-only here and is not saved. Update the app to work on it.")
+        {
+            RussianMessage = "Этот проект сохранён более новой версией Motiff Lab: здесь он открыт только для чтения и не сохраняется. Обновите приложение, чтобы работать с ним.",
+            ReadOnly = true,
+        };
+    }
+
+    /// <summary>
     /// The project a file holds, of any version from 1 to <see cref="Version"/>, converted to <see cref="Version"/> in
-    /// memory: the same file always gives the same project. A file of a later version is refused before any field is read.
+    /// memory: the same file always gives the same project. A file of a later version whose "minReader" is this build's
+    /// version or lower is read as a file of this layout and opens read-only (<see cref="Project.Newer"/>, 0026 S6); one
+    /// without "minReader", or with a larger one, is refused before any other field is read.
     /// </summary>
     public static Project Read(ReadOnlySpan<byte> data)
     {
@@ -125,7 +162,8 @@ public static class ProjectFile
             }
 
             int version = Integer(root, "version");
-            if (version > Version)
+            int? minReader = root.TryGetProperty("minReader", out _) ? Integer(root, "minReader") : null;
+            if (minReader > Version || (version > Version && minReader is null))
             {
                 throw new ProjectFileException("This project was saved by a newer version of Motiff Lab. Update the app and try again.")
                 {
@@ -138,11 +176,18 @@ public static class ProjectFile
                 throw Damaged("version");
             }
 
-            // Version 16 and 17 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an
-            // unknown value in either is read as in a file of today's version (0026 S6).
+            // Every file of version 18 or later carries "minReader" (#315); one above this build's was refused above as newer.
+            if (version >= MinReader && minReader is not (>= 1 and <= Version))
+            {
+                throw Damaged("minReader");
+            }
+
+            // Versions 16 to 18 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an unknown
+            // value, setting or operation in any of them is read as in a file of today's version (0026 S6).
             var unknowns = new Unknowns(version >= LayersVersion);
             Project project = version >= LayersVersion ? ReadLayers(root, version, unknowns) : ReadEarlier(root, version, unknowns);
-            return unknowns.KeptIn(project).WithProvenanceKept().Described(version);
+            project = unknowns.KeptIn(project).WithProvenanceKept().Described(Math.Min(version, Version));
+            return version > Version ? project with { Newer = new NewerFile(version, minReader!.Value) } : project;
         }
     }
 
@@ -154,6 +199,11 @@ public static class ProjectFile
         KeepFields(fields, "", root, s_rootFields);
         KeepFields(fields, WorkspacePath, workspace, s_workspaceFields);
         Project project = ReadWork(root, workspace, version, unknowns);
+        foreach ((string path, IReadOnlyList<UnknownField> kept) in unknowns.Fields)
+        {
+            fields[path] = kept;
+        }
+
         (project, List<PieceOriginal> described) = ReadOriginalsLayer(project, Property(root, OriginalsList, JsonValueKind.Array), unknowns, fields);
         project = ReadNotesLayer(project, Property(root, NotesList, JsonValueKind.Array), working, unknowns, fields);
         // The descriptions the piece's own data shows are worked out again, as for every earlier file, so they follow it.
@@ -267,6 +317,9 @@ public static class ProjectFile
 
     /// <summary>A key signature as the file writes an assembly's (<see cref="AssemblyCodec.WriteKeySignature"/>): the facade's answers use the same shape.</summary>
     internal static void WriteKeySignature(Utf8JsonWriter json, KeySignature key) => AssemblyCodec.WriteKeySignature(json, key);
+
+    /// <summary>A mark «что не так» as the file keeps it, in an object already open (check's "marks").</summary>
+    internal static void WriteReadingMark(Utf8JsonWriter json, ReadingMark mark) => OriginCodec.WriteMark(json, mark);
 
     /// <summary>"fingering" as the file writes it (<see cref="MarksCodec.WriteFingering"/>): the facade's marks answer writes it too.</summary>
     internal static void WriteFingering(Utf8JsonWriter json, IEnumerable<Fingering> fingering) => MarksCodec.WriteFingering(json, fingering);

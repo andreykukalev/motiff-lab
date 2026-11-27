@@ -125,7 +125,7 @@ internal static class DraftRequest
         {
             Added(json, draft!.Id, place, variant.Id);
             Answer.Project(json, "project", changed);
-            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(changed)));
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(changed)));
         });
     }
 

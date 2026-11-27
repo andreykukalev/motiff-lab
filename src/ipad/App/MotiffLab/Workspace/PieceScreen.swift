@@ -3,7 +3,7 @@ import SwiftUI
 /// The screen of a piece the library opens, by what the piece is: its PDF (`PdfScreen`, 0023), its recording while it has
 /// no notes (`RecordingScreen`, v1.1, finding 29), else its notes (`ScoreScreen`). Here, in the folder that knows every
 /// feature, so the library names one screen; and here the library's recognition is told to its screens
-/// (`BackgroundReading`, Andrei, 2026-11-25).
+/// (`BackgroundReading`, Andrei, 2026-11-25), and whether the piece opened read-only (`readOnlyLine`, project file 18).
 struct PieceScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place (PDF | Notes, 0023).
@@ -13,7 +13,10 @@ struct PieceScreen: View {
     @ObservedObject private var queue = RecognitionQueue.shared
 
     var body: some View {
-        screen.environment(\.backgroundReading, background)
+        screen
+            .environment(\.backgroundReading, background)
+            // A project a newer version saved opens read-only (project file 18): every view's bar says so, once, from here.
+            .environment(\.readOnlyLine, piece.own?.readOnly == true ? UIText.current["piece.newerReadOnly"] : nil)
     }
 
     @ViewBuilder private var screen: some View {

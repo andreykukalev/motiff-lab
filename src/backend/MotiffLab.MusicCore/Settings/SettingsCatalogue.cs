@@ -2,8 +2,8 @@ namespace MotiffLab.MusicCore.Settings;
 
 /// <summary>
 /// Every setting of the app (0018, section 10; preparation item 5): the one list both apps show, in sheet
-/// order. The presets are rows of this table: Learning turns every guide on and reads the piece in short
-/// phrases, Practising (the default) keeps the brackets and the Insights strip and turns the hints off,
+/// order. The presets are rows of this table: Learning turns every guide on,
+/// Practising (the default) keeps the brackets and the Insights strip and turns the hints off,
 /// Clean leaves the score, the ink and the bookmarks. A setting's scope says whether its value stays on
 /// the device, travels with the account (Pro) or can be overridden for one piece in the project file.
 /// </summary>
@@ -24,9 +24,6 @@ internal static class SettingsCatalogue
         Choice("guidance.barFade", SettingSection.Guidance, ["1", "2"], "2", new("2", "2", "1"), SettingScope.Account),
         Switch("guidance.proOffers", SettingSection.Guidance, Governs(true, true, false), SettingScope.Account),
 
-        // The level a piece opened in (0018, section 3), no longer read when a piece opens (version 1.2, the phrases spec: the
-        // iPad shows phrases only); kept so files that set it still open, and until the iPad's Settings row goes.
-        Choice("phrases.granularity", SettingSection.Score, ["short", "phrases", "sentences"], "phrases", new("short", "phrases", "phrases"), SettingScope.Piece),
         Choice("score.layout", SettingSection.Score, ["pages", "strip"], "pages", null, SettingScope.Device),
         Switch("score.noteNames", SettingSection.Score, null, SettingScope.Device),
         // Even bars (testing item 35): the bars take room by their length, so the playhead keeps one pace; off, by their

@@ -506,6 +506,6 @@ internal sealed partial class OpenPiece
             LastOpened = now ?? Project.LastOpened,
         };
         // Corrections made in the note editor are kept only once the player saves them (testing item 15).
-        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project with { Edits = Corrections.Kept(State) }));
+        return System.Text.Encoding.UTF8.GetString(ProjectFile.Save(Project with { Edits = Corrections.Kept(State) }));
     }
 }
