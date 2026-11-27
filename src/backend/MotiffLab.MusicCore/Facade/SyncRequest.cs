@@ -81,8 +81,9 @@ internal static class SyncRequest
     }
 
     /// <summary>
-    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "copyTitle", "base"?: the copy both last agreed on} →
-    /// {"file": what to keep here, "upload": true when it goes online, "copy": the previous copy as a piece of its own, or
+    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "copyTitle", "base"?: the copy both last agreed on,
+    /// "sendsFile"?: true when the app sends "file" on "upload", false (before c-17b) when it sends "here"} →
+    /// {"file": what to keep here, "upload": true when "file" ("here" without "sendsFile") goes online, "copy": the previous copy as a piece of its own, or
     /// null, "readOnly": true when "file" holds a later build's copy (kept here, never sent), "merged": false when the copies
     /// could not be merged entity by entity, "conflicts": [{"in", "id"}] what of the copy that lost "file" does not hold}
     /// (<see cref="ProjectSync.Resolve"/>, version 1.6).
@@ -93,7 +94,7 @@ internal static class SyncRequest
             Read(fields.Required("here")), Time(fields, "savedHere"),
             Read(fields.Required("online")), Time(fields, "savedOnline"),
             fields.Required("copyTitle"), MusicCoreFacade.NewProjectId(), HoldingDevice.Ipad,
-            fields.Text("base") is { } shared ? Read(shared) : null);
+            fields.Text("base") is { } shared ? Read(shared) : null, Flag(fields, "sendsFile"));
         return Answer.Write(json =>
         {
             json.WriteString("file", Kept(resolved.Kept));

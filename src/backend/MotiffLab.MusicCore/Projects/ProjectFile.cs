@@ -93,7 +93,7 @@ public static class ProjectFile
     /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
     internal const string SettingsPath = "workspace/settings";
 
-    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
+    internal static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
     /// The project as a file of <see cref="Version"/> in the layers of decision record 0030: its originals, its Notes and

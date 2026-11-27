@@ -216,6 +216,27 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     }
 
     [Fact]
+    public async Task If_match_any_updates_or_deletes_a_copy_kept_and_never_creates_one()
+    {
+        // RFC 9110, 13.1.1: "*" names any current copy, so with none kept a save is refused rather than made a first upload.
+        HttpClient client = Client(Player());
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(Update("p_any", File("p_any"), EntityTagHeaderValue.Any))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/projects/p_any")).StatusCode);
+
+        await client.PutAsync("/projects/p_any", Json(File("p_any")));
+        Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(Update("p_any", File("p_any"), EntityTagHeaderValue.Any))).StatusCode);
+        using (var any = new HttpRequestMessage(HttpMethod.Delete, "/projects/p_any"))
+        {
+            any.Headers.IfMatch.Add(EntityTagHeaderValue.Any);
+            Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(any)).StatusCode);
+        }
+
+        using var none = new HttpRequestMessage(HttpMethod.Delete, "/projects/p_any");
+        none.Headers.IfMatch.Add(EntityTagHeaderValue.Any);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(none)).StatusCode);
+    }
+
+    [Fact]
     public async Task A_project_too_large_for_one_document_stays_on_the_device()
     {
         // Random bytes do not compress, so 2 MB of source packs to more than a document holds.

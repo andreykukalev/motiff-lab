@@ -59,7 +59,7 @@ internal sealed record SyncResolution(Project Kept, bool Upload, Project? Previo
     /// <summary>What of the copy that lost the merge <paramref name="Kept"/> does not hold, and so <paramref name="PreviousCopy"/> keeps (<see cref="ProjectMerge"/>).</summary>
     public IReadOnlyList<MergeConflict> Conflicts { get; init; } = [];
 
-    /// <summary>False when the two copies could not be merged entity by entity (<see cref="ProjectMerge.Merged"/> answered none): the one saved last was kept, with the other's Notes and corrections, as before version 1.6.</summary>
+    /// <summary>False when the two copies could not be merged entity by entity (<see cref="ProjectMerge.Merged"/> failed its self-check): nothing is sent, and the other copy is kept beside.</summary>
     public bool Merged { get; init; } = true;
 }
 
@@ -132,11 +132,15 @@ internal static class ProjectSync
         ["notes.check"] = FieldClass.Derived,
         ["notes.scan"] = FieldClass.Import,
         ["notes.scan.pages"] = FieldClass.Import,
+        // Version 18: the player's marks «что не так», merged by kind, bar and staff (the 1.6 plan's decision 16).
+        ["notes.scan.marks"] = FieldClass.Player,
         ["notes.transcription"] = FieldClass.Import,
         ["notes.transcription.bars.meters"] = FieldClass.Import,
         ["notes.transcription.sentFromMs"] = FieldClass.Import,
         ["notes.pageMap"] = FieldClass.Import,
         ["notes.performance"] = FieldClass.Player,
+        // The marks on the score drawn while other Notes were the working ones, as workspace.marks.
+        ["notes.marks"] = FieldClass.Player,
         ["workspace"] = FieldClass.Player,
         ["workspace.working"] = FieldClass.Player,
         ["workspace.metadata"] = FieldClass.Player,
@@ -197,7 +201,7 @@ internal static class ProjectSync
     public static Project Pulled(Project online, Project? here, HoldingDevice? device = null)
     {
         ArgumentNullException.ThrowIfNull(online);
-        if (here is null || !SameId(here, online))
+        if (here is null || !SameProject(here, online))
         {
             return online;
         }
@@ -267,16 +271,17 @@ internal static class ProjectSync
     /// <summary>
     /// Two copies of one project, both changed, merged entity by entity against <paramref name="base"/> (version 1.6,
     /// <see cref="ProjectMerge"/>): what one copy changed comes into the other, and where both changed one thing the copy
-    /// saved last keeps its own, the merge records the conflict, and the other copy is kept beside as a piece of its own
-    /// named by <paramref name="copyTitle"/> ("{0}" stands for its title), so nothing is lost. With no conflict nothing is
-    /// kept beside. Two copies that are the same keep this device's. When the copies cannot be merged entity by entity
-    /// (the self-check, 0026 C5), the one saved last is kept with the other's Notes and corrections and the other beside,
-    /// as before version 1.6, unless it carries nothing of the player's that the kept one lacks (<see cref="SamePiece.AddsNothingTo"/>).
-    /// A copy re-keyed from the other's id (<see cref="Project.FormerIds"/>) is the same project, and keeps the online id.
+    /// saved last keeps its own and the merge records the conflict. Nothing is ever lost: unless the merge met no conflict
+    /// and holds every change the other copy made since the base (its self-check, <see cref="MergeCheck"/>), the other copy
+    /// is kept beside as a piece of its own named by <paramref name="copyTitle"/> ("{0}" stands for its title). A merge that
+    /// fails its self-check (0026 C5) is not sent: the copy saved last is kept here with the other's Notes and corrections,
+    /// as before version 1.6, a later build's copy as it is, and the other beside unless it adds nothing
+    /// (<see cref="SamePiece.AddsNothingTo"/>). Two copies that are the same keep this device's. A copy re-keyed from the
+    /// other's id (<see cref="Project.FormerIds"/>) with the same creation time is the same project, and keeps the online id.
     /// A different piece that only carries the same id (an old numbered id, V8) is no previous copy: the online one is kept
-    /// beside under a new id as it is, and this device's goes online; when the online one is a later build's, it stays and
-    /// this device's is kept beside instead. A merged project that holds a later build's copy is read-only
-    /// (<see cref="Project.IsReadOnly"/>): it is kept here, never sent (the 1.6 plan's decision 14).
+    /// beside under a new id as it is, and this device's goes online; when the online one is a later build's, it stays as it
+    /// came and this device's is kept beside instead. A copy that holds a later build's (<see cref="Project.IsReadOnly"/>)
+    /// is kept here and never sent (the 1.6 plan's decision 14).
     /// </summary>
     /// <param name="here">The project on this device.</param>
     /// <param name="savedHere">When it was saved here last.</param>
@@ -286,10 +291,15 @@ internal static class ProjectSync
     /// <param name="newId">The previous copy's id (<c>MusicCoreFacade.NewProjectId</c>).</param>
     /// <param name="device">This device, whose marks of holding an original are its own (version 0.3); null keeps the online marks.</param>
     /// <param name="base">
-    /// The copy both last agreed on, when the device keeps one (0026 S5): with it, what one side removed or undone since goes
+    /// The copy both last agreed on, when the device keeps one (0026 S5): with it, what one side removed or undid since goes
     /// through the merge; without it, the merge is a union with no deletions (S4).
     /// </param>
-    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null, Project? @base = null)
+    /// <param name="sendsKept">
+    /// Whether the app sends <see cref="SyncResolution.Kept"/> when <see cref="SyncResolution.Upload"/> is true. One that
+    /// sends its own copy instead (the iPad before version 1.6's c-17b) is asked to send only when its copy was saved last,
+    /// and then keeps the online copy beside unless it adds nothing, as before version 1.6, so nothing only online is lost.
+    /// </param>
+    public static SyncResolution Resolve(Project here, DateTimeOffset savedHere, Project online, DateTimeOffset savedOnline, string copyTitle, string newId, HoldingDevice? device = null, Project? @base = null, bool sendsKept = true)
     {
         ArgumentNullException.ThrowIfNull(here);
         ArgumentNullException.ThrowIfNull(online);
@@ -301,28 +311,56 @@ internal static class ProjectSync
             return new SyncResolution(here, Upload: false, PreviousCopy: null);
         }
 
-        if (!SameId(here, online) || here.CreatedAt != online.CreatedAt)
+        if (!SameProject(here, online))
         {
             return online.IsReadOnly
-                ? new SyncResolution(pulled, Upload: false, PreviousCopy: here with { Id = newId })
-                : new SyncResolution(here, Upload: true, PreviousCopy: online with { Id = newId });
+                ? new SyncResolution(online, Upload: false, PreviousCopy: here with { Id = newId })
+                : new SyncResolution(here, Upload: !here.IsReadOnly, PreviousCopy: online with { Id = newId });
         }
 
-        // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones.
+        // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones,
+        // and with the originals of both (PieceOriginals.Merge, as the pull unites them), so an original only online stays.
         Project mine = pulled.WritesDocumentMarks(device) || here.DocumentMarks.Equals(pulled.DocumentMarks) ? here : here with { DocumentMarks = pulled.DocumentMarks };
+        mine = mine.Originals.SequenceEqual(pulled.Originals) ? mine : mine with { KeptOriginals = pulled.Originals };
         bool hereWins = savedHere >= savedOnline;
         (Project winner, Project loser, Project lost) = hereWins ? (mine, pulled, online) : (pulled, here, here);
-        MergedProject? merged = ProjectMerge.Merged(winner, loser, @base);
-        // Version 16 (0030, section 5): without the merge, the copy kept takes the other's tombstones, Notes and corrections of other notes.
-        Project kept = OnlineId(merged?.Project ?? SourcesMerge.Merged(winner, loser, @base), here, online);
-        Project? previous = merged is { Conflicts.Count: 0 } ? null : Lost(lost, kept, copyTitle, newId);
-        bool upload = !kept.IsReadOnly && (hereWins || !ProjectFile.Write(kept).AsSpan().SequenceEqual(ProjectFile.Write(pulled)));
-        return new SyncResolution(kept, upload, previous) { Conflicts = merged?.Conflicts ?? [], Merged = merged is not null };
+        if (ProjectMerge.Merged(winner, loser, @base) is not { } merged)
+        {
+            return Unmerged(winner, loser, lost, here, online, @base, copyTitle, newId);
+        }
+
+        Project kept = OnlineId(merged.Project, here, online);
+        bool upload = !kept.IsReadOnly && (hereWins || (sendsKept && !ProjectFile.Write(kept).AsSpan().SequenceEqual(ProjectFile.Write(pulled))));
+        // An app that sends its own copy rather than the one kept (before c-17b) would drop what only the online copy has.
+        Project? previous = merged.Conflicts.Count > 0 ? PreviousCopy(lost, copyTitle, newId)
+            : upload && !sendsKept ? Lost(online, here, copyTitle, newId) : null;
+        return new SyncResolution(kept, upload, previous) { Conflicts = merged.Conflicts };
     }
 
-    /// <summary>Whether the two copies are of one project: the same id, or one re-keyed from the other's (<see cref="Project.FormerIds"/>, #317).</summary>
-    private static bool SameId(Project here, Project online) =>
-        here.Id == online.Id || here.FormerIds.Contains(online.Id, StringComparer.Ordinal) || online.FormerIds.Contains(here.Id, StringComparer.Ordinal);
+    /// <summary>
+    /// Two copies the merge could not join (its self-check failed, 0026 C5): nothing is sent. A later build's copy is kept as
+    /// it is (the online one first), and the other beside; else the winner with the other's Notes and corrections, as before
+    /// version 1.6, and the copy that lost beside unless it adds nothing.
+    /// </summary>
+    private static SyncResolution Unmerged(Project winner, Project loser, Project lost, Project here, Project online, Project? @base, string copyTitle, string newId)
+    {
+        if (online.IsReadOnly || here.IsReadOnly)
+        {
+            (Project newer, Project other) = online.IsReadOnly ? (online, here) : (here, online);
+            return new SyncResolution(OnlineId(newer, here, online), Upload: false, PreviousCopy: PreviousCopy(other, copyTitle, newId)) { Merged = false };
+        }
+
+        Project kept = OnlineId(SourcesMerge.Merged(winner, loser, @base).Project, here, online);
+        return new SyncResolution(kept, Upload: false, PreviousCopy: Lost(lost, kept, copyTitle, newId)) { Merged = false };
+    }
+
+    /// <summary>
+    /// Whether the two copies are of one project: the same id, or one re-keyed from the other's (<see cref="Project.FormerIds"/>,
+    /// #317), and made at the same time, so a different piece that carried the same old numbered id (V8) is not.
+    /// </summary>
+    private static bool SameProject(Project here, Project online) =>
+        here.CreatedAt == online.CreatedAt
+        && (here.Id == online.Id || here.FormerIds.Contains(online.Id, StringComparer.Ordinal) || online.FormerIds.Contains(here.Id, StringComparer.Ordinal));
 
     /// <summary>The merged project under the online copy's id, which a project saved online keeps (the 1.6 plan's decision 9), this device's id among those it was known by.</summary>
     private static Project OnlineId(Project kept, Project here, Project online) =>

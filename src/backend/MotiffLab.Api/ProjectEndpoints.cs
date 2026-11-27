@@ -8,9 +8,9 @@ namespace MotiffLab.Api;
 
 /// <summary>
 /// The player's projects: list, read, save and delete one, and delete everything (the right to erasure). A save with
-/// <c>If-Match</c> replaces the copy that still has that ETag; a save without it (a first upload, with or without
-/// <c>If-None-Match: *</c>) only creates the project and never writes over one kept with its id (#321, 0026 S4): both
-/// answer 412, which the app treats as a copy changed online, fetched and merged, never as a success. A delete with
+/// <c>If-Match</c> replaces the copy that still has that ETag (<c>If-Match: *</c>: any copy kept); a save without it (a
+/// first upload, with or without <c>If-None-Match: *</c>) only creates the project and never writes over one kept with its
+/// id (#321, 0026 S4): both answer 412, which the app treats as a copy changed online, fetched and merged, never as a success. A delete with
 /// <c>If-Match</c> deletes only the copy that still has that ETag (412 otherwise), so a piece removed on one device does not
 /// take away what another saved since.
 /// A project travels as its project file (<see cref="ProjectFile"/>), the same bytes the app autosaves and exports. The API
@@ -58,7 +58,7 @@ internal static partial class ProjectEndpoints
         {
             try
             {
-                return IsProjectId(id) && await store.DeleteAsync(Player.Id(http.User), id, IfMatch(http.Request), cancel)
+                return IsProjectId(id) && await store.DeleteAsync(Player.Id(http.User), id, await IfMatchAsync(http.Request, store, id, cancel), cancel)
                     ? Results.NoContent()
                     : Problem(StatusCodes.Status404NotFound, "There is no such project.");
             }
@@ -122,7 +122,7 @@ internal static partial class ProjectEndpoints
 
         try
         {
-            string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, IfMatch(http.Request), cancel);
+            string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, await IfMatchAsync(http.Request, store, id, cancel), cancel);
             http.Response.Headers.ETag = etag;
             return Results.NoContent();
         }
@@ -132,7 +132,23 @@ internal static partial class ProjectEndpoints
         }
     }
 
-    private static string? IfMatch(HttpRequest request) => request.Headers.IfMatch.Count > 0 ? request.Headers.IfMatch.ToString() : null;
+    /// <summary>An ETag no stored copy has, for <c>If-Match: *</c> when none is kept.</summary>
+    private const string NoCopy = "\"none\"";
+
+    /// <summary>
+    /// The ETag a request's <c>If-Match</c> names, or null without one. <c>If-Match: *</c> names any copy kept (RFC 9110,
+    /// 13.1.1): the stored one's ETag, or, with none kept, one no copy has, so a save answers 412 and a delete 404.
+    /// </summary>
+    private static async Task<string?> IfMatchAsync(HttpRequest request, IProjectStore store, string id, CancellationToken cancel)
+    {
+        if (request.Headers.IfMatch.Count == 0)
+        {
+            return null;
+        }
+
+        string named = request.Headers.IfMatch.ToString();
+        return named.Trim() != "*" ? named : (await store.GetAsync(Player.Id(request.HttpContext.User), id, cancel))?.ETag ?? NoCopy;
+    }
 
     /// <summary>True when the project is new online and the player already keeps <see cref="Plans.FreeProjectsOnline"/> pieces there.</summary>
     private static async Task<bool> IsBeyondFreeAsync(IProjectStore store, string ownerId, string id, CancellationToken cancel)
