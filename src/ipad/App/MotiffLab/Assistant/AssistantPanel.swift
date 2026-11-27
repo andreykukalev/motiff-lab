@@ -119,7 +119,7 @@ struct AssistantPanel: View {
     private var empty: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
             Text(text["mentor.empty"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
-            FlowRow(spacing: CGFloat.ds("s-2")) {
+            FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                 ForEach(suggestions, id: \.self) { suggestion in
                     Button(suggestion) { ask(suggestion) }
                         .buttonStyle(DSChipStyle())

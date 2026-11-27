@@ -1,95 +1,79 @@
 # Code map: iPad `Sources/`
 
-Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
+Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`. Cut by model, controller and views
+(W2.12, ADR 0031, v1.6 i-13); the sheet that composes them is `Workspace/SourcesSheet`
+([`workspace-screen.md`](workspace-screen.md)).
 
-## Files
+## Model
 
-`DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftStructure`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `OtherPieceDrafts`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
-`SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+- `SourceLayers.swift`: the sources by the layers of 0030, built from `SourceLayersAnswer` (`PieceCore.sourceLayers`)
+  or a sheet operation's answer (`init?(answer:)`); `groups` (an original with its Notes, one card) and `looseNotes`.
+- `SourcesModel.swift` (S4): the score's versions (`versions`, `VersionShelf`), `status`, `markerPick`, `engraved` (even
+  bars, the bars the app wrote: `Engraved.note`) and the piece's `info` (`SourcesInfo`). Draws the versions and acts on
+  them (show, compare, add, rename, a marker's «Как в версии» and «Источники») through `SourcesScore`, which the score's
+  root adopts. Not joined with the controller: it lives only with the score.
+- `Versions.swift`: `VersionShelf`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover`. A version picked opens
+  Sources and is compared (`SourcesModel.compareVersion`); the bar-by-bar merge left in v1.1 (ADR 0034 section 8).
 
-- Drafts (v1.1, ADR 0034): `SourceLayers.drafts`, the view of kind "draft" (its `name` its word); `SourcesDrafts.swift`
-  (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
-  `takeHand`, the seams' offers, `takeSure`, `makeBase`, `put`, undone by `drafts.undo`, `.draftStep`; one at a time since v1.4: `stepping`, a
-  second sent while one is on its way is skipped and not `refused`; «Принять» answers `DraftAcceptance`, `.held` then);
-  `DraftSheet.swift`: `DraftChoice` and the «В черновик» sheet (v1.4 F4: for a new draft its card «Новый черновик», its
-  name and base, «Как» only where there is a choice, and «Создать»); «Черновики»: `SourcesDraftRow`, `DraftDialogs`;
-  `DraftTechniquesModel` (`DraftTechniques.swift`, a view's приёмы), `DraftSeamsModel` (`DraftSeams.swift`, its seams,
-  since v1.2 the register; the place whose label was tapped, `label`, a bridge's or since v1.4 any place's), `DraftAnchorsModel` (`DraftAnchors.swift`, v1.2: the anchors'
-  amber marks and the one picked); v1.2 steps `putBridge`, `leaveBridge`, `anchor`, `unanchor`, `acceptProposal` (the assistant's «Принять», `drafts.accept`). Collage (v1.2):
-  `OtherPieceDrafts.swift` (other files' drafts, `project.drafts` kept by bytes), `DraftChoice.Into.elsewhere`,
-  `addToDraft` writes that file as music-core answers it (`drafts.add` with "file"), nothing here changes;
-  `addedElsewhere` and `DraftElsewhereToast` («Открыть»). v1.4 i-3b, the draft's structure: steps `movePlace`,
-  `addFromRecording`, `resize`, `carry` (the move's and the resize's toast tells what went, `told`: "dropped" steps, and
-  bridges by the places count), reads `findOnRecording` (on a tap; none searched without Notes `isHeard`), `length`,
-  `carryPlaces` (`PieceCore`); `refusal(_:told:otherwise:)`, music-core's words for these when "unavailable"
-  (`refusedInWords`, written by `change`); `reopening`, a card's view opened again after a step, `stepping` held; `DraftStructure.swift`: `DraftRecordingOffer` («Найти на записи», not shown without a recording heard, `offered`, a-1: the stretch
-  found most, else the variant it is named; v1.5 d-11 `newDraftLine`, the card «Новый черновик») and `DraftLengthChoice` (bars within the Notes).
-  v1.5 d-11: the card searches its passage (`findNewOnRecording`) and offers «С ассистентом · Pro» (`createWithRecording`,
-  the sheet's `assist`: the screen opens the draft's view with its map and the assistant on ①, `ShownDraftScreen.assist`).
+## Controller
 
-- `DeleteOriginalDialog.swift`: the warning before an original is deleted, with its two danger styles (moved out of
-  `SourcesSheet.swift` in v0.9).
-- `SourceLayers.swift`: the sources by the layers of 0030 as the app shows them, built from `SourceLayersAnswer`
-  (`init(_:)`, `PieceCore.sourceLayers`) or from the text of a sheet operation's answer (`init?(answer:)`); `groups` (each
-  original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
-- `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
-  (`SourcesController.performance`) under the bar of `ScoreScreen` and `PdfScreen`, or of a screen over the piece
-  (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`), `RecordingListening`:
-  `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
-  `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`;
-  a call, the background or the headphones gone pause it (`EngineKeeper` with no engine, v1.5 a-2, answer 30).
-- `SourcesSheet.swift` (from `Workspace/ScoreScreen`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
-  (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
-  `renaming`), handed down as bindings and `SourcesRow`.
-- `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (from the sheet: the view shown, the scan server and whether hosted, the
-  actions; a row opens no view since s-2), `SourcesGroupCard`, `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯
-  (a version's «Переименовать…», `rename`, only with a score: `ScoreController.renameVersion`), `SourcesRowHead`,
-  `SourcesRowBackground`, `SourcesCaption`.
-- `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted or a recording) and
-  `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`; `hearLine`:
-  beside the working notes, or the piece's own notes when it has none, v1.1), Send →
-  `SourcesController.recognise`; with no scan server set it says how to set one up (`SourcesController.noScanServer`, as
-  the PDF's `ReadNotesPanel`, v1.5 r-2b).
-- `SourcesDialogs.swift` (v0.10 s-1): the sheet's dialogs in one modifier: deleting an original (`DeleteOriginalDialog`)
-  or Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
-- `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
-  (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
-  Recognising is one path: `canRecognise` (pages kept here with working notes, or a recording's sound here, also on a
-  piece with no notes yet, v1.1), then
-  `recognise` builds a `Recognised` (fields, the field dropped on "badRequest", toast): `readPages`, or `hearRecording`
-  (`RecordingHearing.hear`; `hearFields`: "tempo": "live" and the "hint" of `gridHint`, none without working notes,
-  dropped when refused); `keepRecognised` keeps it under the literal
-  call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
-  `fresh`, save, toast (with music-core's line of the corrections carried to notes read again, `toastText`, v1.5
-  c-11); the first notes of a piece that had none are its working notes, and the piece opens again on
-  them; the first pages added to a piece that is only its recording open it again as a PDF piece (`tell`: the toast here,
-  or handed over with `reopen`). New Notes go under their original; the working notes change only by «Сделать рабочими» (its toast adds music-core's line of the bookmarks and phrases that
-  followed their bars, "followed"; its Undo writes the file back, `E-sheet-1`, v1.5 c-11b). A
-  removal that takes a version away (`removed`) reopens the piece from the file just saved (`reopen`, toast handed
-  over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
-- `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last
-  engraved (since v1.4 with the bars the app wrote, `Engraved.note`: the view's note in the score's bar); reads and
-  renames versions (`performance.rename`). Tests: `SourcesModelTests`.
-- `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
-  `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
-  «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources
-  and is compared (`ScoreController.compareVersion`); files with taken bars read as before (music-core).
+- `SourcesController.swift`: the layers of the piece on its screen (score, PDF, recording) and the sheet's operations,
+  each saved at once and answered as the layers (`change`: why not in `status`; `refusedInWords` for "unavailable"):
+  hide a view, add pages or a recording, remove an original or Notes (Undo writes the file back), «Сделать рабочими»
+  (E-sheet-1), `undo`, a picked file read (`read(picked:)`, E-sources-2), another PDF or Notes opened only to be shown
+  (`openOriginal`, `openNotes`, `engraveShown`). Recognising is one path, one original at a time (E-sources-1):
+  `canRecognise`, `recognise` through `setReading` (`reading`, the one owner of which original is with the scan server,
+  held also by `Workspace/ScoreMarkedReading`'s «Распознать заново с отметками», v1.6 c-14b3), then `keepRecognised`
+  under the literal call name (`sources.notes.recognise`, `.notes.hear`, read by the facade-calls contract test; with
+  `keptPdf`, also the marked reading's). The first notes of a piece with none, the first pages of a
+  piece that is only its recording, and a removal that takes a version away open the piece again in place (`tell`,
+  `reopen`, the toast handed over). The recording heard (`performance`) is handed to the next screen of the file
+  (`handOver`, `takeHanded`, `leave`, `switchReturned`, `handedAway`, `putAway`).
+- `SourcesRecognising.swift`: the readers of `recognise`, which write no state: `readPages` (the scan server),
+  `hearRecording` (progress told back), `hearFields`, `gridHint`, `hint`, `jobPlanLine`, `readingOther`; `Recognised`,
+  `Refusal`, `noScanServer`, `toastText` (music-core's lines of the corrections carried, "carried", and of the marks
+  «что не так» used, "marked", v1.6 c-14b3).
+- `SourcesHandover.swift`: `SourcesToast` and `SourcesHandover`, what the next screen of the same file is handed (the
+  toast, the view, the switch, the recording).
+- `SourcesDrafts.swift` (ADR 0034): the drafts' steps on the controller (`addToDraft`, `createWithRecording`,
+  `findNewOnRecording`, rename, remove, open, the places' and seams' steps undone by `drafts.undo`); one at a time
+  (`stepping`, written only there); collage into another file's draft (`addedElsewhere`).
+- `OriginalsController.swift`, `Originals.swift` (`OriginalEntry`, `OriginalBadge`, `OriginalAway`, `OriginalLink`),
+  `KeptCopies.swift`: where an original's bytes are, a link to it in Files checked by size and date, and «Привязать
+  оригинал» (`sources.relink`, `sources.held`).
+- `RecordingListening.swift`: the recording's sound (`.shared`): counts the capsules showing it and stops at none unless
+  handed over; a call, the background or the headphones gone pause it (`EngineKeeper`).
+
+## Views
+
+- `SourcesRows.swift`: `SourcesRow` (what the sheet hands the rows: the view shown, the scan server, the actions,
+  `Picking`), `SourcesGroupCard`, `SourcesOriginalRow`, `SourcesNotesRow`, `SourcesDraftRow`, `SourcesCaption`.
+- `SourcesRecognise.swift`: `SourcesRecogniseButton` and `SourcesRecognisePanel` (`Offer`: what it needs, where it
+  goes, Send; `pagesOffer`, the words for pages sent, also Check's marked reading's; `hearLine`, `timedBy`), Send →
+  `SourcesController.recognise`.
+- `SourcesDialogs.swift` (`SourcesDialogs`, `DraftDialogs`), `DeleteOriginalDialog.swift`, `OriginalsViews.swift`
+  (`OriginalPlaceLabel`).
+- `SourcesSwitch.swift`: the switch of views in the bar (`SourcesViewSwitch`, `SourcesViewMenu`), `SourcesButton`,
+  `SourcesToastView`, `UndoToast`.
+- `PerformancePlayer.swift`: `PerformanceCapsule` (the recording heard over the view shown, `heardOver`) and
+  `RecordingViewCapsule`.
+- Drafts: `DraftSheet.swift` (`DraftChoice`, the «В черновик» sheet, `DraftElsewhereToast`), `DraftStructure.swift`
+  (`DraftRecordingOffer`, `DraftLengthChoice`), `DraftTechniques`, `DraftSeams`, `DraftAnchors` (the draft view's
+  models), `OtherPieceDrafts.swift`.
 
 ## The contract others may rely on
 
-- `SourceLayers` holds only what music-core answered (`tests/contracts/facade-answers/sources.layers.json`, decoded by
+- `SourceLayers` and `VersionShelf` hold only what music-core answered
+  (`tests/contracts/facade-answers/sources.layers.json`, `performance.taken.json`, decoded by
   `FacadeAnswerFixturesTests`); every request of the sheet carries `"device": "ipad"` and `"here"`.
-- `VersionShelf` likewise (taken bars: `performance.taken.json`).
 
 ## The state it owns
 
-`SourcesModel`: `versions` (`VersionShelf`), `status`, `markerPick`, `engraved` and the piece's sources (`info`,
-`SourcesInfo`, since S7c), set only through its methods; the views observe it:
-[ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes of S4 to S7c. `SourcesController`: the layers of 0030.
+`SourcesModel`: its five values, set only by its methods. `SourcesController`: the layers, `status`, `toast`,
+`reading` and `progress` (only `recognise`), `fresh`, `performance`, `stepping`. The views observe them.
 
 ## Baseline entries that protect it
 
-UX baseline: `VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`); `VIEW-06`, a
-version's marker opens Sources (`Baseline/WorkspaceScenarioTests`). Tests: `MotiffLabTests/OriginalsTests` (`addWord`,
-`canRecognise`).
+`VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`); `VIEW-06`, a version's marker
+opens Sources (`Baseline/WorkspaceScenarioTests`); the drafts' (`DraftsBaselineTests`, `Drafts12BaselineTests`). Tests:
+`SourcesModelTests`, `OriginalsTests`, `DraftsTests`; the baseline adds a version through `SourcesBaselineNames`.

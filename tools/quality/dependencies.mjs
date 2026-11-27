@@ -10,10 +10,12 @@
 //    reports a file that names a type of a folder it may not use. Today's edges are in the ratchet's baseline.
 // 4. music-core's namespaces use only the namespaces of the layers below their own (CORE_LAYERS), so no two use each
 //    other, directly or round a loop: the compiler allows such a loop within one project.
+// 5. The shared TypeScript's folders (src/shared/Scripts/<folder>) import only the folders SCRIPT_FOLDER_USES allows, so
+//    no two use each other, directly or round a loop (the audit's L7, W3.11): tsc and the browser allow such a loop.
 import { posix } from 'node:path';
 
 export const CORE = 'src/backend/MotiffLab.MusicCore';
-const SCRIPTS = 'src/shared/Scripts';
+export const SCRIPTS = 'src/shared/Scripts';
 export const IPAD_PAGES = 'src/ipad/App/Web';
 export const IPAD_PROJECT = 'src/ipad/App/project.yml';
 export const IPAD_FOLDERS = 'src/ipad/App/MotiffLab';
@@ -63,6 +65,21 @@ export const CORE_LAYERS = [
   ['Assistant'],
   ['Facade'],
 ];
+
+/**
+ * Which folder of src/shared/Scripts may import which, type-only imports included (the audit's W3.11): `selection` holds
+ * the pure selection rules and the pages' hold timing and imports nothing; `playback` reads the hold timing; `score` and
+ * `roll` draw on the rest, and the roll reads the score's modes, timeline and playheads. A folder may always import its
+ * own modules. The table has no loop (tools/quality/dependencies.test.mjs checks it).
+ */
+export const SCRIPT_FOLDER_USES = {
+  storage: [],
+  selection: [],
+  layout: ['storage'],
+  playback: ['selection'],
+  score: ['selection', 'playback', 'layout'],
+  roll: ['score', 'selection', 'playback', 'layout'],
+};
 
 const CORE_FORBIDDEN = /^(Microsoft\.AspNetCore|Microsoft\.JSInterop|Microsoft\.Extensions\.AI|Microsoft\.Identity|Azure|OpenAI|System\.Net\.Http)\b/;
 
@@ -272,14 +289,28 @@ export function bundledFolders(projectYml) {
   return new Set([...projectYml.matchAll(/wwwroot\/js\/([\w-]+)\s*$/gm)].map((m) => m[1]));
 }
 
+// Anywhere on a line, so an import after another statement on it counts too; a dynamic import by a plain string or by a
+// template literal without an interpolation.
+const RUNTIME_IMPORTS = [
+  /\b(?:import|export)[ \t]+(?!type[ \t{])[^;]*?from[ \t]*["'](\.[^"']+)["']/g,
+  /\bimport[ \t]*["'](\.[^"']+)["']/g,
+  /\bimport\(\s*["'](\.[^"']+)["']\s*\)/g,
+  /\bimport\(\s*`(\.[^`$]+)`\s*\)/g,
+];
+const TYPE_IMPORT = /\b(?:import|export)[ \t]+type[ \t{][^;]*?from[ \t]*["'](\.[^"']+)["']/g;
+
 /** The relative modules a file loads when it runs; `import type` and `export type` are erased by the compiler. */
 export function runtimeImports(text) {
+  return importsIn(text, RUNTIME_IMPORTS);
+}
+
+/** Every relative module a file names: what it loads when it runs and what it imports for types only. */
+export function moduleImports(text) {
+  return importsIn(text, [...RUNTIME_IMPORTS, TYPE_IMPORT]);
+}
+
+function importsIn(text, patterns) {
   const out = [];
-  const patterns = [
-    /^[ \t]*(?:import|export)[ \t]+(?!type[ \t{])[^;]*?from[ \t]*["'](\.[^"']+)["']/gm,
-    /^[ \t]*import[ \t]*["'](\.[^"']+)["']/gm,
-    /\bimport\(\s*["'](\.[^"']+)["']\s*\)/g,
-  ];
   for (const pattern of patterns) {
     for (const m of text.matchAll(pattern)) {
       out.push({ spec: m[1], line: lineAt(text, m.index + m[0].indexOf(m[1])) });
@@ -326,6 +357,34 @@ function resolveImport(from, spec) {
       : posix.join(IPAD_PAGES, spec);
   }
   return posix.join(posix.dirname(from), spec.replace(/\.js$/, '.ts'));
+}
+
+/**
+ * Each import of a module in another folder of src/shared/Scripts that the file's folder may not use (rule
+ * "script-folder", one violation per import, the symbol "<folder>: <used folder>"), and each file in a folder the table
+ * does not list (rule "script-folder-unlisted").
+ */
+export function scriptFolderViolations(files, read, uses = SCRIPT_FOLDER_USES) {
+  const out = [];
+  for (const file of files.filter((name) => name.startsWith(`${SCRIPTS}/`) && name.endsWith('.ts'))) {
+    const folder = posix.relative(SCRIPTS, file).split('/')[0];
+    if (!(folder in uses)) {
+      out.push(violation('script-folder-unlisted', file, folder, 1, `${file} is in a folder of ${SCRIPTS} that `
+        + 'SCRIPT_FOLDER_USES (tools/quality/dependencies.mjs) does not list: add it with the folders it may import.'));
+      continue;
+    }
+    for (const { spec, line } of moduleImports(read(file))) {
+      const target = posix.join(posix.dirname(file), spec);
+      const used = target.startsWith(`${SCRIPTS}/`) ? posix.relative(SCRIPTS, target).split('/')[0] : null;
+      if (used !== null && used !== folder && !uses[folder].includes(used)) {
+        out.push(violation('script-folder', file, `${folder}: ${used}`, line, `${file} (${folder}/) imports ${spec} from `
+          + `${used}/; ${folder}/ may import ${uses[folder].length ? uses[folder].join(', ') : 'nothing of another folder'} `
+          + '(SCRIPT_FOLDER_USES in tools/quality/dependencies.mjs). Move the rule to the folder both may use, so no '
+          + 'two folders import each other.'));
+      }
+    }
+  }
+  return out;
 }
 
 // ---- The iPad app's folders ---------------------------------------------------------------------------------

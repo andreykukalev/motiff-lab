@@ -5,9 +5,9 @@
 // goes to Swift, which keeps it as music-core's highlights; nothing here changes the selection. The eraser takes the
 // colour from the cells of the grid it passes over where a highlight is drawn. Pure; nothing here touches the DOM.
 
-import type { Rect } from "./score-geometry.js";
-import type { TickRange } from "./selection-gesture.js";
-import { drawnRange } from "./selection-places.js";
+import type { Rect } from "./page-reader.js";
+import type { TickRange } from "../selection/selection-gesture.js";
+import { drawnRange } from "../selection/selection-places.js";
 
 /** A highlight as the page draws it: its span in ticks and the boxes of its band. */
 export interface PaintedBand extends TickRange {

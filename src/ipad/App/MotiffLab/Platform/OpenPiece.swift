@@ -1,5 +1,6 @@
 import Foundation
 import PDFKit
+import UniformTypeIdentifiers
 
 /// A piece open in music-core: its number in the facade, its title, its score's pages and its project file.
 struct OpenPiece: Identifiable, Sendable {
@@ -102,6 +103,17 @@ struct OpenPiece: Identifiable, Sendable {
         if let pdf { fields["pdf"] = pdf.base64EncodedString() }
         return fields
     }
+
+    /// What the library opens from Files: MIDI, MusicXML (plain and compressed), a PDF to read as it is (0023) and Motiff
+    /// Lab project files.
+    static let openable: [UTType] = [
+        .midi,
+        .pdf,
+        UTType(filenameExtension: "musicxml") ?? .xml,
+        UTType(filenameExtension: "mxl") ?? .data,
+        .xml,
+        .json,
+    ]
 
     /// The example piece in the app: Für Elise, the whole piece, the web app's own (src/shared/Playback/FurElise.musicxml).
     static var example: (fileName: String, data: Data, title: String)? {

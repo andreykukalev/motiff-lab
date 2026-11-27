@@ -235,8 +235,9 @@ public class EditsAndMetersFormatTests
 
     /// <summary>
     /// Every field a project file holds has its class for the merge (0026 S8): the top-level fields of every golden this
-    /// build reads and of the files it writes, the fields of a version 16 file's workspace and Notes, and the fields within
-    /// one that a version added on its own.
+    /// build reads and of the files it writes, the fields of a version 16 file's originals, workspace and Notes and of a
+    /// Notes' scan (where a field with none is a later build's, the player's), and the fields within one that a version
+    /// added on its own.
     /// </summary>
     [Fact]
     public void Every_field_of_the_file_has_a_class_for_the_merge()
@@ -251,7 +252,9 @@ public class EditsAndMetersFormatTests
         {
             IEnumerable<string> fields = file.Select(entry => entry.Key)
                 .Concat(file["workspace"] is JsonObject workspace ? workspace.Select(entry => "workspace." + entry.Key) : [])
-                .Concat(file["notes"] is JsonArray notes ? notes.SelectMany(entry => entry!.AsObject().Select(field => "notes." + field.Key)) : []);
+                .Concat(file["notes"] is JsonArray notes ? notes.SelectMany(entry => entry!.AsObject().Select(field => "notes." + field.Key)) : [])
+                .Concat(file["notes"] is JsonArray scanned ? scanned.SelectMany(entry => entry!["scan"] is JsonObject scan ? scan.Select(field => "notes.scan." + field.Key) : []) : [])
+                .Concat(file["originals"] is JsonArray originals ? originals.SelectMany(entry => entry!.AsObject().Select(field => "originals." + field.Key)) : []);
             foreach (string field in fields)
             {
                 Assert.True(ProjectSync.Fields.ContainsKey(field), $"\"{field}\" has no class in ProjectSync.Fields.");

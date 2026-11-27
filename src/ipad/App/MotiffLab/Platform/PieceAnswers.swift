@@ -35,8 +35,9 @@ struct SelectionAnswer: Decodable, Sendable {
     }
 }
 
-/// The phrases of the piece (`Answer.Phrases`): `phrases` and `phrases.edit`. The units are read as before they were typed:
-/// every field but "units" with the default it had, and a unit without its number, onset or end left out.
+/// The phrases of the piece (`Answer.Phrases`): `phrases`, `phrases.edit` and `phrases.reattach`. The units are read as
+/// before they were typed: every field but "units", "anchors" and "unmatched" with the default it had, and a unit without
+/// its number, onset or end left out.
 struct PhrasesAnswer: Decodable, Sendable {
     struct Unit: Decodable, Sendable {
         let number: Int?
@@ -111,6 +112,25 @@ struct PhrasesAnswer: Decodable, Sendable {
         var span: [Double] { [selectable?.onset ?? onset, selectable?.end ?? end] }
     }
 
+    /// A phrase anchor something is attached to (#318, `Answer.Anchors`): its id, the span it was minted on, and the number
+    /// of the phrase it is now, null when the notes or their analysis changed so that it is no phrase any more.
+    struct Anchor: Decodable, Equatable, Sendable {
+        let id: String
+        let onset: Double
+        let end: Double
+        let phrase: Int?
+
+        private enum CodingKeys: String, CodingKey { case id, onset, end, phrase }
+
+        init(from decoder: Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            id = try fields.decode(String.self, forKey: .id)
+            onset = try fields.decode(Double.self, forKey: .onset)
+            end = try fields.decode(Double.self, forKey: .end)
+            phrase = try fields.decodeNullable(Int.self, forKey: .phrase)
+        }
+    }
+
     let units: [Unit]
     let sections: [Section]?
     /// The player's edits of the boundaries now, and (from `phrases.edit`) as they were before the edit: one step of Undo.
@@ -119,6 +139,13 @@ struct PhrasesAnswer: Decodable, Sendable {
     /// How many boundaries are the player's own («Ваших границ: N»), and (from `phrases.edit`) the phrases the edit changed.
     let own: Int?
     let changed: [Change]?
+    /// The phrase anchors (#318, within contract 16), and how many of them match no phrase now («Привязать заново»).
+    let anchors: [Anchor]
+    let unmatched: Int
+    /// From `phrases.edit`: the step's number in this opening, which its Undo and Redo send back ("restore" with "step"),
+    /// null for a step music-core no longer keeps. From `phrases.reattach`: how many anchors were attached again.
+    let step: Int?
+    let reattached: Int?
 }
 
 /// The player's edits of the boundaries as music-core answers them ("edits", "previous"): each level's starts added and

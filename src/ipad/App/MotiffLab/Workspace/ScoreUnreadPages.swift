@@ -37,16 +37,8 @@ struct UnreadPage: Equatable, Identifiable {
     /// own at the bar beside its place, or its words added to the label of the flag that bar has already, so two never lie
     /// on one another. A tap opens Check, which offers «Повторить» (`UnreadPagesCheck`).
     static func marked(_ flags: [[String: Any]], _ pages: [UnreadPage], _ text: UIText) -> [[String: Any]] {
-        var all = flags
-        for page in pages {
-            // E-scan-1: one flag on a bar, its label telling both.
-            if let index = all.firstIndex(where: { $0["bar"] as? Int == page.bar }) {
-                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(page.line(text))"
-            } else {
-                all.append(["bar": page.bar, "tick": page.tick, "label": page.line(text)])
-            }
-        }
-        return all
+        // E-scan-1: one flag on a bar, its label telling both.
+        CheckModel.adding(pages.map { (bar: $0.bar, tick: $0.tick, label: $0.line(text)) }, to: flags)
     }
 }
 
@@ -62,14 +54,14 @@ extension ScoreController {
     var unreadPages: [UnreadPage] {
         if let item = unreadRecognition {
             guard item.state == .done, let unread = item.unread, let read = item.read else { return [] }
-            return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+            return UnreadPage.of(unread: unread, read: read, starts: checkModel.check.pageStarts)
         }
-        return UnreadPage.of(unread: check.unreadPages, read: check.readPages, starts: check.pageStarts)
+        return UnreadPage.of(unread: checkModel.check.unreadPages, read: checkModel.check.readPages, starts: checkModel.check.pageStarts)
     }
 
     /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
     func unreadPagesCheck(_ text: UIText) -> some View {
-        UnreadPagesCheck(score: self, text: text)
+        UnreadPagesCheck(score: self, checkModel: checkModel, text: text)
     }
 }
 
@@ -78,12 +70,14 @@ extension ScoreController {
 /// recognition has them; pages kept only with the notes (project file 18) are shown without it.
 struct UnreadPagesCheck: View {
     @ObservedObject var score: ScoreController
+    /// Where the notes' pages start (`check`'s "pageStarts"), which places the pages, and the pages kept with the notes.
+    @ObservedObject var checkModel: CheckModel
     let text: UIText
     @ObservedObject private var queue = RecognitionQueue.shared
 
     var body: some View {
         let item = score.unreadRecognition
-        let kept = item?.unread ?? score.check.unreadPages
+        let kept = item?.unread ?? checkModel.check.unreadPages
         if !kept.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["recognition.unreadHeading"]).overline()

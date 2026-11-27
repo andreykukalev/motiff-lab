@@ -1,4 +1,5 @@
 import PDFKit
+import SwiftUI
 import UIKit
 
 /// Where a PDF's pages rest under the floating bar (#495 UX-12), as the notes' pages do (Web/score.css `--pad-top`,
@@ -56,6 +57,16 @@ final class BarPdfView: PDFView {
         holdUntilPlaced()
         waiting = (page, 0)
         setNeedsLayout()
+    }
+
+    /// Shows the PDF loaded again (a page photographed again, `PhotoReadingPanel`) in place of the pages shown, `page` (from
+    /// 1) brought under the bar; the document shown already stays as it is. Before, the old pages stayed in view, and the
+    /// ink and the bookmarks' tabs went onto the document loaded again, which was not shown.
+    func show(_ document: PDFDocument, at page: Int) {
+        guard self.document !== document else { return }
+        self.document = document
+        autoScales = true
+        if let start = document.page(at: max(0, min(page, document.pageCount) - 1)) { rest(on: start) }
     }
 
     /// Comes back to where the player left the pages (PDF | Notes, #511 section 10): the zoom they chose, then the page and the
@@ -189,5 +200,85 @@ final class BookmarkTab: PDFAnnotation {
         context.setFillColor(fill)
         context.fillPath()
         context.restoreGState()
+    }
+}
+
+/// The pages in one continuously scrolling document (0018 section 2): one column in portrait, two to a row in landscape,
+/// on the desk, each at its own proportions; PDFKit draws pages as they come near and lets go of them when far.
+struct PdfPages: UIViewRepresentable {
+    let document: PDFDocument
+    let twoUp: Bool
+    /// Where the floating bar ends, from the top of the pages' view, as it is laid out: the pages rest below it (#495 UX-12).
+    let barBottom: CGFloat
+    let controller: PdfController
+
+    func makeCoordinator() -> Coordinator { Coordinator(controller: controller) }
+
+    func makeUIView(context: Context) -> BarPdfView {
+        let view = BarPdfView()
+        view.barBottom = barBottom
+        view.displayDirection = .vertical
+        view.displayMode = twoUp ? .twoUpContinuous : .singlePageContinuous
+        view.displaysPageBreaks = true
+        view.pageShadowsEnabled = true
+        view.pageBreakMargins = UIEdgeInsets(top: CGFloat.ds("s-4"), left: CGFloat.ds("s-4"), bottom: CGFloat.ds("s-4"), right: CGFloat.ds("s-4"))
+        view.backgroundColor = DesignTokens.dynamicColor("desk")
+        view.document = document
+        view.autoScales = true
+        controller.view = view
+        context.coordinator.watch(view)
+        // Out of SwiftUI's update (#675): attaching the pen puts away the colour bar's tool, a published value; nothing if
+        // the screen has gone by then.
+        DispatchQueue.main.async { [weak controller, weak view] in
+            if let controller, let view { controller.attach(to: view) }
+        }
+        // The place the player left the pages at, or the page PDF | Notes landed on: under the bar once the pages are laid out.
+        if let state = controller.startState { view.comeBack(to: state) } else if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
+        return view
+    }
+
+    func updateUIView(_ view: BarPdfView, context: Context) {
+        view.show(document, at: controller.startPage)
+        let mode: PDFDisplayMode = twoUp ? .twoUpContinuous : .singlePageContinuous
+        if view.displayMode != mode {
+            let at = view.currentPage
+            view.displayMode = mode
+            view.autoScales = true
+            if let at { view.rest(on: at) }
+        }
+        view.barBottom = barBottom
+        // The tabs of pages bookmarked since are drawn with the pages again.
+        view.setNeedsDisplay()
+        view.documentView?.setNeedsDisplay()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        let controller: PdfController
+        private weak var view: PDFView?
+
+        init(controller: PdfController) {
+            self.controller = controller
+        }
+
+        func watch(_ view: PDFView) {
+            self.view = view
+            NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewPageChanged, object: view)
+            NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewVisiblePagesChanged, object: view)
+        }
+
+        /// PDFKit says so while SwiftUI updates the view too (a document shown again, the iPad turned: `updateUIView`), so
+        /// the page in view is told on the next turn of the main queue, out of the update (#675).
+        @objc func pageChanged(_ notification: Notification) {
+            DispatchQueue.main.async { [weak self] in self?.tellPage() }
+        }
+
+        private func tellPage() {
+            guard let view, let document = view.document else { return }
+            let visible = view.visiblePages.map { document.index(for: $0) + 1 }.sorted()
+            let first = view.currentPage.map { document.index(for: $0) + 1 } ?? visible.first ?? 0
+            let last = view.displayMode == .twoUpContinuous ? (visible.filter { $0 >= first }.prefix(2).last ?? first) : first
+            controller.shown(first: first, last: last)
+        }
     }
 }

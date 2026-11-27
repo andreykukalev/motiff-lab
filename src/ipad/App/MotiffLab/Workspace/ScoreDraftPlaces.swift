@@ -130,7 +130,7 @@ extension ScoreController {
     /// card goes as a tap beside it would put it away, a version's marker's, a phrase's number's or a draft's; a seam's card
     /// on the draft's map stays (v1.4 a-1, answer 14).
     func closeCardAtMark() {
-        closeMarker()
+        sourcesModel.pickMarker(nil)
         closePhraseMenu()
         draftModel.closeCard()
         if seamsModel.label != nil || seamsModel.picked?.at != nil { seamsModel.close() }
@@ -151,7 +151,7 @@ extension ScoreController {
             return
         }
         sourcesModel.pickMarker(SourcesModel.MarkerPick(bar: bar, left: left, bottom: bottom))
-        showVersionBar(bar)
+        sourcesModel.showVersionBar(bar)
     }
 
     /// A label tapped at `bar`: the place that starts there is selected and comes into view. False when no place of a
@@ -184,7 +184,7 @@ extension ScoreController {
             anchorsModel.close()
             if seamsModel.label != nil { seamsModel.close() }
         }
-        Task { await drawVersions() }
+        Task { await sourcesModel.drawVersions() }
     }
 
     /// «↻ Место»: the current place (`DraftTechniquesModel.place`) selected and played round and round by the playback

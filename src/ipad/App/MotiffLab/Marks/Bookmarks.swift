@@ -343,7 +343,7 @@ struct ContentsDrawer: View {
                             .id(Part.structure)
                         }
                         part(bookmarksTitle) {
-                            ContentsList(contents: contents, score: score, selectionModel: selectionModel, marksModel: score.marksModel, text: text, close: close)
+                            ContentsList(contents: contents, selectionModel: selectionModel, marksModel: score.marksModel, text: text, close: close)
                         }
                         .id(Part.bookmarks)
                         part(text["contents.notesHead"]) {
@@ -400,7 +400,7 @@ struct StructureChips: View {
     var body: some View {
         let found = contents.canAddStructure(sections: contents.sections.count)
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-            FlowRow(spacing: CGFloat.ds("s-2")) {
+            FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                 ForEach(contents.sections) { section in
                     Button {
                         Task { await score.select(section.selectableOnset, section.selectableEnd) }
@@ -425,47 +425,11 @@ struct StructureChips: View {
     }
 }
 
-/// Chips that wrap onto the next line when the row is full.
-struct FlowRow: Layout {
-    var spacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(width: proposal.width ?? .infinity, subviews)
-        return CGSize(width: proposal.width ?? rows.width, height: rows.height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let rows = arrange(width: bounds.width, subviews)
-        for (index, point) in rows.points.enumerated() {
-            subviews[index].place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
-        }
-    }
-
-    private func arrange(width: CGFloat, _ subviews: Subviews) -> (points: [CGPoint], width: CGFloat, height: CGFloat) {
-        var points: [CGPoint] = []
-        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += line + spacing
-                line = 0
-            }
-            points.append(CGPoint(x: x, y: y))
-            x += size.width + spacing
-            line = max(line, size.height)
-            widest = max(widest, x - spacing)
-        }
-        return (points, widest, y + line)
-    }
-}
-
 /// The Contents' bookmarks: search and the order once there are more than three, then the bookmarks by category.
 struct ContentsList: View {
     @ObservedObject var contents: ContentsController
-    @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
-    /// The bookmark gone to, which its entry shows.
+    /// The bookmark gone to, which its entry shows, and going to one.
     @ObservedObject var marksModel: MarksModel
     let text: UIText
     let close: () -> Void
@@ -548,7 +512,7 @@ struct ContentsList: View {
         let on = marksModel.isShown(bookmark.id)
         return HStack(spacing: CGFloat.ds("s-1")) {
             Button {
-                if score.goToBookmark(bookmark.id) { close() }
+                if marksModel.goToBookmark(bookmark.id) { close() }
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(bookmark.title)

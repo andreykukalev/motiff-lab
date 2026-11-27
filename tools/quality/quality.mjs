@@ -32,8 +32,8 @@ import {
   valueIn,
 } from './ratchet.mjs';
 import {
-  CORE, IPAD_FOLDERS, IPAD_PAGES, IPAD_PROJECT, bundledFolders, coreNamespaceViolations, coreViolations, ipadFolderViolations,
-  ipadPageViolations,
+  CORE, IPAD_FOLDERS, IPAD_PAGES, IPAD_PROJECT, SCRIPTS, bundledFolders, coreNamespaceViolations, coreViolations,
+  ipadFolderViolations, ipadPageViolations, scriptFolderViolations,
 } from './dependencies.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -412,6 +412,7 @@ function dependenciesCheck() {
     ...coreNamespaceViolations(gitFiles(`${CORE}/*.cs`), read),
     ...ipadPageViolations(pages, read, exists, bundledFolders(read(IPAD_PROJECT))),
     ...ipadFolderViolations(gitFiles(`${IPAD_FOLDERS}/*.swift`), read),
+    ...scriptFolderViolations(gitFiles(`${SCRIPTS}/*.ts`), read),
   ];
 }
 

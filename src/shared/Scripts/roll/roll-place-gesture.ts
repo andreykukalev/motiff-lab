@@ -1,16 +1,16 @@
 // Selection by where you touch on the roll's Select (#601; report E and F): a press is read by its place, by the score's
-// one rule (score/selection-places.ts), over the whole roll, and nothing waits for a hold. Since v0.6.4 (Andrei's spec 3-5
+// one rule (selection/selection-places.ts), over the whole roll, and nothing waits for a hold. Since v0.6.4 (Andrei's spec 3-5
 // and 19:55Z: one selection, the same on the score and the roll) the selection is a span of time on the workspace, never a
 // matter of the notes under the pointer: from outside a drag draws a dashed rectangle, and the span is what its left and
-// right sides cover on the grid (score/selection-grid.ts: sixteenths, a tuplet one block), notes or none; from inside it
+// right sides cover on the grid (selection/selection-grid.ts: sixteenths, a tuplet one block), notes or none; from inside it
 // extends; an edge, taken anywhere down the roll, moves that boundary alone, to the grid line nearest the pointer. All of it
 // the same on the notes and on the bar numbers. A tap on a note picks that note, a tap elsewhere outside selects its bar, as
 // on the score; a drag of a picked note moves the picked notes as an edit (a draft with Cancel and Save); the lasso (the
 // head's «Рамка | Лассо») still picks the notes it rings, and a span when it rings none. A double tap inside lays the span
 // across the roll (Fit). The roll draws and sends; this decides what the press is. Nothing here touches the DOM.
 
-import { doubleTap, drawnRange, movedEdge, placeAt, placeChange, placeEnded, placeMoved, placePress, type Place, type PlaceEnd, type PlaceGesture, type Tap } from "../score/selection-places.js";
-import { DRAG_DISTANCE, extendedRange, nextGestureId, type TickRange } from "../score/selection-gesture.js";
+import { doubleTap, drawnRange, movedEdge, placeAt, placeChange, placeEnded, placeMoved, placePress, type Place, type PlaceEnd, type PlaceGesture, type Tap } from "../selection/selection-places.js";
+import { DRAG_DISTANCE, extendedRange, nextGestureId, type TickRange } from "../selection/selection-gesture.js";
 import type { RollNote } from "./roll-model.js";
 import { addedPicks, keptSteps, moveSteps, notesInShape, pickedSpan, type PickShape, type RollPoint, type TickSpan } from "./roll-place.js";
 

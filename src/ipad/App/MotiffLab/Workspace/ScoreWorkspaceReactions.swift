@@ -17,7 +17,7 @@ extension ScoreWorkspace {
 
     /// Whether the circle's scale sounds now, which its button in Insights shows (the reaction on `player.hearingAlone`).
     func hearingAloneChanged(_ alone: Bool) {
-        insights.scaleHeard = alone
+        insights.hearingAloneChanged(alone)
     }
 
     /// Room under the last page for whatever covers the bottom of the score; `height` is what the view measured.
@@ -87,7 +87,7 @@ extension ScoreWorkspace {
         roll.bind(nil)
         if panels.rollEditsGoWithCard {
             // The roll in focus put away, not back to the drawer: its unsaved edits go, as the drawer's do.
-            score.cancelNoteEdit()
+            score.checkModel.cancelNoteEdit()
         }
     }
 
@@ -100,14 +100,21 @@ extension ScoreWorkspace {
         } else if panels.rollEditsGoWithDrawer {
             // Edits are kept only by Save: the drawer put away with the editor open leaves them, as Cancel does.
             // Expand takes the editor into the roll in focus, with its draft (#479 item 23).
-            score.cancelNoteEdit()
+            score.checkModel.cancelNoteEdit()
         }
     }
 
     /// A bar checked, or to check again: the facts on its notes say so, or no longer do (#352). The reaction on
-    /// `score.check`.
+    /// `score.checkModel.check`.
     func checkChanged() {
         Task { await insights.reread() }
+    }
+
+    /// The phrase anchors changed (an edit of the boundaries carries them and may join two, whose ideas then name the one
+    /// kept; a Keep mints one; a reattach): the ideas are read again, the sheet open or closed, so Insights shows each on its
+    /// phrase when it opens on the same selection (#318). The reaction on `score.selectionModel.phrases?.anchors`.
+    func phraseAnchorsChanged() {
+        Task { await insights.loadIdeas(of: piece.id) }
     }
 
     /// Insights opened or closed (the reaction on `panels[.insights]`).
@@ -126,7 +133,7 @@ extension ScoreWorkspace {
     /// The device's settings changed in the sheet: the score and the roll follow at once. The reaction on
     /// `settings.values`.
     func settingsChanged() {
-        score.settingsChanged()
+        score.marksModel.deviceSettingsChanged()
         roll.settingsChanged()
     }
 
@@ -137,7 +144,7 @@ extension ScoreWorkspace {
 
     /// Check opened or closed (the reaction on `panels[.check]`): its flags show while it is open.
     func checkDrawerChanged(_ open: Bool) {
-        score.checkDrawerOpen = open
+        score.checkModel.drawerOpen = open
         apply(.check(open))
     }
 

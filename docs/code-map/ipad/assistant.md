@@ -40,7 +40,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   A turn leaves out the oldest exchanges beyond `maxBytes` too (`AssistantChat.request`, v1.4). Its own consent: `draftConsentKey`, `AssistantConsent.Wording.draft`. The view: Workspace's
   `DraftAssistant.swift`.
 - `AssistantDrafts.swift` (the proposer, the only role since v0.6.5): the drafts a question's tools made, Accept by
-  `corrections.acceptDraft` (`ScoreController.acceptAssistantDraft`).
+  `corrections.acceptDraft` (`CheckModel.acceptAssistantDraft`).
 
 ## The contract others may rely on
 

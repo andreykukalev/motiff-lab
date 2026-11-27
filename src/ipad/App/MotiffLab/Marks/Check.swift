@@ -26,26 +26,6 @@ struct UncertainLengthsEntry: Identifiable, Equatable, Sendable {
     var id: Int { bar }
 }
 
-/// One page of a scan the server reported on, as `check` counts it (v0.4, within contract 12): its place in the notes from
-/// 1, its quality ("good", "weak" or "poor"), how far the server turned it, its bars and how many of them are doubtful, and
-/// its first and last bar (nil without bars).
-struct CheckPageEntry: Identifiable, Equatable, Sendable {
-    var page: Int
-    var quality: String
-    var rotation: Int
-    var bars: Int
-    var doubtful: Int
-    var firstBar: Int?
-    var lastBar: Int?
-    var id: Int { page }
-
-    /// The bars to show for the page.
-    var barRange: ClosedRange<Int>? {
-        guard let firstBar, let lastBar, firstBar <= lastBar else { return nil }
-        return firstBar...lastBar
-    }
-}
-
 extension PageSummaryLine {
     /// «Страница 4: 9 из 12 тактов под вопросом», for a page as `check` counts it.
     static func of(_ page: CheckPageEntry, _ text: UIText) -> PageSummaryLine {
@@ -62,6 +42,8 @@ struct CheckShelf: Equatable, Sendable {
         var flags: [CheckFlagEntry]
         var id: Int { bar }
         var span: Range<Double>? { flags.lazy.compactMap(\.span).first }
+        /// The bar shows its crop and the engines' readings when selected (`CheckShelf.reviewed`).
+        var reviewed: Bool { flags.contains { CheckShelf.reviewed.contains($0.reason) } }
     }
 
     /// A piece of the pieces layer with its flagged bars, open and in all (version 0.5, `check` "pieces"): Check by piece.
@@ -95,6 +77,8 @@ struct CheckShelf: Equatable, Sendable {
     /// The working notes' music by its SHA-256 (v1.3 i-2), as `scan.join` named the score: what this iPad keeps of a scan's
     /// bars to check is found by it (`ScanReviewStore`).
     var fingerprint: String?
+    /// The player's marks «что не так» on notes read from a PDF or photos (v1.6 c-14b3), in bar order; empty for others.
+    var marks: [ReadingMarkEntry] = []
 
     init() {}
 
@@ -143,16 +127,25 @@ struct CheckShelf: Equatable, Sendable {
         pageStarts = CheckPageStart.all(object["pageStarts"])
         unreadPages = (object["unreadPages"] as? [NSNumber] ?? []).map(\.intValue)
         readPages = (object["readPages"] as? [NSNumber] ?? []).map(\.intValue)
+        marks = ReadingMarkEntry.all(object["marks"])
     }
 
     var hasFlags: Bool { !flags.isEmpty }
 
-    /// Something to check: a flag, or a recording's notes of uncertain length (#352), which a recording heard without a
-    /// flag can have too; More offers Check for either (E-sheets-1).
-    var hasEntries: Bool { hasFlags || !lengths.isEmpty }
+    /// Something to check: a flag, a recording's notes of uncertain length (#352), which a recording heard without a
+    /// flag can have too, or a mark «что не так» (v1.6 c-14b3); More offers Check for any (E-sheets-1).
+    var hasEntries: Bool { hasFlags || !lengths.isEmpty || !marks.isEmpty }
+
+    /// Notes read from a PDF or photos take marks «что не так»; music-core refuses them on others (`check.mark`).
+    var takesMarks: Bool { origin == "scanned" }
 
     /// The reason of a scan's bar no two engines agree on some staff of (v1.3), as `check` writes music-core's CheckReason.
     static let enginesDisagree = "enginesDisagree"
+    /// The reason of a scan's bar read again by another engine (v1.6 c-14b3: one the player marked as read badly).
+    static let readAgain = "readAgain"
+    /// The reasons whose bar shows its crop and the engines' readings (`ScanReviewBlock`), so the player can take another
+    /// reading, the earlier one included (`corrections.variant`).
+    static let reviewed: Set<String> = [enginesDisagree, readAgain]
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
@@ -270,18 +263,24 @@ struct NoteCorrections: Equatable, Sendable {
 /// The Check drawer (0018 section 9, the web app's `.check-sheet`): where the doubts come from, the bars still to check with
 /// their reasons, Show, Fix notes and Looks right, a recording's note lengths to check, then the bars checked, to check
 /// again. Over the right of the page in landscape and the lower half in portrait, as Insights.
-struct CheckDrawer: View {
-    @ObservedObject var score: ScoreController
+struct CheckDrawer<MarksReading: View>: View {
+    /// The score, for the parts of Check about a scan's pages, which select on it.
+    let score: ScoreController
+    @ObservedObject var checkModel: CheckModel
     @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
+    /// «Что не так?» on notes read from a PDF (v1.6 c-14b3): false on notes only shown, which take no marks (E-scan-16).
+    let marking: Bool
+    /// «Распознать заново с отметками» under the marks (built by Workspace, `MarkedReadingCheck`).
+    let marksReading: MarksReading
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
     /// The piece of the layer the list keeps to, after Open (version 0.5, Check by piece), by its first bar; nil for every piece.
     @State private var shownPiece: Int?
 
     var body: some View {
-        let check = score.check
+        let check = checkModel.check
         let how = check.how(text)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
@@ -318,7 +317,7 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
-                    if !score.editsOn {
+                    if !checkModel.editsOn {
                         // «Мои правки» off (version 0.5): the notes are as recognised and Fix notes waits for them on.
                         Text(text["edits.off"])
                             .dsType(.caption)
@@ -326,9 +325,10 @@ struct CheckDrawer: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
-                    PhotoPagesCheck(score: score, text: text)
+                    PhotoPagesCheck(pages: check.pages, text: text) { score.selectBars($0.lowerBound, $0.upperBound, extend: false) }
                     // The PDF's pages no engine read, at their place, with «Повторить» (v1.5 i-7; built by Workspace).
                     score.unreadPagesCheck(text)
+                    ReadingMarksSection(checkModel: checkModel, marking: marking, text: text, reading: marksReading)
                     if !check.pieces.isEmpty {
                         // Check by piece (version 0.5): the pieces of the layer with their bars to check.
                         Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))
@@ -387,7 +387,7 @@ struct CheckDrawer: View {
                         .accessibilityAddTraits(shown ? .isSelected : [])
                 }
                 if piece.open > 0 {
-                    Button(text["scanCheck.looksRight"]) { score.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
+                    Button(text["scanCheck.looksRight"]) { checkModel.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
                         .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                 }
             }
@@ -401,15 +401,10 @@ struct CheckDrawer: View {
 
     private func openEntry(_ bar: CheckShelf.BarFlags) -> some View {
         let selected = selectionModel.selection?.firstBar == bar.bar
-        let fixing = score.corrections?.bar == bar.bar
+        let fixing = checkModel.corrections?.bar == bar.bar
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             HStack(spacing: CGFloat.ds("s-2")) {
-                Text("?")
-                    .font(DesignTokens.font(weight: 700, size: 11))
-                    .foregroundStyle(Color.ds("notation"))
-                    .frame(width: 18, height: 18)
-                    .background(Color.ds("warning-fill"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
-                    .accessibilityHidden(true)
+                CheckFlagSign()
                 Text(text.format("check.bar", String(bar.bar)))
                     .font(DesignTokens.font(weight: 600, size: 15))
                     .foregroundStyle(Color.ds("ink"))
@@ -421,25 +416,30 @@ struct CheckDrawer: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            // The bar tapped where the scan's engines disagree (v1.3 i-2): its crop and the engines' readings.
-            if selected, let review = score.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
+            // The bar tapped where the scan's engines disagree (v1.3 i-2) or one read it again (v1.6 c-14b3): its crop and readings.
+            if selected, let review = checkModel.scanReview, bar.reviewed {
                 ScanReviewBlock(
-                    entry: review.bar(bar.bar), crop: score.scanCrops[bar.bar], bar: bar.bar, chosen: score.variantChoice.engines(in: bar.bar),
-                    editsOn: score.editsOn, text: text, choose: { score.chooseVariant($0, bar: bar.bar) }, undo: { score.undoVariant() }
+                    entry: review.bar(bar.bar), crop: checkModel.scanCrops[bar.bar], bar: bar.bar, chosen: checkModel.variantChoice.engines(in: bar.bar),
+                    editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
                 )
             }
-            HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+            FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
+                Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(bar.span == nil)
-                Button(text["check.fix"]) { score.fixCheckBar(bar.bar) }
+                Button(text["check.fix"]) { checkModel.fixCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    .disabled(bar.span == nil || !score.editsOn)
-                Button(text["scanCheck.looksRight"]) { score.resolveCheck(bar.bar, true) }
+                    .disabled(bar.span == nil || !checkModel.editsOn)
+                // What the page prints there, for the next reading of notes read from a PDF (v1.6 c-14b3).
+                if marking && checkModel.check.takesMarks {
+                    WhatsWrongMenu(checkModel: checkModel, bars: bar.bar...bar.bar, text: text)
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
+                Button(text["scanCheck.looksRight"]) { checkModel.resolveCheck(bar.bar, true) }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }
-            if fixing, let corrections = score.corrections {
-                CorrectionsList(score: score, corrections: corrections, text: text)
+            if fixing, let corrections = checkModel.corrections {
+                CorrectionsList(checkModel: checkModel, corrections: corrections, text: text)
             }
         }
         .padding(CGFloat.ds("s-3"))
@@ -467,7 +467,7 @@ struct CheckDrawer: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+            Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(bar.span == nil)
         }
@@ -487,10 +487,10 @@ struct CheckDrawer: View {
                     .foregroundStyle(Color.ds("ink-2"))
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+                Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     .disabled(bar.span == nil)
-                Button(text["scanCheck.again"]) { score.resolveCheck(bar.bar, false) }
+                Button(text["scanCheck.again"]) { checkModel.resolveCheck(bar.bar, false) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     .accessibilityHint(text["scanCheck.againHint"])
             }
@@ -503,7 +503,7 @@ struct CheckDrawer: View {
 /// later, shorter or longer, softer or louder, taken out or put back as imported; the last correction undone; the notes
 /// taken out, to put back. Each correction is kept with the piece, and the score is engraved again.
 struct CorrectionsList: View {
-    @ObservedObject var score: ScoreController
+    let checkModel: CheckModel
     let corrections: NoteCorrections
     let text: UIText
 
@@ -511,7 +511,7 @@ struct CorrectionsList: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["correct.hint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["correct.undo"]) { score.undoCorrection() }
+                Button(text["correct.undo"]) { checkModel.undoCorrection() }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(corrections.count == 0)
                     .accessibilityHint(text["correct.undoHint"])
@@ -524,7 +524,7 @@ struct CorrectionsList: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
                 ForEach(corrections.removed) { removed in
-                    Button(text.format("correct.revertAt", removed.name, removed.place.text(text))) { score.revertNote(removed.id) }
+                    Button(text.format("correct.revertAt", removed.name, removed.place.text(text))) { checkModel.revertNote(removed.id) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
             }
@@ -547,19 +547,19 @@ struct CorrectionsList: View {
                 Text(text["performance.takenNote"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             } else {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    stepper(text["notes.note"], note.name, down: (text["notes.lower"], true), up: (text["notes.higher"], true)) { score.correctNote(note.id, pitch: $0) }
-                    stepper(text["notes.where"], "", down: (text["notes.earlier"], note.canEarlier), up: (text["notes.later"], true)) { score.correctNote(note.id, onset: $0) }
+                    stepper(text["notes.note"], note.name, down: (text["notes.lower"], true), up: (text["notes.higher"], true)) { checkModel.correctNote(note.id, pitch: $0) }
+                    stepper(text["notes.where"], "", down: (text["notes.earlier"], note.canEarlier), up: (text["notes.later"], true)) { checkModel.correctNote(note.id, onset: $0) }
                 }
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    stepper(text["notes.length"], note.length, down: (text["notes.shorter"], note.canShorter), up: (text["notes.longer"], true)) { score.correctNote(note.id, length: $0) }
-                    stepper(text["notes.velocity"], String(note.velocity), down: (text["notes.softer"], note.velocity > 1), up: (text["notes.louder"], note.velocity < 127)) { score.correctNote(note.id, velocity: $0) }
+                    stepper(text["notes.length"], note.length, down: (text["notes.shorter"], note.canShorter), up: (text["notes.longer"], true)) { checkModel.correctNote(note.id, length: $0) }
+                    stepper(text["notes.velocity"], String(note.velocity), down: (text["notes.softer"], note.velocity > 1), up: (text["notes.louder"], note.velocity < 127)) { checkModel.correctNote(note.id, velocity: $0) }
                 }
                 HStack(spacing: CGFloat.ds("s-2")) {
-                    Button(text["notes.remove"]) { score.removeNote(note.id) }
+                    Button(text["notes.remove"]) { checkModel.removeNote(note.id) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                         .accessibilityHint(text["notes.removeFromPieceHint"])
                     if note.edited {
-                        Button(text["notes.revert"]) { score.revertNote(note.id) }
+                        Button(text["notes.revert"]) { checkModel.revertNote(note.id) }
                             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                             .accessibilityHint(text["notes.revertHint"])
                     }

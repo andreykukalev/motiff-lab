@@ -128,6 +128,39 @@ public class PdfMarksOnlineTests
     }
 
     [Fact]
+    public void Page_marks_two_ipads_made_since_the_base_merge_mark_by_mark_and_the_same_page_on_both_is_a_conflict()
+    {
+        // The second review of c-17a, finding 3: each original's page marks were the copy saved last's and the pull keeps
+        // this iPad's, so a bookmark another iPad made was lost with no conflict and no copy beside.
+        Project ipad = OnIpad(Stroke("k1", 1));
+        Project @base = RoundTrip(ipad.ForOnline()!);
+        Project here = ipad with { DocumentMarks = ipad.DocumentMarks.AddBookmark(1, "Here", s_now, IdSource.Random) };
+        Project online = RoundTrip((ipad with { DocumentMarks = ipad.DocumentMarks.WithInk([Stroke("k1", 1), Stroke("k2", 2)]).AddBookmark(3, "There", s_now, IdSource.Random) }).ForOnline()!);
+        SyncResolution Resolved(Project copy, Project? shared) => ProjectSync.Resolve(here, s_now.AddHours(2), copy, s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad, shared);
+
+        SyncResolution merged = Resolved(online, @base);
+        Assert.Equal([1, 3], merged.Kept.DocumentMarks.Bookmarks.Select(static bookmark => bookmark.Page));
+        Assert.Equal(["k1", "k2"], merged.Kept.DocumentMarks.Ink.Select(static stroke => stroke.Id));
+        Assert.Empty(merged.Conflicts);
+        Assert.Null(merged.PreviousCopy);
+        Assert.True(merged.Upload);
+        Assert.Equal(s_pdf, merged.Kept.Document);
+
+        // The same page bookmarked on both: the copy saved last keeps its own, the other's is kept beside.
+        Project same = RoundTrip((ipad with { DocumentMarks = ipad.DocumentMarks.AddBookmark(1, "Coda", s_now, IdSource.Random) }).ForOnline()!);
+        SyncResolution both = Resolved(same, @base);
+        Assert.Equal(["Here"], both.Kept.DocumentMarks.Bookmarks.Select(static bookmark => bookmark.Name));
+        Assert.Equal([new MergeConflict("originals.marks.bookmarks", "1")], both.Conflicts);
+        Assert.Equal(["Coda"], both.PreviousCopy!.DocumentMarks.Bookmarks.Select(static bookmark => bookmark.Name));
+
+        // With no base, a stroke one took away would come back from a union: the writer's own stand, the other's beside.
+        SyncResolution union = Resolved(online, null);
+        Assert.Equal(here.DocumentMarks, union.Kept.DocumentMarks);
+        Assert.Equal([new MergeConflict("originals.marks", PieceOriginal.DocumentId)], union.Conflicts.Where(static conflict => conflict.In.StartsWith("originals", StringComparison.Ordinal)));
+        Assert.Equal(online.DocumentMarks, union.PreviousCopy!.DocumentMarks);
+    }
+
+    [Fact]
     public void The_ipad_sends_its_page_marks_through_the_facade_and_keeps_them_on_a_pull()
     {
         var facade = new MusicCoreFacade();

@@ -8,7 +8,7 @@ extension DnaScreen {
                 VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                     Text(idea.title).dsType(.heading)
                     Text(idea.summary).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
-                    FlowRow(spacing: CGFloat.ds("s-2")) {
+                    FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                         hearButton(idea.onset..<idea.end)
                         Button(text["dna.inScore"]) { leave(idea.onset..<idea.end, insights: false) }
                             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))

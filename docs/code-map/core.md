@@ -45,7 +45,7 @@ through the facade; the API references it.
   ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync` (its `Resolve` merges two copies per
   entity by `ProjectMerge` over the file's JSON, with `SourcesMerge` for Notes, corrections, versions and drafts, and records
-  `MergeConflict`s, c-17a), `PieceDetails`, `PieceOrigin`;
+  `MergeConflict`s; `MergeRules` says how each part of the file merges, `MergeCheck` is the merge's self-check, c-17a), `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
   read-only since version 18) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
   keeps the unknown fields of workspace entities, `Legacy`); `ScanOrigin` keeps the PDF pages no engine read (`Unread`,

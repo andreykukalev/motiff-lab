@@ -11,6 +11,8 @@ extension PieceCore {
         // The score: Check, the marks and notes, the tempo, where the player was.
         case check = "check"
         case checkResolve = "check.resolve"
+        case checkMark = "check.mark"
+        case checkUnmark = "check.unmark"
         case marks = "marks"
         case noteAdd = "note.add"
         case noteChange = "note.change"
@@ -26,6 +28,7 @@ extension PieceCore {
         // Phrases, the piece's own settings and its bookmarks.
         case phrases = "phrases"
         case phrasesEdit = "phrases.edit"
+        case phrasesReattach = "phrases.reattach"
         case settings = "settings"
         case settingsOverride = "settings.override"
         case bookmarks = "bookmarks"

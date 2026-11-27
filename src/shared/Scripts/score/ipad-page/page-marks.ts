@@ -3,7 +3,8 @@
 // inside a bar; a tap on a marker gives the note to Swift (page-taps.ts). The bars a scan or a transcription is unsure of
 // carry an amber "?" at their top right (`checks`), the notes on the same bar to its left. Each layer of marks can be
 // hidden for a clean page (`layers`).
-import type { Rect, Run, ScoreGeometry } from "../score-geometry.js";
+import type { Rect } from "../page-reader.js";
+import type { Run, ScoreGeometry } from "../score-geometry.js";
 import type { ScoreTimeline } from "../score-timeline.js";
 import type { PageCheck, PageCommands, PageHighlight, PageNote } from "../page-contract.js";
 import { state } from "./page-state.js";

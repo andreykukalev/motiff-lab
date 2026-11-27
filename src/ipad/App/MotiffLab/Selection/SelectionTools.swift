@@ -127,7 +127,7 @@ extension ScoreController {
         switch undoOwner {
         case .ink: penModel.undo()
         case .selection: undoSelection()
-        case .noteEdits: if noteEditor?.canUndo == true { undoNoteEdit() }
+        case .noteEdits: if checkModel.noteEditor?.canUndo == true { checkModel.undoNoteEdit() }
         case .nothing: break
         }
     }
@@ -210,7 +210,7 @@ struct SelectionOptionsRow: View {
 /// The selection menu moved aside (#582 item 7): pressed and dragged with a finger or the Pencil it follows, and let go it
 /// stays there (ScoreController.moveMenu; the page keeps the place inside the window, Scripts/score/menu-drag.ts) until the
 /// menu closes, when the next one opens over its band again. A tap still reaches the menu's buttons: the drag begins only
-/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/score/selection-gesture.ts). A card
+/// once the touch has moved as far as a selection drag does (DRAG_DISTANCE in Scripts/selection/selection-gesture.ts). A card
 /// in the menu with a handle (`menuDragHandle()`, the assistant's chat at the selection) is dragged only by it, so its
 /// answer scrolls (Andrei, 2026-11-18: the whole card's drag took the scroll's pan, by finger and by the Pencil).
 struct MenuDrag: ViewModifier {

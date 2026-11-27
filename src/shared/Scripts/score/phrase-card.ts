@@ -5,7 +5,7 @@
 // phrase wraps to more systems inside the card. Verovio's own label at the ossia's left is left out: the
 // overline names it. Blazor imports this module through JS interop.
 
-import { readPage, staffFrames, type PageGeometry, type Rect } from "./score-geometry.js";
+import { readPage, staffFrames, type PageGeometry, type Rect } from "./page-reader.js";
 import { ScoreTimeline } from "./score-timeline.js";
 import { newToolkit, type VerovioToolkit } from "./verovio.js";
 

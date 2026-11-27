@@ -70,6 +70,11 @@ targets:
       - path: ../../shared/wwwroot/js/playback
         type: folder
         buildPhase: resources
+      # The selection's own rules and the pages' hold timing (Scripts/selection, docs/code-map/selection.md), which the
+      # score, the roll and the playheads all read.
+      - path: ../../shared/wwwroot/js/selection
+        type: folder
+        buildPhase: resources
       # The piano the web app plays (tools/piano): 30 MP3 samples and piano.json.
       - path: ../../shared/wwwroot/audio/piano
         type: folder
