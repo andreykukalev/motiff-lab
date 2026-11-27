@@ -1,5 +1,5 @@
 // Selection by the place of the touch on the score (v0.6.2, #601, the selection study's section D; once the experiment
-// `experimental.placeSelection`; only the iPad turns it on, in Select). The rule is selection-places.ts; this layer
+// `experimental.placeSelection`; only the iPad turns it on, in Select). The rule is selection/selection-places.ts; this layer
 // takes the presses while the host says the rule is on, shows what a gesture would do and hands the result to the owner:
 // an edge's grip moves its edge, with pale target ticks where it can stop; a move from inside extends the selection, the
 // addition dashed; a move from outside draws a new passage (by beats, or bars), narrowed to a hand when the stroke stays
@@ -8,16 +8,16 @@
 // scrolls by itself; a finger beside the stylus scrolls freely meanwhile. The band itself is the selection layer's
 // (`showPlaced`); the edges here replace its dot handles. Since v0.6.3 (#608, the approved mockup) a new passage is drawn
 // with a thin dashed rectangle from the press to the stylus, from anywhere outside the selection, the margin included, and
-// selects what the rectangle covers (selection-rect.ts); the stylus never moves the page while the rule is on.
+// selects what the rectangle covers (selection-rect.ts); the stylus never moves the page while the rule is on. What it
+// shows is drawn by selection-place-draw.ts.
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import type { ScoreBeats } from "./selection-beats.js";
 import { barLines, keyLines } from "./selection-beats.js";
-import { type BandHand, MUSIC_REACH, bandBoxes, handRuns, onMusic, setBox } from "./selection-boxes.js";
+import { type BandHand, MUSIC_REACH, bandBoxes, onMusic } from "./selection-boxes.js";
 import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "../selection/selection-gesture.js";
 import { barlines, tickAt } from "./selection-handles.js";
 import {
-    type EdgeHandle,
     type PlaceEnd,
     type PlaceGesture,
     type PlaceRule,
@@ -34,9 +34,9 @@ import {
     placeMoved,
     placePress,
     scrollStep,
-    targetLines,
 } from "../selection/selection-places.js";
-import { type RectSystem, rectPassage, traceBox } from "../selection/selection-rect.js";
+import { type RectSystem, rectPassage } from "../selection/selection-rect.js";
+import { clearOverlays, drawEdges, drawOverlays } from "./selection-place-draw.js";
 
 /** A passage with the hand it is narrowed to. */
 export interface PlacedRange extends TickRange {
@@ -92,13 +92,6 @@ interface PlaceDrag {
     preview: PlacedRange | null;
     timer: number;
 }
-
-const GHOST_CLASS = "sel-ghost";
-const ADD_CLASS = "sel-add";
-const EDGE_CLASS = "sel-edge";
-const TARGET_CLASS = "sel-target";
-const TRACE_CLASS = "sel-trace";
-const OVERLAYS = [GHOST_CLASS, ADD_CLASS, TARGET_CLASS, TRACE_CLASS];
 
 /** What is pressed for its own sake, never a place of the selection: a phrase's mark, a margin note, a bookmark, a version's label, a Check flag. */
 const OWN_TARGETS = ".phrase-mark, .marker, .bmb, .perf-marker, .check-flag";
@@ -173,19 +166,8 @@ export class PlaceLayer {
         if (this.host.edges === false) {
             return;
         }
-        for (const old of this.root.querySelectorAll(`:scope > .${EDGE_CLASS}`)) {
-            old.remove();
-        }
-        const boxes = bandBoxes(this.root);
-        if (!this.host.on() || boxes.length === 0 || this.drag?.gesture.phase === "draw") {
-            return;
-        }
-        const first = boxes[0];
-        const last = boxes[boxes.length - 1];
-        const [start, end] = edgeHandles(boxes);
-        const hot = this.active() ? this.drag?.gesture.place : undefined;
-        this.root.append(this.edge("start", start, first.top, first.bottom, hot === "edge-start"));
-        this.root.append(this.edge("end", end, last.top, last.bottom, hot === "edge-end"));
+        const shown = this.host.on() && this.drag?.gesture.phase !== "draw";
+        drawEdges(this.root, shown ? bandBoxes(this.root) : [], this.active() ? this.drag?.gesture.place : undefined);
     }
 
     dispose(): void {
@@ -197,18 +179,6 @@ export class PlaceLayer {
         this.root.removeEventListener("touchmove", this.onTouchMove);
         window.removeEventListener("scroll", this.onScroll);
         this.end();
-    }
-
-    /** An edge's line from `top` to `bottom`, its circle at `handle`: where `handleAt` takes a press on it. */
-    private edge(which: "start" | "end", handle: EdgeHandle, top: number, bottom: number, hot: boolean): HTMLElement {
-        const edge = document.createElement("div");
-        edge.className = `${EDGE_CLASS} ${which}${hot ? " hot" : ""}`;
-        edge.setAttribute("aria-hidden", "true");
-        edge.style.left = `${handle.x}px`;
-        edge.style.top = `${top}px`;
-        edge.style.height = `${Math.max(4, bottom - top)}px`;
-        edge.style.setProperty("--handle-y", `${handle.y - top}px`);
-        return edge;
     }
 
     private point(clientX: number, clientY: number): { x: number; y: number } {
@@ -296,7 +266,11 @@ export class PlaceLayer {
         const at = this.point(drag.clientX, drag.clientY);
         drag.preview = this.previewAt(geometry, drag, at);
         this.host.show(drag.gesture.phase === "extend" ? null : drag.preview);
-        this.drawOverlays(geometry, drag, at);
+        drawOverlays(this.root, geometry, {
+            selection: drag.selection, preview: drag.preview, phase: drag.gesture.phase, from: { x: drag.x, y: drag.y }, at,
+            lines: () => this.lines(geometry), lineX: (bar, line) => this.host.beats.lineX(bar, line),
+        });
+        this.decorate();
     }
 
     private previewAt(geometry: ScoreGeometry, drag: PlaceDrag, at: { x: number; y: number }): PlacedRange | null {
@@ -341,76 +315,6 @@ export class PlaceLayer {
             return null;
         }
         return { start: bar.tick, end: bar.end, hand: null };
-    }
-
-    /** The old selection dashed while a new one is drawn, the addition dashed while extending, the targets while an edge moves. */
-    private drawOverlays(geometry: ScoreGeometry, drag: PlaceDrag, at: { x: number; y: number }): void {
-        this.clearOverlays();
-        const selection = drag.selection;
-        const preview = drag.preview;
-        const phase = drag.gesture.phase;
-        // The old selection dashed while a new one would replace it; while the rectangle covers no music it shows as it is.
-        if (selection !== null && preview !== null && (phase === "draw" || phase === "bar")) {
-            this.boxes(GHOST_CLASS, handRuns(geometry, selection.start, selection.end, selection.hand));
-        }
-        if (phase === "draw") {
-            this.boxes(TRACE_CLASS, [traceBox({ x: drag.x, y: drag.y }, at)], false);
-        }
-        if (selection !== null && preview !== null && phase === "extend") {
-            this.boxes(ADD_CLASS, [
-                ...(preview.start < selection.start ? handRuns(geometry, preview.start, selection.start, selection.hand) : []),
-                ...(preview.end > selection.end ? handRuns(geometry, selection.end, preview.end, selection.hand) : []),
-            ]);
-        }
-        if (preview !== null && phase === "edge") {
-            this.targets(geometry, targetLines(preview, this.lines(geometry)), at);
-        }
-        this.decorate();
-    }
-
-    /** Boxes over the score, at least 4 pixels each way (`least`), or exactly as given (the rectangle drawn). */
-    private boxes(className: string, runs: readonly { left: number; right: number; top: number; bottom: number }[], least = true): void {
-        for (const run of runs) {
-            const box = document.createElement("div");
-            box.className = className;
-            box.setAttribute("aria-hidden", "true");
-            if (least) {
-                setBox(box, run);
-            } else {
-                box.style.left = `${run.left}px`;
-                box.style.top = `${run.top}px`;
-                box.style.width = `${run.right - run.left}px`;
-                box.style.height = `${run.bottom - run.top}px`;
-            }
-            this.root.append(box);
-        }
-    }
-
-    /** Pale ticks on the system under the pointer, at each line the moving edge can stop at. */
-    private targets(geometry: ScoreGeometry, lines: readonly number[], at: { x: number; y: number }): void {
-        const system = geometry.barNear(at.x, at.y)?.system;
-        for (const bar of geometry.bars) {
-            if (bar.system !== system) {
-                continue;
-            }
-            for (const line of lines) {
-                if (line < bar.tick || line >= bar.end) {
-                    continue;
-                }
-                const tick = document.createElement("div");
-                tick.className = TARGET_CLASS;
-                tick.setAttribute("aria-hidden", "true");
-                tick.style.left = `${this.host.beats.lineX(bar, line)}px`;
-                tick.style.top = `${bar.top}px`;
-                this.root.append(tick);
-            }
-        }
-    }
-
-    private clearOverlays(): void {
-        for (const old of this.root.querySelectorAll(OVERLAYS.map((name) => `:scope > .${name}`).join(", "))) {
-            old.remove();
-        }
     }
 
     /**
@@ -532,7 +436,7 @@ export class PlaceLayer {
         this.drag = null;
         window.cancelAnimationFrame(this.scrolling);
         this.scrolling = 0;
-        this.clearOverlays();
+        clearOverlays(this.root);
         this.host.show(shown);
     }
 

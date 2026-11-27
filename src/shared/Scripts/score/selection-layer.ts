@@ -1,40 +1,20 @@
 // The selection on the score (decision record 0018, section 3; design/kit/ds.css .band, .handle, .menu): a cobalt
 // band over the selected bars on each system they touch, round handles on the first and last barline that drag
-// the edges from barline to barline, the selection gesture (#511 2, #582 8 and 9, selection-gesture.ts: a drag from inside
-// extends the selection on the side it goes, never shrinking it; a hold on a bar selects that bar, in place of the selection
-// there was, and a move after it takes it on; with no selection a drag with the mouse or the stylus selects at once), and
-// the contextual menu placed above the band, which the player can move aside (menu-drag.ts). The band and the handles are
-// drawn in the score's content pixels, as the brackets are; the menu belongs to Blazor and is only placed here.
+// the edges from barline to barline (selection-handles.ts), and the contextual menu placed above the band, which the
+// player can move aside (menu-drag.ts). The band and the handles are drawn in the score's content pixels, as the
+// brackets are; the menu belongs to Blazor and is only placed here. While the place rule is off a press goes to the
+// selection gesture of version 0.6.1 (selection-press.ts), and the band shows what it would select.
 // Selection by beats (#349): selection-beats.ts. Where the menu goes: selection-menu.ts.
 
-import { BRACKET_LIFT, type ScoreBar, type ScoreGeometry } from "./score-geometry.js";
-import { NUMBER_HEIGHT, menuClear, menuPlace } from "./selection-menu.js";
+import { BRACKET_LIFT, type ScoreGeometry } from "./score-geometry.js";
+import { NUMBER_HEIGHT, menuPlace } from "./selection-menu.js";
 import { MenuDragger, menuRoom } from "./menu-drag.js";
-import { BEAT_CLASS, type Beat, type BeatSource, ScoreBeats, keyLines, spanOf } from "./selection-beats.js";
-import { SelectionHandles, barlines, tickAt } from "./selection-handles.js";
-import { type InteractionMode, inside } from "./score-modes.js";
-import { BAND_CLASS, type BandHand, bandBoxes, handRuns, ordered, setBox } from "./selection-boxes.js";
-import {
-    type DragStart,
-    HOLD_MS,
-    type SelectionChange,
-    type SelectionGesture,
-    type TickRange,
-    dragStartOf,
-    extendedRange,
-    gestureChange,
-    handleTakes,
-    handlesShown,
-    heldGesture,
-    movedGesture,
-    nextGestureId,
-    pressGesture,
-    staleGesture,
-} from "../selection/selection-gesture.js";
-
-export { menuClear, menuPlace, dragStartOf, handleTakes, ordered, type DragStart };
-
-const HANDLE_CLASS = "sel-handle";
+import { BEAT_CLASS, type BeatSource, ScoreBeats } from "./selection-beats.js";
+import { HANDLE_CLASS, SelectionHandles } from "./selection-handles.js";
+import type { InteractionMode } from "./score-modes.js";
+import { BAND_CLASS, type BandHand, handRuns, setBox } from "./selection-boxes.js";
+import { type DragStart, type SelectionChange, type TickRange, handlesShown } from "../selection/selection-gesture.js";
+import { SelectionPress } from "./selection-press.js";
 
 /** What the layer needs from the score view. */
 export interface SelectionHost extends BeatSource {
@@ -82,34 +62,13 @@ export interface ScoreSelection {
     hand?: BandHand;
 }
 
-interface Drag {
-    pointerId: number;
-    pointerType: string;
-    /** Where the press started, in content pixels. */
-    x: number;
-    y: number;
-    /** What the press means for the selection (selection-gesture.ts), and its name for the owner. */
-    gesture: SelectionGesture;
-    id: string;
-    /** While an edge moves from inside: the selection as it would be now. */
-    edited: TickRange | null;
-    /** Set once the press creates: the bar it started on, and the one under the pointer now. */
-    anchor: ScoreBar | null;
-    current: ScoreBar | null;
-    /** Selecting by beats: the beat the drag started on, and the one under the pointer now. */
-    anchorBeat: Beat | null;
-    currentBeat: Beat | null;
-    timer: number;
-}
-
 export class SelectionLayer {
     private selection: ScoreSelection | null = null;
     private menu: HTMLElement | null = null;
-    private drag: Drag | null = null;
     /** What pressing and dragging the handles does (selection-handles.ts). */
     private readonly handles: SelectionHandles;
-    /** The click the browser sends after a drag is not a click on the score. */
-    private swallowNextClick = false;
+    /** What a press on the score does while the place rule is off (selection-press.ts). */
+    private readonly press: SelectionPress;
     /** The menu's size changes with what it holds; it is placed again then. */
     private readonly menuSize = new ResizeObserver(() => this.placeMenu());
     /** The menu dragged aside by the player (#582 item 7), and where it went until it closes. */
@@ -133,13 +92,15 @@ export class SelectionLayer {
             place: () => this.place(),
             placeMenu: () => this.placeMenu(),
         });
-        host.addEventListener("pointerdown", this.onPointerDown);
-        host.addEventListener("pointermove", this.onPointerMove);
-        host.addEventListener("pointerup", this.onPointerUp);
-        host.addEventListener("pointercancel", this.onPointerCancel);
-        // Not passive: once a long press has started a drag, the finger moves the selection, not the page.
-        host.addEventListener("touchmove", this.onTouchMove, { passive: false });
-        host.addEventListener("contextmenu", this.onContextMenu);
+        this.press = new SelectionPress(host, {
+            owner,
+            beats: this.beats,
+            handles: this.handles,
+            selection: () => this.selection,
+            point: (event) => this.point(event),
+            capturing: () => this.capturing(),
+            place: () => this.place(),
+        });
     }
 
     /** Shows the selection, or none; with none the menu closes, and a place the player gave it is forgotten. */
@@ -175,9 +136,7 @@ export class SelectionLayer {
 
     /** Whether the click the browser sends now ends a drag, and is not a click on the score. */
     swallowsClick(): boolean {
-        const swallow = this.swallowNextClick;
-        this.swallowNextClick = false;
-        return swallow;
+        return this.press.swallowsClick();
     }
 
     /** The place rule's gesture shows this passage instead of the selection, or (null) the selection again. */
@@ -196,7 +155,7 @@ export class SelectionLayer {
             this.placeMenu();
             return;
         }
-        if (geometry === null || selection === null || this.drag?.gesture.phase === "cleared") {
+        if (geometry === null || selection === null || this.press.cleared()) {
             this.clear();
             this.placeMenu();
             return;
@@ -214,21 +173,7 @@ export class SelectionLayer {
         if (handle !== null) {
             return { start: handle.start, end: handle.end };
         }
-        const drag = this.drag;
-        if (drag === null) {
-            return null;
-        }
-        if (drag.edited !== null) {
-            return drag.edited;
-        }
-        if (drag.anchorBeat !== null && drag.currentBeat !== null) {
-            return spanOf(drag.anchorBeat, drag.currentBeat);
-        }
-        if (drag.anchor !== null && drag.current !== null) {
-            const [first, last] = ordered(drag.anchor, drag.current);
-            return { start: first.tick, end: last.end };
-        }
-        return null;
+        return this.press.preview();
     }
 
     /** Moves the menu with the band as the score scrolls; hidden while the band is out of sight or a drag is on. */
@@ -267,16 +212,8 @@ export class SelectionLayer {
 
     dispose(): void {
         this.menuDrag.attach(null);
-        this.host.removeEventListener("pointerdown", this.onPointerDown);
-        this.host.removeEventListener("pointermove", this.onPointerMove);
-        this.host.removeEventListener("pointerup", this.onPointerUp);
-        this.host.removeEventListener("pointercancel", this.onPointerCancel);
-        this.host.removeEventListener("touchmove", this.onTouchMove);
-        this.host.removeEventListener("contextmenu", this.onContextMenu);
+        this.press.dispose();
         this.menuSize.disconnect();
-        if (this.drag !== null) {
-            clearTimeout(this.drag.timer);
-        }
         this.handles.abandon();
         this.clear();
     }
@@ -346,251 +283,8 @@ export class SelectionLayer {
         return { x: event.clientX - view.left + this.host.scrollLeft, y: event.clientY - view.top + this.host.scrollTop };
     }
 
-    /** Whether a gesture holds the pointer now: it moves an edge or a handle, makes a new selection or has cleared it. */
+    /** Whether a gesture holds the pointer now: the place rule's, a handle's, or a press that moves an edge, makes a new selection or has cleared it. */
     private capturing(): boolean {
-        const phase = this.drag?.gesture.phase;
-        return this.placed !== null || this.handles.drag !== null || phase === "editing" || phase === "extending" || phase === "creating" || phase === "cleared";
+        return this.placed !== null || this.handles.drag !== null || this.press.holds();
     }
-
-    private readonly onPointerDown = (event: PointerEvent): void => {
-        // A gesture whose end was lost (#543 9) ends as cancelled before the new press, so it never blocks it.
-        if (this.drag !== null && staleGesture(this.drag, event)) {
-            this.cancelDrag(this.drag);
-        }
-        if (this.handles.drag !== null && staleGesture(this.handles.drag, event)) {
-            this.handles.abandon();
-        }
-        if (this.drag !== null || this.handles.drag !== null || this.owner.places?.() === true) {
-            return;
-        }
-        // A finger waits for the long press, unless it drags at once (the iPad in Select): then it drags as a mouse does.
-        const rule = this.owner.dragStart?.(event.pointerType);
-        const start = dragStartOf(event.pointerType, rule, this.owner.penOn(), this.owner.fingerDrags?.() === true);
-        if (start === "none" || (start === "now" && event.button !== 0)) {
-            return;
-        }
-        // A phrase's mark and a handle are their own targets.
-        if (event.target instanceof Element && event.target.closest(`.phrase-mark, .${HANDLE_CLASS}`) !== null) {
-            return;
-        }
-        const geometry = this.owner.geometry();
-        const at = this.point(event);
-        if (geometry === null || !this.mayStart(rule !== undefined)) {
-            return;
-        }
-        const selection = this.selection === null ? null : { start: this.selection.start, end: this.selection.end };
-        // The score's rules (#582 items 8 and 9): a hold selects the bar under it, a move from inside extends the selection.
-        const gesture = pressGesture(selection, tickAt(geometry, at.x, at.y), this.insideBand(at), start, true);
-        const drag: Drag = { pointerId: event.pointerId, pointerType: event.pointerType, x: at.x, y: at.y, gesture, id: nextGestureId(), edited: null, anchor: null, current: null, anchorBeat: null, currentBeat: null, timer: 0 };
-        drag.timer = window.setTimeout(() => this.take(drag, heldGesture(drag.gesture)), HOLD_MS);
-        this.drag = drag;
-    };
-
-    /** Under the rules of version 0.5 only Select selects with a press; where the host rules the pointer (`ruled`, the iPad), its rule says. */
-    private mayStart(ruled: boolean): boolean {
-        const mode = this.owner.mode?.() ?? null;
-        return mode === null || ruled || mode === "select";
-    }
-
-    /** Whether a point lies on the band, in the score's content pixels. */
-    private insideBand(at: { x: number; y: number }): boolean {
-        return inside(bandBoxes(this.host), at.x, at.y);
-    }
-
-    /** Does what a step of the gesture asks (selection-gesture.ts). */
-    private take(drag: Drag, step: ReturnType<typeof heldGesture>): void {
-        if (this.drag !== drag) {
-            return;
-        }
-        switch (step) {
-            case "create":
-                this.startDrag(drag, false);
-                return;
-            case "bar":
-                this.startDrag(drag, true);
-                return;
-            case "edit":
-            case "extend":
-                this.capture(drag);
-                drag.edited = drag.gesture.selection;
-                this.place();
-                return;
-            case "clear":
-                // The band goes at once, so the player sees the hold took it; the owner takes the selection away.
-                this.capture(drag);
-                this.place();
-                this.owner.cleared?.(drag.id);
-                return;
-            case "pass":
-            case "hint":
-                clearTimeout(drag.timer);
-                this.drag = null;
-                if (step === "hint") {
-                    this.owner.hint?.();
-                }
-                return;
-            default:
-        }
-    }
-
-    private capture(drag: Drag): void {
-        try {
-            this.host.setPointerCapture(drag.pointerId);
-        } catch {
-            // The pointer is gone already; the drag ends with it.
-        }
-    }
-
-    /** A new selection from the press: from the beat under it, or with `wholeBar` (a hold, #582 8) from its whole bar. */
-    private startDrag(drag: Drag, wholeBar: boolean): void {
-        const geometry = this.owner.geometry();
-        const bar = geometry?.barNear(drag.x, drag.y);
-        if (this.drag !== drag || geometry == null || bar === undefined) {
-            return;
-        }
-        drag.anchor = bar;
-        drag.current = bar;
-        const lines = this.beats.lines();
-        if (lines !== null) {
-            const barSpan = Number.isFinite(bar.end) ? { start: bar.tick, end: bar.end } : undefined;
-            drag.anchorBeat = (wholeBar ? barSpan : undefined) ?? this.beats.near(geometry, lines, drag.x, drag.y) ?? null;
-            drag.currentBeat = drag.anchorBeat;
-        }
-        this.capture(drag);
-        this.place();
-    }
-
-    private readonly onPointerMove = (event: PointerEvent): void => {
-        const drag = this.drag;
-        if (drag === null || event.pointerId !== drag.pointerId) {
-            return;
-        }
-        const at = this.point(event);
-        this.take(drag, movedGesture(drag.gesture, Math.hypot(at.x - drag.x, at.y - drag.y)));
-        const geometry = this.owner.geometry();
-        if (this.drag !== drag || geometry === null) {
-            return;
-        }
-        if (drag.gesture.phase === "editing" || drag.gesture.phase === "extending") {
-            this.moveEdited(geometry, drag, at);
-            return;
-        }
-        if (drag.anchor === null) {
-            return;
-        }
-        const lines = this.beats.lines();
-        if (lines !== null && drag.anchorBeat !== null) {
-            const beat = this.beats.near(geometry, lines, at.x, at.y);
-            if (beat !== undefined && (beat.start !== drag.currentBeat?.start || beat.end !== drag.currentBeat?.end)) {
-                drag.currentBeat = beat;
-                this.place();
-            }
-            return;
-        }
-        const bar = geometry.barNear(at.x, at.y);
-        if (bar !== undefined && bar !== drag.current) {
-            drag.current = bar;
-            this.place();
-        }
-    };
-
-    /** A move from inside: the selection kept whole, extended to the line past which the pointer is (#582 item 9). */
-    private moveEdited(geometry: ScoreGeometry, drag: Drag, at: { x: number; y: number }): void {
-        const from = drag.gesture.selection;
-        if (from === null) {
-            return;
-        }
-        const beatLines = this.beats.lines();
-        const lines = beatLines !== null ? keyLines(beatLines, geometry.bars) : barlines(geometry.bars);
-        const edited = extendedRange(from, tickAt(geometry, at.x, at.y), lines);
-        if (edited.start !== drag.edited?.start || edited.end !== drag.edited?.end) {
-            drag.edited = edited;
-            this.place();
-        }
-    }
-
-    private readonly onPointerUp = (event: PointerEvent): void => {
-        const drag = this.drag;
-        if (drag === null || event.pointerId !== drag.pointerId) {
-            return;
-        }
-        clearTimeout(drag.timer);
-        this.drag = null;
-        const how = gestureChange(drag.gesture);
-        if (how === "none") {
-            return;
-        }
-        this.swallowNextClick = true;
-        // A click may not follow (the pointer left the score); the next real click is not swallowed.
-        window.setTimeout(() => (this.swallowNextClick = false), 0);
-        const range = how === "clear" ? null : this.ended(drag);
-        if (range === null) {
-            this.place();
-            return;
-        }
-        this.commit(range, how, drag.id, how === "edit");
-    };
-
-    /** What a gesture ending now selected: the edited selection when it changed, or the new one; null for nothing to choose. */
-    private ended(drag: Drag): TickRange | null {
-        if (drag.gesture.phase === "editing" || drag.gesture.phase === "extending") {
-            const from = drag.gesture.selection;
-            const edited = drag.edited;
-            return edited === null || from === null || (edited.start === from.start && edited.end === from.end) ? null : edited;
-        }
-        if (drag.anchorBeat !== null && drag.currentBeat !== null && this.owner.chosenSpan !== undefined) {
-            return spanOf(drag.anchorBeat, drag.currentBeat);
-        }
-        if (drag.anchor === null || drag.current === null) {
-            return null;
-        }
-        const [first, last] = ordered(drag.anchor, drag.current);
-        return { start: first.tick, end: last.end };
-    }
-
-    /** Hands a passage chosen to the owner: by beats while the score selects by them, else as its first and last bar. */
-    private commit(range: TickRange, how: SelectionChange, gesture: string, byHandle: boolean): void {
-        const byBeats = this.beats.lines() === null ? undefined : this.owner.chosenSpan;
-        if (byBeats !== undefined) {
-            byBeats.call(this.owner, range.start, range.end, byHandle, how, gesture);
-            return;
-        }
-        const geometry = this.owner.geometry();
-        const first = geometry?.barAt(range.start);
-        const last = geometry?.barAt(Math.max(range.start, range.end - 1));
-        if (first !== undefined && last !== undefined) {
-            this.owner.chosen(first.tick, last.tick, byHandle, how, gesture);
-        }
-    }
-
-    private readonly onPointerCancel = (event: PointerEvent): void => {
-        const drag = this.drag;
-        if (drag !== null && event.pointerId === drag.pointerId) {
-            this.cancelDrag(drag);
-        }
-    };
-
-    /** The gesture ends with no step: a selection the hold took away comes back. */
-    private cancelDrag(drag: Drag): void {
-        clearTimeout(drag.timer);
-        this.drag = null;
-        if (drag.gesture.cleared) {
-            this.owner.cancelled?.(drag.id);
-        }
-        this.place();
-    }
-
-    private readonly onTouchMove = (event: TouchEvent): void => {
-        if (this.capturing()) {
-            event.preventDefault();
-        }
-    };
-
-    /** A long press on a touch screen brings no browser menu while it selects. */
-    private readonly onContextMenu = (event: MouseEvent): void => {
-        if (this.drag !== null) {
-            event.preventDefault();
-        }
-    };
-
 }
