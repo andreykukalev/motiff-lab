@@ -164,17 +164,18 @@ final class SourcesController: ObservableObject {
         }
     }
 
-    /// A file picked in Files (a PDF, the same file as a deleted original, a score's file as a version), read once inside its
-    /// security scope and never changed; nil, with why in `status`, when it cannot be read. E-sources-2: before, such a
-    /// file was dropped and the sheet said nothing.
-    func read(picked url: URL) -> Data? {
-        let lent = url.startAccessingSecurityScopedResource()
-        defer { if lent { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url) else {
-            status = text["originals.unreadable"]
+    /// A file picked in Files (a PDF, the same file as a deleted original, a score's file as a version), read once and
+    /// never changed, as «Привязать оригинал» reads one (`LinkedFile.read`: coordinated, off the main thread, so a file
+    /// only in iCloud is downloaded first); nil, with why in `status`, when it cannot be read. E-sources-2: before, it was
+    /// read on the main thread without coordination, and a file that could not be read was dropped with nothing said.
+    func read(picked url: URL) async -> Data? {
+        switch await LinkedFile.read(url) {
+        case .failure(let problem):
+            status = problem.text(text)
             return nil
+        case .success(let data):
+            return data
         }
-        return data
     }
 
     /// A recording added as an original without hearing it: its sound copied here (kept "device"), its description in the

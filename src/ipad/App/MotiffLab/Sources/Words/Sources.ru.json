@@ -66,7 +66,7 @@
   "sources.sheet.photoPages.many": "Фото · {0} страниц",
   "sources.sheet.photoPages.one": "Фото · {0} страница",
   "sources.sheet.readHeading": "Распознать ноты",
-  "sources.sheet.readingOther": "Сейчас распознаётся «{0}». Этот оригинал можно будет распознать, когда оно закончится.",
+  "sources.sheet.readingOther": "Сейчас распознаётся «{0}». Этот оригинал можно будет распознать, когда распознавание закончится.",
   "sources.sheet.readHosted.few": "{0} страницы уйдут на сервер распознавания Motiff Lab; он удалит PDF после чтения.",
   "sources.sheet.readHosted.many": "{0} страниц уйдут на сервер распознавания Motiff Lab; он удалит PDF после чтения.",
   "sources.sheet.readHosted.one": "{0} страница уйдёт на сервер распознавания Motiff Lab; он удалит PDF после чтения.",

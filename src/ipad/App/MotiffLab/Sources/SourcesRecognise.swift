@@ -102,8 +102,9 @@ struct SourcesRecognisePanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5).
-        .task(id: original.id) {
+        // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5);
+        // asked again when what blocks them changes, so the line comes back once another recognition ends (E-sources-1).
+        .task(id: [original.id, offer.blocker ?? ""]) {
             guard let address = Self.timedBy(jobs: row.jobs, recording: original.isRecording, blocked: self.offer.blocker != nil, address: row.address) else { return }
             planned = await sources.jobPlanLine(original, address: address)
         }
