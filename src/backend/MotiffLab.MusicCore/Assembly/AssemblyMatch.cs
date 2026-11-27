@@ -286,8 +286,4 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
 
         return null;
     }
-
-    private static bool Overlaps(MatchBar bar, TickSpan inSource) => bar.Span.Overlaps(inSource);
-
-    private static MatchKind Worst(IEnumerable<MatchKind> kinds) => kinds.DefaultIfEmpty(MatchKind.NotFound).Max();
 }

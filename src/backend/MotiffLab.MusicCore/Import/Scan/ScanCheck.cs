@@ -247,9 +247,6 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
         : PageQuality == Scan.PageQuality.Weak ? ScanCheck.WeakPageConfidence
         : ScanCheck.CleanConfidence;
 
-    /// <summary>What each flag means, in plain words for the player in their language, in the order the checks ran.</summary>
-    internal IEnumerable<string> ReasonsIn(Words words) => Flags.Select(flag => Describe(flag, words));
-
     public static string Describe(ScanFlag flag, Words words) => flag switch
     {
         ScanFlag.BarTooLong => words.T(

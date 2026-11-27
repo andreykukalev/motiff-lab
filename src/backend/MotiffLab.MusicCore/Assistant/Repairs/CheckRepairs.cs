@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Time;
