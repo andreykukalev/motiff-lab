@@ -1,6 +1,8 @@
-// Who selects on the score and on the roll, and how (#511 sections 2, 4.1 and 12.3): how a press of each pointer starts a
-// selection, and whether it takes a selection's handle. The Pen owns the stylus: while it is on, the stylus (and on the web
-// the mouse) writes everywhere, over the handles too, and a finger keeps its own moves. Pure; nothing here touches the DOM.
+// Who selects on the score and on the roll, and how (#511 sections 2, 4.1 and 12.3): whether a press takes a selection's
+// handle, on both; how a press starts, moves or clears a selection on the roll's strip (`pressGesture` and its steps); and
+// the timings and edge snapping the place gestures share. The score's own press of v0.6.1 went in v1.6 r-3: its presses are
+// the place layer's (score/selection-place-layer.ts). The Pen owns the stylus: while it is on, the stylus writes
+// everywhere, over the handles too, and a finger keeps its own moves. Pure; nothing here touches the DOM.
 
 /**
  * Whether a press on a selection handle takes it (#511 4.1): the host's rule where it gives one, else a finger always and

@@ -215,8 +215,12 @@ final class AssistantController: ObservableObject {
         pendingIn = chat.id
         let asked = screens
         let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
-        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped.
-        guard screens == asked else { return }
+        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped, and
+        // a new conversation it named is none.
+        guard screens == asked else {
+            if currentId == chat.id, !chats.contains(where: { $0.id == chat.id }) { currentId = nil }
+            return
+        }
         var kept = chat
         kept.join(exchange, answered: answered)
         // E-assistant-1: the player who opened another conversation meanwhile stays there; the answer waits in its own.

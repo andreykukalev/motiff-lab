@@ -260,8 +260,8 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   nothing is attached, the toast says «Привязать не к чему: на этих местах фраз больше нет» and the line stays · a
   step says what it did, also when it did nothing (the phrases' toast) · v1.6 i-18
 - `E-insights-8` · The stream read for another selection (the sheet reopened on it, or the selection moved with the
-  sheet open) · the facts of the passage before go at once and the stream shows it reads, until the new passage's facts
-  come · a stale answer is never shown (as `E-insights-2`, `E-drafts-3`): the old facts' Try and places would act on the
+  sheet open) · the facts of the passage before go at once and the stream shows it reads from that first step (a trial
+  being left too), until the new passage's facts come; a second load for it meanwhile does nothing · a stale answer is never shown (as `E-insights-2`, `E-drafts-3`): the old facts' Try and places would act on the
   new selection · v1.6 r-3
 - `E-dna-1` · Piece DNA asked again (More closes at once) while music-core still works out the map of a long piece · the
   second ask does nothing; the map opens once · as `E-library-4`; HIG: prevent a repeated submit · v1.6 r-3

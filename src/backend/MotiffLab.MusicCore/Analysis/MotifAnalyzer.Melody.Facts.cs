@@ -378,15 +378,16 @@ internal static partial class MotifAnalyzer
 
     /// <summary>
     /// What supports a phrase boundary, after "from" or "по": "a slur", "a rest of a beat or more"; Russian in the dative
-    /// ("лиге", "паузе в долю и больше"). Also the structure facts' basis says it so.
+    /// ("лиге", "паузе в долю и больше", "возврату отрывка нота в ноту"), with no clause a list would leave open. Also the
+    /// structure facts' basis says it so.
     /// </summary>
     internal static string EvidenceName(PhraseEvidence mark, Words w) => mark switch
     {
         PhraseEvidence.Slur => w.T("a slur", "лиге"),
         PhraseEvidence.Rest => w.T("a rest of a beat or more", "паузе в долю и больше"),
         PhraseEvidence.RepeatSign => w.T("a repeat sign", "знаку повторения"),
-        PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "отрывку, который возвращается нота в ноту"),
-        PhraseEvidence.Restatement => w.T("a passage that starts again at once", "отрывку, который сразу начинается снова"),
+        PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "возврату отрывка нота в ноту"),
+        PhraseEvidence.Restatement => w.T("a passage that starts again at once", "немедленному повтору отрывка"),
         _ => mark.ToString(),
     };
 

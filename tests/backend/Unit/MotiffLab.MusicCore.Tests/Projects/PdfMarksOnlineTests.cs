@@ -170,6 +170,29 @@ public class PdfMarksOnlineTests
     }
 
     [Fact]
+    public void A_stroke_erased_on_one_ipad_while_the_other_changed_something_else_stays_erased_with_a_base()
+    {
+        // The review of r-3, finding 1: with a base the page marks merge three-way, so an erased stroke never comes back.
+        Project ipad = OnIpad(Stroke("k1", 1), Stroke("k2", 1));
+        Project @base = RoundTrip(ipad.ForOnline()!);
+        Project here = ipad with { DocumentMarks = DocumentMarks.Empty.WithInk([Stroke("k2", 1)]) };
+        Project online = RoundTrip((ipad with { Metadata = new Pieces.PieceMetadata("Recital", null, [], []) }).ForOnline()!);
+
+        foreach ((DateTimeOffset savedHere, DateTimeOffset savedOnline) in new[] { (s_now.AddHours(2), s_now.AddHours(1)), (s_now.AddHours(1), s_now.AddHours(2)) })
+        {
+            SyncResolution resolved = ProjectSync.Resolve(here, savedHere, online, savedOnline, CopyTitle, "p_copy", HoldingDevice.Ipad, @base);
+            Assert.Equal(["k2"], resolved.Kept.DocumentMarks.Ink.Select(static stroke => stroke.Id));
+            Assert.Equal("Recital", resolved.Kept.Metadata.Title);
+            Assert.Empty(resolved.Conflicts);
+            Assert.Null(resolved.PreviousCopy);
+        }
+
+        // Without a base the merge cannot tell an erased stroke from one the other iPad added: the union keeps it (S4).
+        SyncResolution union = ProjectSync.Resolve(here, s_now.AddHours(2), online, s_now.AddHours(1), CopyTitle, "p_copy", HoldingDevice.Ipad);
+        Assert.Equal(["k2", "k1"], union.Kept.DocumentMarks.Ink.Select(static stroke => stroke.Id));
+    }
+
+    [Fact]
     public void The_ipad_sends_its_page_marks_through_the_facade_and_takes_another_ipads_on_a_pull()
     {
         var facade = new MusicCoreFacade();

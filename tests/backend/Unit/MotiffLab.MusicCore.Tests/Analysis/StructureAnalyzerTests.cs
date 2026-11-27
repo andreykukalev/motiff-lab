@@ -194,13 +194,13 @@ public class StructureAnalyzerTests
         MotifFact fromReturns = Fact(Analyze(Song(), 1, 1, returns), "structure.phrases");
         MotifFact russian = Fact(StructureAnalyzer.Analyze(Song(), s_meter, MotifSelector.Select(Song(), s_meter, new TickSpan(new Tick(0), Bar), SelectionFilter.All), returns, Words.Russian), "structure.phrases");
 
-        Assert.EndsWith(" Some boundaries are a reading of the notes, not a mark in the score: they rest only on a rest of a beat or more.", fromRest);
+        Assert.EndsWith(" Some boundaries are a reading of the notes, not a mark in the score: each of them rests only on a rest of a beat or more.", fromRest);
         Assert.EndsWith(
-            " Some boundaries are a reading of the notes, not a mark in the score: they rest only on a passage that comes back note for note and a passage that starts again at once.",
+            " Some boundaries are a reading of the notes, not a mark in the score: each of them rests only on a passage that comes back note for note or a passage that starts again at once.",
             fromReturns.Basis);
         Assert.Equal(FactCertainty.Inferred, fromReturns.Certainty);
         Assert.EndsWith(
-            " Некоторые границы — прочтение нот, а не знак в нотах: они стоят только по отрывку, который возвращается нота в ноту и отрывку, который сразу начинается снова.",
+            " Некоторые границы — прочтение нот, а не знак в нотах: каждая из них стоит только по возврату отрывка нота в ноту или немедленному повтору отрывка.",
             russian.Basis);
     }
 

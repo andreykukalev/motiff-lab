@@ -136,8 +136,8 @@ internal static partial class StructureAnalyzer
             .Select(mark => MotifAnalyzer.EvidenceName(mark, w))];
         MotifFact fact = readFrom.Length > 0
             ? new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Inferred, text, basis + w.T(
-                $" Some boundaries are a reading of the notes, not a mark in the score: they rest only on {w.Joined(readFrom)}.",
-                $" Некоторые границы — прочтение нот, а не знак в нотах: они стоят только по {w.Joined(readFrom)}."))
+                $" Some boundaries are a reading of the notes, not a mark in the score: each of them rests only on {w.Joined(readFrom, or: true)}.",
+                $" Некоторые границы — прочтение нот, а не знак в нотах: каждая из них стоит только по {w.Joined(readFrom, or: true)}."))
             : new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Detected, text, basis);
 
         // Every phrase is a place, a stretch of time from its boundary to the next.

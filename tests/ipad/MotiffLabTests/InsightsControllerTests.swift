@@ -162,6 +162,24 @@ final class InsightsControllerTests: XCTestCase {
         XCTAssertNotNil(insights.understanding, "bars 1–2 understood")
     }
 
+    /// E-insights-8 with a way tried: the stream reads the other selection from its first step, while the trial is left, so
+    /// a second load for it meanwhile (the sheet reopened) passes by rather than leaving and reading again.
+    func testAnotherSelectionWhileAWayIsTriedShowsItLoadsFromItsFirstStep() async throws {
+        let (insights, piece) = try await loaded()
+        let fact = try XCTUnwrap(insights.understanding?.facts.first { !$0.tries.isEmpty })
+        await insights.tryWay(try XCTUnwrap(fact.tries.first), of: fact)
+        XCTAssertNotNil(insights.trial, "\(insights.problem ?? "")")
+        let other = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 1, "last": 2}}"#)))
+
+        let reading = Task { await insights.load(piece: piece, selection: other) }
+        _ = await insights.$understanding.values.first { $0 == nil }
+        XCTAssertTrue(insights.loading, "the trial is being left and the stream already reads bars 1–2")
+        await reading.value
+        XCTAssertNil(insights.trial)
+        XCTAssertFalse(insights.loading)
+        XCTAssertNotNil(insights.understanding, "bars 1–2 understood")
+    }
+
     /// E-insights-2 with the sheet closed: another selection while a way is being made leaves it through the workspace
     /// (`selectionChanged`), so the way that lands plays nothing and shows nothing.
     func testAWayStillBeingMadeIsLeftByAnotherSelectionWithTheSheetClosed() async throws {

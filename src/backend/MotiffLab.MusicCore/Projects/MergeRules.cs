@@ -31,8 +31,9 @@ internal static class MergeRules
         ["notes.scan.marks"] = static entry => $"{Field(entry, "kind")}|{Field(entry, "bar")}|{Field(entry, "staff")}",
         // An original by its fingerprint, else its id, as PieceOriginals.Merge unites them.
         ["originals"] = static entry => Field(entry, "sha256") ?? Key(entry, "id"),
-        // The marks on a PDF's pages (version 0.4) by kind, as two iPads that hold the PDF both write them, with a base or
-        // without (S4's union, as every other entity): a stroke by its id, a bookmark by its page, as a page has one.
+        // The marks on a PDF's pages (version 0.4) by kind, as two iPads that hold the PDF both write them: a stroke by its
+        // id, a bookmark by its page, as a page has one. Three-way against a base, as every entity (one erased on one side
+        // and unchanged on the other goes); without one, S4's union, so an erased one comes back rather than another's lost.
         ["originals.marks.ink"] = ById,
         ["originals.marks.bookmarks"] = static entry => Key(entry, "page"),
     };

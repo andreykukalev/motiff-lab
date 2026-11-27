@@ -54,11 +54,11 @@ public readonly partial record struct Words(TextLanguage Language)
             ? $"из {count} {RussianForm(count, russianGenitiveOne, russianGenitiveMany, russianGenitiveMany)}"
             : $"of {count} {(count == 1 ? one : many)}";
 
-    /// <summary>"a", "a and b", "a, b and c"; "a, b и c".</summary>
-    public string Joined(IReadOnlyList<string> items)
+    /// <summary>"a", "a and b", "a, b and c"; "a, b и c"; with <paramref name="or"/>, "a, b or c"; "a, b или c".</summary>
+    public string Joined(IReadOnlyList<string> items, bool or = false)
     {
         ArgumentNullException.ThrowIfNull(items);
-        return items.Count == 1 ? items[0] : $"{string.Join(", ", items.Take(items.Count - 1))} {T("and", "и")} {items[^1]}";
+        return items.Count == 1 ? items[0] : $"{string.Join(", ", items.Take(items.Count - 1))} {(or ? T("or", "или") : T("and", "и"))} {items[^1]}";
     }
 
     /// <summary>"once", "twice", "3 times"; "1 раз", "2 раза", "5 раз".</summary>
