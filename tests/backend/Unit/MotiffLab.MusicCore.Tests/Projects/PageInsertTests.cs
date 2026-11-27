@@ -119,6 +119,26 @@ public class PageInsertTests
         Assert.DoesNotContain("\"unread\"", inserted.RootElement.GetProperty("file").GetString()!, StringComparison.Ordinal);
     }
 
+    /// <summary>A page put in leaves the other unread pages with the notes (review of c-14a): only its own is read now.</summary>
+    [Fact]
+    public void A_page_put_in_leaves_the_other_unread_pages_kept()
+    {
+        var facade = new MusicCoreFacade();
+        using JsonDocument joined = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { Page("C"), Page("E") } })));
+        string score = joined.RootElement.GetProperty("score").GetString()!;
+        Assert.DoesNotContain("\"error\"", facade.Open("Photos.pdf", "%PDF-1.4\n%%EOF\n"u8.ToArray(), $$"""{"id": "p_scan", "photos": 4, "now": "{{Now}}"}"""), StringComparison.Ordinal);
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = 4, now = Now, unread = new[] { 2, 4 }, read = new[] { 1, 3 } });
+        using JsonDocument read = JsonDocument.Parse(facade.Call(1, "document.read", request));
+        string file = read.RootElement.GetProperty("file").GetString()!;
+
+        string put = JsonSerializer.Serialize(new { file, page = 2, reading = Page("G"), pages = 4, language = "en", pdfPage = 2 });
+        using JsonDocument inserted = JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", put));
+
+        ScanOrigin after = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!)).Scan!;
+        Assert.Equal([4], after.Unread);
+        Assert.Equal([1, 2, 3], after.ReadPages);
+    }
+
     [Fact]
     public void A_page_both_read_and_unread_or_below_one_is_refused()
     {

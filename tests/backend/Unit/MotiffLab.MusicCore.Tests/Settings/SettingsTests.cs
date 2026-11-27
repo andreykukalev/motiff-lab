@@ -210,6 +210,12 @@ public class SettingsTests
         Project read = ProjectFile.Read(bytes);
         Assert.False(read.SettingOverrides.ContainsKey("experimental.resume"));
         Assert.True(JsonNode.DeepEquals(file, JsonNode.Parse(ProjectFile.Write(read))), "the setting is written back as it was");
+        // A file of version 17 has this layout too (a build of 1.1 to 1.5 never wrote one, but a later build of it may): kept.
+        JsonObject seventeen = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
+        seventeen["workspace"]!["settings"]!["experimental.resume"] = Setting.On;
+        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(seventeen.ToJsonString()));
+        Assert.False(kept.SettingOverrides.ContainsKey("experimental.resume"));
+        Assert.Equal(Setting.On, JsonNode.Parse(ProjectFile.Write(kept))!["workspace"]!["settings"]!["experimental.resume"]!.GetValue<string>());
         JsonObject earlier = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
         earlier["settings"]!["experimental.resume"] = Setting.On;
         Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(earlier.ToJsonString()))).Message);

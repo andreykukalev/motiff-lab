@@ -60,7 +60,8 @@ internal static class ScanPageInsert
         }
 
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
-        ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports, Marks = MarksMovedOn(project.Scan.Marks, first, bars) };
+        // Everything else the scan keeps goes with it, its unread pages too (version 18), its marks moved on with the bars: scan.insert's "pdfPage" marks one read.
+        ScanOrigin scan = project.Scan!.WithConfirmed(project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))) with { Pages = reports, Marks = MarksMovedOn(project.Scan.Marks, first, bars) };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
         // The player's work in ticks moves on with the bars after the page, by one rule (v1.5 i-7, r-2b); nothing else is there to move (CanInsertPage).
         if (FollowedWork.Inserted(project, before.Meter, after.Meter, at, length, ids) is not { } followed)

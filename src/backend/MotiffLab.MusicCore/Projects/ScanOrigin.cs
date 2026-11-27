@@ -92,10 +92,13 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
 
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
-    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks };
+    public ScanOrigin Confirm(IEnumerable<int> bars) => WithConfirmed([.. ConfirmedBars, .. bars]);
 
     /// <summary>The origin with the bar taken out of the confirmed ones, so its notes are detected again.</summary>
-    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks };
+    public ScanOrigin Unconfirm(int bar) => WithConfirmed(ConfirmedBars.Where(confirmed => confirmed != bar));
+
+    /// <summary>The origin with these confirmed bars and everything else it keeps (the reports, the unread pages and the marks, version 18).</summary>
+    public ScanOrigin WithConfirmed(IEnumerable<int> bars) => new(Engine, [.. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks };
 
     public bool Equals(ScanOrigin? other) =>
         other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars) && From == other.From && At == other.At
