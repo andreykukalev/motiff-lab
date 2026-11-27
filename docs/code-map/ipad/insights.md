@@ -11,7 +11,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
   - `DnaModel.swift`: `DnaMap`, the typed `dna` answer (form, ideas and their marks, keys, chords, closes, the
     circles, density, new material, register, dynamics, `barStarts`, `bar(_:)`, `fraction(of:)` and `tick(at:)` along the
     bar axis, `tick(at:)` on the roll's sixteenth grid, `dragGrid`). Also read by `Marks/Bookmarks.swift` (the form's sections for the Contents) and
-    `Workspace/ScoreScreen.swift`, which decodes it and shows the screen.
+    `Workspace/ScoreScreenReactions.swift` (`openDna`), which decodes it and shows the screen.
   - `DnaScreen.swift`: `DnaScreen`, what it is given (the map, the player, `showInScore`, `addBookmarks`, `ask`), its
     view state (what is heard, the open circle, the explained close, the More lanes and the last action's words),
     `body` and the header (v0.10 d-2, findings 14, 15: Back, the title, the counts, then by their icons Play or Stop
