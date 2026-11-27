@@ -32,6 +32,9 @@ final class DeviceSettings: ObservableObject {
 
     private let store: UserDefaults
     private var loaded = false
+    /// The change asked last: each change waits for the one before it, so it starts from the values that one kept
+    /// (E-settings-1).
+    private var lastChange: Task<Void, Never>?
 
     init(store: UserDefaults = .standard) {
         self.store = store
@@ -60,15 +63,18 @@ final class DeviceSettings: ObservableObject {
 
     func isOn(_ id: String) -> Bool { self[id] == "on" }
 
-    /// One setting changed and kept on the device.
+    /// One setting changed and kept on the device, after the changes asked before it; nothing when it already has the
+    /// value by then.
     func set(_ id: String, _ value: String) {
-        guard self[id] != value else { return }
-        Task { await update(["set": ["id": id, "value": value]]) }
+        queueChange { [self] in
+            guard self[id] != value else { return }
+            await ask(["set": ["id": id, "value": value]])
+        }
     }
 
-    /// Every setting the preset governs set as it says.
+    /// Every setting the preset governs set as it says, after the changes asked before it.
     func apply(preset: String) {
-        Task { await update(["preset": preset]) }
+        queueChange { [self] in await ask(["preset": preset]) }
     }
 
     /// The values with a piece's own choices over them, for the settings a piece can keep.
@@ -80,9 +86,28 @@ final class DeviceSettings: ObservableObject {
         return result
     }
 
-    /// Asks music-core for the state from the kept values and the change ("preset", or "set" {id, value}), then keeps
-    /// what it answers.
+    /// Asks music-core for the state from the kept values and the change ("preset", or "set" {id, value}), after the
+    /// changes asked before it, then keeps what it answers.
     func update(_ change: [String: Any]) async {
+        await queueChange { [self] in await ask(change) }.value
+    }
+
+    /// Runs the change once the one asked before it is done (E-settings-1: two changes in a row each read the kept
+    /// values before either was kept, so the answer to the second dropped the first, and a switch turned on and off
+    /// at once stayed on).
+    @discardableResult
+    private func queueChange(_ change: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        let before = lastChange
+        let next = Task { @MainActor in
+            await before?.value
+            await change()
+        }
+        lastChange = next
+        return next
+    }
+
+    /// Asks music-core for the state from the kept values and the change, then keeps what it answers.
+    private func ask(_ change: [String: Any]) async {
         var request = change
         var kept = store.dictionary(forKey: Self.storeKey) as? [String: String] ?? [:]
         // The language as the interface shows it: the one picked, else the iPad's.

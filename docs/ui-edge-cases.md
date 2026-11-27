@@ -41,6 +41,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
   original) that cannot be read · the sheet's danger line says «Файл не прочитался.» · as a file picked for «Привязать
   оригинал» says it (`OriginalsController`); before, nothing happened and nothing was said · v1.6 i-13
+- `E-settings-1` · Two settings changed in a row in the Settings sheet (or a switch turned off and on again) before
+  music-core has answered the first · each change waits for the one before it and starts from the values it kept, so
+  every change is kept and a switch ends as last set; before, the second answer dropped the first change, and a switch
+  turned off and on at once stayed off · a control shows what was last chosen (HIG); as the score's calls go one after
+  another (`DeviceSettings.queueChange`) · v1.6 i-14
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over
