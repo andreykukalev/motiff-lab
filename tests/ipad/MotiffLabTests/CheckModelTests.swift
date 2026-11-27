@@ -126,7 +126,8 @@ final class CheckModelTests: XCTestCase {
         XCTAssertEqual(fake.problems, [])
     }
 
-    /// Robustness (v1.6 i-8): two taps on a scan's reading before music-core answers put it in once, as one Undo takes back.
+    /// Robustness (v1.6 i-8, E-scan-9): while a scan's reading goes in, the readings wait (`puttingVariant`, which disables
+    /// their buttons) and a second tap puts nothing in, so the bar holds one reading, as one Undo takes back.
     func testADoubleTapOnAnEnginesReadingPutsItInOnce() async throws {
         let fake = FakeScore()
         fake.pieceId = 9_999
@@ -134,13 +135,16 @@ final class CheckModelTests: XCTestCase {
         let json = #"{"engines": ["copisteria"], "staves": [{"part": 1, "staff": 1, "notes": [{"onset": 0, "pitch": 72, "length": 480, "name": "C5"}]}]}"#
         let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
         let reading = try XCTUnwrap(ScanVariant(object))
+        XCTAssertFalse(model.puttingVariant)
         model.chooseVariant(reading, bar: 2)
+        XCTAssertTrue(model.puttingVariant, "the readings wait at once")
         model.chooseVariant(reading, bar: 2)
-        await until("music-core answered") { !fake.problems.isEmpty }
-        try await Task.sleep(for: .milliseconds(200))
+        await until("music-core answered") { !model.puttingVariant }
+        // The answer is read in the same turn the wait ends: its problem is there, and only one.
         XCTAssertEqual(fake.problems.count, 1, "one call: the second tap put nothing in")
         model.chooseVariant(reading, bar: 2)
-        await until("a tap after the answer is a call again") { fake.problems.count == 2 }
+        XCTAssertTrue(model.puttingVariant, "a tap after the answer puts it in again")
+        await until("a call again") { fake.problems.count == 2 && !model.puttingVariant }
     }
 
     func testCheckIsReadForAPieceAndItsFlagsDrawnOnce() async throws {
@@ -162,12 +166,15 @@ final class CheckModelTests: XCTestCase {
         let model = made(fake)
         var kept = 0
         model.editsKept = { kept += 1 }
-        fake.pieceId = try await kitPiece()
+        let piece = try await kitPiece()
+        fake.pieceId = piece
 
         model.beginNoteEdit()
         XCTAssertEqual(model.noteEditor, NoteEditorState(), "open at once, before music-core answers")
-        // Each music-core call runs on a thread of its own: the draft is begun before a note is added on it.
-        try await Task.sleep(for: .milliseconds(300))
+        // Each music-core call runs on a thread of its own (i-17): a note is added once the draft is begun, which its
+        // answer says (every corrections answer gives «Мои правки», nil until then).
+        XCTAssertNil(model.editsLayer)
+        await until("the draft begun") { model.editsLayer != nil }
         model.editNote(.add(onset: 0, pitch: 60, length: 480))
         await until("the note added changed the notes") { fake.count("notesDidChange") == 1 }
         XCTAssertEqual(model.noteEditor?.changed, true)
@@ -177,12 +184,17 @@ final class CheckModelTests: XCTestCase {
         await until("the draft gone changed the notes back") { fake.count("notesDidChange") == 2 }
         XCTAssertEqual(kept, 0, "nothing written on Cancel")
 
-        model.beginNoteEdit()
-        try await Task.sleep(for: .milliseconds(300))
-        model.saveNoteEdit()
-        XCTAssertNil(model.noteEditor)
+        // Save on a model of its own, so its draft's answer is seen as the first one was.
+        let saving = FakeScore()
+        saving.pieceId = piece
+        let saver = made(saving)
+        saver.editsKept = { kept += 1 }
+        saver.beginNoteEdit()
+        await until("the second draft begun") { saver.editsLayer != nil }
+        saver.saveNoteEdit()
+        XCTAssertNil(saver.noteEditor)
         await until("Save writes the project file") { kept == 1 }
-        XCTAssertEqual(fake.count("notesDidChange"), 2, "a draft with no change keeps the notes as they are")
-        XCTAssertEqual(fake.problems, [])
+        XCTAssertEqual(saving.count("notesDidChange"), 0, "a draft with no change keeps the notes as they are")
+        XCTAssertEqual(fake.problems + saving.problems, [])
     }
 }

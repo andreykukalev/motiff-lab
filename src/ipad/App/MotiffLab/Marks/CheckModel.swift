@@ -47,9 +47,10 @@ final class CheckModel: ObservableObject {
     @Published private(set) var scanCrops: [Int: UIImage] = [:]
     /// The variant the player chose last, which one Undo takes back whole while nothing came after it.
     @Published private(set) var variantChoice = ScanVariantChoice()
-    /// A variant on its way into the notes: a second tap before music-core answers puts nothing in, so a double tap never
-    /// leaves a reading in the bar that «Отменить выбор» does not take back (v1.6 i-8, E-scan-9).
-    private var puttingVariant = false
+    /// A variant on its way into the notes: the readings' buttons wait for music-core's answer, and a tap that reaches
+    /// `chooseVariant` before they show it puts nothing in, so a double tap never leaves a reading in the bar that
+    /// «Отменить выбор» does not take back (v1.6 i-8, E-scan-9).
+    @Published private(set) var puttingVariant = false
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
     /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that

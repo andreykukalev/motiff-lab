@@ -78,9 +78,10 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   must still be the project read at the start) and its line says «Пьесы больше нет в библиотеке», its job deleted on the
   server as one that did not work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not
   undone by a background job · v1.5 r-2b
-- `E-scan-9` · An engine's reading of a bar tapped again before music-core has put the first tap's in · the second
-  tap does nothing, so the bar holds one reading, which «Отменить выбор» takes back whole · a button's action runs once
-  per press while it is under way (HIG: prevent a repeated submit); SCAN-06: one tap puts one reading in · v1.6 i-8
+- `E-scan-9` · An engine's reading of a bar tapped again before music-core has put the first tap's in · the readings'
+  buttons are disabled until it is in, and a tap that comes before they show it does nothing, so the bar holds one
+  reading, which «Отменить выбор» takes back whole · a button's action runs once per press while it is under way and
+  shows that it waits (HIG: prevent a repeated submit); SCAN-06: one tap puts one reading in · v1.6 i-8
 - `E-library-1` · A very long title on a Sessions card · two lines at most, cut with an ellipsis; VoiceOver reads it
   whole · as the list's line, which takes one; HIG: truncate rather than let one card grow the grid · v1.5 r-2b
 - `E-library-2` · «Открыть файл» on a PDF this iPad cannot show (broken, no page, locked with a password) · refused with

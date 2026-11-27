@@ -402,7 +402,7 @@ struct CheckDrawer: View {
             if selected, let review = checkModel.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
                 ScanReviewBlock(
                     entry: review.bar(bar.bar), crop: checkModel.scanCrops[bar.bar], bar: bar.bar, chosen: checkModel.variantChoice.engines(in: bar.bar),
-                    editsOn: checkModel.editsOn, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
+                    editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
                 )
             }
             HStack(spacing: CGFloat.ds("s-2")) {

@@ -14,6 +14,8 @@ struct ScanReviewBlock: View {
     let chosen: [String]?
     /// False while «Мои правки» is off: no variant is put in then.
     let editsOn: Bool
+    /// A reading is going in (`CheckModel.puttingVariant`): the readings wait for it (E-scan-9).
+    let busy: Bool
     let text: UIText
     let choose: (ScanVariant) -> Void
     let undo: () -> Void
@@ -45,7 +47,7 @@ struct ScanReviewBlock: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                    .disabled(!editsOn)
+                    .disabled(!editsOn || busy)
                     .accessibilityHint(text["scanReview.variantHint"])
                 }
                 if let chosen {
