@@ -104,16 +104,16 @@ public class ScanCheckTests
 
         Assert.Equal([ScanFlag.OutOfPianoRange], check.Bars[1].Flags);
         Assert.Equal([ScanFlag.GraceNotes], check.Bars[2].Flags);
-        Assert.All(check.Flagged.SelectMany(bar => bar.Reasons), reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
+        Assert.All(check.Flagged.SelectMany(bar => bar.ReasonsIn(Words.English)), reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
     }
 
     [Fact]
-    public void Every_reason_reads_in_russian_and_the_english_is_unchanged()
+    public void Every_reason_reads_in_russian_and_in_english()
     {
         foreach (ScanFlag flag in Enum.GetValues<ScanFlag>())
         {
             string russian = ScanBar.Describe(flag, Words.Russian);
-            Assert.Equal(ScanBar.Describe(flag), ScanBar.Describe(flag, Words.English));
+            Assert.NotEqual(ScanBar.Describe(flag, Words.English), russian);
             Assert.Matches(@"^\p{IsCyrillic}", russian);
             // Only the app's name stays in Latin letters.
             Assert.DoesNotMatch(@"\b[A-Za-z]{2,}\b", russian.Replace("Motiff Lab", "", StringComparison.Ordinal));

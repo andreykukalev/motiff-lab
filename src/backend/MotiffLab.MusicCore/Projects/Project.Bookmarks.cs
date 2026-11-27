@@ -13,8 +13,6 @@ public sealed partial record Project
     /// <summary>The player's bookmarks, in the player's order; <see cref="BookmarksInScoreOrder"/> sorts them by place.</summary>
     public IReadOnlyList<Bookmark> Bookmarks { get; init; } = [];
 
-    public IReadOnlyList<Bookmark> BookmarksInScoreOrder => [.. Bookmarks.OrderBy(bookmark => bookmark.Span.Onset).ThenBy(bookmark => bookmark.Span.End)];
-
     public BookmarkCategory? FindCategory(string id) => Categories.FirstOrDefault(category => category.Id == id);
 
     internal Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
