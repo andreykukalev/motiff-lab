@@ -2,23 +2,6 @@
 // selection, and whether it takes a selection's handle. The Pen owns the stylus: while it is on, the stylus (and on the web
 // the mouse) writes everywhere, over the handles too, and a finger keeps its own moves. Pure; nothing here touches the DOM.
 
-/** How a press may start a selection: "now" drags at once, "longPress" after a long press, "none" never. */
-export type DragStart = "now" | "longPress" | "none";
-
-/**
- * How a press starts a selection: the host's rule for its pointer where it gives one, else the rules before it: the pen
- * writes and the mouse and a finger write while the pen is on; a finger waits for the long press unless it drags at once.
- */
-export function dragStartOf(pointerType: string, rule: DragStart | undefined, penOn: boolean, fingerDrags: boolean): DragStart {
-    if (rule !== undefined) {
-        return rule;
-    }
-    if (pointerType === "pen" || penOn) {
-        return "none";
-    }
-    return pointerType === "touch" && !fingerDrags ? "longPress" : "now";
-}
-
 /**
  * Whether a press on a selection handle takes it (#511 4.1): the host's rule where it gives one, else a finger always and
  * the pen and the mouse unless the Pen is on, where they write over the handles as everywhere.
@@ -69,13 +52,8 @@ export interface TickRange {
  * nearer the press; outside it the press waits, and held still for HOLD_MS it clears the selection, after which a move
  * makes a new one from the press; a move before that leaves the selection alone. Without a selection a press creates one,
  * at once ("now") or after the hold ("longPress"), as before.
- *
- * On the score (`barHold`, v0.6.1, #582 items 8 and 9) the hold and the move from inside go further: held still on a bar
- * outside the selection, or with none, the press selects that bar at once, replacing the selection there was in the same
- * gesture ("creating" from the bar, a move then takes it on to the beat or bar under the pointer); a move from inside the
- * selection ("extending") adds to it on the side the pointer goes, the selection it began with kept whole (extendedRange).
  */
-export type GesturePhase = "waiting" | "editing" | "extending" | "cleared" | "creating" | "passed";
+export type GesturePhase = "waiting" | "editing" | "cleared" | "creating" | "passed";
 
 export interface SelectionGesture {
     /** How this pointer starts a selection. */
@@ -90,19 +68,14 @@ export interface SelectionGesture {
     phase: GesturePhase;
     /** Whether the hold cleared the selection: a selection made after it replaces the one before. */
     cleared: boolean;
-    /** The score's rules (#582 items 8 and 9): a hold selects the bar under it and a move from inside extends. */
-    readonly barHold: boolean;
-    /** Whether the bar the hold selected replaces a selection there was (`barHold`). */
-    replaces: boolean;
 }
 
 /**
- * What a step of the gesture asks of the surface: begin a new selection from the press ("create"), select the bar under the
- * press, in place of any selection ("bar", `barHold`), begin moving an edge ("edit"), begin extending the selection from
- * inside ("extend", `barHold`), take the selection away now ("clear"), let the pointer go to what it does without a
- * selection ("pass", a finger scrolls), say how to begin a new selection ("hint", a pointer that cannot scroll), or nothing.
+ * What a step of the gesture asks of the surface: begin a new selection from the press ("create"), begin moving an edge
+ * ("edit"), take the selection away now ("clear"), let the pointer go to what it does without a selection ("pass", a finger
+ * scrolls), say how to begin a new selection ("hint", a pointer that cannot scroll), or nothing.
  */
-export type GestureStep = "create" | "bar" | "edit" | "extend" | "clear" | "pass" | "hint" | "none";
+export type GestureStep = "create" | "edit" | "clear" | "pass" | "hint" | "none";
 
 /** How the selection changed when the gesture ended, for the owner's history and its toast. */
 export type SelectionChange = "create" | "edit" | "replace" | "clear" | "none";
@@ -112,11 +85,11 @@ export function nearerEdge(selection: TickRange, tick: number): "start" | "end" 
     return tick - selection.start <= selection.end - tick ? "start" : "end";
 }
 
-/** A press of a pointer that selects, at a tick inside the selection or not; `barHold` for the score's rules (#582 8, 9). */
-export function pressGesture(selection: TickRange | null, pressTick: number, inside: boolean, rule: "now" | "longPress", barHold = false): SelectionGesture {
+/** A press of a pointer that selects, at a tick inside the selection or not. */
+export function pressGesture(selection: TickRange | null, pressTick: number, inside: boolean, rule: "now" | "longPress"): SelectionGesture {
     const within = selection !== null && inside;
     const edge = selection === null ? "end" : nearerEdge(selection, pressTick);
-    return { rule, selection, pressTick, inside: within, edge, phase: "waiting", cleared: false, barHold, replaces: false };
+    return { rule, selection, pressTick, inside: within, edge, phase: "waiting", cleared: false };
 }
 
 /**
@@ -131,16 +104,6 @@ export function heldGesture(gesture: SelectionGesture, keep = false): GestureSte
     if (keep && gesture.selection !== null && !gesture.inside) {
         gesture.phase = "passed";
         return "pass";
-    }
-    if (gesture.barHold) {
-        // Held inside, the selection is the baseline a move extends; held on a bar elsewhere, that bar is the selection now.
-        if (gesture.inside) {
-            gesture.phase = "extending";
-            return "extend";
-        }
-        gesture.phase = "creating";
-        gesture.replaces = gesture.selection !== null;
-        return "bar";
     }
     if (gesture.selection === null) {
         if (gesture.rule === "longPress") {
@@ -172,8 +135,8 @@ export function movedGesture(gesture: SelectionGesture, distance: number): Gestu
         return "create";
     }
     if (gesture.inside && gesture.rule === "now") {
-        gesture.phase = gesture.barHold ? "extending" : "editing";
-        return gesture.barHold ? "extend" : "edit";
+        gesture.phase = "editing";
+        return "edit";
     }
     gesture.phase = "passed";
     return gesture.rule === "now" && gesture.selection !== null ? "hint" : "pass";
@@ -183,10 +146,9 @@ export function movedGesture(gesture: SelectionGesture, distance: number): Gestu
 export function gestureChange(gesture: SelectionGesture): SelectionChange {
     switch (gesture.phase) {
         case "editing":
-        case "extending":
             return "edit";
         case "creating":
-            return gesture.cleared || gesture.replaces ? "replace" : "create";
+            return gesture.cleared ? "replace" : "create";
         case "cleared":
             return "clear";
         default:

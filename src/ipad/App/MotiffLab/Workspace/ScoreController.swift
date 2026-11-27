@@ -294,10 +294,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
             choose(chosen, start, end)
         case .cleared(let gesture):
             clearSelection(gesture: gesture)
-        case .gestureCancelled(let gesture):
-            revertGesture(gesture)
-        case .holdHint:
-            selectionModel.showHoldHint()
         case let .picked(id, picked):
             selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
         case .zoomSelection(let box):

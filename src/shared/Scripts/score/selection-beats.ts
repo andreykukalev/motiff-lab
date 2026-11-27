@@ -71,11 +71,6 @@ export function stepEdge(lines: readonly number[], span: Beat, edge: "start" | "
     return { ...span, [edge]: next };
 }
 
-/** Two beats as one passage, whichever comes first: from the earlier start to the later end. */
-export function spanOf(a: Beat, b: Beat): Beat {
-    return { start: Math.min(a.start, b.start), end: Math.max(a.end, b.end) };
-}
-
 /** The beat lines and the barlines together, in time order: where the arrow keys move an edge to. */
 export function keyLines(lines: readonly number[], bars: readonly ScoreBar[]): number[] {
     const barlines = bars.flatMap((bar) => (Number.isFinite(bar.end) ? [bar.tick, bar.end] : [bar.tick]));

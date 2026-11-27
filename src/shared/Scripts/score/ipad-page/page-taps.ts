@@ -171,7 +171,7 @@ export function listenTaps(): void {
         const pressed = press.swallowsClick();
         const placed = places.swallowsClick();
         const painted = colouring.swallowsClick();
-        if (selection.swallowsClick() || pressed || placed || painted || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
+        if (pressed || placed || painted || !tapActs() || target === null || target.closest(".sel-handle, .grip")) {
             return;
         }
         if (state.mode !== null) {

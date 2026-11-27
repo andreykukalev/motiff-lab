@@ -1,49 +1,16 @@
-// The score's selection rules of version 0.6.1 (#582 items 6 to 9, Scripts/selection/selection-gesture.ts with `barHold`, and
-// Scripts/score/menu-drag.ts): a hold on a bar selects that bar, replacing a selection there was, in one gesture; a move
-// from inside extends the selection either way and never shrinks it; the edges go to the beat lines inside a bar; the menu
-// dragged aside stays there until it closes.
+// The score's selection rules of version 0.6.1 that the place layer keeps (#582 items 6, 7 and 9,
+// Scripts/selection/selection-gesture.ts and Scripts/score/menu-drag.ts): a move from inside extends the selection either
+// way and never shrinks it; the edges go to the beat lines inside a bar; the menu dragged aside stays there until it
+// closes. The hold that selected a bar went with the press of v0.6.1 (v1.6 r-3).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { DRAG_DISTANCE, extendedRange, gestureChange, heldGesture, movedGesture, pressGesture } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
+import { extendedRange } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 import { MenuPin, keptInside, movedSpot } from "../../src/shared/wwwroot/js/score/menu-drag.js";
 
 // 4/4 bars of 1920 ticks and their beat lines every 480, as music-core gives them.
 const beatLines = Array.from({ length: 21 }, (_, i) => i * 480);
 const selection = { start: 1920, end: 3840 };
-
-test("with no selection a hold on a bar selects that bar, by the stylus and by a finger alike (#582 8)", () => {
-    for (const rule of ["now", "longPress"]) {
-        const press = pressGesture(null, 2500, false, rule, true);
-        assert.equal(heldGesture(press), "bar", `${rule}: the hold alone selects`);
-        assert.equal(gestureChange(press), "create", "let go there, the bar stays selected");
-    }
-    // Before 0.6.1 (and still on the roll) a stylus held still with no selection did nothing.
-    assert.equal(heldGesture(pressGesture(null, 2500, false, "now")), "none");
-});
-
-test("a hold on another bar replaces the selection with that bar in the same gesture, never only clearing it (#582 8)", () => {
-    const press = pressGesture(selection, 6000, false, "now", true);
-    assert.equal(heldGesture(press), "bar");
-    assert.equal(press.cleared, false, "the selection is never left cleared");
-    assert.equal(gestureChange(press), "replace", "one step of the history, with «Вернуть»");
-    assert.equal(movedGesture(press, 40), "none", "a move after the hold takes the new selection on, it starts nothing else");
-    assert.equal(gestureChange(press), "replace");
-    // Long presses one after another switch from bar to bar.
-    const again = pressGesture({ start: 5760, end: 7680 }, 9000, false, "longPress", true);
-    assert.equal(heldGesture(again), "bar");
-    assert.equal(gestureChange(again), "replace");
-});
-
-test("a press inside the selection, moved or held, extends it and a hold there changes nothing by itself (#582 9)", () => {
-    const stylus = pressGesture(selection, 2500, true, "now", true);
-    assert.equal(movedGesture(stylus, DRAG_DISTANCE + 1), "extend");
-    assert.equal(gestureChange(stylus), "edit");
-    const finger = pressGesture(selection, 2500, true, "longPress", true);
-    assert.equal(heldGesture(finger), "extend", "a finger holds first, then drags");
-    // The roll keeps its rule: the nearer edge moves.
-    assert.equal(movedGesture(pressGesture(selection, 2500, true, "now"), DRAG_DISTANCE + 1), "edit");
-});
 
 test("the extension follows the pointer both ways, on beat lines, and the selection it began with never shrinks (#582 9)", () => {
     assert.deepEqual(extendedRange(selection, 3000, beatLines), selection, "inside, nothing is added");

@@ -270,7 +270,7 @@ extension ScoreWorkspace {
     }
 
     func rollHoldHinted() {
-        score.handle(.holdHint)
+        score.selectionModel.showHoldHint()
     }
 
     /// The Pen's stylus changes nothing on the roll (#511 4.1, #521 10), and the Pen takes the roll out of Edit notes:

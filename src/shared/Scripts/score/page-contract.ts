@@ -227,8 +227,6 @@ export interface PageEvents {
     /** A span chosen: by bars, by beats (`beats`) or by places on the notes (`places`, with the hand). */
     chosen: TickRange & { how: SelectionChange; gesture: string; beats?: true; places?: true; hand?: BandHand };
     cleared: { gesture: string };
-    gestureCancelled: string;
-    holdHint: true;
     picked: { id: string; how: SelectionChange; gesture: string };
     /** The selection's band, in the document's pixels; null for none. */
     zoomSelection: Rect | null;

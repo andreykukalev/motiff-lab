@@ -51,8 +51,8 @@ export function installSelection(): void {
     selection = new SelectionLayer(document.body, {
         geometry: () => state.geometry,
         marksTop: (band) => highestOf(bookmarksTop(band), phraseMarksTop(band)),
-        // While the Pen is on a finger writes, and in focus the page under the veil takes no choice of bars. Once Swift
-        // has sent the rules for each pointer (`input`, #479 item 18), they say who selects instead.
+        // While the Pen is on a finger writes, and in focus the page under the veil takes no handle. Once Swift has sent the
+        // rules for each pointer (`input`, #479 item 18), they say who takes a handle instead.
         penOn: () => state.focus || (state.input === null && state.pen),
         // How the selection changed and the gesture that changed it go along: Swift keeps a gesture's changes as one step of
         // the selection's history (#511 11).
@@ -68,16 +68,8 @@ export function installSelection(): void {
         beats: () => state.beats ?? (state.input?.places === true ? barStarts() : null),
         tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
         chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
-        // The selection gesture (#511 2.1, Scripts/selection/selection-gesture.ts): a hold outside the selection takes it away; a
-        // gesture cancelled after that gives it back; a Pencil moved off it before the hold is told to hold.
-        cleared: (gesture) => post({ cleared: { gesture } }),
-        cancelled: (gesture) => post({ gestureCancelled: gesture }),
-        hint: () => post({ holdHint: true }),
-        // The modes of version 0.5 (once in Settings · Experimental): only Select starts a selection with a drag, never from inside it,
-        // and there a finger drags at once, as two fingers scroll.
+        // The modes of version 0.5: only Select shows the handles.
         mode: () => state.mode,
-        fingerDrags: () => state.mode === "select",
-        dragStart: (pointerType) => (state.focus ? "none" : pointerRules(pointerType)?.select),
         // A finger takes a handle; the Pencil does where it does not write (#511 4.1): in the Pen it writes over the handles.
         takesHandle: (pointerType) => pointerRules(pointerType)?.handles,
         // Selection by the place of the touch (v0.6.2, #601): the place layer below takes the presses, and draws the edges.

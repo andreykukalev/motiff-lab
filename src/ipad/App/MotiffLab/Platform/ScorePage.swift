@@ -80,7 +80,7 @@ func pageScript(_ object: String, _ function: String, _ argument: Any?) -> (Stri
 enum PageEvent {
     /// The keys of the page's messages; the contract's list.
     enum Kind: String, CaseIterable {
-        case pages, menu, chosen, cleared, gestureCancelled, holdHint, picked, zoomSelection, tuplets, bar, bookmark
+        case pages, menu, chosen, cleared, picked, zoomSelection, tuplets, bar, bookmark
         case noteMarker, handles, playheadAway, checkFlag, performanceBar, phraseMark, sectionMark, phraseHeld, phraseMoved, motifMark
         case place, heads, drag, blank
         case leave, cardLayout, coloured, markMoved, markAway
@@ -91,8 +91,6 @@ enum PageEvent {
     /// A span the selection rule chose: by bars, by beats (`beats`) or by places on the notes (`places`).
     case chosen([String: Any], start: Double, end: Double)
     case cleared(gesture: String?)
-    case gestureCancelled(String)
-    case holdHint
     case picked(id: String, [String: Any])
     case zoomSelection([String: Any]?)
     case tuplets([[String: Any]])
@@ -171,10 +169,6 @@ enum PageEvent {
             return span(fields).map { .chosen(fields ?? [:], start: $0.start, end: $0.end) }
         case .cleared:
             return fields.map { .cleared(gesture: $0["gesture"] as? String) }
-        case .gestureCancelled:
-            return (value as? String).map { .gestureCancelled($0) }
-        case .holdHint:
-            return .holdHint
         case .picked:
             return fields.flatMap { picked in (picked["id"] as? String).map { .picked(id: $0, picked) } }
         case .zoomSelection:

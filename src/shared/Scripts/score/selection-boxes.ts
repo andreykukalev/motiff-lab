@@ -3,15 +3,10 @@
 // the band to (v0.6.2, #601), and whether a point lies on the music or on the page's margin.
 
 import type { Rect } from "./page-reader.js";
-import type { Run, ScoreBar, ScoreGeometry } from "./score-geometry.js";
+import type { Run, ScoreGeometry } from "./score-geometry.js";
 import type { PlaceBox } from "../selection/selection-places.js";
 
 export const BAND_CLASS = "sel-band";
-
-/** The bars from one to another in time order, whichever comes first. */
-export function ordered(a: ScoreBar, b: ScoreBar): [ScoreBar, ScoreBar] {
-    return a.tick <= b.tick ? [a, b] : [b, a];
-}
 
 /** Sets an element's box to a run, never smaller than 4 pixels each way. */
 export function setBox(element: HTMLElement, run: Rect): void {

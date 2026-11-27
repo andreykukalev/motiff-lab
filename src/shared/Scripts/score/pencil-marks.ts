@@ -78,8 +78,8 @@ export interface BarFrame {
 }
 
 /**
- * What a saved set of marks looks like: version 2, the shape the project file keeps under "marks.ink" (read and written
- * by the project file's `MarksCodec`).
+ * What a saved set of marks looks like: version 2, the pencil layer's own document. The project file keeps its strokes as
+ * they are, the list under "marks" → "ink" (music-core's `MarksCodec`), so the layer and the file never translate.
  * Version 1 named the colours ink, red, blue and yellow; readMarks still reads it.
  */
 export interface MarksFile {

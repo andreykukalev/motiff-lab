@@ -2,10 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dragStartOf, handleTakes } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
+import { handleTakes } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 import { menuPlace } from "../../src/shared/wwwroot/js/score/selection-menu.js";
-import { ordered } from "../../src/shared/wwwroot/js/score/selection-boxes.js";
-import { barLines, beatAt, keyLines, nearestLine, spanOf, stepEdge } from "../../src/shared/wwwroot/js/score/selection-beats.js";
+import { barLines, beatAt, keyLines, nearestLine, stepEdge } from "../../src/shared/wwwroot/js/score/selection-beats.js";
 import { BRACKET_LIFT } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 
 const window = { width: 1180, height: 820 };
@@ -29,13 +28,6 @@ test("with no room above, the menu goes under the band's last run, and it stays 
     const right = menuPlace({ left: 1100, right: 1180, top: 500 }, { bottom: 600 }, menu, window);
     assert.equal(right.left, 1180 - 16 - 420);
     assert.equal(right.pointer, 1140 - right.left);
-});
-
-test("two bars give the selection's first and last in time, whichever was pressed first", () => {
-    const a = { tick: 960 };
-    const b = { tick: 0 };
-    assert.deepEqual(ordered(a, b), [b, a]);
-    assert.deepEqual(ordered(b, a), [b, a]);
 });
 
 test("the menu keeps to the right of a drawer over the left of the window", () => {
@@ -81,10 +73,6 @@ test("a handle goes to the beat line nearest the finger", () => {
     assert.equal(nearestLine([], xOf, 0), undefined);
 });
 
-test("a drag over two beats takes both, whichever came first", () => {
-    assert.deepEqual(spanOf({ start: 2880, end: 3360 }, { start: 1920, end: 2400 }), { start: 1920, end: 3360 });
-});
-
 test("the arrow keys move an edge one beat line and never onto the other edge", () => {
     const span = { start: 2400, end: 2880 };
     assert.deepEqual(stepEdge(lines, span, "start", -1), { start: 1920, end: 2880 });
@@ -101,17 +89,6 @@ test("the arrow keys move a beat edge among the beat lines and the barlines, eac
         { tick: 1440, end: 2880 },
     ];
     assert.deepEqual(keyLines([480, 960, 1440, 1920], bars), [0, 480, 960, 1440, 1920, 2880]);
-});
-
-test("a press starts a selection as the host's rule for its pointer says, else as before", () => {
-    assert.equal(dragStartOf("pen", "now", false, false), "now", "on the iPad the stylus selects in Select (#479 item 18)");
-    assert.equal(dragStartOf("touch", "longPress", false, true), "longPress");
-    assert.equal(dragStartOf("pen", "none", false, false), "none");
-    assert.equal(dragStartOf("pen", undefined, false, false), "none", "without rules the pen writes");
-    assert.equal(dragStartOf("mouse", undefined, true, false), "none", "and the mouse writes while the pen is on");
-    assert.equal(dragStartOf("touch", undefined, false, false), "longPress");
-    assert.equal(dragStartOf("touch", undefined, false, true), "now");
-    assert.equal(dragStartOf("mouse", undefined, false, false), "now");
 });
 
 test("in the Pen the stylus and the mouse write over the handles and a finger still takes them (#511 4.1)", () => {
