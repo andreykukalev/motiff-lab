@@ -19,24 +19,22 @@ internal static partial class MotifAnalyzer
     {
         string[] names = [.. intervals.Select(step => step == 0
             ? w.T("unison", "прима")
-            : $"{IntervalName(step, w)} {(step > 0 ? w.T("up", "вверх") : w.T("down", "вниз"))}")];
-        string list = names.Length <= MaxNamedIntervals
-            ? string.Join(", ", names)
-            : $"{string.Join(", ", names.Take(MaxNamedIntervals))} {w.T("and", "и ещё")} {names.Length - MaxNamedIntervals}{w.T(" more", "")}";
+            : $"{w.IntervalName(step)} {(step > 0 ? w.T("up", "вверх") : w.T("down", "вниз"))}")];
+        string list = w.Listed(names, MaxNamedIntervals, ", ", " ");
         string text = $"{w.T("Intervals by name", "Интервалы по названию")}: {list}.";
         string brief = w.IsRussian
             ? $"{w.Count(intervals.Length, "", "", "интервал", "интервала", "интервалов")}, ни один размер не преобладает."
-            : $"{Count(intervals.Length, "interval", "intervals")}; no size clearly leads.";
+            : $"{Words.EnglishCount(intervals.Length, "interval", "intervals")}; no size clearly leads.";
 
         // The most common size, up or down, when one size clearly leads; its place is the notes of every interval of that size.
         IGrouping<int, int>[] sizes = [.. intervals.GroupBy(Math.Abs).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
         FactPlace[] places = [];
         if (sizes[0].Count() > 1 && (sizes.Length == 1 || sizes[0].Count() > sizes[1].Count()))
         {
-            string name = sizes[0].Key == 0 ? w.T("repeated note", "повтор звука") : IntervalName(sizes[0].Key, w);
+            string name = sizes[0].Key == 0 ? w.T("repeated note", "повтор звука") : w.IntervalName(sizes[0].Key);
             string common = w.IsRussian
                 ? $"Чаще всего: {name} ({sizes[0].Count()} из {intervals.Length})."
-                : $"Most common: {(sizes[0].Key == 0 ? "the repeated note" : WithArticle(name))} ({sizes[0].Count()} of {intervals.Length}).";
+                : $"Most common: {(sizes[0].Key == 0 ? "the repeated note" : Words.WithArticle(name))} ({sizes[0].Count()} of {intervals.Length}).";
             text += " " + common;
             brief = common;
             Note[] notes = [.. Enumerable.Range(0, intervals.Length)
@@ -83,14 +81,14 @@ internal static partial class MotifAnalyzer
             ? null
             : w.IsRussian
                 ? $"Сразу {Words.RussianForm(runs.Count, "повторяется", "повторяются", "повторяются")} {w.Count(runs.Count, "", "", "нота", "ноты", "нот")}."
-                : $"{Count(runs.Count, "note", "notes")} {(runs.Count == 1 ? "is" : "are")} repeated straight away.";
+                : $"{Words.EnglishCount(runs.Count, "note", "notes")} {(runs.Count == 1 ? "is" : "are")} repeated straight away.";
 
         IGrouping<int, Note>[] pitches = [.. line.GroupBy(note => note.Pitch.MidiNumber).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
         if (pitches[0].Count() > 1 && (pitches.Length == 1 || pitches[0].Count() > pitches[1].Count()))
         {
             text += w.IsRussian
                 ? $" Чаще всего звучит {key.Spell(pitches[0].Key)}: {pitches[0].Count()} {w.OutOf(line.Length, "", "", "ноты", "нот")}."
-                : $" {key.Spell(pitches[0].Key)} sounds most often, {pitches[0].Count()} of {Count(line.Length, "note", "notes")}.";
+                : $" {key.Spell(pitches[0].Key)} sounds most often, {pitches[0].Count()} of {Words.EnglishCount(line.Length, "note", "notes")}.";
             places.Add(FactPlace.Of($"{w.T("most often", "чаще всего")}, {key.Spell(pitches[0].Key)}", pitches[0]));
         }
 
@@ -151,9 +149,7 @@ internal static partial class MotifAnalyzer
             string[] how = [.. new[] { (struck, w.T("struck together with them", "взяты вместе с ними")), (held, w.T("over notes still held", "над ещё звучащими нотами")) }
                 .Where(part => part.Item1 > 0)
                 .Select(part => w.IsRussian ? $"{part.Item2}: {part.Item1}" : $"{part.Item1} {part.Item2}")];
-            string list = shared.Count <= MaxNamedIntervals
-                ? string.Join(", ", shared)
-                : $"{string.Join(", ", shared.Take(MaxNamedIntervals))} {w.T("and", "и ещё")} {shared.Count - MaxNamedIntervals}{w.T(" more", "")}";
+            string list = w.Listed(shared, MaxNamedIntervals, ", ", " ");
             if (w.IsRussian)
             {
                 text = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами: {string.Join(", ", how)}.";
@@ -164,11 +160,11 @@ internal static partial class MotifAnalyzer
             }
             else
             {
-                text = $"{over} of {Count(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes: {string.Join(", ", how)}.";
-                brief = $"{over} of {Count(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes.";
+                text = $"{over} of {Words.EnglishCount(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes: {string.Join(", ", how)}.";
+                brief = $"{over} of {Words.EnglishCount(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes.";
                 text += shared.Count == 0
                     ? " None shares its pitch class with a lower note."
-                    : $" {Count(shared.Count, "shares its pitch class", "share their pitch class")} with a lower note, so {(shared.Count == 1 ? "it is" : "they are")} also part of the chord below: {list}.";
+                    : $" {Words.EnglishCount(shared.Count, "shares its pitch class", "share their pitch class")} with a lower note, so {(shared.Count == 1 ? "it is" : "they are")} also part of the chord below: {list}.";
             }
         }
 
@@ -199,7 +195,7 @@ internal static partial class MotifAnalyzer
             ? w.T("No phrase boundary falls inside the motif.", "Внутри мотива нет границы фразы.")
             : w.IsRussian
                 ? $"{w.Count(inside.Length, "", "", "граница фразы", "границы фраз", "границ фраз")} внутри мотива: {string.Join("; ", inside.Select(boundary => $"{Place(meter.ToPosition(boundary.At), w)}, {EvidenceText(boundary, w)}"))}."
-                : $"{Count(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif: {string.Join("; ", inside.Select(boundary => $"at {Place(meter.ToPosition(boundary.At), w)}, {EvidenceText(boundary, w)}"))}.";
+                : $"{Words.EnglishCount(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif: {string.Join("; ", inside.Select(boundary => $"at {Place(meter.ToPosition(boundary.At), w)}, {EvidenceText(boundary, w)}"))}.";
         if (atStart is not null)
         {
             text += w.T($" It starts where a phrase starts ({EvidenceText(atStart, w)}).", $" Мотив начинается там же, где фраза ({EvidenceText(atStart, w)}).");
@@ -218,7 +214,7 @@ internal static partial class MotifAnalyzer
             ? null
             : w.IsRussian
                 ? $"{w.Count(inside.Length, "", "", "граница фразы", "границы фраз", "границ фраз")} внутри мотива."
-                : $"{Count(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif.";
+                : $"{Words.EnglishCount(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif.";
         return fact with { Places = atStart is null ? places : [.. places, BoundaryPlace(w.T("phrase start", "начало фразы"), first, notes)], Brief = brief };
     }
 

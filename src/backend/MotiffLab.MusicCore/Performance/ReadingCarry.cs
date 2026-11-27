@@ -70,7 +70,7 @@ internal sealed record ReadingCarry(NoteEditLog Edits, IReadOnlyList<CarriedCorr
 
         if (notCarried > 0)
         {
-            parts.Add(words.T($"not carried, in Check: {notCarried} ({(bars.Count == 1 ? "bar" : "bars")} {where})", $"не перенесено, в «Проверить»: {notCarried} ({(bars.Count == 1 ? "такт" : "такты")} {where})"));
+            parts.Add(words.T($"not carried, in Check: {notCarried} ({words.Bars(where, bars.Count == 1)})", $"не перенесено, в «Проверить»: {notCarried} ({words.Bars(where, bars.Count == 1)})"));
         }
 
         if (ConfirmedBars.Count > 0)

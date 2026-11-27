@@ -247,7 +247,7 @@ internal static class NoteTools
         string hand = parameters.GetProperty("hand").GetString()!;
         int tempo = parameters.GetProperty("tempo").GetInt32();
         bool loop = parameters.GetProperty("loop").GetBoolean();
-        string bars = from == to ? w.T($"bar {from}", $"такт {from}") : w.T($"bars {from}–{to}", $"такты {from}–{to}");
+        string bars = w.Bars(from, to);
         string hands = hand switch
         {
             "right" => w.T("right hand", "правая рука"),

@@ -58,10 +58,10 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
 
         if (Near > 0)
         {
-            string where = string.Join(", ", NearBars);
+            string where = words.Bars(string.Join(", ", NearBars), NearBars.Count == 1);
             parts.Add(words.T(
-                $"in bars with no match, kept by the music before them: {Near} ({(NearBars.Count == 1 ? "bar" : "bars")} {where})",
-                $"в тактах без пары оставлено рядом: {Near} ({(NearBars.Count == 1 ? "такт" : "такты")} {where})"));
+                $"in bars with no match, kept by the music before them: {Near} ({where})",
+                $"в тактах без пары оставлено рядом: {Near} ({where})"));
         }
 
         return parts.Count == 0 ? null : string.Join(" · ", parts);

@@ -28,7 +28,7 @@ public sealed partial class FactsDigest
 
         List<DigestItem> items =
         [
-            new("place", "place", "imported", $"{DraftLabels.Place(scope.Place, scope.Index, w)}: {Bars(piece.FirstBar, piece.LastBar, w)}") { Bars = (piece.FirstBar, piece.LastBar) },
+            new("place", "place", "imported", $"{DraftLabels.Place(scope.Place, scope.Index, w)}: {w.Bars(piece.FirstBar, piece.LastBar)}") { Bars = (piece.FirstBar, piece.LastBar) },
             Source("source.base", scope.Place.BaseVariant, w),
         ];
         if (scope.Variant is { } variant)
@@ -66,7 +66,7 @@ public sealed partial class FactsDigest
     private static DigestItem TechniqueItem(PlaceTechnique technique, Words w)
     {
         int[] bars = [.. technique.Occurrences.Select(static occurrence => occurrence.Bar)];
-        string where = bars.Length == 1 ? w.T($"bar {bars[0]}", $"такт {bars[0]}") : w.T($"bars {string.Join(", ", bars)}", $"такты {string.Join(", ", bars)}");
+        string where = w.Bars(string.Join(", ", bars), bars.Length == 1);
         string sure = technique.IsSure ? w.T("sure", "уверенный") : w.T("not sure", "неуверенный");
         string state = technique.State switch
         {

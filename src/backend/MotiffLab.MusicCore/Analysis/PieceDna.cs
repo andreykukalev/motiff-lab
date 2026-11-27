@@ -479,9 +479,7 @@ public sealed record PieceDna(
             recurrence.NoteIds)));
         occurrences.Sort((a, b) => a.Span.Onset.CompareTo(b.Span.Onset));
 
-        string bars = firstBar == lastBar
-            ? w.T($"bar {firstBar}", $"такт {firstBar}")
-            : w.T($"bars {firstBar}–{lastBar}", $"такты {firstBar}–{lastBar}");
+        string bars = w.Bars(firstBar, lastBar);
         string title = w.T($"Your selection, {bars}", $"Ваше выделение, {bars}");
 
         int exact = structure.Recurrences.Count(recurrence => recurrence.IsExact);
