@@ -11,6 +11,8 @@ extension PieceCore {
         // The score: Check, the marks and notes, the tempo, where the player was.
         case check = "check"
         case checkResolve = "check.resolve"
+        case checkMark = "check.mark"
+        case checkUnmark = "check.unmark"
         case marks = "marks"
         case noteAdd = "note.add"
         case noteChange = "note.change"

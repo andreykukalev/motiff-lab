@@ -28,6 +28,8 @@ final class ScoreWorkspace: ObservableObject {
     let originals: OriginalsController
     /// The piece's sources by layers and the switch of all its views (version 0.6, 0030).
     let sources: SourcesController
+    /// «Распознать заново с отметками» (v1.6 c-14b3): the working notes' marked pages read again, while they are.
+    let markedReading = MarkedReading()
     /// Which panels are open, and what they give back (PanelState): written only by `change` and `apply`.
     @Published private(set) var panels: PanelState
     /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.

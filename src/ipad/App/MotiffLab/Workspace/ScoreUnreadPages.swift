@@ -37,16 +37,8 @@ struct UnreadPage: Equatable, Identifiable {
     /// own at the bar beside its place, or its words added to the label of the flag that bar has already, so two never lie
     /// on one another. A tap opens Check, which offers «Повторить» (`UnreadPagesCheck`).
     static func marked(_ flags: [[String: Any]], _ pages: [UnreadPage], _ text: UIText) -> [[String: Any]] {
-        var all = flags
-        for page in pages {
-            // E-scan-1: one flag on a bar, its label telling both.
-            if let index = all.firstIndex(where: { $0["bar"] as? Int == page.bar }) {
-                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(page.line(text))"
-            } else {
-                all.append(["bar": page.bar, "tick": page.tick, "label": page.line(text)])
-            }
-        }
-        return all
+        // E-scan-1: one flag on a bar, its label telling both.
+        CheckModel.adding(pages.map { (bar: $0.bar, tick: $0.tick, label: $0.line(text)) }, to: flags)
     }
 }
 

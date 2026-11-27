@@ -22,6 +22,8 @@ extension ScoreWorkspace {
         // The Sources sheet's way back held this screen, and with it every controller and web view of it (v0.6.4
         // spec section 11: each visit with the sources on stayed in memory).
         sources.reopen = nil
+        // A reading of the marked pages stops with the screen, its job deleted (E-scan-20).
+        markedReading.stop()
         let now = resumeNow()
         let view = notesViewNow()
         // Handed to its other view, the piece was saved and closed already (#511 section 10); the metronome goes on.

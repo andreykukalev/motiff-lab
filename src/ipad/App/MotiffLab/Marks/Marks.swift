@@ -175,7 +175,7 @@ struct LayersList: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: checkModel.check.hasFlags)
+            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: checkModel.check.hasFlags || !checkModel.check.marks.isEmpty)
             if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)

@@ -22,7 +22,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s. Tests: `RecordingWaveTests`.
 
 - `ScoreWorkspace.swift`: `ScoreWorkspace`, a main-actor class: owns the screen's controllers
-  (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`), `panels`. `wire()` hands
+  (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`, `markedReading`), `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
   `backToMore` write `panels`; `assistantPressed` is the pill's assistant (its last conversation, or closed; an Ask
   opens it empty). Tests: `ScoreWorkspaceTests`, `DraftsTests`; sessions: `WorkspaceScenarioTests`.
@@ -54,7 +54,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   hand to the modes, Practice, the layers list and More); `Pill.swift` (Play with the place, Цикл, the tempo, the
   hands, the phrase's ‹ ›, the metronome, the roll, the assistant; full, compact with «⋯», tight; names no
   controller); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
-  `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`); `FocusBar.swift` (with `FocusShowAs`,
+  `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`; «Что не так?» in More on notes read from a PDF, v1.6 c-14b3); `FocusBar.swift` (with `FocusShowAs`,
   `FocusRollCard`); `HearingSwitch.swift` (also the Insights sheet's); `InsightsSheet.swift`
   ([`insights.md`](insights.md)); `SourcesSheet.swift` ([`sources.md`](sources.md), v1.6 i-13); `SettingsSheet.swift`
   (also the library's and the PDF's, [`account.md`](account.md), v1.6 i-14); `MorePanel.swift`; `ScoreWebView.swift`

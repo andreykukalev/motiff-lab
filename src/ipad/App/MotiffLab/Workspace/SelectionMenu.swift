@@ -11,6 +11,8 @@ struct SelectionMenu: View {
     @ObservedObject var focusModel: FocusModel
     @ObservedObject var penModel: PenModel
     @ObservedObject var marksModel: MarksModel
+    /// «Что не так?» in More (v1.6 c-14b3): the marks of notes read from a PDF.
+    @ObservedObject var checkModel: CheckModel
     @ObservedObject var player: Player
     @ObservedObject var contents: ContentsController
     let text: UIText
@@ -67,6 +69,11 @@ struct SelectionMenu: View {
                         // A new boundary at the selection's first note (the phrases spec, decision 5), where none starts.
                         if startsPhrase {
                             Button(text["phrases.start"]) { score.startPhrase() }
+                                .buttonStyle(DSItemStyle())
+                        }
+                        // What the page prints over the selected bars, for the notes' next reading (v1.6 c-14b3, E-scan-16).
+                        if !viewOnly, checkModel.check.takesMarks, let selection = selectionModel.selection {
+                            WhatsWrongMenu(checkModel: checkModel, bars: selection.firstBar...max(selection.firstBar, selection.lastBar), text: text, told: true)
                                 .buttonStyle(DSItemStyle())
                         }
                     }
