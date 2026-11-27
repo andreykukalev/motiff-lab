@@ -10,13 +10,14 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   `Recolouring` (Platform: the highlights taken and laid, by value): a passage coloured lays it in its colour (other
   colours give way there, the same colour joins it), one all that colour already loses it, the eraser takes the colour
   where it passed; `ids(of:over:)` finds by value the ids of what a change takes, so the Pen's Undo and Redo (v1.4 i-5)
-  find highlights music-core laid again under new ids. `HighlightMark.notes` keeps an older file's notes for that. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`.
+  find highlights music-core laid again under new ids. `HighlightMark.notes` keeps an older file's notes for that. Pure; `Workspace/ScoreColouring.swift` sends the calls. Tests: `MotiffLabTests/HighlightPaintTests`. The
+  selection menu's «Выделить цветом» (`HighlightRow`) is gone with it.
 
 - `MarksModel.swift` (S6, ADR 0031 section 3, v0.10 d-4): `MarksModel`, the marks' state and their own rules; it reads
   `SelectionModel` and is given the device's settings resolved for a piece (`DeviceSettings.resolved`). Since v1.6
   i-10b it draws and changes the marks (`draw`, `changeMarks`), the bookmarks and margin notes, the layers and the
-  settings followed, and what the page hides (`applyLayers`), through `MarksScore` (for what Marks may not name: Check's
-  drawer, slate, Expand, the versions drawn). The lists of layers and of the kinds of extra information (`layers`,
+  settings followed, and what the page hides (`applyLayers`), through `MarksScore` (what Marks may not name: Check's
+  drawer, slate, Expand, the versions). The lists of layers and of the kinds of extra information (`layers`,
   `extra`) are here, which `tests/shared/i18n.test.mjs` reads. Tests: `MotiffLabTests/MarksModelTests` (fake score);
   the baseline's old name through `MotiffLabTests/MarksBaselineNames`.
 

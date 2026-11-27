@@ -34,6 +34,7 @@ final class FocusModelTests: XCTestCase {
         var shown = true
         var penOn = false
         var versionShown: VersionEntry?
+        var versionShownId: String? { versionShown?.id }
         var versionDiffering: [Int] = []
         /// Each time the page was held still (true) or let go (false).
         private(set) var still: [Bool] = []
@@ -148,7 +149,7 @@ final class FocusModelTests: XCTestCase {
         XCTAssertFalse(focus.focused, "a piece opens out of Expand")
         focus.enter()
         XCTAssertFalse(focus.focused, "nothing to lift without a selection")
-        _ = try await select(0, 1920)
+        let chosen = try await select(0, 1920)
         score.penOn = true
         focus.enter()
         XCTAssertFalse(focus.focused, "not with the Pen on")
@@ -164,7 +165,7 @@ final class FocusModelTests: XCTestCase {
         XCTAssertEqual(score.still, [true], "the page under the veil held still")
         await until { self.score.page.commands.contains(.card) }
         XCTAssertEqual(Array(score.page.commands.prefix(2)), [.focus, .card], "the card opens, then shows the bars engraved at its options")
-        XCTAssertEqual(focus.playRange?.range, 0..<1920)
+        XCTAssertEqual(focus.playRange?.range, chosen.onset..<chosen.end, "what plays is the span music-core selected")
         focus.leave()
         XCTAssertFalse(focus.focused, "the way back closes it")
         XCTAssertEqual(score.still, [true, false], "and lets the page go")
