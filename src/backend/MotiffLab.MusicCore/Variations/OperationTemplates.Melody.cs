@@ -148,7 +148,7 @@ internal static partial class OperationTemplates
         }
 
         bool passing = figures.All(figure => figure.Added.All(note => Between(note, figure.Main, figure.Next!)));
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = Spelling(key);
         string Figure((Note Main, Note? Next, Note[] Added) figure) => w.T(
             $"{w.Joined([.. figure.Added.Select(note => spelling.Spell(note.Pitch.MidiNumber))])} after {spelling.Spell(figure.Main.Pitch.MidiNumber)}",
             $"{w.Joined([.. figure.Added.Select(note => spelling.Spell(note.Pitch.MidiNumber))])} после {spelling.Spell(figure.Main.Pitch.MidiNumber)}");
@@ -200,7 +200,7 @@ internal static partial class OperationTemplates
             return null;
         }
 
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = Spelling(key);
         string names = w.Joined([.. figures.Select(figure => spelling.Spell(figure.Main.Pitch.MidiNumber))]);
         return OrnamentText(kind, figures.Count, names, VariationFacts.Length(figures[0].Step, w), w);
     }

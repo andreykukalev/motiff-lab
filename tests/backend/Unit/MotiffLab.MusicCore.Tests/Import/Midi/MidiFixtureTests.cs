@@ -111,7 +111,7 @@ public class MidiFixtureTests
         Assert.Equal(1, report.CountOf(MidiIssueCodes.NoteOffMissing));
         Assert.Equal(1, report.CountOf(MidiIssueCodes.TempoDefault));
         Assert.Equal(1, report.CountOf(MidiIssueCodes.MeterDefault));
-        Assert.Contains(report.OfKind(ImportIssueKind.Rounded), issue => issue.Message.StartsWith("6 notes had timing rounded", StringComparison.Ordinal));
+        Assert.Contains(report.Issues.Where(issue => issue.Kind == ImportIssueKind.Rounded), issue => issue.Message.StartsWith("6 notes had timing rounded", StringComparison.Ordinal));
     }
 
     [Fact]

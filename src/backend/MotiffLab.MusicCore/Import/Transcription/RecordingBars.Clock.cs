@@ -74,18 +74,6 @@ internal static partial class RecordingBars
             return units + ((tick.Value - at) * perTick);
         }
 
-        /// <summary>The last tick that is not later than a time.</summary>
-        public Tick TickAtOrBefore(long units)
-        {
-            if (units <= 0)
-            {
-                return Tick.Zero;
-            }
-
-            (long at, long start, long perTick) = _segments[SegmentAt(segment => segment.Units <= units)];
-            return new Tick(at + ((units - start) / perTick));
-        }
-
         private int SegmentAt(Func<(long At, long Units, long PerTick), bool> starts)
         {
             int found = 0;

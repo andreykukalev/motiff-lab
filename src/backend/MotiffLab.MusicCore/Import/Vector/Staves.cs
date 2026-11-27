@@ -10,8 +10,6 @@ internal sealed record VectorStaff(IReadOnlyList<double> Lines, double Left, dou
 
     public double Bottom => Lines[4];
 
-    public double Middle => Lines[2];
-
     /// <summary>Half spaces from y up to the reference y, rounded: a notehead's steps above a clef's line.</summary>
     public int StepsAbove(double y, double reference) => (int)Math.Round((reference - y) / (Space / 2), MidpointRounding.AwayFromZero);
 }

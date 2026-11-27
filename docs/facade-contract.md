@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-27, v1.5 i-7):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-27, v1.6 c-13):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -222,6 +222,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 <!-- End of the calls. -->
 
 ## History
+
+### 17
+
+17 removes "level" and "levels" from the phrases answer (version 1.6, c-13, the 1.6 plan's decision 18), and so from every answer that carries the phrases (phrases.edit, phrases.reattach): the level shown, always "phrase" since 14, and the three levels with "available" and "count", which no app read. "units" (each with its "level"), "edits", "evidence", "own", "sections" and the anchors answer as before; a request may still ask for the units of a level with "level". A change of what a call answers; the project file stays version 18.
 
 ### 16
 

@@ -172,7 +172,7 @@ public class ReferenceSoundingTests
         Assert.Equal(new TickSpan(new Tick(9600), 1920), placed.Span);
         Assert.Equal([9600L, 10560, 10680, 10800, 10920], placed.Notes.Select(note => note.Span.Onset.Value).Distinct().Order());
         Assert.Equal(music.Notes.Count, placed.Notes.Count);
-        Assert.Equal(3840, music.LengthOn(KeyReference.MicrosecondsPerQuarter));
+        Assert.Equal(3840, music.Place(Tick.Zero, KeyReference.MicrosecondsPerQuarter).Span.Duration);
     }
 
     [Fact]

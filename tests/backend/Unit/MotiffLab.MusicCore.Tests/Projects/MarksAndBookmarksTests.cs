@@ -38,7 +38,7 @@ public class MarksAndBookmarksTests
     }
 
     [Fact]
-    public void Bookmarks_keep_the_players_order_and_can_be_moved_and_sorted_by_place()
+    public void Bookmarks_keep_the_players_order_and_can_be_moved()
     {
         ImportedPiece piece = Piece();
         Project project = Fresh()
@@ -47,7 +47,6 @@ public class MarksAndBookmarksTests
             .AddBookmark(new Bookmark("b_0003", "Middle", BookmarkCategory.StructureId, Bars(piece, 1, 2), false, s_now));
 
         Assert.Equal(["b_0001", "b_0002", "b_0003"], project.Bookmarks.Select(bookmark => bookmark.Id));
-        Assert.Equal(["b_0002", "b_0003", "b_0001"], project.BookmarksInScoreOrder.Select(bookmark => bookmark.Id));
         Assert.Equal(["b_0003", "b_0001", "b_0002"], project.MoveBookmark("b_0003", 0).MoveBookmark("b_0002", 2).Bookmarks.Select(bookmark => bookmark.Id));
         Assert.Equal("b_0004", project.NextBookmarkId(IdSource.Numbered));
         Assert.Throws<KeyNotFoundException>(() => project.MoveBookmark("b_0009", 0));

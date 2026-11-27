@@ -15,8 +15,6 @@ public sealed record ImportReport(
     int MeasureCount,
     IReadOnlyList<ImportIssue> Issues)
 {
-    internal IEnumerable<ImportIssue> OfKind(ImportIssueKind kind) => Issues.Where(issue => issue.Kind == kind);
-
     /// <summary>Total count of an issue code across all tracks; 0 when it did not occur.</summary>
     public int CountOf(string code) => Issues.Where(issue => issue.Code == code).Sum(issue => issue.Count);
 }
