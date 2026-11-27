@@ -280,8 +280,8 @@ struct ScoreScreenContent: View {
         // A version's marker tapped (testing item 33): the popover at it, as every card at a mark (v1.4 a-1); a tap
         // elsewhere puts it away.
         if let pick = sourcesModel.markerPick, !focusModel.focused {
-            DraftCardAtMark(at: CGPoint(x: pick.left, y: pick.bottom), mark: score.markHeight, covered: controls, close: { score.closeMarker() }) {
-                MarkerPopover(score: score, sourcesModel: sourcesModel, text: text, pick: pick)
+            DraftCardAtMark(at: CGPoint(x: pick.left, y: pick.bottom), mark: score.markHeight, covered: controls, close: { sourcesModel.pickMarker(nil) }) {
+                MarkerPopover(sourcesModel: sourcesModel, text: text, pick: pick)
             }
         } else if let pick = score.phraseMenu, let unit = selectionModel.phrases?.unit(pick.number), !focusModel.focused {
             // A phrase's number held (v1.2): its mark's menu under it (ScorePhraseEdits.swift).

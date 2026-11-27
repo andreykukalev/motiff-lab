@@ -786,7 +786,7 @@ struct PdfScreen: View {
             }
             if sourcesOpen, sourceLayers != nil {
                 SourcesSheet(
-                    sources: sources, score: nil, originals: originals, text: text, current: PdfScreen.documentView,
+                    sources: sources, versions: nil, originals: originals, text: text, current: PdfScreen.documentView,
                     close: { sourcesOpen = false }
                 )
                 .modifier(BottomPanel(height: height))

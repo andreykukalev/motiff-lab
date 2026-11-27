@@ -12,7 +12,8 @@ Screen ([screen](workspace-screen.md)): `PanelState`, `PieceScreen`, `RecordingS
 `Pill`, `PillItems`, `SelectionMenu`, `FocusBar`, `MorePanel`, `ScoreWebView`, `TopBar`, `ScoreWorkspace`,
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`,
 `ScoreWorkspaceSources`. Controller ([controller](workspace-controller.md)): `ScoreController`, `ScoreColouring`,
-`ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreenViews`, `ScoreUnreadPages`. Drafts
+`ScoreFocus`, `ScoreInput`, `ScoreMarks`, `ScorePageLayout`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePlayheads`,
+`ScorePractice`, `ScoreScreenViews`, `ScoreSelecting`, `ScoreUnreadPages`, `ScoreVersions`. Drafts
 ([drafts](workspace-drafts.md)): `DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`,
 `DraftSeamCard`, `DraftStructureControls`, `DraftVisitPieces`, `ScoreDraftPlaces`, `ScoreDraftViews` (`.swift`).
 
@@ -28,7 +29,8 @@ only the view has (appearance, geometry, `switchView`, `reopen`, texts, the cove
 
 `ScoreBar`, `Pill` (v1.6 i-9): handed what they show and the actions they call; what an action does is the screen's
 (`ScoreScreenBars`) or the workspace's, never theirs, so a new layout of the screen can move them. The pill names no
-controller; the bar hands `ScoreController` only to the views it holds (modes, Practice, layers, More).
+controller; since v1.6 i-10 neither does the bar: the screen makes Practice and the layers list for it, and the modes get
+the mode as a binding and the Pen.
 
 ### The order the view must keep
 
@@ -63,5 +65,5 @@ whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 ## Baseline entries that protect it
 
 UX baseline: `VIEW-01` to `VIEW-06` (tests: `PanelBaselineTests`, `WorkspaceScenarioTests`). Quality ratchet:
-`ScoreController.swift` file_length and `class ScoreController` type_body_length; `ScoreScreen.swift`'s two entries
-went in v1.6 i-9 (split by concern, `layers` in parts).
+none: `ScoreScreen.swift`'s two entries went in v1.6 i-9 (split by concern, `layers` in parts), `ScoreController.swift`'s
+in v1.6 i-10 (its parts by concern in their files, the versions to `SourcesModel`).

@@ -76,7 +76,6 @@
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Import/Scan.swift","symbol":"Account: DeviceSettings","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Import/ScanParts.swift","symbol":"Account: Account","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Import/VectorPages.swift","symbol":"Account: Account","why":"folder edge known when the check was added (B1b, #641)"},
-    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Ink/ModeGroup.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Ink/PdfInk.swift","symbol":"Pdf: PdfController","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Ink/PenPalette.swift","symbol":"Marks: LayersList","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Ink/PenPalette.swift","symbol":"Pdf: PdfController","why":"folder edge known when the check was added (B1b, #641)"},
@@ -245,7 +244,6 @@
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollController.swift","symbol":"Ink: RollMode","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollController.swift","symbol":"Insights: Fact","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollController.swift","symbol":"Playback: PlayheadGesture","why":"folder edge known when the check was added (B1b, #641)"},
-    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollController.swift","symbol":"Workspace: BundleSchemeHandler","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollDrawer.swift","symbol":"Ink: InteractionMode","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollDrawer.swift","symbol":"Ink: RollMode","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Roll/RollDrawer.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
@@ -285,10 +283,8 @@
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSheet.swift","symbol":"Import: DocumentCamera","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSheet.swift","symbol":"Import: RecordingHearing","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSheet.swift","symbol":"Import: ScanServer","why":"folder edge known when the check was added (B1b, #641)"},
-    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSheet.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSwitch.swift","symbol":"Marks: SegmentFill","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/SourcesSwitch.swift","symbol":"Marks: SegmentedCapsule","why":"folder edge known when the check was added (B1b, #641)"},
-    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Sources/Versions.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dotnet","rule":"CA1506","file":"src/backend/MotiffLab.Api/Program.cs","symbol":"<Main>$","value":66,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/backend/MotiffLab.MusicCore/Analysis/FormAnalyzer.cs","symbol":"Sections","value":16,"why":"existing before #332"},
     {"tool":"dotnet","rule":"CA1502","file":"src/backend/MotiffLab.MusicCore/Analysis/Harmony.cs","symbol":"FindChords","value":20,"why":"existing before #332"},
@@ -360,8 +356,6 @@
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Pdf/Pdf.swift","symbol":"","value":854,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"cyclomatic_complexity","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"handle","value":19,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Playback/PlaybackEngine.swift","symbol":"","value":852,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"file_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"","value":1359,"why":"existing before #332"},
-    {"tool":"swiftlint","rule":"type_body_length","file":"src/ipad/App/MotiffLab/Workspace/ScoreController.swift","symbol":"class ScoreController","value":926,"why":"existing before #332"},
     {"tool":"swiftlint","rule":"file_length","file":"tests/ipad/MotiffLabTests/FacadeTests.swift","symbol":"","value":701,"why":"existing before #332"}
   ]
 }
