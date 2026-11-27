@@ -187,7 +187,8 @@ struct PageSummaryLine: Equatable, Sendable, Identifiable {
 /// `scan.join` takes them. music-core keeps them with the notes (`scan.pages`) and flags the bars of a poor page
 /// (`PageQuality`); reports it refuses as not one per page (`badRequest`) are left out, and the notes read without them.
 enum DocumentRead {
-    static func request(musicXml: Data, engine: String, pages: Int, reports: [String]?, language: String, now: Date) -> [String: Any] {
+    /// `unread` and `read` (project file 18): the PDF's pages no engine read and those the notes have, kept with the notes.
+    static func request(musicXml: Data, engine: String, pages: Int, reports: [String]?, language: String, now: Date, unread: [Int] = [], read: [Int] = []) -> [String: Any] {
         var request: [String: Any] = [
             "musicXml": musicXml.base64EncodedString(),
             "engine": engine,
@@ -196,7 +197,17 @@ enum DocumentRead {
             "now": ISO8601DateFormatter().string(from: now),
         ]
         if let reports, !reports.isEmpty { request["reports"] = reports }
+        if !unread.isEmpty {
+            request["unread"] = unread
+            request["read"] = read
+        }
         return request
+    }
+
+    /// The request for what a scan server read from the PDF, by whichever flow (the library's recognition or the PDF's own
+    /// panel): its reports, and the pages no engine read with those the notes have (project file 18).
+    static func request(_ scanned: ScanResult, pages: Int, language: String, now: Date) -> [String: Any] {
+        request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: scanned.reports, language: language, now: now, unread: scanned.unread, read: scanned.read)
     }
 
     /// music-core's answer to the request on the PDF piece, sent again without the reports when it refused them.

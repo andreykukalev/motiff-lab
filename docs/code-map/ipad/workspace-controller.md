@@ -25,4 +25,5 @@ parts by concern are extensions in their own files.
   `CheckScore`, v1.6 i-8: the root keeps drawing the flags, `drawChecks`, and `showProblem`).
 - `ScoreScreenViews.swift`: `ScoreController`'s `whenRendered`, `viewPlace`, `showPlace` (where the page is scrolled,
   as a place in the notes), and `PdfController.keepView`.
-- `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags.
+- `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags; v1.6
+  c-14a: from the project file's `unreadPages` when the queue has no item.

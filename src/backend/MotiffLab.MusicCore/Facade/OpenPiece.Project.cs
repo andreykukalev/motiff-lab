@@ -81,6 +81,9 @@ internal sealed partial class OpenPiece
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
         ScanRequest.PageStarts(json, Project, Piece);
+        // Version 18: the PDF's pages no engine read and those the notes have, kept with the notes (empty when none).
+        JsonWrite.Numbers(json, "unreadPages", Project.Scan?.Unread ?? []);
+        JsonWrite.Numbers(json, "readPages", Project.Scan?.ReadPages ?? []);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
         // beside a scan's Check bars on the device is found by it.
         json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));

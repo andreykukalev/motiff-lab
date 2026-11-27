@@ -1,8 +1,10 @@
-# The project file (`.motiff.json`), version 17
+# The project file (`.motiff.json`), version 18
 
 **Status (2026-11-16):** the web app is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md)); the file stays the contract between the iPad app, the API and the web when it returns. While the web is frozen, a new version ships with the iPad alone, and the frozen web refuses files newer than it knows.
 
 **Version 17 (2026-11-19, [0034](architecture/adr/0034-drafts.md); version 1.1):** keeps the layout of version 16; a piece with no notes may be only its recording (finding 29, "A piece with no notes"), and the piece's drafts come (`workspace.drafts`, "Drafts") with music-core's drafts step; nothing else changes. Builds since version 1.1 write version 17.
+
+**Version 18 (2026-11-27, #314, #315; version 1.6):** keeps the layout of version 16 and adds `minReader`, the oldest version that may read the file (18); a file of a later version whose `minReader` this build meets opens read-only ("Files of a later version"). Unknown fields are kept in every workspace entity, and an unknown per-piece setting or variation operation is kept rather than damage ("Unknown values"). The piece's phrase level (`phrases.granularity`) is gone: the score shows every level, and a file of version 17 or earlier loses the override on reading. A scan keeps the pages no engine read (`scan.unread`, `scan.read`). Builds since version 1.6 write version 18.
 
 The project file is what a player keeps of a piece. Since version 16 ([0030](architecture/adr/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](architecture/adr/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
@@ -13,7 +15,8 @@ Ticks are integers at 480 per quarter ([0002](architecture/adr/0002-canonical-ti
 ```jsonc
 {
   "format": "motiff-lab-project",
-  "version": 17,
+  "version": 18,
+  "minReader": 18,                 // the oldest version that may read the file (version 18)
   "id": "p_…",                    // the project's id
   "fileName": "minuet.musicxml",   // the piece's file name: how the working notes' music is read (by its extension), and its title when nothing else names it
   "createdAt": "…", "lastOpened": "…",
@@ -23,7 +26,11 @@ Ticks are integers at 480 per quarter ([0002](architecture/adr/0002-canonical-ti
 }
 ```
 
-Each layer is an object or array of objects; a reader that meets a field it does not know at the top level, in the workspace, in a Notes, in an original or in a provenance keeps it and writes it back unchanged after the fields it knows (0026 S6). Unknown fields elsewhere are still dropped on writing, except inside an entity kept whole as unknown ("Unknown values").
+Each layer is an object or array of objects; a reader that meets a field it does not know at the top level, in the workspace, in a Notes, in an original, in a provenance and (version 18) in a motif, a variation, an idea, a bookmark, a bookmark category, a resume point, a draft and the settings keeps it and writes it back unchanged after the fields it knows (0026 S6). Unknown fields elsewhere are still dropped on writing, except inside an entity kept whole as unknown ("Unknown values").
+
+### Files of a later version (`minReader`)
+
+A file of version 18 or later carries `minReader`, a whole number from 1. A file whose `minReader` is above this build's version (even one of version 18), or of a later version without `minReader`, is refused with "This project was saved by a newer version of Motiff Lab" before any other field is read (#315, criterion 4). A file of version 18 or later without `minReader`, or with one that is not a whole number of 1 or more, is damaged. A file of a later version whose `minReader` this build meets is read as this layout, every unknown field, setting and operation kept, and opens **read-only** (`Project.Newer`, `Project.IsReadOnly`): it is shown and played, and written again as it came, its `version` and `minReader` the larger of its own and this build's, but never saved (`ProjectFile.Save` refuses it, and so does every facade call that answers the file, with the error `readOnly`). The iPad says so in one line under the bar of every view of the piece. #315 criterion 3 (a later version alone opens read-only) conflicts with criterion 4; this build follows 4.
 
 ## Originals (`originals`)
 
@@ -75,7 +82,7 @@ Every Notes of the piece: the working notes first, then the other Notes (read ag
     "music": "<base64>",                     // the notes as made: the working notes' MusicXML or MIDI, read by the piece's "fileName"
     "edits": [ … ],                          // the working notes: their corrections ("Note corrections")
     "check": [ … ] | null,                   // the working notes: their Check flags ("Check")
-    "scan": { "confirmedBars": [3, 7], "pages": [ … ] },        // notes recognised from a PDF or photos
+    "scan": { "confirmedBars": [3, 7], "pages": [ … ], "unread": [4], "read": [2] },  // notes recognised from a PDF or photos
     "transcription": { "bars": { … } | null, "seams": [ … ], "sentFromMs": 754000 },   // notes heard in a recording
     "pageMap": { "original": "src_pdf", "starts": [0, 15360, 29760] } },   // where each page of a PDF starts in these notes
   { "id": "n_2", "name": "homr 0.8",          // other Notes: name optional
@@ -91,7 +98,7 @@ Every Notes of the piece: the working notes first, then the other Notes (read ag
 
 - **The working notes** are the Notes `workspace.working` names; they carry `edits` and `check`, and never `performance`. A piece with no notes yet (a PDF to read as it is) has no working notes and an empty `notes`.
 - **`music`**: the working notes' bytes are read by the piece's `fileName`, as before: MusicXML (`.musicxml`, `.xml`, `.mxl`) or MIDI (`.mid`, `.midi`); a scan's notes are its MusicXML, a transcription's the engine's MIDI. A compared Notes' music is MIDI: the engine's MIDI, the player's MIDI file as it was, or a score written out as MIDI. The imported file of a piece imported from a file is the working notes' music byte for byte, so its original (`src_file`, kept `file`) has no `data` of its own.
-- **`scan`** (with `"op": "pdfRecognition"`): the bars the player checked and said look right (`confirmedBars`), and the raw numbers of the scan server's report on each page (`pages`, version 0.4): `{ "page", "rotation", "sharpness", "contrast", "staves", "noteheads", "barLines", "spacePx", "measures" }`, never the music. A page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration; a field a report lacks reads as 0; `page` is the page's place in the notes, from 1. On open the bars of a weak page are less sure (0.5) and those of a poor page flagged `PageQuality`. `pages` is left out when there are no reports.
+- **`scan`** (with `"op": "pdfRecognition"`): the bars the player checked and said look right (`confirmedBars`), and the raw numbers of the scan server's report on each page (`pages`, version 0.4): `{ "page", "rotation", "sharpness", "contrast", "staves", "noteheads", "barLines", "spacePx", "measures" }`, never the music. A page's quality (good, weak, poor) is worked out from them on every read (`PageReport.Quality`), so the thresholds change without a migration; a field a report lacks reads as 0; `page` is the page's place in the notes, from 1. On open the bars of a weak page are less sure (0.5) and those of a poor page flagged `PageQuality`. `pages` is left out when there are no reports. `unread` (version 18) are the PDF pages, from 1, no engine read when the notes were put together, and `read` the ones of them put in since (`scan.insert` with `pdfPage`); both are distinct and sorted, never share a page, and are left out while `unread` is empty, so the iPad can offer the pages still to read after the scan queue is gone (`check` answers `unreadPages`, `readPages`).
 - **`transcription`** (with `"op": "audioRecognition"`): the bars and tempo worked out for the notes heard ([0016](architecture/adr/0016-bars-for-transcribed-notes.md)), `null` to keep the engine's 120 BPM and 4/4: `{ "origin", "sixteenthMicroseconds", "signature", "barStarts", "stepsPerBeat", "beats", "meters"? }`. `meters` (version 0.5) says where the bars change signature: each change is at one of `barStarts` after the first (`at`, in 16ths from the origin), after the one before, with bars of whole 16ths, and may name a signature the grid's search does not offer, such as `7/8`; any other change is damage. `seams` (when a long recording went in parts): where each part after the first takes over, in milliseconds from the start of the stretch sent, ascending; the Check layer flags the bars on either side (`PartSeam`); left out for one part. `sentFromMs` (version 0.5): where, in the recording file, the stretch sent started, 0 or more; the workspace's `partOf.ms` counts from it, so another device that has the file (the same `sha256`) finds the piece's sound there; left out when not kept.
 - **`pageMap`**: the rough link the PDF and Notes views switch by: where each page of `original` starts in these notes, in ticks, page 1 at 0, each page after the one before. A page starts at the first bar the scan server marked with `<print new-page="yes"/>`, or, without such marks, the bars are shared evenly between the pages. With `"project": "p_…"` the PDF is in another piece: notes read from a PDF piece into a project of their own between 2026-11-05 and 2026-11-07 (0023); no build writes such notes any more. Without `project`, the original must be this piece's PDF and the map is written only while the PDF's bytes are here.
 - **Other Notes** (version 0.6) carry everything the working notes do, and `fileName`, so they can be made the working notes with nothing lost (`NotesOperations.MakeWorking`, «Сделать рабочими»; Andrei, 2026-11-14, amending 0030 section 1). Made working, the piece keeps its own `fileName` with the extension of theirs, and the working notes until then become other Notes under their id with the piece's `fileName`. Motifs, their variations and kept variations made on the notes until then wait with them: a motif and an idea name them (`notes`), they stay in the file and are left out on opening until those notes are working again. The marks on the score (`workspace.marks`) stay with the notes they were drawn on: the notes until then take them as their `marks`, and the Notes made working bring theirs (sources sheet, 2026-11-14). Phrases, bookmarks (a title still by their bars retitled), resume points, ideas without a variation and the versions compared (anchors, `dismissed`, their Check flags) stay with the piece and follow the music into the new working notes by bars (v1.5 c-11b, `FollowedWork`: a place in a bar with no match is kept where the music before it went); the file's fields do not change. Refused while bars are taken from versions or an assembly is applied.
@@ -470,10 +477,10 @@ A **step** names its place and changes only it. Steps are applied in number orde
 Only the per-piece overrides live in the file (prep item 5); the catalogue (`MotiffLab.MusicCore.Settings.SettingsCatalogue`) says which settings have the piece scope.
 
 ```jsonc
-"settings": { "phrases.granularity": "sentences", "layers.ink": "off" }   // sorted by id; empty when none
+"settings": { "layers.analysis": "off", "layers.ink": "off" }   // sorted by id; empty when none
 ```
 
-Settings have three scopes. **Device** settings (layout, note names, pencil-only, pen ink, metronome, count-in, follow playback, theme, language, save online, analytics) stay on the device as one document, `{"version": 1, "values": {…}}`, written and read by `SettingsState`; they never leave it. **Account** settings (level, guidance, assistant answers) follow the player once there is an account; until then they are on the device too. **Piece** settings (phrase granularity, the layers) can be overridden per piece, here. What a device knows of a project's online copy for the sync (its ETag and save time) is kept on the device beside the projects, never in the project file.
+Settings have three scopes. **Device** settings (layout, note names, pencil-only, pen ink, metronome, count-in, follow playback, theme, language, save online, analytics) stay on the device as one document, `{"version": 1, "values": {…}}`, written and read by `SettingsState`; they never leave it. **Account** settings (level, guidance, assistant answers) follow the player once there is an account; until then they are on the device too. **Piece** settings (the layers) can be overridden per piece, here. What a device knows of a project's online copy for the sync (its ETag and save time) is kept on the device beside the projects, never in the project file.
 
 ## Note corrections (`edits`)
 
@@ -494,6 +501,10 @@ An added note's id is the first of `a1`, `a2`, … that no note of the piece or 
 ## Opening an older file
 
 Every version since 1 opens (`ProjectFile.Read`) and is converted to the current version in memory, deterministically: the same file always gives the same project, and writing it gives the same bytes.
+
+### From version 17 (and 16) to 18
+
+One thing is converted: a `phrases.granularity` override is dropped (the piece's phrase level is gone; the score shows every level), and an unknown setting or variation operation is kept as in a file of version 18, since versions 16 and 17 share its layout ("Unknown values"); in a file of version 15 or earlier it stays damage. Written again, it is the same file with version 18 and `minReader` 18 (`Golden/v18-*`).
 
 ### From version 16 to 17
 
@@ -533,13 +544,15 @@ The rules for the versions before 15, in addition to the earlier ones kept in `P
 | < 13 | No performances; no `Performance` flags. |
 | 12 without `transcription.seams` | The recording went in one part, or was transcribed before seams were kept: no `PartSeam` flags. |
 | < 12 | No marks, bookmarks (the four built-in categories only) or overrides. `check` is null until the project is opened, then worked out from the piece and the scan's confirmed bars. |
-| 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](architecture/adr/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The level shown is the override `phrases.granularity`, as before. |
+| 12 without `phrases.short` / `phrases.sentences` | Written before the three phrase levels ([0018](architecture/adr/0018-redesign.md), section 3): the Short and Sentence levels have no edits, so the engine suggests them. The score shows every level; a `phrases.granularity` override is dropped on reading (version 18). |
 | 8–11 | Each session becomes a resume point with the same number (`s_0001` → `r_0001`), named by the session's task, at its passage, with the session's `lastActive`; its intent is dropped. |
 | 6–11 | Observations lose `sessionId`; `factId` is absent. |
 
 Pencil marks saved on the device before version 12 (the `motiff-lab-pencil` IndexedDB database, [0015](architecture/adr/0015-ipad-app.md)) are taken into the project the first time its score is shown and then forgotten on the device.
 
 ### Older builds
+
+A build before 1.6 refuses a version 18 file with "This project was saved by a newer version of Motiff Lab"; from version 18 on, a later version that keeps `minReader` 18 opens read-only in 1.6 rather than being refused.
 
 A build before 1.1 refuses a version 17 file the same way ([0034](architecture/adr/0034-drafts.md), section 7), whether it holds drafts, a piece that is only a recording or neither; the API needs no release for it.
 
@@ -549,13 +562,14 @@ A build before 0.6 refuses a version 16 file with "This project was saved by a n
 
 A later build can add a value to an enum while the file keeps its version ([0026](architecture/adr/0026-project-continuity.md), S6). A reader that does not know the value keeps the entity holding it as an unknown entity (`UnknownEntity`, with the enum's type name), out of the project's lists: it takes no part in playback, analysis or variations, and an app never meets it. The writer puts it back unchanged at the place it had in its array, so a file read and written with no change keeps every entity in the same order.
 
-- **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's layout (version 16 or 17, which share it). In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
+- **Only a value that is a name** (ASCII letters and digits, starting with a letter) and only in a file of the reader's layout (version 16 to 18, which share it). In an older file, or for any other text, the field is damaged: the builds that wrote an older file knew no value this one does not.
 - **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`), a Check flag (`check`) and a draft (`drafts`, version 17), whatever the depth of the value inside it.
 - **What goes with it.** A motif and its variations are kept or left unknown together. A bookmark in an unknown category of the player's own is left unknown with it.
 - **Built-in categories** are always there (#364). One with an unknown ink is kept unknown and written back as it was, and stands in under the name the file gives it, in the built-in's own ink (an app never shows an ink it does not have): its bookmarks are read as known, bookmarks can be added to it and moved into it (removing a category moves its bookmarks to Practise). Once the player renames it, the renamed one takes its place.
 - **New ids** for bookmarks, categories, resume points, ideas, highlights and Notes pass the unknown ones by, and a bookmark is never added under the id of an unknown one (#364). A new working motif of the facade passes the unknown motifs by too (#821). An entity an app makes with the id of an unknown one takes its place: the unknown one is not written, and neither is what went with it.
 - **Owned entities** (a variation of its motif, a bookmark of its category) are taken only by a known one with the same id and the same owner (#364): one of another owner never drops it. The facade never makes a variation with the id of an unknown one (its working variation passes them by, #821); one made so by a project built another way is written under the next id free of both, so no two variations of the file share one.
-- **Still damaged**: an unknown value in a note correction's values or hand, in the compared notes' `performance` or in the assembly, since keeping those aside would change the notes that sound (Andrei, #313); an unknown per-piece setting or variation operation; an unknown `Overlay` or Keep choice.
-- **Unknown fields** are kept at the top level, in `workspace`, in each Notes, each original and each provenance, and written back after the known fields in the order they came; elsewhere they are dropped on writing, except inside an entity kept whole as unknown. An unknown `op` keeps its provenance whole.
+- **Still damaged**: an unknown value in a note correction's values or hand, in the compared notes' `performance` or in the assembly, since keeping those aside would change the notes that sound (Andrei, #313); an unknown `Overlay` or Keep choice; in a file of version 15 or earlier, an unknown per-piece setting or variation operation.
+- **Settings and operations (version 18, #314)**: in a file of version 16 or later, a setting id this build does not know, or a piece setting with a text value it does not allow, is kept and written back with the overrides, and dropped once the player sets that setting; a value that is not text is damage. A variation with a step of an operation this build does not know is kept whole as an unknown entity (type `VariationOperation`) and written back; the facade answers its id in `newerVariations` (an idea's, in `newerIdeas`), and no app shows it.
+- **Unknown fields** are kept at the top level, in `workspace`, in each Notes, each original, each provenance and (version 18) each motif, variation, idea, bookmark, category, resume point, draft and the settings, and written back after the known fields in the order they came; elsewhere they are dropped on writing, except inside an entity kept whole as unknown. An unknown `op` keeps its provenance whole.
 
 A file written by a newer version is refused with "This project was saved by a newer version of Motiff Lab", in Russian «Этот проект сохранён более новой версией Motiff Lab» (#363): the facade answers it in the language of the request.

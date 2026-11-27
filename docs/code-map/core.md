@@ -44,8 +44,10 @@ through the facade; the API references it.
   records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
   ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
-  `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
-  `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
+  `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
+  read-only since version 18) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
+  keeps the unknown fields of workspace entities, `Legacy`); `ScanOrigin` keeps the PDF pages no engine read (`Unread`,
+  `ReadPages`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
   `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
   seam), `DraftAnchors` (anchors the player confirms), `OnRecording` (the stretch of a recording that is a place's
   music, «Найти на записи»), `PlaceLength` (a place's base cut again over other bars), `TechniqueCarry` (a приём carried
@@ -94,7 +96,7 @@ Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.
 ## Tests
 
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
-  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `<Folder>/Golden/*.txt` for what real
+  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`, a later version in its `.Newer`), `<Folder>/Golden/*.txt` for what real
   pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` and the calls of `docs/facade-contract.md`, both checked
   against the registry and the facade's answers (`FacadeCallsContractTests`; the Swift scan

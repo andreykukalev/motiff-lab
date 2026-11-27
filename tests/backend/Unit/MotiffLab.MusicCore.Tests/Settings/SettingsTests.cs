@@ -18,7 +18,8 @@ public class SettingsTests
         Assert.Equal(Preset.Practising, state.Preset);
         Assert.True(state.IsOn("guidance.brackets"));
         Assert.False(state.IsOn("guidance.hints"));
-        Assert.Equal("phrases", state["phrases.granularity"]);
+        // The phrase level a piece opened in is gone (version 1.6, project file 18; the phrases spec).
+        Assert.Null(SettingsCatalogue.Find("phrases.granularity"));
 
         // A switch no preset governs starts at its own default: on where the catalogue says so, else off.
         Assert.True(state.IsOn("playback.follow"));
@@ -39,7 +40,7 @@ public class SettingsTests
 
         SettingsState learning = night.WithPreset(Preset.Learning);
         Assert.Equal(Preset.Learning, learning.Preset);
-        Assert.Equal("short", learning["phrases.granularity"]);
+        Assert.True(learning.IsOn("guidance.focusSuggestion"));
         Assert.True(learning.IsOn("guidance.hints"));
         Assert.Equal("night", learning["appearance.theme"]);
 
@@ -91,14 +92,14 @@ public class SettingsTests
     public void A_piece_overrides_only_what_it_may_and_the_project_file_keeps_it()
     {
         Project project = Project.Create("p_test", "a.mid", [1, 2, 3], DateTimeOffset.UnixEpoch)
-            .OverrideSetting("phrases.granularity", "sentences")
+            .OverrideSetting("layers.taken", Setting.Off)
             .OverrideSetting("layers.check", Setting.Off);
 
         SettingsState inForce = SettingsState.Default.Resolve(project.SettingOverrides);
-        Assert.Equal("sentences", inForce["phrases.granularity"]);
+        Assert.False(inForce.IsOn("layers.taken"));
         Assert.False(inForce.IsOn("layers.check"));
         Assert.Equal(Preset.Custom, inForce.Preset);
-        Assert.Equal(Preset.Practising, SettingsState.Default.Resolve(project.OverrideSetting("phrases.granularity", null).OverrideSetting("layers.check", null).SettingOverrides).Preset);
+        Assert.Equal(Preset.Practising, SettingsState.Default.Resolve(project.OverrideSetting("layers.taken", null).OverrideSetting("layers.check", null).SettingOverrides).Preset);
 
         Assert.Throws<ArgumentException>(() => project.OverrideSetting("appearance.theme", "night"));
         Assert.Throws<ArgumentException>(() => project.OverrideSetting("guidance.hints", Setting.On));
@@ -200,12 +201,24 @@ public class SettingsTests
         Assert.Equal("badRequest", refused.GetProperty("error").GetString());
         Assert.Empty(JsonDocument.Parse(facade.Call(1, "settings")).RootElement.GetProperty("overrides").EnumerateObject());
 
-        // No build wrote one (a device setting never goes into the file), so a file that names one is damaged, as it was.
-        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
+        // Since version 18 a setting this build does not have is kept as the file held it and has no effect (#314): a file of
+        // this layout that names one opens without it in force and writes it back; in a file of an earlier layout it is damage.
+        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v18-worked.motiff.json")))!.AsObject();
         file["workspace"]!["settings"]!["experimental.resume"] = Setting.On;
         byte[] bytes = Encoding.UTF8.GetBytes(file.ToJsonString());
 
-        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(bytes)).Message);
+        Project read = ProjectFile.Read(bytes);
+        Assert.False(read.SettingOverrides.ContainsKey("experimental.resume"));
+        Assert.True(JsonNode.DeepEquals(file, JsonNode.Parse(ProjectFile.Write(read))), "the setting is written back as it was");
+        // A file of version 17 has this layout too (a build of 1.1 to 1.5 never wrote one, but a later build of it may): kept.
+        JsonObject seventeen = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
+        seventeen["workspace"]!["settings"]!["experimental.resume"] = Setting.On;
+        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(seventeen.ToJsonString()));
+        Assert.False(kept.SettingOverrides.ContainsKey("experimental.resume"));
+        Assert.Equal(Setting.On, JsonNode.Parse(ProjectFile.Write(kept))!["workspace"]!["settings"]!["experimental.resume"]!.GetValue<string>());
+        JsonObject earlier = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
+        earlier["settings"]!["experimental.resume"] = Setting.On;
+        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(earlier.ToJsonString()))).Message);
         Assert.Equal("p_0b5e7c1d2a3f4e5d6c7b8a9f0e1d2c3b", ProjectFile.ReadEnvelope(bytes).Id);
     }
 }

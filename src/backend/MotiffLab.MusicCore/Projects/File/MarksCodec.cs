@@ -255,6 +255,16 @@ internal static class MarksCodec
         json.WriteEndArray();
     }
 
+    /// <summary>The fields of a bookmark category, a bookmark and a resume point this build reads; a file's others are kept (version 18).</summary>
+    private static readonly HashSet<string> s_categoryFields = new(StringComparer.Ordinal) { "id", "name", "ink" };
+
+    private static readonly HashSet<string> s_bookmarkFields = new(StringComparer.Ordinal) { "id", "title", "category", "onset", "duration", "fromPhrase", "createdAt" };
+
+    internal static readonly HashSet<string> s_resumePointFields = new(StringComparer.Ordinal)
+    {
+        "id", "name", "at", "passage", "focused", "overlays", "tempoPercent", "hands", "loop", "createdAt", "lastActive",
+    };
+
     internal static void WriteBookmarks(Utf8JsonWriter json, Project project)
     {
         json.WriteStartObject("bookmarks");
@@ -272,6 +282,7 @@ internal static class MarksCodec
             }
 
             json.WriteString("ink", category.Ink.ToString());
+            WriteUnknownFields(json, project.UnknownFieldsAt(FieldsPath("bookmarks.categories", category.Id)));
             json.WriteEndObject();
         });
 
@@ -284,6 +295,7 @@ internal static class MarksCodec
             WriteSpan(json, bookmark.Span);
             json.WriteBoolean("fromPhrase", bookmark.FromPhrase);
             json.WriteString("createdAt", bookmark.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+            WriteUnknownFields(json, project.UnknownFieldsAt(FieldsPath("bookmarks.items", bookmark.Id)));
             json.WriteEndObject();
         });
 
@@ -292,7 +304,7 @@ internal static class MarksCodec
 
     internal static (IReadOnlyList<BookmarkCategory> Categories, IReadOnlyList<Bookmark> Bookmarks) ReadBookmarks(JsonElement bookmarks, Unknowns unknowns)
     {
-        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", static category => ReadCategory(category), unknowns);
+        List<BookmarkCategory> categories = ReadList(Property(bookmarks, "categories", JsonValueKind.Array), "bookmarks.categories", static category => ReadCategory(category), unknowns, s_categoryFields);
 
         // The four built-in categories are always there, so bookmarks can be added to them (#364): under their own name when
         // the file does not name them; one the file holds with an ink this build does not know is kept unknown, written back
@@ -316,7 +328,7 @@ internal static class MarksCodec
 
         // A bookmark in an unknown category is left unknown with it: an app could not show it in its category.
         List<Bookmark> items = Known(
-            ReadEntries(Property(bookmarks, "items", JsonValueKind.Array), "bookmarks.items", ReadBookmark, unknowns, "category"),
+            ReadEntries(Property(bookmarks, "items", JsonValueKind.Array), "bookmarks.items", ReadBookmark, unknowns, "category", s_bookmarkFields),
             "bookmarks.items",
             static bookmark => bookmark.CategoryId,
             unknownCategories,
@@ -395,6 +407,7 @@ internal static class MarksCodec
             json.WriteBoolean("loop", point.Loop);
             json.WriteString("createdAt", point.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastActive", point.LastActive.ToString("O", CultureInfo.InvariantCulture));
+            WriteUnknownFields(json, project.UnknownFieldsAt(FieldsPath("resumePoints", point.Id)));
             json.WriteEndObject();
         });
 
