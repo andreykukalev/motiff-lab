@@ -146,6 +146,9 @@ struct CloudSync {
         for id in await join(&records) {
             here[id] = nil
             outcome.changed = true
+            // The copy that joined another goes online in this pass, as one the player deleted; after a failure its mark
+            // sends it with the next.
+            if online.writable, let record = records[id] { await deleteOnline(id, record, &records) }
         }
         // A piece the library deleted while this pass ran keeps its mark for the next one (`markDeletedHere`, E-sync-1;
         // one marked between this read and the write below is not, a known limit there).
@@ -346,10 +349,10 @@ struct CloudSync {
     /// One piece, one entry (version 0.6.1, #582 item 1): the project files here that are the same piece by the files they
     /// were made from (`pieceKeys`, grouped by `project.same`), such as the same PDF added on another iPad and on this one,
     /// become one when one of them carries nothing of the player's own (`project.join`, music-core's `SamePiece`). The
-    /// other is written in place with its PDF and details, and the copy that joined it is deleted here and marked to go
-    /// online with the next pass as one the player deleted (`deleteOnline`: with its ETag, again after a failure), so no
-    /// device fetches it again; until then what this iPad knows of that online copy stays, so this iPad does not fetch it
-    /// again either. A copy whose bytes are kept beside
+    /// other is written in place with its PDF and details, and the copy that joined it is deleted here and marked deleted here,
+    /// so the pass deletes it online as one the player deleted (`deleteOnline`: with its ETag, again with the next pass after
+    /// a failure) and no device fetches it again; until then what this iPad knows of that online copy stays, so this iPad
+    /// does not fetch it again either. A copy whose bytes are kept beside
     /// its file on this iPad (a linked PDF, a copy for playing offline, a recording's sound) stays, though another may join
     /// it. Answers the ids of the projects that went.
     private func join(_ records: inout [String: SyncRecord]) async -> [String] {
