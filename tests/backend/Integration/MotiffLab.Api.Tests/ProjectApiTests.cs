@@ -45,7 +45,8 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         // 0025 section 8 (Andrei, 2026-11-11): free sync up to 300 pieces; those online keep syncing, a new one stays on the device.
         string player = Player();
         HttpClient free = Client(player, roles: []);
-        Assert.Equal(HttpStatusCode.NoContent, (await free.PutAsync("/projects/p_kept", Json(File("p_kept")))).StatusCode);
+        HttpResponseMessage first = await free.PutAsync("/projects/p_kept", Json(File("p_kept")));
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
         for (int index = 1; index < Plans.FreeProjectsOnline; index++)
         {
             await _api.Services.GetRequiredService<IProjectStore>().PutAsync(
@@ -55,7 +56,7 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         HttpResponseMessage refused = await free.PutAsync("/projects/p_new", Json(File("p_new")));
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
         Assert.Contains("\"code\":\"quota\"", await refused.Content.ReadAsStringAsync(), StringComparison.Ordinal);
-        Assert.Equal(HttpStatusCode.NoContent, (await free.PutAsync("/projects/p_kept", Json(File("p_kept")))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await free.SendAsync(Update("p_kept", File("p_kept"), first.Headers.ETag!))).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Client(player).PutAsync("/projects/p_new", Json(File("p_new")))).StatusCode);
 
         Assert.Equal(Plans.FreeProjectsOnline + 1, (await free.GetFromJsonAsync<Summary[]>("/projects"))!.Length);
@@ -148,11 +149,70 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
     {
         HttpClient client = Client(Player());
         EntityTagHeaderValue first = (await client.PutAsync("/projects/p_two_devices", Json(File("p_two_devices")))).Headers.ETag!;
-        await client.PutAsync("/projects/p_two_devices", Json(File("p_two_devices")));
+        Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(Update("p_two_devices", File("p_two_devices"), first))).StatusCode);
 
-        using var stale = new HttpRequestMessage(HttpMethod.Put, "/projects/p_two_devices") { Content = Json(File("p_two_devices")) };
-        stale.Headers.IfMatch.Add(first);
-        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(stale)).StatusCode);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(Update("p_two_devices", File("p_two_devices"), first))).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_first_upload_only_creates_and_never_writes_over_a_copy_online(bool ifNoneMatch)
+    {
+        // #321, 0026 S4: a save without If-Match is a first upload; with that id online already, it is a conflict (412), not a success.
+        HttpClient client = Client(Player());
+        byte[] online = ProjectFile.Write(Project.Create("p_first", "online.musicxml", Encoding.UTF8.GetBytes("<score-partwise/>"), s_created));
+        HttpResponseMessage created = await client.PutAsync("/projects/p_first", Json(online));
+        Assert.Equal(HttpStatusCode.NoContent, created.StatusCode);
+
+        using var again = new HttpRequestMessage(HttpMethod.Put, "/projects/p_first") { Content = Json(File("p_first")) };
+        if (ifNoneMatch)
+        {
+            again.Headers.IfNoneMatch.Add(EntityTagHeaderValue.Any);
+        }
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(again)).StatusCode);
+        HttpResponseMessage read = await client.GetAsync("/projects/p_first");
+        Assert.Equal(online, await read.Content.ReadAsByteArrayAsync());
+        Assert.Equal(created.Headers.ETag, read.Headers.ETag);
+    }
+
+    [Fact]
+    public async Task An_update_of_a_copy_deleted_online_since_is_a_conflict_and_a_first_upload_creates_it_again()
+    {
+        HttpClient client = Client(Player());
+        EntityTagHeaderValue first = (await client.PutAsync("/projects/p_gone", Json(File("p_gone")))).Headers.ETag!;
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync("/projects/p_gone")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(Update("p_gone", File("p_gone"), first))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsync("/projects/p_gone", Json(File("p_gone")))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_one_project_removes_only_it_and_with_if_match_only_the_copy_last_seen()
+    {
+        // The 1.6 plan's decision 14: removing a piece on the iPad removes its copy online.
+        HttpClient client = Client(Player());
+        EntityTagHeaderValue seen = (await client.PutAsync("/projects/p_removed", Json(File("p_removed")))).Headers.ETag!;
+        await client.PutAsync("/projects/p_stays", Json(File("p_stays")));
+        EntityTagHeaderValue changed = (await client.SendAsync(Update("p_removed", File("p_removed"), seen))).Headers.ETag!;
+
+        using (var stale = new HttpRequestMessage(HttpMethod.Delete, "/projects/p_removed"))
+        {
+            stale.Headers.IfMatch.Add(seen);
+            Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(stale)).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/projects/p_removed")).StatusCode);
+        using (var current = new HttpRequestMessage(HttpMethod.Delete, "/projects/p_removed"))
+        {
+            current.Headers.IfMatch.Add(changed);
+            Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(current)).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/projects/p_removed")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.DeleteAsync("/projects/p_removed")).StatusCode);
+        Assert.Equal("p_stays", Assert.Single((await client.GetFromJsonAsync<Summary[]>("/projects"))!).Id);
     }
 
     [Fact]
@@ -164,6 +224,20 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
 
         HttpResponseMessage response = await Client(Player()).PutAsync("/projects/p_large", Json(file));
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_the_player_with_nothing_online_answers_none_and_then_a_first_upload_creates_again()
+    {
+        // App Store 5.1.1(v): «Удалить аккаунт и данные онлайн» works whatever is online, and the account may save again.
+        HttpClient client = Client(Player());
+        HttpResponseMessage nothing = await client.DeleteAsync("/me");
+        Assert.Equal(HttpStatusCode.OK, nothing.StatusCode);
+        Assert.Contains("\"deletedProjects\":0", await nothing.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await client.PutAsync("/projects/p_again", Json(File("p_again")));
+        Assert.Contains("\"deletedProjects\":1", await (await client.DeleteAsync("/me")).Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsync("/projects/p_again", Json(File("p_again")))).StatusCode);
     }
 
     [Fact]
@@ -214,6 +288,14 @@ public sealed class ProjectApiTests : IClassFixture<ProjectApiTests.Api>
         var content = new ByteArrayContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         return content;
+    }
+
+    /// <summary>A save over the copy online that still has <paramref name="etag"/>.</summary>
+    private static HttpRequestMessage Update(string id, byte[] body, EntityTagHeaderValue etag)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/projects/{id}") { Content = Json(body) };
+        request.Headers.IfMatch.Add(etag);
+        return request;
     }
 
     [Fact]

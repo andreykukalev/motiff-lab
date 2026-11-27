@@ -175,7 +175,8 @@ internal static class SourcesMerge
         return new NoteEditLog([.. winner.Edits.Where(edit => !fromLoser[edit.NoteId]), .. loser.Edits.Where(edit => fromLoser[edit.NoteId])]);
     }
 
-    private static List<NoteEdit> Of(NoteEditLog log, string id) => [.. log.Edits.Where(edit => edit.NoteId == id)];
+    /// <summary>The corrections of one note in a log, in its order.</summary>
+    internal static List<NoteEdit> Of(NoteEditLog log, string id) => [.. log.Edits.Where(edit => edit.NoteId == id)];
 
     private static bool TakesLoser(List<NoteEdit> winner, List<NoteEdit> loser, List<NoteEdit>? @base)
     {
