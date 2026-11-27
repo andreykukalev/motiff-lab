@@ -1,7 +1,6 @@
 {
   "note": "Known violations of the code-quality thresholds (governance/quality/README.md). Only shrinks: fixing code removes its entry; a new entry needs a reason in \"why\" and an explanation in the pull request.",
   "entries": [
-    {"tool":"csharp","rule":"file-length","file":"src/backend/MotiffLab.MusicCore/Analysis/Harmony.cs","symbol":"","value":675,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Analysis/MotifAnalyzer.Rhythm.cs","symbol":"MotifAnalyzer.PatternFact","value":88,"why":"existing before #332"},
     {"tool":"csharp","rule":"method-length","file":"src/backend/MotiffLab.MusicCore/Analysis/MotifAnalyzer.Texture.cs","symbol":"MotifAnalyzer.TextureFact","value":95,"why":"existing before #332"},
     {"tool":"csharp","rule":"file-length","file":"src/backend/MotiffLab.MusicCore/Analysis/MotifAnalyzer.cs","symbol":"","value":740,"why":"existing before #332"},
