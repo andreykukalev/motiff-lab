@@ -27,7 +27,8 @@ through the facade; the API references it.
   as data, `GroupReason`, chosen by `After`) and `SentenceMap.Facts` (`GroupBasis` words them); `HarmonyAnalyzer`: the chord model and finder in `Harmony.cs` with
   `Measure` (into `Measures`: steps and cadence, bass moves and pedal, spreads, changes and shared notes), the motion's
   rules in `Harmony.Motion` (`Numeral`, `FunctionOf`, `CadenceOf`, `Steps`), the sentences in `Harmony.Facts` (also
-  `From`, `InversionName`, `FunctionName`); `.Phrasing`: the phrase levels, one edit algebra
+  `From`, `InversionName`, `FunctionName`); `MusicalIdeas` (each idea measured into `ThemeFound`, `ContrastFound`,
+  `SequenceFound`) and `MusicalIdeas.Facts` (the names, titles and lines); `.Phrasing`: the phrase levels, one edit algebra
   (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
