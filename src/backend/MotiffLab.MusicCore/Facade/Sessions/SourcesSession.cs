@@ -51,7 +51,7 @@ internal sealed class SourcesSession
         return before with { Next = now.Next };
     }
 
-    /// <summary>What became of the working notes' marks on notes read again: all of them on the new reading's bars, those put in, and those that could not be.</summary>
+    /// <summary>What became of the working notes' marks on notes read again: those carried, on the new reading's bars (all but a bar read badly that was read again), those put in, and those that could not be.</summary>
     public sealed record MarksCarried(IReadOnlyList<ReadingMark> Marks, IReadOnlyList<ReadingMark> Applied, IReadOnlyList<ReadingMark> Unfit)
     {
         /// <summary>The toast's line: «учтено отметок: 2 · не учтено, в «Проверить»: 1 (такт 3)»; null when no mark was put in or left out.</summary>
@@ -218,26 +218,27 @@ internal sealed class SourcesSession
     };
 
     /// <summary>
-    /// The working notes' marks «что не так» put into <paramref name="read"/>, the notes read again from the original
+    /// The working notes' marks «что не так» (those of <paramref name="project"/>, whose notes are imported as
+    /// <paramref name="working"/>) put into <paramref name="read"/>, the notes read again from the original
     /// <paramref name="original"/> («Как напечатано», step 3, <see cref="ReadingMarks"/>), when the working notes are a reading
     /// of it with marks; each mark first placed on the bar of the new reading its bar's music starts (<see cref="ReadingMatch"/>),
     /// a mark whose bar has no such place placed where its music lies and not put in; <paramref name="fileName"/> names the reading as it is imported. Answers
     /// the reading with the marks in and what became of them; the reading as it was and null with no marks.
     /// </summary>
-    public static (ReadScore Read, MarksCarried? Marks) Marked(SessionPiece piece, string original, string fileName, ReadScore read)
+    public static (ReadScore Read, MarksCarried? Marks) Marked(Project project, ImportedPiece working, string original, string fileName, ReadScore read)
     {
-        if (piece.Project.Scan is not { Marks.Count: > 0 } scan || (scan.From ?? PieceOriginal.DocumentId) != original)
+        if (project.Scan is not { Marks.Count: > 0 } scan || (scan.From ?? PieceOriginal.DocumentId) != original)
         {
             return (read, null);
         }
 
-        ReadingMatch match = new(piece.Piece, read.Piece);
-        int first = piece.Piece.Meter.BarAt(Tick.Zero).Number;
+        ReadingMatch match = new(working, read.Piece);
+        int first = working.Meter.BarAt(Tick.Zero).Number;
         List<ReadingMark> moved = [];
         HashSet<int> lost = [];
         foreach (ReadingMark mark in scan.Marks)
         {
-            Bar earlier = piece.Piece.Meter.GetBar(Math.Max(first, mark.Bar));
+            Bar earlier = working.Meter.GetBar(Math.Max(first, mark.Bar));
             if (match.Moved(earlier) is { } bar)
             {
                 moved.Add(mark.At(bar.Number));
@@ -261,8 +262,9 @@ internal sealed class SourcesSession
 
         // Numbered by the bars of the notes made, which a meter mark may number otherwise than the reading did.
         IReadOnlyList<(ReadingMark Mark, MarkOutcome Outcome)> numbered = marked.Numbered(again.Piece);
+        // A bar read badly read again has done its job: it sits in Check with its readings, and is not carried to be read again once more.
         return (again, new MarksCarried(
-            ScanOrigin.Ordered(numbered.Select(static each => each.Mark)),
+            ScanOrigin.Ordered(numbered.Where(static each => each.Mark.Kind != ReadingMarkKind.BadlyRead || each.Outcome != MarkOutcome.Applied).Select(static each => each.Mark)),
             [.. numbered.Where(static each => each.Outcome == MarkOutcome.Applied).Select(static each => each.Mark)],
             [.. numbered.Where(static each => each.Outcome == MarkOutcome.Unfit).Select(static each => each.Mark)]));
     }

@@ -75,6 +75,13 @@ public enum CheckReason
     /// 18). The mark stays on the notes; the player checks the bar.
     /// </summary>
     MarkUnfit,
+
+    /// <summary>
+    /// A bar the player marked as read badly, which the new reading of its page takes from another engine than the one taken
+    /// before (scan, «Как напечатано» step 3, version 1.6, project file 18): the player compares it with the page and the
+    /// engines' other readings.
+    /// </summary>
+    ReadAgain,
 }
 
 /// <summary>
@@ -313,9 +320,10 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
         CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+        CheckReason.ReadAgain => ScanBar.Describe(ScanFlag.ReadAgain, words),
         CheckReason.MarkUnfit => words.T(
-            "Your mark on this bar could not be used in this reading: the reading has no such bar, staff or clef here. The mark stays; check the bar against the page.",
-            "Вашу отметку на этом такте не удалось учесть в этом чтении: в нём нет такого такта, стана или ключа. Отметка осталась; сверьте такт со страницей."),
+            "Your mark on this bar could not be used in this reading: the reading has no such bar, staff or clef here, its notes do not add up as the mark says, or no engine read the bar otherwise. The mark stays; check the bar against the page.",
+            "Вашу отметку на этом такте не удалось учесть в этом чтении: в нём нет такого такта, стана или ключа, ноты не складываются так, как говорит отметка, или ни один движок не прочитал такт иначе. Отметка осталась; сверьте такт со страницей."),
         CheckReason.CorrectionUnfit => words.T(
             "Your correction on the earlier reading of these pages does not fit this reading: it reads the note neither as you found it nor as you corrected it. The earlier reading keeps the correction; compare the two in Sources.",
             "Ваше исправление не подошло к новому чтению: оно читает эту ноту не так, как вы её нашли, и не так, как исправили. Исправление осталось в прежнем чтении; сравните их в «Источниках»."),
@@ -334,6 +342,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
             CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
+            CheckReason.ReadAgain => words.T("Read by another engine", "Прочитан другим движком"),
             CheckReason.CorrectionUnfit => words.T("Your correction did not fit", "Исправление не подошло"),
             CheckReason.MarkUnfit => words.T("Your mark not used", "Отметка не учтена"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
@@ -376,6 +385,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
                 "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
             CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+            CheckReason.ReadAgain => ScanBar.Describe(ScanFlag.ReadAgain, words),
             CheckReason.CorrectionUnfit => Describe(CheckReason.CorrectionUnfit, words),
             CheckReason.MarkUnfit => Describe(CheckReason.MarkUnfit, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
@@ -391,6 +401,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
         ScanFlag.GraceNotes => CheckReason.GraceNotes,
         ScanFlag.PageQuality => CheckReason.PageQuality,
         ScanFlag.EnginesDisagree => CheckReason.EnginesDisagree,
+        ScanFlag.ReadAgain => CheckReason.ReadAgain,
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }

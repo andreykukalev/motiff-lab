@@ -7,12 +7,11 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
-/// <summary>What became of a mark put into a reading: put in, not put in (Check flags it), or kept for a later step to use.</summary>
+/// <summary>What became of a mark put into a reading: put in, or not put in (Check flags it).</summary>
 internal enum MarkOutcome
 {
     Applied,
     Unfit,
-    Waiting,
 }
 
 /// <summary>A mark as a reading took it: the measures (by index in each part) it lies on, null where the reading has none, and its outcome.</summary>
@@ -63,8 +62,10 @@ internal sealed record MarkedReading(byte[] Score, IReadOnlyList<PlacedMark> Mar
 /// staff's notes an octave up (8va) or down (8vb). A key signature: from its bar to the next key mark, the reading's key
 /// signatures say it and its notes take its sharps or flats. A time signature: from its bar to the next meter mark, the
 /// reading's time signatures say it, and a bar that comes out in its length with the split moments put back is re-timed
-/// so (<see cref="ScanRepair.Bar"/>); a bar that still does not add up keeps its Check flag. Triplets and a bar read badly
-/// wait for the reading itself (c-14b2) and pass through unchanged.
+/// so (<see cref="ScanRepair.Bar"/>); a bar that still does not add up keeps its Check flag. Triplets: the bars' staves
+/// re-timed in 3 in the time of 2, or out of it, where their lengths then add up (c-14b2). A bar read badly changes no
+/// note here: it is put in where the merge took another engine's reading of it (<see cref="MusicXmlImport.ReadAgain"/>,
+/// <see cref="ScanBefore"/>), and does not fit a reading that has none.
 /// </para>
 /// <para>
 /// A note read again under a clef or a key keeps its alteration where the page shows one: an accidental written, one
@@ -73,10 +74,10 @@ internal sealed record MarkedReading(byte[] Score, IReadOnlyList<PlacedMark> Mar
 /// Pure and deterministic.
 /// </para>
 /// </remarks>
-internal static class ReadingMarks
+internal static partial class ReadingMarks
 {
-    /// <summary>The order the marks go in: staves first, then the notes on them, then the bars' lengths.</summary>
-    private static readonly ReadingMarkKind[] s_order = [ReadingMarkKind.Hands, ReadingMarkKind.Clef, ReadingMarkKind.Octave, ReadingMarkKind.Key, ReadingMarkKind.Meter];
+    /// <summary>The order the marks that change notes go in: staves first, then the notes on them, then the bars' lengths, then the lengths in them.</summary>
+    private static readonly ReadingMarkKind[] s_order = [ReadingMarkKind.Hands, ReadingMarkKind.Clef, ReadingMarkKind.Octave, ReadingMarkKind.Key, ReadingMarkKind.Meter, ReadingMarkKind.Triplets];
 
     /// <summary>
     /// <paramref name="score"/>, the reading <paramref name="read"/> was imported from, with <paramref name="marks"/> put in
@@ -97,9 +98,10 @@ internal static class ReadingMarks
 
         List<XElement>? parts = root is null ? null : [.. root.Elements("part")];
         int count = parts is not { Count: > 0 } ? measureOf.Count : parts.Min(static part => part.Elements("measure").Count());
+        HashSet<int> readAgain = [.. read.MusicXml?.ReadAgain ?? []];
         PlacedMark[] placed = [.. marks.Select(static (mark, index) => (Mark: mark, Index: index))
             .OrderBy(static each => s_order.Contains(each.Mark.Kind) ? Array.IndexOf(s_order, each.Mark.Kind) : s_order.Length).ThenBy(static each => each.Mark.Bar)
-            .Select(each => Place(each.Mark, marks, unplaced?.Contains(each.Index) == true, parts, measureOf, count))];
+            .Select(each => Place(each.Mark, marks, unplaced?.Contains(each.Index) == true, parts, measureOf, count, readAgain))];
         PlacedMark[] applied = [.. placed.Where(static mark => mark.Outcome == MarkOutcome.Applied)];
         if (root is null || applied.Length == 0)
         {
@@ -113,15 +115,16 @@ internal static class ReadingMarks
 
     /// <summary>
     /// The mark on the measures of its bars, put into <paramref name="parts"/> (null: the reading is no MusicXML) unless
-    /// <paramref name="unplaced"/> or of a kind a later step puts in.
+    /// <paramref name="unplaced"/>; a bar read badly fits when the merge read each of its measures again (<paramref name="readAgain"/>).
     /// </summary>
-    private static PlacedMark Place(ReadingMark mark, IReadOnlyList<ReadingMark> marks, bool unplaced, List<XElement>? parts, Dictionary<int, int> measureOf, int count)
+    private static PlacedMark Place(ReadingMark mark, IReadOnlyList<ReadingMark> marks, bool unplaced, List<XElement>? parts, Dictionary<int, int> measureOf, int count, HashSet<int> readAgain)
     {
         int? first = measureOf.TryGetValue(mark.Bar, out int found) && found < count ? found : null;
         int? last = first is { } at ? LastMeasure(mark, marks, measureOf, at, count) : null;
-        MarkOutcome outcome = !s_order.Contains(mark.Kind) ? unplaced ? MarkOutcome.Unfit : MarkOutcome.Waiting
-            : unplaced || parts is null || first is null ? MarkOutcome.Unfit
-            : Put(parts, mark, first.Value, last!.Value) ? MarkOutcome.Applied : MarkOutcome.Unfit;
+        bool fits = !unplaced && first is { } from && (mark.Kind == ReadingMarkKind.BadlyRead
+            ? Enumerable.Range(from, last!.Value - from + 1).All(readAgain.Contains)
+            : parts is not null && Put(parts, mark, from, last!.Value));
+        MarkOutcome outcome = fits ? MarkOutcome.Applied : MarkOutcome.Unfit;
         return new PlacedMark(mark, first, last, outcome);
     }
 
@@ -154,6 +157,7 @@ internal static class ReadingMarks
                 ReadingMarkKind.Clef => Clef(measures, first, last, mark),
                 ReadingMarkKind.Octave => Octave(measures, first, last, mark),
                 ReadingMarkKind.Key => Key(measures, first, last, mark.Fifths),
+                ReadingMarkKind.Triplets => Triplets(part, first, last, mark.Value == "yes"),
                 _ => Meter(part, measures, first, last, mark.Meter),
             };
         }

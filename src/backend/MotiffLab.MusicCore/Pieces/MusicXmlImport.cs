@@ -52,6 +52,15 @@ public sealed record MusicXmlImport(
     /// <summary>The measures (<see cref="MusicXmlMeasure.Index"/>, in order) a scan merge marked with <see cref="EnginesDisagreeMark"/>.</summary>
     public IReadOnlyList<int> EnginesDisagree { get; init; } = [];
 
+    /// <summary>
+    /// The text of the hidden direction a scan merge writes, as <see cref="EnginesDisagreeMark"/>, in a measure the player
+    /// marked as read badly where it took another engine's reading than the one taken before («Как напечатано», step 3).
+    /// </summary>
+    public const string ReadAgainMark = "Motiff Lab scan: read again from another engine";
+
+    /// <summary>The measures (<see cref="MusicXmlMeasure.Index"/>, in order) a scan merge marked with <see cref="ReadAgainMark"/>.</summary>
+    public IReadOnlyList<int> ReadAgain { get; init; } = [];
+
     /// <summary>The bar lines drawn other than single (double, final, heavy), one per position and style, in time order.</summary>
     public IReadOnlyList<MusicXmlBarline> Barlines { get; init; } = [];
 

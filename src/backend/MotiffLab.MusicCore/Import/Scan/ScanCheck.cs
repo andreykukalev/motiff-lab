@@ -76,6 +76,7 @@ public sealed record ScanCheck
         var restsByMeasure = import.Rests.ToLookup(static rest => rest.MeasureIndex);
         var graceByMeasure = import.GraceNotes.ToLookup(static grace => grace.MeasureIndex);
         HashSet<int> disagreed = [.. import.EnginesDisagree];
+        HashSet<int> readAgain = [.. import.ReadAgain];
 
         var bars = new List<ScanBar>(import.Measures.Count);
         for (int i = 0; i < import.Measures.Count; i++)
@@ -107,7 +108,7 @@ public sealed record ScanCheck
                 flags.Add(ScanFlag.OutOfPianoRange);
             }
 
-            flags.AddRange(Marked(graceByMeasure[measure.Index].Any(), disagreed.Contains(measure.Index)));
+            flags.AddRange(Marked(graceByMeasure[measure.Index].Any(), disagreed.Contains(measure.Index), readAgain.Contains(measure.Index)));
 
             int? page = map?.PageOf(measure.Span.Onset);
             PageQuality? quality = page is { } number ? pages![number - 1].Quality : null;
@@ -131,8 +132,8 @@ public sealed record ScanCheck
         return new ScanCheck(bars, PagesOf(pages, bars));
     }
 
-    /// <summary>The flags of what the score marks in a measure: grace notes, and a scan merge's bar the engines disagree on.</summary>
-    private static IEnumerable<ScanFlag> Marked(bool graceNotes, bool enginesDisagree)
+    /// <summary>The flags of what the score marks in a measure: grace notes, and a scan merge's bar the engines disagree on or read again from another engine.</summary>
+    private static IEnumerable<ScanFlag> Marked(bool graceNotes, bool enginesDisagree, bool readAgain)
     {
         if (graceNotes)
         {
@@ -142,6 +143,11 @@ public sealed record ScanCheck
         if (enginesDisagree)
         {
             yield return ScanFlag.EnginesDisagree;
+        }
+
+        if (readAgain)
+        {
+            yield return ScanFlag.ReadAgain;
         }
     }
 
@@ -270,6 +276,9 @@ public sealed record ScanBar(int Bar, string? Measure, TickSpan Span, IReadOnlyL
         ScanFlag.EnginesDisagree => words.T(
             "The engines that read the page disagree on this bar: no two of them read one of its staves alike. Compare the bar with the page.",
             "Движки распознавания, читавшие страницу, разошлись в этом такте: никакие два не прочитали один из нотоносцев одинаково. Сверьте такт со страницей."),
+        ScanFlag.ReadAgain => words.T(
+            "You marked this bar as read badly, so this reading takes another engine's reading of it than the one taken before. Compare it with the page and the other readings.",
+            "Вы отметили этот такт как прочитанный плохо, поэтому здесь взято чтение другого движка, а не прежнее. Сверьте такт со страницей и с другими чтениями."),
         _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "Unknown scan flag."),
     };
 }
@@ -302,4 +311,7 @@ public enum ScanFlag
 
     /// <summary>No two engines agree on some staff of the bar, as a scan merge marked it (<see cref="ScanMerge"/>, version 1.3).</summary>
     EnginesDisagree,
+
+    /// <summary>The player marked the bar as read badly and a scan merge took another engine's reading of it (<see cref="ScanMerge"/>, version 1.6).</summary>
+    ReadAgain,
 }
