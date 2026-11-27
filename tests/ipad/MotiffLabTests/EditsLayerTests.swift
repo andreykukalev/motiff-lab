@@ -29,13 +29,13 @@ final class EditsLayerTests: XCTestCase {
     }
 
     func testTheNoteEditorSendsTheSelectionsBarAndNoneWithoutOneSoAPickupIsNotRefused() throws {
-        XCTAssertEqual(NoteEditorState.request(["id": "n1"], bar: 3) as NSDictionary, ["id": "n1", "bar": 3] as NSDictionary)
-        XCTAssertEqual(NoteEditorState.request([:], bar: nil) as NSDictionary, [:] as NSDictionary, "never a guessed bar 1")
+        XCTAssertEqual(EditsLayerState.correctionsRequest(["id": "n1"], bar: 3) as NSDictionary, ["id": "n1", "bar": 3] as NSDictionary)
+        XCTAssertEqual(EditsLayerState.correctionsRequest([:], bar: nil) as NSDictionary, [:] as NSDictionary, "never a guessed bar 1")
 
         // music-core answers a call without a bar for the piece's first one: bar 0 of a piece that starts with a pickup.
         let pickup = #"<?xml version="1.0"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="0" implicit="yes"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="1"><note><pitch><step>A</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#
         let number = try piece(open("pickup.musicxml", Data(pickup.utf8), #"{"language": "en"}"#))
-        let begun = try object(MusicCore.call(piece: number, "corrections.begin", facadeRequest(NoteEditorState.request([:], bar: nil))))
+        let begun = try object(MusicCore.call(piece: number, "corrections.begin", facadeRequest(EditsLayerState.correctionsRequest([:], bar: nil))))
         XCTAssertEqual(begun["bar"] as? Int, 0, "\(begun)")
     }
 

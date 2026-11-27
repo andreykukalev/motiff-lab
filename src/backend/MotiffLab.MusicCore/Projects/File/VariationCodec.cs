@@ -52,9 +52,10 @@ internal static class VariationCodec
     }
 
     /// <summary>
-    /// The variations, each under an id no unknown one written beside them has (#364): the facade names the working motif's
-    /// variation after its motif (v_0002 for m_0002), which can be the id of a hidden variation of another motif; such a one
-    /// is written under the next id free of all, so no two variations in the file share one. The app never sees the ids.
+    /// The variations, each under an id no unknown one written beside them has (#364): one with the id of a hidden variation
+    /// of another motif is written under the next id free of all, so no two variations in the file share one. The facade
+    /// never makes such an id (its working variation passes the unknown ones by, #821); this guards a project built another
+    /// way. The app never sees the ids.
     /// </summary>
     private static List<SavedVariation> ApartFrom(IReadOnlyList<SavedVariation> variations, IReadOnlyList<UnknownEntity> unknown)
     {

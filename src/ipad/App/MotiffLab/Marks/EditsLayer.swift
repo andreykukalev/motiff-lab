@@ -58,16 +58,20 @@ struct EditsLayerState: Equatable, Sendable {
 
     /// `corrections.layer`: on lays the corrections one by one, off leaves them out; with the bar Check lists, if any.
     static func layerRequest(on: Bool, bar: Int?) -> [String: Any] {
-        var fields: [String: Any] = ["on": on]
-        if let bar { fields["bar"] = bar }
-        return fields
+        correctionsRequest(["on": on], bar: bar)
     }
 
     /// `corrections.drop`: the notes whose corrections no longer fit, taken out of the edit log.
     static func dropRequest(_ noteIds: [String], bar: Int?) -> [String: Any] {
-        var fields: [String: Any] = ["noteIds": noteIds]
-        if let bar { fields["bar"] = bar }
-        return fields
+        correctionsRequest(["noteIds": noteIds], bar: bar)
+    }
+
+    /// A corrections call's fields with the bar whose notes it answers with, when there is one; without it music-core
+    /// answers for the piece's first bar, 0 for a pickup, rather than a bar 1 the app would guess and the piece may not have.
+    static func correctionsRequest(_ fields: [String: Any], bar: Int?) -> [String: Any] {
+        var request = fields
+        if let bar { request["bar"] = bar }
+        return request
     }
 
     /// Shown in More once the piece has corrections, or while they are off, so they can be turned on again.

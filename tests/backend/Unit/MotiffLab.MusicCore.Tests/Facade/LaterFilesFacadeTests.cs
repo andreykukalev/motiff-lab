@@ -105,19 +105,18 @@ public class LaterFilesFacadeTests
     }
 
     [Fact]
-    public void A_variation_tried_on_the_working_motif_replaces_only_the_one_it_was_opened_on()
+    public void A_variation_tried_on_the_working_motif_is_saved_beside_the_one_it_was_opened_on()
     {
-        // #821: the working chain is saved under its own id (v_0006); the motif's other variations are written as they were.
+        // #821 and review round 1: v_0006, the variation the piece opened on, stays as it was with every other one; the tried
+        // chain is saved under an id no variation has, known to this build or not.
         JsonObject file = With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue);
         MusicCoreFacade facade = Opened(file);
         Call(facade, "try", """{"chip": "v1.halfTime"}""");
         JsonObject saved = Saved(facade);
 
-        Assert.Equal(["v_0006", "v_0007", "v_0008", "v_0009", "v_0010"], VariationsOf(saved, "m_0002"));
-        JsonArray before = file["workspace"]!["variations"]!.AsArray();
         JsonArray after = saved["workspace"]!["variations"]!.AsArray();
-        Assert.False(JsonNode.DeepEquals(before[5], after[5]));
-        Assert.All(Enumerable.Range(6, 5), index => Assert.True(JsonNode.DeepEquals(before[index], after[index]), $"variation {index}"));
+        Assert.Equal(["v_0012", "v_0006", "v_0007", "v_0008", "v_0009", "v_0010"], VariationsOf(saved, "m_0002"));
+        Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"], new JsonArray([.. after.Where(variation => variation!["id"]!.GetValue<string>() != "v_0012").Select(variation => variation!.DeepClone())])));
         Assert.Equal(saved.ToJsonString(), Saved(Opened(saved)).ToJsonString());
     }
 

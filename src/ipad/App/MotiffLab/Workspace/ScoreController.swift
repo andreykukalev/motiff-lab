@@ -790,7 +790,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
         variantChoice.edited()
-        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, facadeRequest(NoteEditorState.request([:], bar: draft.firstBar)))
+        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, facadeRequest(EditsLayerState.correctionsRequest([:], bar: draft.firstBar)))
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
         readEdits(read)
         await notesDidChange()
@@ -916,7 +916,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         guard let piece else { return }
         if notes { variantChoice.edited() }
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
-        let body = facadeRequest(NoteEditorState.request(fields, bar: selectionModel.selection?.firstBar))
+        let body = facadeRequest(EditsLayerState.correctionsRequest(fields, bar: selectionModel.selection?.firstBar))
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
             guard let read = answer.value else {
@@ -1636,15 +1636,6 @@ struct NoteEditorState: Equatable, Sendable {
     var changed = false
     var canReset = false
     var picked: String?
-
-    /// A corrections call of the editor (or Undo of the assistant's draft): its fields and the bar whose notes it answers
-    /// with when there is one (the selection's first, the draft's); without it music-core answers for the piece's first bar,
-    /// 0 for a pickup, rather than a bar 1 the app would guess and the piece may not have.
-    static func request(_ fields: [String: Any], bar: Int?) -> [String: Any] {
-        var request = fields
-        if let bar { request["bar"] = bar }
-        return request
-    }
 }
 
 // MARK: - The selection's Undo and Redo (#511 section 11): the steps and the selecting are SelectionModel's, what follows the root's

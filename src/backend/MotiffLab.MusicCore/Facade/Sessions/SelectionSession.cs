@@ -58,8 +58,9 @@ internal sealed class SelectionSession
         : HiddenVariation;
 
     /// <summary>
-    /// The id the working variation is saved under (#821: a save writes over only the working chain's own earlier save, never
-    /// another saved variation): the one named after the motif (v_0002 for m_0002) unless <see cref="_variationId"/> says.
+    /// The id the working variation is saved under (#821: a save writes over only the working chain's own earlier save, made
+    /// before any other chain was shown, never another saved variation): the one named after the motif (v_0002 for m_0002)
+    /// unless <see cref="_variationId"/> says.
     /// </summary>
     private string VariationId => _variationId ?? VariationIdOf(MotifId);
 
@@ -287,11 +288,16 @@ internal sealed class SelectionSession
         return piece.Doubt().On(PieceDna.Build(piece.Notes, imported.Meter, imported.Keys, imported.End, NotedSelection, NotedSelection is null ? null : Understood(piece).Structure, piece.Words, piece.Structure, musicalIdeas));
     }
 
-    /// <summary>try: the chip <paramref name="chipId"/> sounded (0018, section 7), one accepted step over the selection with its Keep preset, as the chain.</summary>
+    /// <summary>
+    /// try: the chip <paramref name="chipId"/> sounded (0018, section 7), one accepted step over the selection with its Keep
+    /// preset, as the chain; the chain or hidden variation it replaces keeps its saved copy, and the new one is saved beside
+    /// it (#821), under the same id as long as nothing was saved under it.
+    /// </summary>
     public VariationChain Try(SessionPiece piece, string chipId)
     {
         TryChip chip = TryChips.Find(chipId) ?? throw FacadeException.BadRequest($"There is no chip \"{chipId}\".");
         VariationChain chain = TryChips.Start(chip, Understood(piece), out string? reason) ?? throw FacadeException.Unavailable(reason ?? "The chip cannot run on this selection.");
+        SaveVariationBeside(piece);
         Chain = chain;
         Chip = chip;
         HiddenVariation = null;
