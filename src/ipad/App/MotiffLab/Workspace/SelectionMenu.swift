@@ -189,14 +189,14 @@ struct SelectionMenu: View {
     }
 }
 
-/// Clear selection (#338): the one way to let go of a selection, as a tap elsewhere on the page or the roll keeps it.
+/// Clear selection (#338): the one way to let go of a selection, as a tap elsewhere on the page or the roll keeps it. At
+/// a fingertip's square, as the selection menu's other icons (#495 UX-11).
 struct ClearSelectionButton: View {
     @ObservedObject var score: ScoreController
     /// Practice view is off in Expand (`ScoreController.practicing`).
     @ObservedObject var focusModel: FocusModel
     let text: UIText
 
-    /// At a fingertip's square, as the selection menu's other icons (#495 UX-11).
     var body: some View {
         Button {
             score.clearSelection()
