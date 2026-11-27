@@ -6,6 +6,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
+- `LibraryView.swift`, `LibraryOnline.swift` (v1.6 i-11b): the library's screen ([`library.md`](library.md)): `LibraryModel`
+  with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
   It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix), and
@@ -14,8 +16,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   mapped in [`pdf.md`](pdf.md).
 - `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
-  or here and unreadable), `RecordingViewCapsule` under it;
-  nothing docked. «Распознать · Pro» in Sources makes its working notes and the piece opens again as notes.
+  or unreadable), `RecordingViewCapsule` under it. «Распознать · Pro» in Sources makes its notes; it opens again as
+  notes.
 - `RecordingWave.swift`: the levels of every 100 ms (`RecordingSound.levels(of:)`) as columns, the play cursor, a tap
   seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s. Tests: `RecordingWaveTests`.
 
@@ -23,8 +25,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   (`player`, `score`, `roll`, `insights`, `assistant`, `contents`, `originals`, `sources`) and `panels`. `wire()` hands
   the controllers their callbacks, each a named method here (`blankTapped`, `rollPicked`, …); `change`, `apply` and
   `backToMore` write `panels`; `assistantPressed` is the pill's assistant (its last conversation, or closed; an Ask
-  opens it empty). Tests: `ScoreWorkspaceTests`, `DraftsTests`; sessions:
-  `WorkspaceScenarioTests` (`../ipad.md`).
+  opens it empty). Tests: `ScoreWorkspaceTests`, `DraftsTests`; sessions: `WorkspaceScenarioTests`.
 - `ScoreWorkspaceReactions.swift`: the methods of the view's `.onChange` reactions on the panels and Expand, in the
   view's order (`contentsChanged`, `focusChanged`, …), with `syncPlayheads`, `showRollPosition`, `rollPlace`.
 - `ScoreWorkspaceFollowing.swift`: the methods of `following`'s reactions (`selectionChanged`, …), and
@@ -54,7 +55,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   hands, the phrase's ‹ ›, the metronome, the roll, the assistant; full, compact with «⋯», tight; it names no
   controller); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
   `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`); `FocusBar.swift` (with `FocusShowAs`,
-  `FocusRollCard`); `MorePanel.swift`; `ScoreWebView.swift` (the page's web view, `prewarm` at launch).
+  `FocusRollCard`); `HearingSwitch.swift` (also the Insights sheet's); `InsightsSheet.swift`
+  ([`insights.md`](insights.md)); `MorePanel.swift`; `ScoreWebView.swift` (the page's web view, `prewarm` at launch).
 - `TopBar.swift`: the bar's layout over the score and over a PDF alike: the same start in both, then the pages, then
   each view's actions; where it is short the view's note goes first, then the pages, then the actions turn compact.
   The read-only line (`readOnlyLine`, v1.6 c-14a) hangs under it on every view.

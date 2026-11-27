@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-11):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-12):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -91,6 +91,15 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   cannot · named by the title with those characters as spaces, no dot first (a hidden file is never listed), cut between
   letters to at most 200 bytes, numbered when the name is taken (a title the player or the score gives is shown as it
   is; one only the file's name gives shows that name) · the Files app's rules for a name · v1.5 r-2b
+- `E-library-4` · A piece asked to open while another is being opened (a line, Add piece, Files, the example, «Скачать
+  сюда», a screen's PDF | Notes, a folder's piece) · the second ask does nothing; the library waits for the first, whose
+  step always ends with the library answering again, a downloaded copy that cannot be read saying why · as PDF | Notes
+  already did (#582 item 2), one opening owner (`LibraryModel.openOnce`); HIG: prevent a repeated submit · v1.6 i-11b
+- `E-library-5` · «Удалить» on a piece whose project file cannot be removed (no permission, the file busy) · its line
+  stays and the line over the library says why (««…» не удалось удалить с этого iPad: пьеса осталась в библиотеке.»,
+  `library.deleteFailed`); a file already gone (deleted in Files meanwhile) is taken off as deleted · the list states
+  only what is on this iPad, as the next reading would show it · v1.6 i-11b. Known follow-up for the robustness pass: a
+  file that cannot be read on open, in Files or by rename still says the system's own words (`localizedDescription`)
 - `E-pdf-1` · «Разделить на пьесы» pressed again while the collection's project file is saved, before its first piece
   is made · the split is under way from the press: «Разделяю: 0 из N» shows and the button is off until it ends, so the
   collection is split once (a press then made every piece twice) · a button's action runs once per press while it is
@@ -101,7 +110,7 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   pages kept in the project file (`check` answers `unreadPages`, `readPages`) are marked and listed in Check as before,
   without «Повторить», which needs the queue's PDF · robustness rule: a page no engine read is never forgotten silently
   · v1.6 c-14a
-- `E-library-4` · A project saved by a newer version of Motiff Lab that this build may read · it opens and plays; one line
+- `E-library-6` · A project saved by a newer version of Motiff Lab that this build may read · it opens and plays; one line
   hung under the bar of every view of the piece (PDF, Notes, the roll, a recording) says it is read-only and nothing done
   is saved (Russian and English), written once by `PieceScreen` and drawn by `TopBar`, never one copy per screen; it takes
   no touch and does not move the bar; the work done is not saved, and no save is offered as failed · robustness rule: the
@@ -110,6 +119,21 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   read by no engine · the pages go with the notes the same way (`DocumentRead.request` of the `ScanResult`, one rule for
   both flows), so the score marks them and Check lists them after the app restarts · robustness rule: a page no engine
   read is never forgotten silently · v1.6 c-14a
+
+## Insights
+
+- `E-insights-1` · A Try, «Оставить» or «На круге» that music-core refuses while the facts are shown · its words show
+  over the facts, in the stream's danger line, until the next step (another way, Keep, Leave, the circle opened,
+  another selection) · the stream already said a refusal so when nothing was understood; a fallible step shows its error state
+  (developer's role, step 6) · v1.6 i-12
+- `E-insights-2` · A phrase tapped (or the selection cleared), with the sheet open or closed, Leave, Sources opened or
+  the screen handed over while a way is being made · the way is left: music-core
+  forgets the variation, nothing sounds, no trial and no refusal shows on the new selection's facts · a variation
+  belongs to the passage it was tried on, as Insights leaves a trial when the selection changes; a stale answer is never
+  shown (as `E-drafts-3`) · v1.6 i-12
+- `E-insights-3` · «Оставить» tapped again before music-core has kept the idea · one idea; the second tap does nothing
+  · one step at a time, as a second Try while a way is made (`starting`) and `E-drafts-4`; HIG: prevent a repeated
+  submit · v1.6 i-12
 
 ## Drafts and the assistant
 
