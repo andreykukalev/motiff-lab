@@ -586,8 +586,8 @@
     window.pageScenario = {
         /** Starts a scenario on this page: the messages are read from now on. */
         async begin(scenario, fixture) {
-            // The page's own hold, from the module its pages import (Scripts/score/selection-gesture.ts).
-            const { HOLD_MS, HOLD_SLOP } = await import(new URL("../score/selection-gesture.js", document.baseURI).href);
+            // The page's own hold, from the module its pages import (Scripts/selection/selection-gesture.ts).
+            const { HOLD_MS, HOLD_SLOP } = await import(new URL("../selection/selection-gesture.js", document.baseURI).href);
             run.hold = { ms: HOLD_MS, slop: HOLD_SLOP };
             run.felt = [];
             run.scenario = scenario;

@@ -5,8 +5,9 @@
 // selection comes back (`select`).
 import { SelectionLayer } from "../selection-layer.js";
 import { PlaceLayer } from "../selection-place-layer.js";
-import { gridLines, tupletBlocks, type GridSpan } from "../selection-grid.js";
-import type { ScoreGeometry, Rect } from "../score-geometry.js";
+import { gridLines, tupletBlocks, type GridSpan } from "../../selection/selection-grid.js";
+import type { Rect } from "../page-reader.js";
+import type { ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PageSelection } from "../page-contract.js";
 import { pointerRules, post, state } from "./page-state.js";
 import { bookmarksTop } from "./page-bookmarks.js";
@@ -67,7 +68,7 @@ export function installSelection(): void {
         beats: () => state.beats ?? (state.input?.places === true ? barStarts() : null),
         tickX: (tick) => state.geometry?.playhead(tick, (id) => state.timeline?.onsetOf(id))?.x,
         chosenSpan: (start, end, _byHandle, how, gesture) => post({ chosen: { start, end, beats: true, how, gesture } }),
-        // The selection gesture (#511 2.1, Scripts/score/selection-gesture.ts): a hold outside the selection takes it away; a
+        // The selection gesture (#511 2.1, Scripts/selection/selection-gesture.ts): a hold outside the selection takes it away; a
         // gesture cancelled after that gives it back; a Pencil moved off it before the hold is told to hold.
         cleared: (gesture) => post({ cleared: { gesture } }),
         cancelled: (gesture) => post({ gestureCancelled: gesture }),

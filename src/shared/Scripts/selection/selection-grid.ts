@@ -3,7 +3,7 @@
 // odd meter or a pickup bar keeps its lines on its own sixteenths; a tuplet (a triplet or any other group) is one block and
 // never split, so the grid has no line inside a group, only its start and its end. An edge dragged goes to the nearest of
 // these lines (snapEdge), and a rectangle drawn takes the lines outward (drawnRange, rectPassage), so a group is wholly in
-// or wholly out. Pure; the score (selection-place-layer.ts) and the roll (roll-place-gesture.ts) take their lines here.
+// or wholly out. Pure; the score (score/selection-place-layer.ts) and the roll (roll/roll-place-gesture.ts) take their lines here.
 
 /** A sixteenth note at 480 ticks per quarter. */
 export const SIXTEENTH = 120;

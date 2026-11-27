@@ -18,7 +18,7 @@ const piece = JSON.parse(readFileSync(new URL("../contracts/facade-answers/roll.
 fakePage();
 const { createPianoRoll, keptRollFrame, restoreRollFrame } = await import("../../src/shared/wwwroot/js/roll/piano-roll.js");
 const { PRACTICE_EVENT } = await import("../../src/shared/wwwroot/js/layout/practice-view.js");
-const { nextGestureId } = await import("../../src/shared/wwwroot/js/score/selection-gesture.js");
+const { nextGestureId } = await import("../../src/shared/wwwroot/js/selection/selection-gesture.js");
 /** The page's own prefix of the gesture names (a random one per page load), kept as "gesture" so the steps compare across runs. */
 const REALM = new RegExp(`"${nextGestureId().split("-")[0]}-`, "g");
 

@@ -1,11 +1,11 @@
-// The score's selection rules of version 0.6.1 (#582 items 6 to 9, Scripts/score/selection-gesture.ts with `barHold`, and
+// The score's selection rules of version 0.6.1 (#582 items 6 to 9, Scripts/selection/selection-gesture.ts with `barHold`, and
 // Scripts/score/menu-drag.ts): a hold on a bar selects that bar, replacing a selection there was, in one gesture; a move
 // from inside extends the selection either way and never shrinks it; the edges go to the beat lines inside a bar; the menu
 // dragged aside stays there until it closes.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { DRAG_DISTANCE, extendedRange, gestureChange, heldGesture, movedGesture, pressGesture } from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+import { DRAG_DISTANCE, extendedRange, gestureChange, heldGesture, movedGesture, pressGesture } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 import { MenuPin, keptInside, movedSpot } from "../../src/shared/wwwroot/js/score/menu-drag.js";
 
 // 4/4 bars of 1920 ticks and their beat lines every 480, as music-core gives them.

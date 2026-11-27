@@ -1,4 +1,4 @@
-// Reads a page of Verovio's SVG into elements, view boxes and transform matrices: score-geometry.ts reads the score's
+// Reads a page of Verovio's SVG into elements, view boxes and transform matrices: page-reader.ts reads the score's
 // pages with it. Well-formed XML only; text, comments and declarations are dropped. Kept free of the DOM so Node can
 // test it.
 

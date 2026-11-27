@@ -1,11 +1,11 @@
 // The rectangle a new selection is drawn with on the iPad's score (v0.6.3, #608; the approved mockup's `.trace`, the lead's
-// decision 2): Scripts/score/selection-rect.ts. What it selects is its geometry: time from its sides on one system, «as
+// decision 2): Scripts/selection/selection-rect.ts. What it selects is its geometry: time from its sides on one system, «as
 // text» across several, snapped outward to the lines, at least one step; the staff it stays within, else both; nothing
 // while it reaches over no system. The same rectangle always selects the same passage, whichever way it was drawn.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { coveredSystems, rectPassage, traceBox } from "../../src/shared/wwwroot/js/score/selection-rect.js";
+import { coveredSystems, rectPassage, traceBox } from "../../src/shared/wwwroot/js/selection/selection-rect.js";
 
 const BEAT = 240;
 // Two systems of two staves, a 3/8 bar of three beats every 150 pixels from x = 100; the second system goes on in time.

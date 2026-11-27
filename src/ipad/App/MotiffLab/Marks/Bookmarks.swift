@@ -343,7 +343,7 @@ struct ContentsDrawer: View {
                             .id(Part.structure)
                         }
                         part(bookmarksTitle) {
-                            ContentsList(contents: contents, score: score, selectionModel: selectionModel, marksModel: score.marksModel, text: text, close: close)
+                            ContentsList(contents: contents, selectionModel: selectionModel, marksModel: score.marksModel, text: text, close: close)
                         }
                         .id(Part.bookmarks)
                         part(text["contents.notesHead"]) {
@@ -463,9 +463,8 @@ struct FlowRow: Layout {
 /// The Contents' bookmarks: search and the order once there are more than three, then the bookmarks by category.
 struct ContentsList: View {
     @ObservedObject var contents: ContentsController
-    @ObservedObject var score: ScoreController
     @ObservedObject var selectionModel: SelectionModel
-    /// The bookmark gone to, which its entry shows.
+    /// The bookmark gone to, which its entry shows, and going to one.
     @ObservedObject var marksModel: MarksModel
     let text: UIText
     let close: () -> Void
@@ -548,7 +547,7 @@ struct ContentsList: View {
         let on = marksModel.isShown(bookmark.id)
         return HStack(spacing: CGFloat.ds("s-1")) {
             Button {
-                if score.goToBookmark(bookmark.id) { close() }
+                if marksModel.goToBookmark(bookmark.id) { close() }
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(bookmark.title)

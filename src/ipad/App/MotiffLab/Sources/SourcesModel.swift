@@ -1,13 +1,40 @@
 import Foundation
 
+/// What the versions need back from the score they are drawn on (ADR 0031 section 3, v1.6 i-10), as `PenScore` and
+/// `CheckScore`: the page, the piece, whether extra information of a kind shows, a draft's labels drawn with the markers,
+/// and what follows a version drawn, added, heard or picked. ScoreController, the composition root, is it.
+@MainActor
+protocol SourcesScore: AnyObject {
+    /// The score's page, the one way to its functions (`PageCommand`).
+    var scorePage: ScorePage { get }
+    /// The piece open in music-core; nil while none is.
+    var pieceId: Int32? { get }
+    /// Whether the pages are drawn, so marks can go on them.
+    var shown: Bool { get }
+    /// The labels of a draft's places and the numbers of their приёмы, drawn with the versions' markers.
+    var placeMarkers: [[String: Any]] { get }
+    /// Whether extra information of this kind shows on the score (`MarksModel.extraShown`).
+    func extraShown(_ kind: String) -> Bool
+    /// A passage selected, and brought into view.
+    func showSpan(_ span: Range<Double>)
+    /// The versions were drawn: the version in focus and the engraving (even bars) follow.
+    func versionsDrawn() async
+    /// A version was added to the piece: Check reads its flags again.
+    func loadCheck(in piece: Int32) async
+    /// A version's notes heard over a span, once (a marker's «Как в версии»).
+    func hear(version id: String, over span: Range<Double>)
+    /// The way to the versions from a marker, by its bar: the screen opens Sources.
+    func openSources(atBar bar: Int)
+}
+
 /// The piece's other versions on the score (ADR 0031 section 3, S4): the versions and the one compared bar by bar (0022),
 /// what the last thing done with a version came to, a version's marker tapped on the score, and the score as last
-/// engraved (even bars, the bars the app wrote). It owns this state and the rules of its own that need nothing else:
-/// reading a version and the list through music-core, and the words on a version just added. Since S7c it holds the
-/// piece's sources too (`info`).
-/// Drawing the versions on the page and engraving are ScoreController's, the composition root, which hands in what they
-/// give (`read`, `say`, `pickMarker`, `keepEngraved`); the views observe this model. ADR 0031, the notes of 2026-11-18
-/// (S4, S7c); the merge draft left in v1.1 (ADR 0034, section 8).
+/// engraved (even bars, the bars the app wrote). It owns this state, reads a version and the list through music-core,
+/// and since v1.6 i-10 draws the versions on the page and acts on them (show, compare, add, rename, a marker's way to
+/// Sources and its «Как в версии») through the score it is given (`SourcesScore`), as CheckModel does. Since S7c it
+/// holds the piece's sources too (`info`). Engraving stays ScoreController's, the composition root, which hands in what
+/// it gives (`keepEngraved`); the views observe this model. ADR 0031, the notes of 2026-11-18 (S4, S7c) and v1.6 i-10;
+/// the merge draft left in v1.1 (ADR 0034, section 8).
 @MainActor
 final class SourcesModel: ObservableObject {
     /// The score as last engraved: whether its bars are even (Settings · Notes, testing item 35), and how many bars the app
@@ -41,6 +68,9 @@ final class SourcesModel: ObservableObject {
     /// The piece's sources (testing item 16): the base, the line on what the player's version holds, the PDF kept inside.
     @Published private(set) var info = SourcesInfo()
     @Published private(set) var engraved: Engraved
+    /// The score the versions are drawn on, set by the root once it is made.
+    weak var score: SourcesScore?
+    private let text = UIText.current
 
     /// `evenBars`: whether the score is engraved with even bars now (the device's setting).
     init(evenBars: Bool) {
@@ -123,5 +153,108 @@ final class SourcesModel: ObservableObject {
         versions.matched == 0
             ? text["performance.noMatch"]
             : text.format("performance.added", String(versions.matched), String(versions.printed), String(versions.bars.filter(\.differs).count))
+    }
+
+    // MARK: - On the score (v1.6 i-10, from ScoreController)
+
+    /// Shows another version: its bars compared with these notes, and markers above the bars it has otherwise.
+    func showVersion(_ id: String) {
+        guard let piece = score?.pieceId else { return }
+        status = nil
+        Task { await readAndDraw(id, in: piece) }
+    }
+
+    /// A version picked in the switch: it is the one compared on the score.
+    func compareVersion(_ id: String) {
+        if versions.shownId != id { showVersion(id) }
+    }
+
+    /// A MIDI or MusicXML file of the piece added as another version: music-core lines it up with these notes, keeps it
+    /// with the piece and raises the Check flags it gives a scanned piece (`performance.add`, 0022); the list, the
+    /// markers and Check follow.
+    func addVersion(fileName: String, data: Data) async {
+        guard let piece = score?.pieceId else { return }
+        let name = (fileName as NSString).deletingPathExtension
+        let request = facadeRequest(["name": name.isEmpty ? text["performance.defaultName"] : name, "file": data.base64EncodedString(), "fileName": fileName])
+        let answer = await MusicCore.run { PieceCore(piece: piece).send(.performanceAdd, request) }
+        guard read(performance: answer) else {
+            status = FacadeAnswer.message(answer)
+            return
+        }
+        status = addedStatus(in: text)
+        await readList(of: piece)
+        await drawVersions()
+        await score?.loadCheck(in: piece)
+    }
+
+    /// «Переименовать…» on a version's row in Sources: the markers' labels and the popover take the new name.
+    func renameVersion(_ id: String, to name: String) async {
+        guard let piece = score?.pieceId else { return }
+        await rename(id, to: name, in: piece)
+        await drawVersions()
+    }
+
+    /// The piece's sources read again (testing item 16).
+    func refreshSources() {
+        Task { await readSources() }
+    }
+
+    private func readSources() async {
+        guard let piece = score?.pieceId else { return }
+        read(sources: await MusicCore.run { PieceCore(piece: piece).send(.sources) })
+    }
+
+    /// Show on a bar of the version: the bar is selected and comes into view.
+    func showVersionBar(_ bar: Int) {
+        guard let span = versions.bars.first(where: { $0.bar == bar })?.span else { return }
+        score?.showSpan(span)
+    }
+
+    /// The versions kept with the piece, and the one shown compared bar by bar, as the piece's pages are drawn.
+    func loadVersions(of piece: Int32) async {
+        await readList(of: piece)
+        if let id = versions.shownId ?? versions.entries.first?.id {
+            await readVersion(id, in: piece)
+        }
+        await drawVersions()
+    }
+
+    private func readAndDraw(_ id: String, in piece: Int32) async {
+        await readVersion(id, in: piece)
+        await drawVersions()
+    }
+
+    /// With extra information on, the bars the version has otherwise as plum labels above them and the printed notes it
+    /// does not have tinted, and a thin plum line under the bars taken from it; in a draft's view, always, the labels of
+    /// its places and the numbers of their приёмы (`SourcesScore.placeMarkers`). The score follows (`versionsDrawn`).
+    func drawVersions() async {
+        await readSources()
+        guard let score, score.shown else { return }
+        let name = versions.shown?.name ?? ""
+        let differing = score.extraShown("performance") ? versions.differing : []
+        let markers: [[String: Any]] = differing.compactMap { bar in
+            guard let span = bar.span else { return nil }
+            return ["bar": bar.bar, "tick": span.lowerBound, "text": bar.marker, "label": text.format("performance.markerLabel", String(bar.bar), name, bar.marker)]
+        } + score.placeMarkers
+        let data: [String: Any] = [
+            "markers": markers, "unheard": differing.flatMap(\.notHeard), "artefacts": [String](),
+            "taken": score.extraShown("taken") ? versions.taken.compactMap { $0.span?.lowerBound } : [],
+        ]
+        await score.scorePage.send(.performance, data)
+        await score.versionsDrawn()
+    }
+
+    /// ▶ As in the version, from a marker's popover: the bar as the version plays it.
+    func hearMarkerVersion() {
+        guard let pick = markerPick, let id = versions.shownId,
+              let span = versions.bars.first(where: { $0.bar == pick.bar })?.span else { return }
+        score?.hear(version: id, over: span)
+    }
+
+    /// «Источники» on a marker's popover: the popover goes and the screen opens Sources (`SourcesScore.openSources`).
+    func openSourcesFromMarker() {
+        guard let pick = markerPick else { return }
+        markerPick = nil
+        score?.openSources(atBar: pick.bar)
     }
 }

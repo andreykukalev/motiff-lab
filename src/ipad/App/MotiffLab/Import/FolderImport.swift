@@ -144,7 +144,6 @@ struct FolderImportLayer: ViewModifier {
     @ObservedObject var runner = ImportRunner.shared
     let text: UIText
     let summaries: [URL: PieceSummary]
-    let on: Bool
     @ObservedObject var account: Account
     /// Reads the library again: pieces were added, or a piece was linked again.
     let reload: () async -> Void
@@ -169,8 +168,7 @@ struct FolderImportLayer: ViewModifier {
                 }
             }
             .onChange(of: runner.revision) { _, _ in Task { await reload() } }
-            .task(id: on) {
-                guard on else { return }
+            .task {
                 model.load()
                 runner.restore()
                 await model.checkAccess()
@@ -180,8 +178,8 @@ struct FolderImportLayer: ViewModifier {
 
 extension View {
     @MainActor
-    func folderImport(_ model: FolderImportModel, text: UIText, summaries: [URL: PieceSummary], on: Bool, account: Account, reload: @escaping () async -> Void, open: @escaping (URL) async -> Void) -> some View {
-        modifier(FolderImportLayer(model: model, text: text, summaries: summaries, on: on, account: account, reload: reload, open: open))
+    func folderImport(_ model: FolderImportModel, text: UIText, summaries: [URL: PieceSummary], account: Account, reload: @escaping () async -> Void, open: @escaping (URL) async -> Void) -> some View {
+        modifier(FolderImportLayer(model: model, text: text, summaries: summaries, account: account, reload: reload, open: open))
     }
 }
 

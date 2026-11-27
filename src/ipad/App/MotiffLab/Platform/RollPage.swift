@@ -398,6 +398,16 @@ enum RollNoteEdit: Equatable, Sendable {
     }
 }
 
+/// The note editor on the roll while it is open (testing item 15; `CheckModel.noteEditor`): the tool a press uses ("move",
+/// "add" or "delete"), what Undo, Reset and Save can do, and the note the arrows and Delete act on.
+struct NoteEditorState: Equatable, Sendable {
+    var tool = "move"
+    var canUndo = false
+    var changed = false
+    var canReset = false
+    var picked: String?
+}
+
 /// Notes the roll picked in Select (`notes` message): their ids, how they change the selection, and the gesture. A box
 /// from outside replaces the selection (the toast «Выделение заменено · Вернуть»), one from inside adds to it, an edge moved
 /// narrows the picked notes (an edit, no toast).

@@ -14,10 +14,10 @@ struct LibraryShelfView: View {
     @Binding var query: LibraryQuery
     @Binding var picked: LibraryGroup?
     let text: UIText
-    /// Beside a playlist's name: «Держать на этом iPad» (version 0.5, experiment «Импорт папки»).
-    var playlistAccessory: ((String) -> AnyView)?
-    /// The pieces picked to recognise and each piece's recognition, and «Без нот» among the filters (version 0.5).
-    var marks: LibraryMarks?
+    /// Beside a playlist's name: «Держать на этом iPad» (version 0.5).
+    let playlistAccessory: (String) -> AnyView
+    /// The pieces picked to recognise and each piece's recognition (version 0.5).
+    let marks: LibraryMarks
     /// The pieces saved online that are not on this iPad, for their tab; nil or none hides it.
     var online: OnlineTab?
     let open: (URL) -> Void
@@ -29,7 +29,7 @@ struct LibraryShelfView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
-            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text, withoutNotes: marks != nil, online: !(online?.projects.isEmpty ?? true))
+            LibraryTabs(tab: $tab, query: $query, composers: composers, tags: tags, playlists: playlists, text: text, online: !(online?.projects.isEmpty ?? true))
             if tab == .composers || tab == .playlists, let picked {
                 HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-3")) {
                     BackChip(label: LibraryTabs.label(tab, text), text: text) { self.picked = nil }
@@ -37,7 +37,7 @@ struct LibraryShelfView: View {
                         .dsType(.title)
                         .foregroundStyle(Color.ds("ink"))
                         .accessibilityAddTraits(.isHeader)
-                    if tab == .playlists, let name = picked.name, let playlistAccessory {
+                    if tab == .playlists, let name = picked.name {
                         Spacer(minLength: CGFloat.ds("s-4"))
                         playlistAccessory(name)
                     }
@@ -74,7 +74,7 @@ struct LibraryShelfView: View {
                 } delete: { entry in
                     delete(entry.url)
                 }
-                .environment(\.libraryMarks, marks ?? LibraryMarks())
+                .environment(\.libraryMarks, marks)
             }
         }
     }

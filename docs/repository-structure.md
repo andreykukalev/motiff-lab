@@ -18,7 +18,7 @@ motiff-lab/
 │   │   ├── Verovio/              Verovio built from source
 │   │   └── build-version.sh      builds a version from its tag and installs it on the iPad (Andrei's Mac)
 │   └── shared/                   what the iPad bundles from the former web project; src/shared/README.md
-│       ├── Scripts/              TypeScript: score, roll, layout, storage, playback (compiled to wwwroot/js)
+│       ├── Scripts/              TypeScript: score, roll, selection, layout, storage, playback (compiled to wwwroot/js)
 │       ├── wwwroot/              i18n (interface words), audio/piano, lib/verovio
 │       ├── Playback/             FurElise.musicxml, the example piece
 │       └── MotiffLab.Shared.csproj, tsconfig.json, package.json, eslint.config.mjs
@@ -55,7 +55,7 @@ motiff-lab/
 | An API endpoint | `src/backend/MotiffLab.Api`, its tests in `tests/backend/Integration` |
 | The scan server's code | `src/backend/omr` (`docs/code-map/scan-server.md`), its tests in `src/backend/omr/tests` (Python's own layout, run with `python -m pytest` there) |
 | An iPad screen or controller | its feature folder in `src/ipad/App/MotiffLab` (`docs/code-map/ipad.md`), its tests in `tests/ipad/MotiffLabTests` (UI walks in `tests/ipad/MotiffLabScreens`) |
-| Score, roll, layout, storage or playback behaviour the score page runs | `src/shared/Scripts`, its tests in `tests/shared` |
+| Score, roll, selection, layout, storage or playback behaviour the score page runs | `src/shared/Scripts`, its tests in `tests/shared` |
 | What a player does on the score or roll page, pressed as on the iPad | A scenario in `tests/contracts/page-scenarios` (its README), replayed by `tests/pages` in Chromium and by `tests/ipad` in WebKit |
 | An interface text | `src/ipad/App/MotiffLab/<Folder>/Words/<Folder>.{en,ru}.json` for what only that folder says, else `src/shared/wwwroot/i18n/{en,ru}.json` (the pages and several folders) |
 | A repository tool | `tools/` |
