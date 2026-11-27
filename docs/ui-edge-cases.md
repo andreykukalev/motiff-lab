@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-8):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-11):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -91,6 +91,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   cannot · named by the title with those characters as spaces, no dot first (a hidden file is never listed), cut between
   letters to at most 200 bytes, numbered when the name is taken (a title the player or the score gives is shown as it
   is; one only the file's name gives shows that name) · the Files app's rules for a name · v1.5 r-2b
+- `E-pdf-1` · «Разделить на пьесы» pressed again while the collection's project file is saved, before its first piece
+  is made · the split is under way from the press: «Разделяю: 0 из N» shows and the button is off until it ends, so the
+  collection is split once (a press then made every piece twice) · a button's action runs once per press while it is
+  under way and shows that it waits (HIG: prevent a repeated submit), as `E-scan-9` · v1.6 i-11. Also while «Предложить»
+  or «Подтвердить пьесы» is under way (it saves the piece's file): «Разделить на пьесы» is off and a press is refused,
+  as those two are off while a split is under way · v1.6 i-11 (review)
 - `E-scan-10` · The unread pages of a scan whose queue item is gone (the app restarted, the job finished elsewhere) · the
   pages kept in the project file (`check` answers `unreadPages`, `readPages`) are marked and listed in Check as before,
   without «Повторить», which needs the queue's PDF · robustness rule: a page no engine read is never forgotten silently
