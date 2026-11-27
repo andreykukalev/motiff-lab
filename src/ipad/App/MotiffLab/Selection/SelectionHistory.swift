@@ -73,16 +73,6 @@ struct SelectionHistory<Selection: Equatable> {
         if undone { _ = self.undone.popLast() } else { _ = done.popLast() }
     }
 
-    /// The step just taken back (`undone`) or done again, changed as its owner's answer has it now (the phrases' step
-    /// number music-core answered for it, #318).
-    mutating func amendLast(undone: Bool, _ change: (inout Step) -> Void) {
-        if undone, !self.undone.isEmpty {
-            change(&self.undone[self.undone.count - 1])
-        } else if !undone, !done.isEmpty {
-            change(&done[done.count - 1])
-        }
-    }
-
     /// The gesture named was cancelled: its step goes, as if it never was; the owner selects its `before` again.
     mutating func revert(_ gesture: String) -> Step? {
         guard let last = done.last, last.gesture == gesture else { return nil }

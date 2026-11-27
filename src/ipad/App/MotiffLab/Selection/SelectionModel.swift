@@ -142,11 +142,6 @@ final class SelectionModel: ObservableObject {
             return refusedPhrases(answer)
         }
         phrases = restored
-        // The restore answers the step's number again, null once music-core no longer keeps it: the next Undo or Redo sends that.
-        phraseSteps.amendLast(undone: !redo) { kept in
-            kept.before?.number = restored.step
-            kept.after?.number = restored.step
-        }
         showPhraseToast(PhraseToast(words: words, offer: redo ? .undo : .redo))
         return nil
     }

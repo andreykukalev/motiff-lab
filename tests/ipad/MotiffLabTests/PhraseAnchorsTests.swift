@@ -4,8 +4,9 @@ import XCTest
 
 /// The phrase anchors on the iPad (v1.6 i-18, c-14d, #318) on the kit's piece through music-core: an Undo or Redo of a phrases
 /// step sends its number, so the anchors come back exactly; «Привязать заново» attaches the anchors that match no phrase and
-/// says how many; an idea shows in Insights on the phrase of its anchor, not by the bars it was kept on; a resume point in
-/// phrase focus follows its phrase. Ids are read from the answers, never predicted (they are random on the iPad, c-14c).
+/// says how many; an idea shows in Insights on the phrase of its anchor, not by the bars it was kept on, and the ideas are
+/// read again when the anchors change, the sheet closed; a resume point in phrase focus follows its phrase. Ids are read
+/// from the answers, never predicted (they are random on the iPad, c-14c).
 @MainActor
 final class PhraseAnchorsTests: XCTestCase {
     private var opened: [Int32] = []
@@ -37,6 +38,23 @@ final class PhraseAnchorsTests: XCTestCase {
     private func resumeInFocus(on unit: PhraseUnit, of piece: Int32) {
         let request = ResumePlace.saveRequest(id: nil, passage: unit.onset..<unit.end, at: unit.onset, focused: true, tempoPercent: 100, hands: nil, loop: false, now: Date())
         _ = MusicCore.call(piece: piece, "resume.save", request)
+    }
+
+    /// An idea of a note only kept on `unit`, which music-core attaches to the phrase's anchor: the one its answer adds.
+    private func keepIdea(on unit: PhraseUnit, of piece: Int32) throws -> IdeasAnswer.Idea {
+        let before = FacadeAnswer.decode(IdeasAnswer.self, MusicCore.call(piece: piece, "ideas"), of: "ideas")?.ideas.map(\.id) ?? []
+        _ = MusicCore.call(piece: piece, "select", #"{"span": {"onset": \#(Int(unit.onset)), "end": \#(Int(unit.end))}}"#)
+        let kept = MusicCore.call(piece: piece, "idea.keep", #"{"name": "Idea", "note": "here", "now": "2026-11-27T12:00:00Z"}"#)
+        let ideas = FacadeAnswer.decode(IdeasAnswer.self, kept, of: "idea.keep")?.ideas ?? []
+        return try XCTUnwrap(ideas.first { !before.contains($0.id) }, kept)
+    }
+
+    /// The anchors and step numbers in the contract's answers (#318): each edit's step number, which its Undo and Redo send
+    /// back, and a restore sent without one answers none; nothing is attached to a phrase in them yet.
+    func testThePhrasesAnswersCarryTheirStepAndAnchors() throws {
+        let read = try FacadeAnswerFixturesTests.answers("phrases.marks").map { try XCTUnwrap(PiecePhrases(answer: $0.text)) }
+        XCTAssertEqual(read.map(\.step), [nil, 1, nil, 2, 3, 4, 5, 6])
+        XCTAssertTrue(read.allSatisfy { $0.anchors.isEmpty && $0.unmatched == 0 }, "nothing attached to a phrase yet")
     }
 
     /// The Undo of a join sends the step's number (c-14d "step"): both anchors come back, each on its own phrase, where the
@@ -108,9 +126,7 @@ final class PhraseAnchorsTests: XCTestCase {
         let model = model(piece)
         await model.loadPhrases(of: piece)
         let second = try XCTUnwrap(model.phrases?.unit(2))
-        _ = MusicCore.call(piece: piece, "select", #"{"span": {"onset": \#(Int(second.onset)), "end": \#(Int(second.end))}}"#)
-        let kept = MusicCore.call(piece: piece, "idea.keep", #"{"name": "Idea", "note": "here", "now": "2026-11-27T12:00:00Z"}"#)
-        let idea = try XCTUnwrap(FacadeAnswer.decode(IdeasAnswer.self, kept, of: "idea.keep")?.ideas.first)
+        let idea = try keepIdea(on: second, of: piece)
         XCTAssertNotNil(idea.anchor, "attached to its phrase's anchor")
 
         let later = Int(second.onset + (second.end - second.onset) / 2)
@@ -129,6 +145,36 @@ final class PhraseAnchorsTests: XCTestCase {
         let shown = insights.ideasShown(on: phrases)
         XCTAssertEqual(shown.map(\.idea.id), [idea.id])
         XCTAssertEqual(shown.first?.phrase?.number, 2, "named by its anchor's phrase")
+    }
+
+    /// Ideas follow a join with the sheet closed (#318): two phrases joined keep one anchor, and the idea on the other is
+    /// written to it; the workspace's reaction to the anchors reads the ideas again, so both show on the joined phrase,
+    /// where the ideas read before would leave one on an anchor that is no more.
+    func testAJoinWithTheSheetClosedReadsTheIdeasAgainOnTheJoinedPhrase() async throws {
+        let piece = try open()
+        let workspace = ScoreWorkspace(piece: OpenPiece(id: piece, title: "Für Elise", pages: [], timemap: ""))
+        workspace.wire()
+        let model = workspace.score.selectionModel
+        await model.loadPhrases(of: piece)
+        let second = try XCTUnwrap(model.phrases?.unit(2))
+        let third = try XCTUnwrap(model.phrases?.unit(3))
+        let ideas = try [keepIdea(on: second, of: piece).id, keepIdea(on: third, of: piece).id]
+        await model.loadPhrases(of: piece)
+        let insights = workspace.insights
+        await insights.load(piece: piece, selection: ScoreSelection(onset: second.onset, end: third.end, firstBar: second.firstBar, lastBar: third.lastBar))
+        XCTAssertEqual(insights.ideasShown(on: model.phrases).compactMap { $0.phrase?.number }.sorted(), [2, 3], "each on its phrase")
+        XCTAssertFalse(workspace.panels[.insights], "the sheet is closed")
+
+        _ = await model.editPhrases(in: piece, #"{"remove": \#(Int(third.onset))}"#, done: "removed")
+        let joined = try XCTUnwrap(model.phrases)
+        XCTAssertEqual(joined.anchors.count, 1, "one anchor kept")
+        XCTAssertEqual(insights.ideasShown(on: joined).compactMap(\.phrase).count, 1, "one idea on an anchor that is no more")
+
+        workspace.phraseAnchorsChanged()
+        _ = await insights.$ideas.values.first { Set($0.map(\.anchor)).count == 1 }
+        let shown = insights.ideasShown(on: joined)
+        XCTAssertEqual(shown.map(\.idea.id).sorted(), ideas.sorted())
+        XCTAssertEqual(shown.map { $0.phrase?.number }, [2, 2], "both on the joined phrase")
     }
 
     /// A resume point in phrase focus follows its phrase when a boundary moves (c-14d), read from `resume` as before.

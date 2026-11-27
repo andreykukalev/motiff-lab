@@ -45,6 +45,9 @@ final class InsightsController: ObservableObject {
     @Published private(set) var circleFor: String?
     /// The ideas kept with the project (facade `ideas`), read with the stream and answered again by each Keep.
     @Published private(set) var ideas: [KeptIdea] = []
+    /// Whether the piece keeps ideas to read: not a view only shown (a draft's view, other Notes), whose `ideas` music-core
+    /// refuses (read-only); the workspace sets it as it wires the controller.
+    var keepsIdeas = true
 
     /// A way tried: the fact it came from, the way, what changed in music-core's words, where the variation ends, and
     /// whether it was kept.
@@ -95,13 +98,15 @@ final class InsightsController: ObservableObject {
         problem = nil
         // A variation belongs to the passage it was tried on.
         if trial != nil { await leave() }
-        await loadIdeas()
         guard let selection, !selection.noteIds.isEmpty else {
             understanding = nil
             loading = false
+            await loadIdeas(of: piece)
             return
         }
+        // Loading before the ideas are read, so a second load meanwhile does not read the facts again.
         loading = true
+        await loadIdeas(of: piece)
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.understand) }
         // The selection moved on while music-core read it: the newer call shows its own.
         guard understood == selection else { return }
@@ -115,10 +120,11 @@ final class InsightsController: ObservableObject {
         }
     }
 
-    /// The ideas kept with the project, read again: with the stream, and when the phrase anchors changed (an edit of the
-    /// boundaries carries them and may join two into one, whose ideas then name the one kept). Kept as they were when the
-    /// call is refused.
-    func loadIdeas() async {
+    /// The ideas kept with `piece`, read again: with the stream, and when the phrase anchors changed, sheet open or not,
+    /// whether or not the stream was read yet (an edit of the boundaries carries them and may join two into one, whose
+    /// ideas then name the one kept). Kept as they were when the call is refused; none on a view only shown (`keepsIdeas`).
+    func loadIdeas(of piece: Int32) async {
+        guard keepsIdeas else { return }
         if let read = await PieceCore(piece: piece).ideas().value { ideas = read.ideas.map(KeptIdea.init) }
     }
 

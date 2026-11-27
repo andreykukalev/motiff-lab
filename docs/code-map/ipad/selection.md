@@ -16,7 +16,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
   `ScoreController.selectNotes`. The page's rule is `Scripts/selection/selection-places.ts` (`../selection.md`).
 - `SelectionHistory.swift`: the selection's Undo and Redo: one step a finished gesture, up to 50 for the piece.
   Also the phrases' edits' (`SelectionHistory<SelectionModel.PhraseStep>`, v1.2 i-3a: the edits and since i-18 the step's
-  number); `dropLast` takes a refused step away, `amendLast` renumbers one as the restore answered.
+  number); `dropLast` takes a refused step away.
 - `SelectionModel.swift` (S1, S3, ADR 0031 section 3): the selection's state and its own rules (the history's steps,
   the toast's and the hold hint's time), selecting and reading the phrases through music-core, and editing them
   (`editPhrases`, `stepPhrases`: c-2's restore/expected with c-14d's "step", `phraseSteps`, `phraseToast`;

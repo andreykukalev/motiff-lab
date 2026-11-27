@@ -13,9 +13,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
   values and `NoteEditorState`; a message the page never sends goes to `RollEvent.broken`, a hook apart from
   `FacadeAnswer.broken`): the one port to each page (0031 steps 2, 12).
 - Typed answers, naming no feature type: `PieceAnswers.swift` (`SelectionAnswer`, `PhrasesAnswer` with its anchors,
-  `IdeasAnswer`, `PlaybackAnswer`,
+  `PlaybackAnswer`,
   `RollAnswer`, `SourceLayersAnswer`, `CorrectionsAnswer`, `EditsLayerAnswer`, `PerformanceAnswer`, `PerformancesAnswer`,
-  `VersionHead`), `DraftAnswers.swift` (the drafts' answers), `FormSection.swift` (Piece DNA's lane, the Contents, the
+  `VersionHead`), `DraftAnswers.swift` (the drafts' answers), `IdeasAnswer.swift` (`ideas`, `idea.keep`, v1.6 i-18), `FormSection.swift` (Piece DNA's lane, the Contents, the
   letters), `CheckPageEntry.swift` (a scan's page as `check` counts it, v1.6 i-8), `VersionEntry.swift` (the version
   Expand is handed, v1.6 i-10b).
 - The piece. `OpenPiece.swift`: a piece opened in music-core, engraved, a PDF piece (`isDocument`), a recording only

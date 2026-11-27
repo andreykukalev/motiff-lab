@@ -50,8 +50,8 @@ Not recorded yet.
 
 `InsightsController`: what music-core understood and for which selection, the lens filtered to (`filter`), the lenses
 opened under Details (`fold`), Evidence, the fact or place chosen, the open Try rows, the trial and the way being made,
-the circle and its row, the ideas kept (`ideas`: read by `load`, `loadIdeas` when the sheet sees the anchors change, and
-each Keep), and whether the scale sounds (`hearingAloneChanged`, the player's, which the workspace follows).
+the circle and its row, the ideas kept (`ideas`: read by `load`, each Keep, and `loadIdeas` on the workspace's
+`phraseAnchorsChanged`, sheet open or not; none on a view only shown, `keepsIdeas`), and whether the scale sounds (`hearingAloneChanged`, the player's, which the workspace follows).
 Each is written only by its methods; the views read the rules (`mainShown`, `detailsShown`, `opens`,
 `trialFilteredOut`, `shows`, `opensCircle`, `ideasShown`: an idea on the phrase of its anchor, else by its bars, E-insights-6). Rules not to break: a variation belongs to the passage it was tried on
 (`load` and `leave` count a `generation`; a way still being made when it moves on is left, sheet open or not,

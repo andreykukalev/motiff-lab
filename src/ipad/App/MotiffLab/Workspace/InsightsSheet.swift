@@ -59,8 +59,6 @@ struct InsightsSheet: View {
                     .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
-                // An edit of the boundaries carries the anchors and may join two, whose ideas then name the one kept (#318).
-                .onChange(of: selectionModel.phrases?.anchors) { _, _ in Task { await insights.loadIdeas() } }
                 // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it (#582 item 16).
                 .keyboardRoom()
             }

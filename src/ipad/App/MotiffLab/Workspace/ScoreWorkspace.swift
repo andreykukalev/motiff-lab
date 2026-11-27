@@ -89,6 +89,7 @@ final class ScoreWorkspace: ObservableObject {
         insights.variationReady = { [weak self] notes, end in self?.variationReady(notes, end: end) }
         insights.variationLeft = { [weak self] in self?.variationLeft() }
         insights.ideaKept = { [weak self] in self?.ideaKept() }
+        insights.keepsIdeas = !piece.shownOnly
         wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak self] edit in self?.noteEdited(edit) }
