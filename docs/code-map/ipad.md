@@ -35,7 +35,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Insights/` | [insights](ipad/insights.md) | Insights, the piece's map (DNA), the circle of fifths |
 | `Reference/` | [reference](ipad/reference.md) | the reference sheet |
 | `Assistant/` | [assistant](ipad/assistant.md) | the assistant, its field and dictation |
-| `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings, About |
+| `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings' account and profile, About |
 
 Which folder may use which (blueprint 5.2): `Platform` uses nothing above it; a feature uses `Platform` and, where the
 blueprint's table says so, reads Selection; only `Workspace` knows several features. The `dependencies` check enforces

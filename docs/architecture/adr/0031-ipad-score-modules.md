@@ -377,3 +377,14 @@ versions, the originals, the account, the scan server and Import's camera, as th
 moved to `Workspace/` and makes the photos' PDF there; `SegmentedChoice`, used by eight folders, moved to Platform. In
 the quality baseline 21 folder edges went, 4 were re-keyed with the readers of recognising and 1 is new
 (`SourcesRecognising`: `Account`, which the scan server and the hearing take): 16 fewer in all.
+
+## Note (W2.12, Settings on its model, controller and views, v1.6 i-14)
+
+`Account/SettingsView.swift` held three things. Its model, the device's settings (`DeviceSettings`), which eight
+folders read, moved to Platform, so ten folder edges to Account went; each change of it now waits for the one before
+(`queueChange`), so it has one writer in order. The sheet composes the settings with the account's panels, the scan
+server's (Import) and the kinds of extra information (Marks), as the screens compose the features, so it moved to
+`Workspace/SettingsSheet.swift` and its four edges went. The account section is `Account/AccountPanel.swift`, its
+signed-in part cut by what it shows, the account's own actions in one place (`accountActions`) for the ones to come;
+the profile being edited and its save, which the editor's view held, is `ProfileController`, shown by `ProfileEditor`.
+`FieldLook`, used by three folders, moved to Platform. In the quality baseline 15 folder edges went, none came.
