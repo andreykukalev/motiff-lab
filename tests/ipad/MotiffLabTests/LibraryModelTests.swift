@@ -89,4 +89,32 @@ final class LibraryModelTests: XCTestCase {
         XCTAssertFalse(library.opening)
         XCTAssertNil(library.piece)
     }
+
+    /// Robustness (v1.6 i-11b): a project saved online that came but could not be read left the library waiting for good,
+    /// its spinner over a screen that took no tap; now it says why and the library answers again.
+    func testADownloadedFileThatCannotBeReadSaysWhyAndLeavesTheLibraryUsable() async {
+        let library = model()
+        let missing = folder.appendingPathComponent("Gone.motiff.json")
+        await library.openDownloaded { .success(missing) }
+        XCTAssertNotNil(library.problem, "why it did not open")
+        XCTAssertFalse(library.opening, "the library answers taps again")
+        XCTAssertNil(library.piece)
+    }
+
+    /// Robustness (v1.6 i-11b, the UI review's «three guards for one switch»): one opening at a time whatever asks: a
+    /// second ask while a piece is being opened (here a file from Files while a copy online downloads) does nothing,
+    /// where it opened a second piece over the first.
+    func testASecondOpenWhileOneIsUnderWayDoesNothing() async throws {
+        let library = model()
+        let picked = try pickedFile()
+        await library.openDownloaded {
+            XCTAssertTrue(library.opening)
+            await library.open(.success(picked))
+            return .failure(ProjectError(message: "No connection"))
+        }
+        if let piece = library.piece { opened.append(piece.id) }
+        XCTAssertNil(library.piece, "nothing opened meanwhile")
+        XCTAssertTrue(ProjectFiles.list(in: folder).isEmpty, "and nothing saved")
+        XCTAssertFalse(library.opening)
+    }
 }

@@ -123,26 +123,38 @@ final class LibraryModel: ObservableObject {
 
     // MARK: - Opening a piece
 
+    /// One opening at a time, whatever asks (#582 item 2; the UI review's «three guards for one switch»): `opening` from
+    /// the ask until the piece is on screen or the step has failed, and an ask meanwhile does nothing. The screens' own
+    /// hand-over only keeps their save before they ask.
+    private func openOnce(_ step: () async -> Void) async {
+        guard !opening else { return }
+        opening = true
+        defer { opening = false }
+        await step()
+    }
+
     /// A file picked in Files (or Add piece's project file): one in the library's folder opens as that project; another is
     /// lent to the app only while it reads it, and the piece becomes a project file here.
     func open(_ result: Result<URL, Error>) async {
-        switch result {
-        case .failure(let error):
-            problem = error.localizedDescription
-        case .success(let url):
-            if ProjectFiles.isInFolder(url, folder: folder()) {
-                await openProject(url)
-                return
-            }
-            let lent = url.startAccessingSecurityScopedResource()
-            defer { if lent { url.stopAccessingSecurityScopedResource() } }
-            do {
-                let data = try Data(contentsOf: url)
-                let language = text.language
-                let name = url.lastPathComponent
-                await show(saveNew: true) { await OpenPiece.open(fileName: name, data: data, language: language) }
-            } catch {
+        await openOnce {
+            switch result {
+            case .failure(let error):
                 problem = error.localizedDescription
+            case .success(let url):
+                if ProjectFiles.isInFolder(url, folder: folder()) {
+                    await project(url)
+                    return
+                }
+                let lent = url.startAccessingSecurityScopedResource()
+                defer { if lent { url.stopAccessingSecurityScopedResource() } }
+                do {
+                    let data = try Data(contentsOf: url)
+                    let language = text.language
+                    let name = url.lastPathComponent
+                    await show(saveNew: true) { await OpenPiece.open(fileName: name, data: data, language: language) }
+                } catch {
+                    problem = error.localizedDescription
+                }
             }
         }
     }
@@ -150,38 +162,76 @@ final class LibraryModel: ObservableObject {
     func openExample() async {
         guard let example = OpenPiece.example else { return }
         let language = text.language
-        await show(saveNew: true) {
-            await OpenPiece.open(fileName: example.fileName, data: example.data, language: language, title: example.title)
+        await openOnce {
+            await show(saveNew: true) {
+                await OpenPiece.open(fileName: example.fileName, data: example.data, language: language, title: example.title)
+            }
         }
     }
 
     /// Get it here (#335): a project saved online downloaded as a new project file and opened, from then on an ordinary
     /// project on this iPad. A failed download says so in one line and leaves the library as it was.
     func openDownloaded(_ download: () async -> Result<URL, ProjectError>) async {
-        opening = true
-        problem = nil
-        switch await download() {
-        case .success(let url):
-            await openProject(url)
-        case .failure(let failure):
-            opening = false
-            problem = failure.message
+        await openOnce {
+            problem = nil
+            switch await download() {
+            case .success(let url):
+                await project(url)
+            case .failure(let failure):
+                problem = failure.message
+            }
+        }
+    }
+
+    /// Opens a project in the folder where it was left (`project`).
+    func openProject(_ url: URL) async {
+        await openOnce { await project(url) }
+    }
+
+    /// A piece that is only a PDF, opened with its PDF found where it lies (`showFound`).
+    func openFound(_ url: URL, _ found: AwayFound, title: String?) async {
+        await openOnce { await showFound(url, found, title: title) }
+    }
+
+    /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
+    /// Only the screen shown asks, and only once at a time (#582 item 2): a second press while the first was still opening
+    /// opened the piece twice, the second time closing in music-core the piece the first had just put on screen.
+    func switchView(from current: OpenPiece, to landing: Landing) async {
+        guard piece?.id == current.id else { return }
+        // A PDF kept in the piece since it was opened is in its own file: the PDF view of the same piece.
+        guard let file = current.other?.file ?? current.file else { return }
+        await openFile(file, at: landing)
+    }
+
+    /// Opens a project file in the folder in place of the piece shown, at a page or place: at a page, a piece with notes and
+    /// a PDF inside it opens in its PDF view.
+    func openFile(_ file: URL, at landing: Landing) async {
+        await openOnce {
+            opened(file)
+            defer { opened(piece?.file) }
+            do {
+                let data = try Data(contentsOf: file)
+                let language = text.language
+                let asPdf = landing.page != nil
+                await show(file: file, landing: landing) {
+                    await OpenPiece.open(fileName: file.lastPathComponent, data: data, language: language, asPdf: asPdf)
+                }
+            } catch {
+                problem = error.localizedDescription
+            }
         }
     }
 
     /// Opens a project in the folder where it was left, titled as the player titled it in the library, if they did. A piece
     /// that is only a PDF whose PDF is not in its file (version 0.5) opens with the PDF read where this iPad links it, or
     /// says why it cannot and what can be done.
-    func openProject(_ url: URL) async {
+    private func project(_ url: URL) async {
         // Open for the batch before its file is read, so notes it writes meanwhile are not lost under the screen.
         opened(url)
         defer { opened(piece?.file) }
         if let summary = summaries[url], AwayPdf.isAway(summary) {
-            opening = true
-            let read = await AwayPdf.read(url, summary)
-            opening = false
-            switch read {
-            case .success(let found): await openFound(url, found, title: summary.playersTitle)
+            switch await AwayPdf.read(url, summary) {
+            case .success(let found): await showFound(url, found, title: summary.playersTitle)
             case .failure(let reason): away = AwayPrompt(url: url, summary: summary, title: entries.first { $0.url == url }?.title ?? ProjectFiles.title(of: url.lastPathComponent), reason: reason)
             }
             return
@@ -198,43 +248,14 @@ final class LibraryModel: ObservableObject {
 
     /// A piece that is only a PDF, opened with its PDF found where it lies; saved to its own file, which never takes a
     /// linked PDF's bytes.
-    func openFound(_ url: URL, _ found: AwayFound, title: String?) async {
+    private func showFound(_ url: URL, _ found: AwayFound, title: String?) async {
         let language = text.language
         await show(file: url) { await OpenPiece.open(fileName: url.lastPathComponent, data: Data(found.project.utf8), language: language, title: title, pdf: found.data) }
-    }
-
-    /// PDF | Notes (0023): the piece's other view replaces it, at the page or place given. The screen has saved the piece.
-    /// Only the screen shown asks, and only once at a time (#582 item 2): a second press while the first was still opening
-    /// opened the piece twice, the second time closing in music-core the piece the first had just put on screen.
-    func switchView(from current: OpenPiece, to landing: Landing) async {
-        guard !opening, piece?.id == current.id else { return }
-        // A PDF kept in the piece since it was opened is in its own file: the PDF view of the same piece.
-        guard let file = current.other?.file ?? current.file else { return }
-        await openFile(file, at: landing)
-    }
-
-    /// Opens a project file in the folder in place of the piece shown, at a page or place: at a page, a piece with notes and
-    /// a PDF inside it opens in its PDF view.
-    func openFile(_ file: URL, at landing: Landing) async {
-        opened(file)
-        defer { opened(piece?.file) }
-        do {
-            let data = try Data(contentsOf: file)
-            let language = text.language
-            let asPdf = landing.page != nil
-            await show(file: file, landing: landing) {
-                await OpenPiece.open(fileName: file.lastPathComponent, data: data, language: language, asPdf: asPdf)
-            }
-        } catch {
-            problem = error.localizedDescription
-        }
     }
 
     /// Opens a piece and shows its score: saved to its own project file, or as a new one in the folder named by the piece's
     /// title, the one its line shows (the player's, the score's, else the file's name; v1.5 r-2b), not by the file it came from.
     private func show(file: URL? = nil, saveNew: Bool = false, landing: Landing? = nil, _ opener: () async -> Result<OpenPiece, EngraveError>) async {
-        opening = true
-        defer { opening = false }
         problem = nil
         switch await opener() {
         case .success(var opened):
