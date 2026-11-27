@@ -1,17 +1,9 @@
 {
-  "home.importProject": "Import a project file",
-  "home.emptyWhat": "Your pieces will be here.",
   "home.lastOpened": "last opened {0}",
   "home.delete": "Delete",
   "home.deleteForGood": "Delete for good",
   "home.keep": "Keep",
   "home.open": "Open",
-  "account.open": "Your account: {0}",
-  "testLibrary.clearedElsewhere": "Everything was cleared from another device for a new testing cycle, so the test library here is cleared too.",
-  "online.overQuota": "Pieces on this device only: {0}. A free account keeps {1} pieces online; the others stay here.",
-  "sync.previousCopy": "{0} (previous copy, {1})",
-  "library.addPiece": "Add piece",
-  "library.more": "More",
   "library.ideas.one": "{0} idea",
   "library.ideas.many": "{0} ideas",
   "library.check.one": "Check · {0} bar to review",
@@ -35,7 +27,6 @@
   "library.noneMatch": "No pieces match.",
   "library.clearFilters": "Clear search and filters",
   "library.clearSearch": "Clear search",
-  "library.title": "Library",
   "library.tabAll": "All pieces",
   "library.tabComposers": "Composers",
   "library.tabRecent": "Recent",
@@ -67,7 +58,6 @@
   "library.pdfAsIs": "The printed pages, as they are",
   "library.edit": "Edit",
   "library.tabOnline": "Not on this iPad",
-  "recognition.choose": "Recognise notes in several pieces",
   "recognition.withoutNotes": "Without notes",
   "library.recordingAsIs": "The recording, as it is"
 }

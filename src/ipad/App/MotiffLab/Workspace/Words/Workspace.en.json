@@ -174,5 +174,17 @@
   "pdf.bookmarkPage": "Bookmark this page",
   "photos.readHeading": "Recognise notes, page by page",
   "photos.readKeeps": "Each page shows when it is done, and a page can be sent again. Then Open the notes puts them into this same piece, with the bars to check; your photos and marks stay as they are.",
-  "photos.readLine": "Each photo goes on its own to the scan server at {0}, which deletes it once read. The photos stay here as they are."
+  "photos.readLine": "Each photo goes on its own to the scan server at {0}, which deletes it once read. The photos stay here as they are.",
+  "home.importProject": "Import a project file",
+  "home.emptyWhat": "Your pieces will be here.",
+  "account.open": "Your account: {0}",
+  "testLibrary.clearedElsewhere": "Everything was cleared from another device for a new testing cycle, so the test library here is cleared too.",
+  "online.overQuota": "Pieces on this device only: {0}. A free account keeps {1} pieces online; the others stay here.",
+  "sync.previousCopy": "{0} (previous copy, {1})",
+  "library.addPiece": "Add piece",
+  "library.more": "More",
+  "library.title": "Library",
+  "recognition.choose": "Recognise notes in several pieces",
+  "reference.open": "Circle",
+  "reference.openHint": "Circle of fifths and keys"
 }
