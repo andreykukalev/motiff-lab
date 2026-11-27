@@ -112,7 +112,7 @@ public class ProjectSyncTests
     public void The_pdf_its_pages_and_marks_stay_here_when_the_online_copy_comes()
     {
         Project notes = FurElise();
-        Project withPdf = notes.WithDocument(s_pdf, PageMap.Of(PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!, 1)) with { DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Start", s_now) };
+        Project withPdf = notes.WithDocument(s_pdf, PageMap.Of(PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!, 1)) with { DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Start", s_now, IdSource.Numbered) };
         Project online = Tagged(withPdf.ForOnline()!, "Exam");
         Assert.Null(online.Document);
 

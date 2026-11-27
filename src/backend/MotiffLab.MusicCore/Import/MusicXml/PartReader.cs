@@ -128,9 +128,11 @@ internal sealed partial class PartReader(int index, string id, string? name, str
             }
 
             bool isImplicit = string.Equals(measure.Attribute("implicit")?.Value.Trim(), "yes", StringComparison.Ordinal);
-            bool enginesDisagree = measure.Elements("direction").Elements("direction-type").Elements("other-direction")
-                .Any(other => other.Value.Trim() == MusicXmlImport.EnginesDisagreeMark);
-            Measures.Add(new MeasureInfo(_measureNumber, isImplicit, _measureLength, enginesDisagree));
+            string[] hidden = [.. measure.Elements("direction").Elements("direction-type").Elements("other-direction").Select(static other => other.Value.Trim())];
+            Measures.Add(new MeasureInfo(_measureNumber, isImplicit, _measureLength, hidden.Contains(MusicXmlImport.EnginesDisagreeMark))
+            {
+                ReadAgain = hidden.Contains(MusicXmlImport.ReadAgainMark),
+            });
         }
     }
 

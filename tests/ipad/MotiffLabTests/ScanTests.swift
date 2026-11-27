@@ -224,6 +224,20 @@ final class ScanTests: XCTestCase {
         XCTAssertNil(DocumentRead.request(musicXml: Data(), engine: "e", pages: 1, reports: nil, language: "en", now: now)["reports"])
     }
 
+    /// Whichever flow read the PDF (the library's recognition or the PDF's own panel), its unread pages go with the notes
+    /// (project file 18), and none are sent when every page was read.
+    func testTheReadRequestOfAScanCarriesItsUnreadPages() {
+        let now = Date(timeIntervalSince1970: 0)
+        let scanned = ScanResult(musicXml: Data("<s/>".utf8), engine: "homr 0.7.0", pages: 3, report: report, unread: [2], read: [1, 3])
+        let request = DocumentRead.request(scanned, pages: 3, language: "en", now: now)
+        XCTAssertEqual(request["unread"] as? [Int], [2])
+        XCTAssertEqual(request["read"] as? [Int], [1, 3])
+        XCTAssertEqual(request["reports"] as? [String], [report])
+        let whole = DocumentRead.request(ScanResult(musicXml: Data(), engine: "e", pages: 1), pages: 1, language: "en", now: now)
+        XCTAssertNil(whole["unread"])
+        XCTAssertNil(whole["read"])
+    }
+
     func testCheckReadsAScansPagesAndWhatToShowOfThem() throws {
         let answer = #"{"flags": [{"bar": 4, "source": "scan", "reason": "pageQuality", "name": "Плохая страница", "text": "Страница плохая.", "resolved": false, "span": null}], "open": 1, "origin": "scanned", "engine": "homr 0.7.0", "pages": [{"page": 1, "quality": "good", "rotation": 0, "bars": 3, "doubtful": 0, "firstBar": 1, "lastBar": 3}, {"page": 2, "quality": "poor", "rotation": 90, "bars": 2, "doubtful": 2, "firstBar": 4, "lastBar": 5}, {"page": 3, "quality": "weak", "rotation": 0, "bars": 0, "doubtful": 0, "firstBar": null, "lastBar": null}]}"#
         let check = try XCTUnwrap(CheckShelf(answer: answer))

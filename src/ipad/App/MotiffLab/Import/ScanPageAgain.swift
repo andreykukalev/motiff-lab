@@ -47,7 +47,8 @@ enum ScanPageAgain {
         let joined = ScanJobs.joined(device: [:], server: sent.pages)
         var outcome = Outcome(file: file, unread: joined.unread, read: read, job: sent.job)
         for (index, (page, number)) in zip(joined.pages, joined.numbers).enumerated() {
-            var fields: [String: Any] = ["file": outcome.file, "page": place(of: number, read: outcome.read), "reading": page, "pages": pages, "language": text.language]
+            // "pdfPage" (project file 18): the notes no longer keep the page as unread once it is in.
+            var fields: [String: Any] = ["file": outcome.file, "page": place(of: number, read: outcome.read), "reading": page, "pages": pages, "pdfPage": number, "language": text.language]
             if let report = joined.reports?[index] { fields["reports"] = [report] }
             let json = facadeRequest(fields)
             let answer = facadeObject(await MusicCore.run { PieceCore.sendWithoutPiece(.scanInsert, json) })

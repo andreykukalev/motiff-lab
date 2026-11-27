@@ -133,7 +133,7 @@ struct PdfScreen: View {
                 PhotoReadingPanel(reader: photos, pdf: pdf, address: scanAddress, text: text) { read in
                     ScanServer.jobs ? readPanel(readNotes, pdf: pdf.original) : readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
                 } open: { musicXml, engine, pages, reports in
-                    await fill(musicXml, engine: engine, pages: pages, reports: reports)
+                    await fill(DocumentRead.request(musicXml: musicXml, engine: engine, pages: pages, reports: reports, language: text.language, now: Date()))
                 }
                 .presentationDetents([.large])
             } else {

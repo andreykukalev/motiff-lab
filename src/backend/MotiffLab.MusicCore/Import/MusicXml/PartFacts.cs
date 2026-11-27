@@ -45,4 +45,8 @@ internal sealed record PartText(int MeasureIndex, QuarterFraction Offset, string
 /// A measure of a part: its number as written, whether it is implicit (a pickup), how long its content lasts, and whether a
 /// scan merge marked it as one the engines disagree on (<see cref="Pieces.MusicXmlImport.EnginesDisagreeMark"/>).
 /// </summary>
-internal sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length, bool EnginesDisagree);
+internal sealed record MeasureInfo(string? Number, bool IsImplicit, QuarterFraction Length, bool EnginesDisagree)
+{
+    /// <summary>Whether a scan merge marked it as read again from another engine (<see cref="Pieces.MusicXmlImport.ReadAgainMark"/>).</summary>
+    public bool ReadAgain { get; init; }
+}

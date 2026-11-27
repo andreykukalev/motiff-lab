@@ -22,8 +22,8 @@ public sealed partial record Project
     /// <summary>The ids of the drafts, those kept unknown with them, so a new draft never takes one.</summary>
     public IEnumerable<string> DraftIds => [.. Drafts.Select(static draft => draft.Id), .. UnknownIds(Unknown, DraftsList)];
 
-    /// <summary>The id a new draft takes: <c>d_</c> and the next number.</summary>
-    public string NextDraftId() => NextId("d_", DraftIds);
+    /// <summary>The id a new draft takes, from <paramref name="ids"/>: <c>d_</c> and one no draft has.</summary>
+    public string NextDraftId(IdSource ids) => ids.Next("d_", DraftIds);
 
     /// <summary>
     /// The draft <paramref name="id"/> as a piece only to be shown («вкладка черновика»): its score is the places' results in

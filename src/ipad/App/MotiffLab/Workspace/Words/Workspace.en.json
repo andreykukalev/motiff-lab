@@ -259,5 +259,6 @@
   "settings.themeHint": "Auto follows your device's light or dark appearance. The slate page shows light notes on a dark page, for a dark room.",
   "settings.theme": "Theme",
   "settings.thisPiece": "This piece has its own: {0}.",
-  "settings.title": "Settings"
+  "settings.title": "Settings",
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
 }

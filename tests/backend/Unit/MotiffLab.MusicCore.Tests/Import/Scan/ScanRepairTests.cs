@@ -30,14 +30,14 @@ public class ScanRepairTests
     /// A 4/4 bar as the engine splits it: a grace note and the right hand's first eighth, then the left hand's half note
     /// written after it instead of with it, so the bar runs six quarters.
     /// </summary>
-    private static string Split() =>
+    internal static string Split() =>
         Grace("D", 4) + Note("E", 4, 1, 1) + Note("E", 2, 4, 2) + Note("E", 1, 4, 2, chord: true)
         + Note("B", 3, 1, 1) + Note("B", 3, 1, 1) + Note("B", 3, 1, 1)
         + Note("D", 4, 1, 1) + Backup(1) + Note("G", 3, 4, 2) + Note("E", 3, 4, 2, chord: true) + Backup(3)
         + Note("D", 4, 1, 1) + Note("D", 4, 1, 1) + Note("D", 4, 1, 1);
 
     /// <summary>The same bar read right: the eighth rest and the left hand's half note start together.</summary>
-    private static string Whole() =>
+    internal static string Whole() =>
         Rest(1, 1) + Backup(1) + Note("G", 2, 4, 2) + Note("G", 1, 4, 2, chord: true) + Backup(3)
         + Note("B", 3, 1, 1) + Note("B", 3, 1, 1) + Note("B", 3, 1, 1)
         + Note("D", 4, 1, 1) + Backup(1) + Note("G", 3, 4, 2) + Note("B", 3, 4, 2, chord: true) + Backup(3)

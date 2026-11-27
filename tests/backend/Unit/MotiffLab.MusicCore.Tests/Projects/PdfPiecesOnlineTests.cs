@@ -18,7 +18,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class PdfPiecesOnlineTests
 {
-    private const string Golden = "v17-pdf-online.motiff.json";
+    private const string Golden = "v18-pdf-online.motiff.json";
 
     /// <summary>The same online copy as version 0.5 wrote it, in version 15.</summary>
     private const string Earlier = "v15-pdf-online.motiff.json";
@@ -35,7 +35,7 @@ public class PdfPiecesOnlineTests
         (Project.CreateDocument("p_9c3d4e5f6a7b4c8d9e0f1a2b3c4d5e6f", "Chopin - Nocturne Op. 9 No. 2.pdf", s_pdf, s_now) with
         {
             Metadata = new PieceMetadata("Nocturne Op. 9 No. 2", "Chopin", ["Шопен"], ["Концерт в мае"]),
-            DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now),
+            DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now, IdSource.Numbered),
         }).MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Ipad, held: true, s_now);
 
     private static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));
@@ -47,7 +47,7 @@ public class PdfPiecesOnlineTests
     [Fact]
     public void The_online_copy_of_a_pdf_piece_is_the_golden_and_reads_back_unchanged()
     {
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!), [Earlier, Version16]);
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(OnIpad().ForOnline()!), [Earlier, Version16, "v17-pdf-online.motiff.json"]);
     }
 
     [Fact]

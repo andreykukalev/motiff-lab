@@ -13,27 +13,18 @@ namespace MotiffLab.MusicCore.Projects;
 internal static class OriginalOperations
 {
     /// <summary>
-    /// A free id for a new original: <paramref name="stem"/> itself ("src_pdf") while the piece uses it nowhere (an original,
-    /// a removed one, a version, an unknown original), else the stem with the first free number ("src_pdf_2").
+    /// A free id for a new original of the kind <paramref name="stem"/> names, none the piece uses (an original, a removed
+    /// one, a version, an unknown original): the first PDF is <see cref="PieceOriginal.DocumentId"/> ("src_pdf") on every
+    /// device, as the piece's PDF is; any other comes from <paramref name="ids"/> (<see cref="IdSource.Stemmed"/>:
+    /// "src_rec_3f9c…", numbered "src_rec", "src_rec_2").
     /// </summary>
-    public static string NextOriginalId(this Project project, string stem)
+    public static string NextOriginalId(this Project project, string stem, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentException.ThrowIfNullOrWhiteSpace(stem);
+        ArgumentNullException.ThrowIfNull(ids);
         HashSet<string> taken = TakenOriginalIds(project);
-        if (!taken.Contains(stem))
-        {
-            return stem;
-        }
-
-        for (int number = 2; ; number++)
-        {
-            string candidate = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{stem}_{number}");
-            if (!taken.Contains(candidate))
-            {
-                return candidate;
-            }
-        }
+        return stem == PieceOriginal.DocumentId && !taken.Contains(stem) ? stem : ids.Stemmed(stem, taken);
     }
 
     private static HashSet<string> TakenOriginalIds(Project project) =>

@@ -22,7 +22,7 @@ public class UnknownValueTests
     private static readonly HashSet<string> s_inWorkspace = ["motifs", "variations", "observations", "marks", "bookmarks", "resumePoints", "settings"];
 
     internal static JsonObject Worked() =>
-        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
+        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v18-worked.motiff.json")))!.AsObject();
 
     private static JsonObject Worked15() =>
         JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
@@ -73,16 +73,31 @@ public class UnknownValueTests
     }
 
     [Fact]
-    public void An_unknown_setting_or_variation_operation_is_still_refused_as_before()
+    public void An_unknown_setting_or_variation_operation_is_kept_and_written_back_unchanged()
     {
-        // Criterion 4 of #313: settings and operations are the next task.
-        JsonObject value = With(Worked(), "settings/phrases.granularity", UnknownValue);
+        // #314 (version 18): a setting this build does not have, a value it does not allow and an operation it does not have.
+        JsonObject value = With(Worked(), "settings/layers.ink", UnknownValue);
         JsonObject setting = With(Worked(), "settings/future.setting", "on");
         JsonObject operation = With(Worked(), "variations/1/steps/0/operation", "V99");
 
-        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(value))).Message);
-        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(setting))).Message);
-        Assert.Equal("A variation uses an operation (V99) this version of Motiff Lab does not have.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(operation))).Message);
+        foreach (JsonObject file in (JsonObject[])[value, setting, operation])
+        {
+            Project project = ProjectFile.Read(Bytes(file));
+            Assert.True(JsonNode.DeepEquals(file, JsonNode.Parse(ProjectFile.Write(project))), "the file is written back as it was");
+            Assert.False(project.SettingOverrides.ContainsKey("future.setting"));
+            Assert.False(project.SettingOverrides.ContainsKey("layers.ink"));
+        }
+
+        // The variation of the unknown operation is kept whole with its motif, made by a later build: it is never played.
+        Project newer = ProjectFile.Read(Bytes(operation));
+        UnknownEntity kept = Assert.Single(newer.Unknown, entity => entity.Enum is not null);
+        Assert.Equal(("variations", "v_0002", UnknownEntity.NewerOperation), (kept.List, kept.Id, kept.Enum));
+        Assert.DoesNotContain(newer.Variations, variation => variation.MotifId == "m_0001");
+
+        // The player setting it here takes the place of the kept value; clearing it leaves none.
+        Project set = ProjectFile.Read(Bytes(value)).OverrideSetting("layers.ink", "on");
+        Assert.Equal("on", JsonNode.Parse(ProjectFile.Write(set))!["workspace"]!["settings"]!["layers.ink"]!.GetValue<string>());
+        Assert.False(JsonNode.Parse(ProjectFile.Write(set.OverrideSetting("layers.ink", null)))!["workspace"]!["settings"]!.AsObject().ContainsKey("layers.ink"));
     }
 
     [Fact]
@@ -129,7 +144,7 @@ public class UnknownValueTests
         byte[] scanned = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
         Project read = Project.CreateDocument("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "Nocturne.pdf", Encoding.ASCII.GetBytes("%PDF-1.4\n%%EOF\n"), s_now)
             .Recognised(scanned, "homr 0.7.0", PageMap.Of(PieceImporter.Import("a.musicxml", scanned).Piece!, 1), s_now)
-            .RecognisedAgain(PieceOriginal.DocumentId, scanned, "homr 0.8.0", null, s_now);
+            .RecognisedAgain(PieceOriginal.DocumentId, scanned, "homr 0.8.0", null, s_now, IdSource.Numbered);
         OtherNotes again = read.Sources.Notes.Single();
         Project flagged = read with { Sources = read.Sources with { Notes = [again with { Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false)] }] } };
         Assert.Equal(CheckReason.CorrectionUnfit, ProjectFile.Read(ProjectFile.Write(flagged)).Sources.Notes.Single().Check!.Single().Reason);
@@ -171,8 +186,8 @@ public class UnknownValueTests
         Assert.Empty(project.Bookmarks);
         UnknownEntity bookmark = Assert.Single(project.Unknown, entity => entity.List == "bookmarks.items");
         Assert.Equal(("b_0001", "c_0001", (string?)null), (bookmark.Id, bookmark.Owner, bookmark.Enum));
-        Assert.Equal("c_0002", project.NextCategoryId());
-        Assert.Equal("b_0002", project.NextBookmarkId());
+        Assert.Equal("c_0002", project.NextCategoryId(IdSource.Numbered));
+        Assert.Equal("b_0002", project.NextBookmarkId(IdSource.Numbered));
         Assert.True(JsonNode.DeepEquals(file, Node(ProjectFile.Write(project))));
     }
 
@@ -216,7 +231,7 @@ public class UnknownValueTests
         static Bookmark Beside(string id) => new(id, "Beside", BookmarkCategory.PractiseId, new TickSpan(Tick.Zero, 480), FromPhrase: false, s_now);
 
         Assert.Throws<ArgumentException>(() => project.AddBookmark(Beside("b_0001")));
-        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId())) with { Variations = [clashing, .. project.Variations] }));
+        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId(IdSource.Numbered))) with { Variations = [clashing, .. project.Variations] }));
 
         JsonArray variations = written["workspace"]!["variations"]!.AsArray();
         Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005", "v_0012", "v_0006"], Ids(written, "variations")[..7]);
@@ -236,9 +251,9 @@ public class UnknownValueTests
         Assert.Empty(project.ResumePoints);
         Assert.Empty(project.Observations);
         Assert.Empty(project.Marks.Highlights);
-        Assert.Equal("r_0002", project.NextResumePointId());
-        Assert.Equal("o_0002", project.NextObservationId());
-        Assert.Equal("h_0002", project.Marks.NextHighlightId());
+        Assert.Equal("r_0002", project.NextResumePointId(IdSource.Numbered));
+        Assert.Equal("o_0002", project.NextObservationId(IdSource.Numbered));
+        Assert.Equal("h_0002", project.Marks.NextHighlightId(IdSource.Numbered));
         Assert.Equal(["Hand", "Hand"], project.Unknown.Select(entity => entity.Enum));
         Assert.Equal("InkColour", Assert.Single(project.Marks.Unknown).Enum);
     }

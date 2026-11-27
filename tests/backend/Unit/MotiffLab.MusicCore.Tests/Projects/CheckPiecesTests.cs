@@ -31,7 +31,7 @@ public class CheckPiecesTests
             Check = [Flag(3), Flag(3, CheckReason.GraceNotes), Flag(7, resolved: true), Flag(25), Flag(50)],
         };
         return layer
-            ? PieceLayer.Save(project, [new PieceStart("Prelude", 1), new PieceStart("Fugue", 21), new PieceStart("Coda", 41)], MeterMap.Default, s_end, Words.English, s_now)
+            ? PieceLayer.Save(project, [new PieceStart("Prelude", 1), new PieceStart("Fugue", 21), new PieceStart("Coda", 41)], MeterMap.Default, s_end, Words.English, s_now, IdSource.Numbered)
             : project;
     }
 

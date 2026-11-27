@@ -20,7 +20,7 @@ public class PerformancesSessionTests
         "FurElise.musicxml",
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml")),
         Words.English,
-        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero)).State;
+        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero), IdSource.Numbered).State;
 
     /// <summary>The piece played with three notes added in bar 5, as MIDI.</summary>
     private static byte[] PlayedWithAddedNotes(SessionPiece piece)
