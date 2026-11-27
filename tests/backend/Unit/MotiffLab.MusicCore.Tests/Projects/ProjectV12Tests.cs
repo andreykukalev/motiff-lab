@@ -202,10 +202,10 @@ public class ProjectV12Tests
         // Resolving another bar confirms it for the scan too, and the flags round trip.
         int other = opened.OpenChecks[0].Bar;
         Project resolved = opened.ResolveCheck(other);
-        Assert.True(resolved.Scan!.IsConfirmed(other));
+        Assert.Contains(other, resolved.Scan!.ConfirmedBars);
         Assert.DoesNotContain(resolved.OpenChecks, flag => flag.Bar == other);
         Assert.Equal(resolved.Check, ProjectFile.Read(ProjectFile.Write(resolved)).Check);
-        Assert.False(resolved.ResolveCheck(other, resolved: false).Scan!.IsConfirmed(other));
+        Assert.DoesNotContain(other, resolved.ResolveCheck(other, resolved: false).Scan!.ConfirmedBars);
     }
 
     [Theory]
@@ -228,20 +228,15 @@ public class ProjectV12Tests
     }
 
     [Fact]
-    public void The_ink_document_is_the_pencil_layers_shape_and_the_files()
+    public void The_files_ink_names_the_tool_and_the_colour_in_lower_case_and_reads_back()
     {
         Project project = Worked();
 
-        string ink = ProjectFile.WriteInk(project.Marks.Ink);
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
 
-        Assert.Contains("\"version\":2", ink, StringComparison.Ordinal);
-        Assert.Contains("\"tool\":\"highlighter\"", ink, StringComparison.Ordinal);
-        Assert.Contains("\"colour\":\"graphite\"", ink, StringComparison.Ordinal);
-        Assert.Equal(project.Marks.Ink, ProjectFile.ReadInk(ink));
-        Assert.Empty(ProjectFile.ReadInk(null));
-        Assert.Empty(ProjectFile.ReadInk("{\"version\":2,\"marks\":[]}"));
-        Assert.Throws<ProjectFileException>(() => ProjectFile.ReadInk("[1, 2]"));
-        Assert.Throws<ProjectFileException>(() => ProjectFile.ReadInk("{\"marks\":[{\"id\":\"x\"}]}"));
+        Assert.Contains("\"tool\": \"highlighter\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"colour\": \"graphite\"", json, StringComparison.Ordinal);
+        Assert.Equal(project.Marks.Ink, ProjectFile.Read(Encoding.UTF8.GetBytes(json)).Marks.Ink);
     }
 
     [Fact]

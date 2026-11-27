@@ -25,7 +25,7 @@ public class OperationRulesTests
         Note[] before = [Note("a", 60, 0, 480), Note("b", 64, 480, 480)];
         Note[] after = [Note("a", 60, 80, 400), Note("b", 64, 540, 60)];
 
-        RuleReport report = OperationRules.Check(before, after);
+        RuleReport report = OperationRules.Check(before, after, Words.English);
 
         Assert.Null(report.Violation);
         Assert.Empty(report.Flags);
@@ -36,7 +36,7 @@ public class OperationRulesTests
     [InlineData(109)]
     public void A_note_outside_the_piano_is_a_violation(int pitch)
     {
-        RuleReport report = OperationRules.Check([Note("a", 60, 0, 480)], [Note("a", pitch, 0, 480)]);
+        RuleReport report = OperationRules.Check([Note("a", 60, 0, 480)], [Note("a", pitch, 0, 480)], Words.English);
 
         Assert.Contains("range", report.Violation);
     }
@@ -44,7 +44,7 @@ public class OperationRulesTests
     [Fact]
     public void A_note_that_leaves_the_grid_is_a_violation()
     {
-        RuleReport report = OperationRules.Check([Note("a", 60, 0, 480)], [Note("a", 60, 30, 480)]);
+        RuleReport report = OperationRules.Check([Note("a", 60, 0, 480)], [Note("a", 60, 30, 480)], Words.English);
 
         Assert.Contains("grid", report.Violation);
     }
@@ -52,7 +52,7 @@ public class OperationRulesTests
     [Fact]
     public void A_note_already_off_the_grid_may_stay_off_it()
     {
-        Assert.Null(OperationRules.Check([Note("a", 60, 7, 480)], [Note("a", 60, 13, 480)]).Violation);
+        Assert.Null(OperationRules.Check([Note("a", 60, 7, 480)], [Note("a", 60, 13, 480)], Words.English).Violation);
     }
 
     [Fact]
@@ -60,8 +60,8 @@ public class OperationRulesTests
     {
         Note[] before = [Note("a", 60, 0, 480)];
 
-        Assert.Contains("grid", OperationRules.Check(before, [.. before, Note("a+", 62, 250, 230)]).Violation);
-        Assert.Null(OperationRules.Check(before, [.. before, Note("a+", 62, 240, 240)]).Violation);
+        Assert.Contains("grid", OperationRules.Check(before, [.. before, Note("a+", 62, 250, 230)], Words.English).Violation);
+        Assert.Null(OperationRules.Check(before, [.. before, Note("a+", 62, 240, 240)], Words.English).Violation);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class OperationRulesTests
         Note[] before = [Note("s", 72, 0, 960, voice: 1), Note("b", 60, 0, 960, voice: 2)];
         Note[] after = [Note("s", 55, 0, 960, voice: 1), Note("b", 60, 0, 960, voice: 2)];
 
-        Assert.Contains("cross", OperationRules.Check(before, after).Violation);
+        Assert.Contains("cross", OperationRules.Check(before, after, Words.English).Violation);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class OperationRulesTests
             Note("s2", 55, 480, 480, voice: 1), Note("b2", 60, 480, 480, voice: 2),
         ];
 
-        Assert.Null(OperationRules.Check(before, after).Violation);
+        Assert.Null(OperationRules.Check(before, after, Words.English).Violation);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class OperationRulesTests
         Note[] before = [Note("r", 72, 0, 960, hand: Hand.Right), Note("l", 48, 0, 960, hand: Hand.Left)];
         Note[] after = [Note("r", 40, 0, 960, hand: Hand.Right), Note("l", 48, 0, 960, hand: Hand.Left)];
 
-        Assert.Contains("cross", OperationRules.Check(before, after).Violation);
+        Assert.Contains("cross", OperationRules.Check(before, after, Words.English).Violation);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class OperationRulesTests
         Note[] before = [Note("a", 60, 0, 480, hand: Hand.Right), Note("b", 72, 0, 480, hand: Hand.Right)];
         Note[] after = [Note("a", 60, 0, 480, hand: Hand.Right), Note("b", 77, 0, 480, hand: Hand.Right)];
 
-        RuleReport report = OperationRules.Check(before, after);
+        RuleReport report = OperationRules.Check(before, after, Words.English);
 
         Assert.Null(report.Violation);
         Assert.Equal(["The right hand spans 17 semitones, more than a 10th."], report.Flags);
@@ -117,8 +117,8 @@ public class OperationRulesTests
         Note[] tenth = [Note("a", 60, 0, 480, hand: Hand.Left), Note("b", 76, 0, 480, hand: Hand.Left)];
         Note[] wide = [Note("a", 60, 0, 480, hand: Hand.Left), Note("b", 79, 0, 480, hand: Hand.Left)];
 
-        Assert.Empty(OperationRules.Check(tenth, tenth).Flags);
-        Assert.Empty(OperationRules.Check(wide, wide).Flags);
+        Assert.Empty(OperationRules.Check(tenth, tenth, Words.English).Flags);
+        Assert.Empty(OperationRules.Check(wide, wide, Words.English).Flags);
     }
 
     [Fact]

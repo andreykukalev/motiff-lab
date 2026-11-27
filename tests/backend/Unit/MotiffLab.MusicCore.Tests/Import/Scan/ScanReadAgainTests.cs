@@ -56,7 +56,7 @@ public class ScanReadAgainTests
         Assert.Equal([79, 81, 83, 72], Right(piece, 2));
         Assert.Equal([1], piece.MusicXml!.ReadAgain);
         Assert.Empty(piece.MusicXml.EnginesDisagree);
-        Assert.Equal([ScanFlag.ReadAgain], ScanCheck.Of(piece).Find(2)!.Flags);
+        Assert.Equal([ScanFlag.ReadAgain], ScanCheck.Of(piece).Bars.Single(scanned => scanned.Bar == 2).Flags);
         Assert.Equal("Прочитан другим движком", CheckFlag.NameOf(CheckReason.ReadAgain, Words.Russian));
         Assert.Equal(again.MusicXml, ScanMerge.Merge(Readings(), before: new ScanBefore(before.MusicXml, new HashSet<int> { 1 })).MusicXml);
     }

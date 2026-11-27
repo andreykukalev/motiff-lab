@@ -87,12 +87,6 @@ public sealed partial class ShortMap
         return Build(Phrases, _meter, Found, edits);
     }
 
-    /// <summary>The unit that holds a position; the last unit for the end of the piece or later.</summary>
-    public ShortUnit At(Tick position) => Units.LastOrDefault(unit => unit.Span.Onset <= position) ?? Units[0];
-
-    /// <summary>The unit whose span is exactly <paramref name="span"/>, or null.</summary>
-    public ShortUnit? Matching(TickSpan span) => Units.FirstOrDefault(unit => unit.Span == span);
-
     /// <summary>The units of a phrase, in order.</summary>
     public IReadOnlyList<ShortUnit> Of(Phrase phrase)
     {

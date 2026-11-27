@@ -32,7 +32,7 @@ public class CopisteriaScanTests
         // homr's reading of the same page is flagged at bars 8, 16, 21, 27, 29, 32 and 36 (ScanCheckTests); copisteria's
         // only where the page itself asks for a look: the short bar 8 before the repeat, and the grace notes of bars 25 and 28.
         Assert.Equal([8, 25, 28], check.Flagged.Select(bar => bar.Bar));
-        Assert.Equal([ScanFlag.BarTooShort], check.Find(8)!.Flags);
+        Assert.Equal([ScanFlag.BarTooShort], check.Bars.Single(scanned => scanned.Bar == 8).Flags);
         Assert.Equal(piece.Notes.Select(note => note.Id).Order(), check.Bars.SelectMany(bar => bar.NoteIds).Order());
     }
 

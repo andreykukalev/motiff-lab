@@ -23,8 +23,6 @@ public sealed record PlaceResult(SourceMusic Music, IReadOnlyDictionary<string, 
     /// <summary>The bars put in, in order: where, in the place's ticks as they were then, and how long.</summary>
     private IReadOnlyList<(Tick At, long Duration)> Inserted { get; init; } = [];
 
-    public DraftStepOutcome? OutcomeOf(int number) => Steps.FirstOrDefault(step => step.Number == number);
-
     /// <summary>A tick of the place's base where it is in the result: moved on by the bars put in before it, each at the place's ticks of its time.</summary>
     public Tick InResult(Tick tick) => AfterInserts(Inserted, tick);
 

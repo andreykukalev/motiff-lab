@@ -66,11 +66,10 @@ public sealed partial class SentenceMap
     /// </summary>
     public PhraseEdits Edits { get; }
 
-    /// <summary>The sentences over <paramref name="phrases"/>, read from the piece's <paramref name="notes"/> and its key signature at the start, if any, written in <paramref name="words"/>.</summary>
-    public static SentenceMap Suggest(PhraseMap phrases, IEnumerable<Note> notes, KeySignature? signature, Words words = default) =>
-        Suggest(phrases, notes, signature, null, words);
-
-    /// <summary>The sentences over <paramref name="phrases"/> with the player's <paramref name="edits"/> at the sentence level.</summary>
+    /// <summary>
+    /// The sentences over <paramref name="phrases"/>, read from the piece's <paramref name="notes"/> and its key signature at
+    /// the start, if any, with the player's <paramref name="edits"/> at the sentence level, written in <paramref name="words"/>.
+    /// </summary>
     public static SentenceMap Suggest(PhraseMap phrases, IEnumerable<Note> notes, KeySignature? signature, PhraseEdits? edits, Words words = default)
     {
         ArgumentNullException.ThrowIfNull(phrases);
@@ -88,9 +87,6 @@ public sealed partial class SentenceMap
         ArgumentNullException.ThrowIfNull(edits);
         return new SentenceMap(_phrases, Group(_phrases.Phrases, Closes, edits, _words), Closes, Key, edits, _words);
     }
-
-    /// <summary>The sentence that holds a position; the last sentence for the end of the piece or later.</summary>
-    public Sentence At(Tick position) => Sentences.LastOrDefault(sentence => sentence.Span.Onset <= position) ?? Sentences[0];
 
     /// <summary>
     /// The edits that make <paramref name="span"/> one sentence, given that its edges are phrase boundaries or

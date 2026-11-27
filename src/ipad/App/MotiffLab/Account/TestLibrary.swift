@@ -27,11 +27,12 @@ enum TestLibrary {
     }
 
     /// Whether clearing may delete the file or folder: one of Test's project files (a `.motiff.json` directly in
-    /// Documents/Test), Test's sync records (`sync-test.json`) or Test's folder-import records. Nothing of Main (the project
-    /// files in Documents itself, `sync.json`, `LibraryImport/main`), nothing else in Documents/Test, nothing outside.
+    /// Documents/Test), Test's sync records (`sync-test.json`, and the bases beside them, `SyncBases`) or Test's
+    /// folder-import records. Nothing of Main (the project files in Documents itself, `sync.json`, `sync-bases`,
+    /// `LibraryImport/main`), nothing else in Documents/Test, nothing outside.
     static func deletes(_ url: URL, documents: URL, support: URL) -> Bool {
         let path = url.standardizedFileURL.path
-        let records = [ServerEnvironment.test.syncRecords(in: support), importRecords(in: support)]
+        let records = testRecords(in: support)
         if records.contains(where: { $0.standardizedFileURL.path == path }) { return true }
         let folder = ServerEnvironment.test.projectsFolder(in: documents)
         guard folder.standardizedFileURL.path != documents.standardizedFileURL.path else { return false }
@@ -40,8 +41,13 @@ enum TestLibrary {
 
     /// What clearing deletes, given the files listed in Documents/Test: Test's project files among them, then its records.
     static func targets(listed: [URL], documents: URL, support: URL) -> [URL] {
-        (listed + [ServerEnvironment.test.syncRecords(in: support), importRecords(in: support)])
-            .filter { deletes($0, documents: documents, support: support) }
+        (listed + testRecords(in: support)).filter { deletes($0, documents: documents, support: support) }
+    }
+
+    /// Test's records in Application Support: its sync records, their bases and its folder-import records.
+    private static func testRecords(in support: URL) -> [URL] {
+        let sync = ServerEnvironment.test.syncRecords(in: support)
+        return [sync, SyncBases.folder(for: sync), importRecords(in: support)]
     }
 
     /// Whether the player's copies may be deleted online: only in Test, and only when Test's API is develop's own

@@ -64,7 +64,7 @@ internal static partial class OperationTemplates
             return null;
         }
 
-        MusicalKey spelling = Spelling(key);
+        MusicalKey spelling = key ?? MusicalKey.CMajor;
         string Names(Note[] line) => string.Join(" ", line.Take(HarmonyAnalyzer.MaxNamedBassNotes).Select(note => spelling.Spell(note.Pitch.MidiNumber))) + (line.Length > HarmonyAnalyzer.MaxNamedBassNotes ? " …" : "");
         string unchanged = w.T("the melody and the notes over the bass are unchanged", "мелодия и голоса над басом не изменились");
         if (now.All(note => note.Pitch == now[0].Pitch))
@@ -149,7 +149,7 @@ internal static partial class OperationTemplates
     private static string Rechorded(int moved, int up, MotifTexture before, MotifTexture after, MusicalKey? key, MeterMap meter, Words w)
     {
         int down = moved - up;
-        MusicalKey spelling = Spelling(key);
+        MusicalKey spelling = key ?? MusicalKey.CMajor;
         TickSpan span = SpanOf(before);
         string[] was = [.. HarmonyAnalyzer.FindChords(before.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
         string[] now = [.. HarmonyAnalyzer.FindChords(after.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
@@ -247,7 +247,7 @@ internal static partial class OperationTemplates
             return null;
         }
 
-        MusicalKey spelling = Spelling(key);
+        MusicalKey spelling = key ?? MusicalKey.CMajor;
         string Symbols(IReadOnlyList<ChordSpan> chords) => string.Join(" ", chords.Select(chord => chord.Symbol(spelling)));
         return w.IsRussian
             ? $"По нотам аккорды меняются: были {Symbols(was)}, стали {Symbols(now)}; мелодия и ритм не изменились, а {w.Count(moved.Length, "", "", "нота", "ноты", "нот")} аккомпанемента {Words.RussianForm(moved.Length, "переходит", "переходят", "переходят")} в звуки новых аккордов."

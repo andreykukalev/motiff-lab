@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The library's projects online (0014, #335, version 0.2): one sync pass of the pieces here with the player's other
-/// devices, the projects saved online that are not here, their tab, and Get it here. Signed out, offline or when the API
-/// cannot be reached there are none, and nothing is said: the library is about the projects on this iPad.
+/// devices and what it resolved, the projects saved online that are not here, their tab, Get it here, and a piece deleted
+/// here and online. Signed out, offline or when the API cannot be reached there are none, and nothing is said: the
+/// library is about the projects on this iPad.
 extension LibraryView {
     /// The tab «Нет на этом iPad», while a project saved online is not here.
     var onlineTab: OnlineTab? {
@@ -31,6 +32,8 @@ extension LibraryView {
             // Switched meanwhile: the pass stopped, and the environment now chosen gets one of its own.
             guard environment == account.environment else { return await refreshOnline() }
             overQuota = outcome.overQuota
+            // Kept until the player hides them or a later pass resolves others (E-sync-4).
+            if !outcome.conflicts.isEmpty { conflicts = outcome.conflicts }
             if outcome.changed { await library.reload() }
         }
         let listing = await account.online.listing()
@@ -41,7 +44,32 @@ extension LibraryView {
             return
         }
         let listed = listing?.projects ?? []
-        online = OnlineProjects.notHere(listed, here: Set(library.summaries.values.compactMap(\.id)))
+        // A piece deleted here whose online copy is still to go is not offered to get back (E-sync-2).
+        online = CloudSync.offered(listed, here: Set(library.summaries.values.compactMap(\.id)), recordsURL: account.environment.syncRecordsURL)
+    }
+
+    /// The library's Delete: the piece's file goes here, and its online copy is marked to go with the pass started now
+    /// (the 1.6 plan's decision 14), unless it changed online since (decision 26). A file that would not go stays, marked
+    /// for nothing.
+    func deleteHereAndOnline(_ url: URL) {
+        let id = library.summaries[url]?.id
+        library.delete(url)
+        guard let id, library.summaries[url] == nil else { return }
+        CloudSync.markDeletedHere(id, recordsURL: account.environment.syncRecordsURL)
+        Task { await refreshOnline() }
+    }
+
+    /// The pieces the last pass resolved with a conflict, a line each, and «Скрыть».
+    var conflictLines: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            ForEach(conflicts.indices, id: \.self) { index in
+                Text(conflicts[index].line(text))
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("ink-2"))
+            }
+            Button(text["sync.hide"]) { conflicts = [] }
+                .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+        }
     }
 
     /// "11.11.2026, 20:40" in the interface's language, for a previous copy's title.

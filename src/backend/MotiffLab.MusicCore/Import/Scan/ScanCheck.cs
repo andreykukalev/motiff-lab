@@ -155,9 +155,6 @@ public sealed record ScanCheck
     private static List<ScanPage> PagesOf(IReadOnlyList<PageReport>? pages, List<ScanBar> bars) =>
         pages is null ? [] : [.. pages.Select((report, index) => new ScanPage(index + 1, report, [.. bars.Where(bar => bar.Page == index + 1)]))];
 
-    /// <summary>The bar that starts at bar number <paramref name="bar"/>, or null when no measure does.</summary>
-    public ScanBar? Find(int bar) => Bars.FirstOrDefault(scanned => scanned.Bar == bar);
-
     /// <summary>
     /// The notes marked as a scan's notes are: detected, less sure in flagged bars and on weak pages, and confirmed in
     /// the bars the player said look right. Hands read from the staves are marked the same way.

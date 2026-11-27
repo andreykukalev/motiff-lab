@@ -133,33 +133,6 @@ public sealed class MeterMap
         return new MetricPosition(bar.Number, (int)(offset / beatTicks) + 1, offset % beatTicks);
     }
 
-    /// <summary>
-    /// The canonical position of a bar, beat and offset. Throws if the position is not inside that
-    /// bar, for example beat 4 of a bar cut short after three beats, or beat 1 of a one-beat pickup.
-    /// </summary>
-    public Tick ToTick(MetricPosition position)
-    {
-        if (position.Beat < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), position, "Beats are numbered from 1.");
-        }
-
-        Bar bar = GetBar(position.Bar);
-        long beatTicks = bar.Signature.BeatTicks;
-        if (position.BeatOffset < 0 || position.BeatOffset >= beatTicks)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), position, $"The offset must be less than one beat ({beatTicks} ticks).");
-        }
-
-        long offset = checked(((position.Beat - 1L) * beatTicks) + position.BeatOffset) - bar.LeadIn;
-        if (offset < 0 || offset >= bar.Span.Duration)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), position, $"Bar {bar.Number} does not contain this beat.");
-        }
-
-        return bar.Span.Onset.Offset(offset);
-    }
-
     private static Segment[] BuildSegments(MeterChange[] changes, long pickupDuration)
     {
         List<Segment> segments = new(changes.Length);

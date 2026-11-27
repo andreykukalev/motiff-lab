@@ -28,9 +28,9 @@ public class ExplanationGoldenTests
     {
         Note first = notes.OrderBy(static note => note.Span.Onset).ThenBy(static note => note.Pitch.MidiNumber).First();
         Note last = notes.MaxBy(static note => note.Span.End)!;
-        yield return HandEditParameters.Remove(first.Id);
-        yield return HandEditParameters.Change(first.Id, new NoteValues(new Pitch(first.Pitch.MidiNumber + 1), first.Span, 90));
-        yield return HandEditParameters.Change(first.Id, new NoteValues(first.Pitch, new TickSpan(first.Span.Onset.Offset(120), first.Span.Duration / 2), first.Velocity));
+        yield return new HandEditParameters(HandEditKind.Remove, first.Id, null);
+        yield return new HandEditParameters(HandEditKind.Change, first.Id, new NoteValues(new Pitch(first.Pitch.MidiNumber + 1), first.Span, 90));
+        yield return new HandEditParameters(HandEditKind.Change, first.Id, new NoteValues(first.Pitch, new TickSpan(first.Span.Onset.Offset(120), first.Span.Duration / 2), first.Velocity));
         yield return HandEditParameters.Add("n_added", new NoteValues(last.Pitch, new TickSpan(last.Span.Onset, 240), 70));
     }
 

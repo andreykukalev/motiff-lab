@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Analysis.Phrasing;
 /// <param name="Number">1 for the first unit of the piece at this level, then in order.</param>
 /// <param name="Start">How the unit's start was found: imported for the start of the piece, otherwise the boundary's attribution.</param>
 /// <param name="Evidence">The evidence names behind the start, in lower camel case; empty for the start of the piece or a sentence.</param>
-/// <param name="Description">How the start was found, in the language asked for, as <see cref="PhraseMap.Describe(PhraseBoundary?, Words)"/> words it; a sentence's basis.</param>
+/// <param name="Description">How the start was found, in the language asked for, as <see cref="PhraseMap.Describe(PhraseBoundary?, Words, CloseKind)"/> words it; a sentence's basis.</param>
 public sealed record PhraseUnit(PhraseLevel Level, int Number, TickSpan Span, int FirstBar, int LastBar, Attribution Start, IReadOnlyList<string> Evidence, string Description)
 {
     /// <summary>The number of bars the unit touches, counting partly covered bars.</summary>

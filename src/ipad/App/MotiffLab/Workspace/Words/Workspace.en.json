@@ -271,5 +271,6 @@
   "settings.title": "Settings",
   "phrases.reattached.one": "Attached again: {0} phrase",
   "phrases.reattached.many": "Attached again: {0} phrases",
-  "phrases.reattachedNone": "Nothing to attach to: those places have no phrases now"
+  "phrases.reattachedNone": "Nothing to attach to: those places have no phrases now",
+  "sync.hide": "Hide"
 }

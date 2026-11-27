@@ -21,16 +21,12 @@ public enum HandEditKind
 /// <param name="Values">The note's new values; null for a removal.</param>
 public sealed record HandEditParameters(HandEditKind Kind, string NoteId, NoteValues? Values) : OperationParameters
 {
-    public static HandEditParameters Change(string noteId, NoteValues values) => new(HandEditKind.Change, noteId, values);
-
-    public static HandEditParameters Remove(string noteId) => new(HandEditKind.Remove, noteId, null);
-
     public static HandEditParameters Add(string noteId, NoteValues values) => new(HandEditKind.Add, noteId, values);
 }
 
 /// <summary>
-/// A note edited by hand in a variation (S1-E7): a step like any other in the chain, so it can be
-/// undone, redone and saved, and the Keep chips are checked again after it (S1-E9). A variation made
+/// A note edited by hand in a variation (S1-E7): a step like any other in the chain, so it is saved
+/// and run again on open, and the Keep chips are checked again after it (S1-E9). A variation made
 /// only of hand edits is a hand-made variation, a first-class result.
 /// </summary>
 /// <remarks>
