@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// «Повторить» for the pages of a PDF piece no engine read, once the rest opened (v1.3 i-1b, Andrei 2026-11-24 «Вставить в те
 /// же ноты»): only those pages are read again, as a new scan job, and each read is put into the same notes at its place by
@@ -62,5 +62,40 @@ enum ScanPageAgain {
         }
         outcome.unread.sort()
         return .success(outcome)
+    }
+}
+
+/// «Повторить» for a piece's pages no engine read, where its notes are checked (v1.5 i-7): only those pages sent again
+/// (`RecognitionQueue.retryUnread`), why they did not go in last time; while they are read again, that they go in once the
+/// piece is closed, since the queue writes a piece no screen holds (E-scan-3). `retried` hears the tap.
+struct UnreadPagesRetry: View {
+    let item: RecognitionItem
+    let text: UIText
+    let retried: () -> Void
+    @ObservedObject private var queue = RecognitionQueue.shared
+
+    var body: some View {
+        let shown = Self.shown(item, text)
+        ForEach(shown.captions, id: \.self) { caption($0) }
+        if shown.retry {
+            Button(text["recognition.retry"]) {
+                queue.retryUnread(item.file)
+                retried()
+            }
+            .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+            .accessibilityHint(text["recognition.retryPagesHint"])
+        }
+    }
+
+    /// What is shown for `item`: once its reading is done, why the pages did not go in last time and «Повторить»; while
+    /// they are read again, no second «Повторить», only that each goes in once the piece is closed (E-scan-3).
+    static func shown(_ item: RecognitionItem, _ text: UIText) -> (captions: [String], retry: Bool) {
+        guard item.state == .done else { return ((item.unread ?? []).map { text.format("recognition.unreadAgain", String($0)) }, false) }
+        guard let reason = item.reason, !reason.isEmpty else { return ([], true) }
+        return ([text.format("recognition.againWhy", reason)], true)
+    }
+
+    private func caption(_ words: String) -> some View {
+        Text(words).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
     }
 }

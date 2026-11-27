@@ -17,11 +17,11 @@ internal static partial class ScanRequest
     /// <summary>
     /// {"file": the piece's project file, "page": the page's place among the notes' pages, from 1 (the pages read before it,
     /// plus one), "reading": the page as one of scan.join's "pages" (its MusicXML, its readings, or {"readings", "evidence"}),
-    /// "report" (the page's report as "reports" takes one; required when the notes keep reports), "pages": the PDF's pages,
+    /// "reports" (the page's report as "reports" takes one; without it notes that kept reports keep none, v1.5 i-7), "pages": the PDF's pages,
     /// "language"} → {"file": the project file with the page in, "was" and "fingerprint": the notes' music before and after,
     /// as `check` answers it, "firstBar" and "bars": the page's bars, the bars from "firstBar" on before now that many on,
     /// "pages": [the page as scan.join answers one, numbered by its place]}. The player's corrections, checked bars and Check
-    /// flags are carried over to the same music; refused ("unavailable") when something else the player put on the score
+    /// flags are carried over to the same music, the bookmarks and resume points after it move on by its length (v1.5 i-7); refused ("unavailable") when something else the player put on the score
     /// would move, or a correction cannot be carried exactly. Pure: the app writes the file.
     /// </summary>
     public static string Insert(Request fields)
@@ -48,8 +48,8 @@ internal static partial class ScanRequest
             throw FacadeException.Unavailable(inserted.Refused switch
             {
                 PageRefusal.Work => words.T(
-                    "The page can be put into notes read from this PDF only while nothing but corrections is on the score: phrases, marks, bookmarks, motifs and ideas would move.",
-                    "Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок: фразы, пометки, закладки, мотивы и идеи сдвинулись бы."),
+                    "The page can be put into notes read from this PDF only while nothing but corrections and bookmarks is on the score: phrases, marks, motifs and ideas would move.",
+                    "Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок и закладок: фразы, пометки, мотивы и идеи сдвинулись бы."),
                 PageRefusal.Across => words.T(
                     "The page cannot be put in: a corrected note sounds across the place where it goes.",
                     "Страницу не вставить: исправленная нота звучит через место, куда она встаёт."),

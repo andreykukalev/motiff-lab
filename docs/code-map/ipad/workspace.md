@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 ## Files
 
 `DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `DraftStructureControls`, `DraftVisitPieces`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
-`ScoreController`, `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
+`ScoreController`, `ScoreUnreadPages` (v1.5 i-7: a scanned PDF's pages no engine read, their marks among the Check flags), `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
 `TopBar` (`.swift`).
 
 - `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,

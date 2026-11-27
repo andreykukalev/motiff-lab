@@ -222,32 +222,88 @@ public class PageInsertTests
     }
 
     [Fact]
-    public void A_resume_point_before_the_page_stays_and_one_at_or_after_it_goes_back_to_the_start_as_when_bars_change()
+    public void A_resume_point_before_the_page_stays_and_one_at_or_after_it_moves_on_by_the_page()
     {
+        // v1.5 i-7 (the 1.4 plan's answer 9): moved on by the page's two bars of 4/4, 3840 ticks, rather than back to the start.
         Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
         ResumePoint start = read.ResumePoints[0];
+        static SavedPassage Passage(long onset, long length) => new(new TickSpan(new Tick(onset), length), MotiffLab.MusicCore.Motifs.SelectionFilter.All);
         Project resumed = read with
         {
-            ResumePoints = [start with { At = new Tick(960) }, ResumePoint.Start("r_2", start.CreatedAt) with { At = new Tick(4 * 1920), Loop = true }, ResumePoint.Start("r_3", start.CreatedAt) with { At = new Tick(960), Passage = new SavedPassage(new TickSpan(new Tick(960), 3840), MotiffLab.MusicCore.Motifs.SelectionFilter.All) }],
+            ResumePoints =
+            [
+                start with { At = new Tick(960), Passage = Passage(960, 2880) },
+                ResumePoint.Start("r_2", start.CreatedAt) with { At = new Tick(4 * 1920), Loop = true, Focused = true },
+                ResumePoint.Start("r_3", start.CreatedAt) with { At = new Tick(960), Passage = Passage(960, 3840) },
+                ResumePoint.Start("r_4", start.CreatedAt) with { At = new Tick(3840), Passage = Passage(3840, 1920) },
+            ],
         };
 
         Project inserted = ScanPageInsert.Into(resumed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Project!;
 
-        Assert.Equal([(960L, false), (0L, false), (0L, false)], inserted.ResumePoints.Select(point => (point.At.Value, point.Loop)));
-        Assert.Null(inserted.ResumePoints[2].Passage);
+        Assert.Equal([960L, 4 * 1920 + 3840, 960, 3840 + 3840], inserted.ResumePoints.Select(point => point.At.Value));
+        Assert.Equal((true, true), (inserted.ResumePoints[1].Loop, inserted.ResumePoints[1].Focused));
+        // A passage ending where the page goes stays; one across it takes the page in; one from it on moves on whole.
+        Assert.Equal([(960L, 2880L), (960L, 3840L + 3840), (7680L, 1920L)], inserted.ResumePoints.Where(point => point.Passage is not null).Select(point => (point.Passage!.Span.Onset.Value, point.Passage.Span.Duration)));
+        // The page's own music is under the moved point: bar 5 of the notes now, page 3's first E5 as before.
+        Assert.Equal(Four(76), RightHand(Encoding.UTF8.GetString(ProjectFile.Write(inserted)))[4]);
     }
 
     [Fact]
-    public void The_page_s_report_goes_in_at_its_place_and_notes_that_keep_reports_need_it()
+    public void Bookmarks_no_longer_refuse_the_page_and_move_on_by_it_their_bars_title_renumbered()
     {
+        Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        DateTimeOffset now = DateTimeOffset.Parse(Now, System.Globalization.CultureInfo.InvariantCulture);
+        MeterMap meter = OpenedProject.Open(read).Piece.Meter;
+        Bookmark Marked(string id, int first, int last, string? title = null)
+        {
+            TickSpan span = TickSpan.FromBounds(meter.GetBar(first).Span.Onset, meter.GetBar(last).Span.End);
+            return new Bookmark(id, title ?? Bookmark.BarsTitle(meter, span, Words.English), "teacher", span, false, now);
+        }
+
+        Project marked = read with { Bookmarks = [Marked("b_1", 1, 2), Marked("b_2", 3, 4), Marked("b_3", 2, 3, "Тема"), Marked("b_4", 4, 4, "Coda, " + Bookmark.BarsTitle(meter, meter.GetBar(4).Span, Words.Russian))] };
+        Assert.True(marked.CanInsertPage);
+
+        Project inserted = ScanPageInsert.Into(marked, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Project!;
+
+        MeterMap after = OpenedProject.Open(inserted).Piece.Meter;
+        Assert.Equal([(1, 2), (5, 6), (2, 5), (6, 6)], inserted.Bookmarks.Select(bookmark => (after.BarAt(bookmark.Span.Onset).Number, after.BarAt(new Tick(bookmark.Span.End.Value - 1)).Number)));
+        Assert.Equal(Bookmark.BarsTitle(after, inserted.Bookmarks[0].Span, Words.English), inserted.Bookmarks[0].Title);
+        Assert.Equal(Bookmark.BarsTitle(after, inserted.Bookmarks[1].Span, Words.English), inserted.Bookmarks[1].Title);
+        Assert.Equal("Тема", inserted.Bookmarks[2].Title);
+        Assert.Equal("Coda, " + Bookmark.BarsTitle(after, inserted.Bookmarks[3].Span, Words.Russian), inserted.Bookmarks[3].Title);
+        using JsonDocument answered = Insert(Encoding.UTF8.GetString(ProjectFile.Write(marked)), 2, Page("G"));
+        Assert.False(answered.RootElement.TryGetProperty("error", out _), answered.RootElement.ToString());
+    }
+
+    [Fact]
+    public void Check_answers_where_each_page_of_the_notes_starts_and_ends_so_the_app_can_mark_a_page_not_read()
+    {
+        var facade = new MusicCoreFacade();
+        Assert.DoesNotContain("\"error\"", facade.Open("scan.motiff.json", Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))), null), StringComparison.Ordinal);
+
+        using JsonDocument check = JsonDocument.Parse(facade.Call(1, "check", "{}"));
+
+        Assert.Equal(
+            [(1, 1, 0L, 2, 1920L), (2, 3, 3840L, 4, 5760L)],
+            check.RootElement.GetProperty("pageStarts").EnumerateArray().Select(page => (page.GetProperty("page").GetInt32(), page.GetProperty("bar").GetInt32(), page.GetProperty("tick").GetInt64(), page.GetProperty("lastBar").GetInt32(), page.GetProperty("lastTick").GetInt64())));
+    }
+
+    [Fact]
+    public void The_page_s_report_goes_in_at_its_place_and_a_page_without_one_leaves_the_notes_keeping_none()
+    {
+        // v1.5 i-7, review 1: a page read again with no report (by a job that sent none) goes in rather than being refused.
         string file = Read(3, [Report(0.7), Report(0.8)], Page("C"), Page("E"));
 
         using JsonDocument inserted = Insert(file, 2, Page("G"), reports: [Report(0.9)]);
-        using JsonDocument refused = Insert(file, 2, Page("G"));
+        using JsonDocument without = Insert(file, 2, Page("G"));
 
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!));
         Assert.Equal([(1, 0.7), (2, 0.9), (3, 0.8)], project.Scan!.Pages.Select(report => (report.Page, report.Sharpness)));
-        Assert.Equal("badRequest", refused.RootElement.GetProperty("error").GetString());
+        Assert.False(without.RootElement.TryGetProperty("error", out _));
+        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(without.RootElement.GetProperty("file").GetString()!));
+        Assert.Empty(kept.Scan!.Pages);
+        Assert.Equal(3, ScanJoin.Split(kept.Source).Count);
     }
 
     [Fact]

@@ -961,14 +961,15 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
         scanCrops = kept.1.compactMapValues { UIImage(data: $0) }
     }
 
-    /// The open bars as amber flags on the score, each labelled with its reasons.
-    private func drawChecks() async {
+    /// The open bars as amber flags on the score, each labelled with its reasons, and the PDF's pages no engine read at
+    /// their place (`UnreadPage.marked`, v1.5 i-7); again after «Повторить» on such a page.
+    func drawChecks() async {
         guard shown else { return }
         let flags: [[String: Any]] = check.openBars.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "label": text.format("check.flagLabel", String(bar.bar), CheckShelf.reasonNames(bar.flags, text))]
         }
-        await scorePage.send(.checks, ["flags": flags])
+        await scorePage.send(.checks, ["flags": UnreadPage.marked(flags, unreadPages, text)])
     }
 
     // MARK: - Other versions

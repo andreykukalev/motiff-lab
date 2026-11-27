@@ -49,8 +49,8 @@ struct ScanProgress: Equatable, Sendable {
     private(set) var done = 0
     /// How long each page read took, from send to answer, in milliseconds.
     private(set) var milliseconds: [Int] = []
-    /// The minutes left as a scan job's server tells them (decision record 0035), in place of the pages timed here.
-    private(set) var told: Int?
+    /// The seconds left as a scan job's server tells them (decision record 0035), in place of the pages timed here.
+    private(set) var secondsLeft: Int?
     /// The scan job's server has not answered yet: it is waking up (`ScanJobStatus.waking`).
     private(set) var waking = false
 
@@ -62,11 +62,14 @@ struct ScanProgress: Equatable, Sendable {
     }
 
     /// A scan job's pages as its server tells them: those every engine has finished with, and about how long is left.
-    init(pages: Int, done: Int, minutesLeft: Int?) {
+    init(pages: Int, done: Int, secondsLeft: Int?) {
         self.pages = max(1, pages)
         self.done = min(self.pages, max(0, done))
-        told = minutesLeft
+        self.secondsLeft = secondsLeft.map { max(0, $0) }
     }
+
+    /// The minutes left as the server tells them, at least one.
+    var told: Int? { secondsLeft.map { max(1, ($0 + 59) / 60) } }
 
     /// `pages` about to go to a scan job's server that is waking up.
     static func waking(pages: Int) -> ScanProgress {
@@ -110,9 +113,26 @@ struct ScanProgress: Equatable, Sendable {
         return current.map { text.format("scan.pageOf", String($0), String(pages)) } ?? text.format("scan.allRead", String(pages))
     }
 
-    /// The line, and about how long is left once a page has been timed.
+    /// The line, and about how long is left once a page has been timed: as the server tells it for a scan job.
     func caption(_ text: UIText) -> String {
-        minutesLeft.map { line(text) + " · " + text.format("recognition.left", String($0)) } ?? line(text)
+        left(text).map { line(text) + " · " + $0 } ?? line(text)
+    }
+
+    /// About how long is left: «около 1 мин 40 с» as a scan job's server tells it (spec part 2a), else «ещё около 4 мин.»
+    /// from the pages timed here; nil when neither is known.
+    func left(_ text: UIText) -> String? {
+        if let secondsLeft { return Self.about(seconds: secondsLeft, text) }
+        return minutesLeft.map { text.format("recognition.left", String($0)) }
+    }
+
+    /// «около 1 мин 40 с», «около 40 с», «около 12 мин»: the seconds rounded up to ten, at least ten; from ten minutes on,
+    /// whole minutes, rounded up.
+    static func about(seconds: Int, _ text: UIText) -> String {
+        let tens = max(10, (seconds + 9) / 10 * 10)
+        if tens >= 600 { return text.format("scan.aboutMinutes", String((tens + 59) / 60)) }
+        if tens < 60 { return text.format("scan.aboutSeconds", String(tens)) }
+        let rest = tens % 60
+        return rest == 0 ? text.format("scan.aboutMinutes", String(tens / 60)) : text.format("scan.aboutMinutesSeconds", String(tens / 60), String(rest))
     }
 
     /// The milliseconds since `start`, as a page is timed.

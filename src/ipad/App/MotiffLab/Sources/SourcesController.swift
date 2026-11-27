@@ -324,27 +324,31 @@ final class SourcesController: ObservableObject {
         }
     }
 
-    /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
-    /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
-    private struct Recognised {
-        var fields: [String: Any]
-        var dropped: String?
-        var toast: String
+    /// The line before an original's pages are sent as a scan job (0035 section 6; v1.5 i-7, the 1.4 plan's answer 9: in
+    /// Sources too): what the iPad reads itself, what goes to the server and about how long; nil when the server takes no jobs.
+    func jobPlanLine(_ original: SourceLayers.Original, address: URL) async -> String? {
+        guard case .success(let kept) = await keptPdf(original) else { return nil }
+        return await ScanServer.jobPlanLine(data: kept.data, address: address, text: text)
     }
 
-    /// Why an original was not recognised, in the player's words.
-    private struct Refusal: Error {
-        let words: String
-    }
-
-    /// The original's pages, as kept in the piece, read by the scan server, for `sources.notes.recognise`.
-    private func readPages(_ original: SourceLayers.Original, address: URL, account: Account) async -> Result<Recognised, Refusal> {
+    /// The original's pages as kept in the piece, and its file's name; music-core's words when it has none.
+    private func keptPdf(_ original: SourceLayers.Original) async -> Result<(data: Data, fileName: String), Refusal> {
         let kept = await call(.sourcesPdf, ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(Refusal(words: facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]))
         }
+        return .success((data, object["fileName"] as? String ?? original.fileName))
+    }
+
+    /// The original's pages, as kept in the piece, read by the scan server, for `sources.notes.recognise`.
+    private func readPages(_ original: SourceLayers.Original, address: URL, account: Account) async -> Result<Recognised, Refusal> {
+        let kept: (data: Data, fileName: String)
+        switch await keptPdf(original) {
+        case .failure(let refusal): return .failure(refusal)
+        case .success(let pdf): kept = pdf
+        }
         let result: ScanResult
-        switch await ScanServer.recognise(fileName: object["fileName"] as? String ?? original.fileName, data: data, address: address, account: account) {
+        switch await ScanServer.recognise(fileName: kept.fileName, data: kept.data, address: address, account: account) {
         case .failure(let problem): return .failure(Refusal(words: problem.text(text)))
         case .success(let read): result = read
         }

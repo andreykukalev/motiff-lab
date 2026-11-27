@@ -34,6 +34,8 @@ struct SourcesRecognisePanel: View {
     @EnvironmentObject private var account: Account
     /// The library's recognition: one at a time (Andrei, 2026-11-25), so a page original is not sent while it goes on.
     @Environment(\.backgroundReading) private var background
+    /// With «Четыре движка», what the iPad reads itself, what goes to the server and about how long (v1.5 i-7).
+    @State private var planned: String?
 
     private var text: UIText { row.text }
 
@@ -78,6 +80,7 @@ struct SourcesRecognisePanel: View {
                 SourcesCaption(words: blocker, colour: "ink-2")
             } else {
                 SourcesCaption(words: offer.line, colour: "ink-2")
+                if let planned { SourcesCaption(words: planned, colour: "ink-2") }
                 if let earlier {
                     SourcesCaption(words: text.format("sources.sheet.readKeeps", earlier.at.map { SourceLayers.shortDate($0, text) } ?? "", text.count("sources.sheet.edits", earlier.edits)), colour: "ink-2")
                 }
@@ -97,6 +100,17 @@ struct SourcesRecognisePanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+        // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5).
+        .task(id: original.id) {
+            guard let address = Self.timedBy(jobs: row.jobs, recording: original.isRecording, blocked: self.offer.blocker != nil, address: row.address) else { return }
+            planned = await sources.jobPlanLine(original, address: address)
+        }
+    }
+
+    /// The scan server to ask how long an original takes before Send: only with «Четыре движка», for pages rather than a
+    /// recording, with nothing blocking them and an address set; nil asks nothing (E-scan-5).
+    static func timedBy(jobs: Bool, recording: Bool, blocked: Bool, address: URL?) -> URL? {
+        jobs && !recording && !blocked ? address : nil
     }
 
     /// Send: the panel closes once the notes are in, else says why under the row.
@@ -111,6 +125,19 @@ struct SourcesRecognisePanel: View {
 }
 
 extension SourcesController {
+    /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
+    /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
+    struct Recognised {
+        var fields: [String: Any]
+        var dropped: String?
+        var toast: String
+    }
+
+    /// Why an original was not recognised, in the player's words.
+    struct Refusal: Error {
+        let words: String
+    }
+
     /// A toast's text, then music-core's line of what became of the player's work, an answer's object's "text", when it
     /// says something: the corrections on notes recognised again («Как напечатано», step 2: "carried"), the bookmarks and
     /// phrases on notes made working (v1.5 c-11b: "followed").

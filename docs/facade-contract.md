@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-26, v1.5 c-11b):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-27, v1.5 i-7):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -231,6 +231,8 @@ Also within 16 (version 1.5, d-11, DRAFT-11: «С ассистентом · Pro�
 Also within 16 (version 1.5, r-2a, #821): project.save never writes over a saved variation but the working chain's own earlier save: the chain shown goes under the id of the variation it was opened from, and a chain that went (try, select, idea.open, variation.clear, a correction) leaves its saved copy as it was, the next one saved beside it; select or idea.open on another passage, while the working motif has variations saved, leaves it in the file as it was and saves the passage beside it under a new id, which passes the motifs this build does not know by. No field changes; the project file stays version 17.
 
 Also within 16 (version 1.5, r-2a): "bar" is optional in every corrections call, as it was in corrections.layer and .drop; without it the call answers for the piece's first bar, 0 for a pickup, so the note editor with no selection sends none rather than a bar 1 the piece may not have. A field made optional; nothing else changes.
+
+Also within 16 (version 1.5, i-7, the v1.4 plan's answer 9): check answers "pageStarts", where each page of a scan's notes starts and ends as scan.join joined the pages read ("page", "bar", "tick", "lastBar", "lastTick"; empty for other notes), so the app marks a page of the PDF no engine read at its place; scan.insert no longer refuses a page for the bookmarks, which move on by the page's length with the resume points (a span across its place takes it in, a title still by its bars retitled; `FollowedWork.Inserted`), where it put resume points at or after the page back to the start; and a page merged from several engines' readings whose backbone is homr takes the time signature that two or more of the engines reading the printed signature agree on, counting only engines that wrote a signature at or before the bar (#647, `ScanMerge.PrintedMeters`); and scan.insert no longer refuses a page sent without "reports" into notes that keep reports: the notes then keep none (one report per page or none). Fields added; the project file stays version 17.
 
 ### 15
 

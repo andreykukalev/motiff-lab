@@ -177,5 +177,8 @@
   "drafts.carryBars.many": "в {0} тактах",
   "drafts.carryNoPlace": "В черновике нет другого места для приёма.",
   "drafts.carryNoFit": "Приём не подходит ни к одному другому месту.",
-  "drafts.lengthChange": "Изменить длину…"
+  "drafts.lengthChange": "Изменить длину…",
+  "recognition.unreadBefore": "Стр. {0} не распознана · её место перед тактом {1}",
+  "recognition.unreadAfter": "Стр. {0} не распознана · её место после такта {1}",
+  "recognition.unreadHeading": "Нераспознанные страницы"
 }

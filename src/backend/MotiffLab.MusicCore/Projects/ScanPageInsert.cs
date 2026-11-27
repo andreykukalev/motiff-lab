@@ -13,12 +13,13 @@ internal static class ScanPageInsert
     /// put in as their page <paramref name="page"/> (<see cref="ScanJoin.Insert"/>): its bars at its place, the bars after it
     /// numbered on. The player's corrections are carried over to the same music (<see cref="NoteEditLog.CarriedOver"/>), the
     /// checked bars and Check flags after it move on by its bars, its own bars get the scan's flags, the page's report goes in
-    /// at its place when the notes keep reports (<paramref name="report"/> is then required), the PDF's
-    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and a resume point at or
-    /// after the page goes back to the start, as <see cref="Project.ChangeBars"/> does. Refused, with why, while <see cref="Project.CanInsertPage"/>
+    /// at its place when the notes keep reports (with no <paramref name="report"/>, a page read again without one, the notes keep
+    /// none from then on: one report per page or none, v1.5 i-7), the PDF's
+    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and the bookmarks and resume
+    /// points at or after the page move on by its length (<see cref="FollowedWork.Inserted"/>, v1.5 i-7). Refused, with why, while <see cref="Project.CanInsertPage"/>
     /// is false or when the corrections or the bars cannot be carried over exactly: nothing is dropped.
     /// </summary>
-    /// <exception cref="ArgumentException">The place or the page is not one, or the notes keep reports and none is sent.</exception>
+    /// <exception cref="ArgumentException">The place or the page is not one.</exception>
     public static PageInserted Into(Project project, int page, byte[] musicXml, PageReport? report, int documentPages)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -58,15 +59,14 @@ internal static class ScanPageInsert
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
         ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
-        Project inserted = project with
+        // Bookmarks and resume points move on with the bars after the page (v1.5 i-7); nothing else in ticks is there to move (CanInsertPage).
+        Project inserted = FollowedWork.Inserted(project, before.Meter, after.Meter, at, length).Project with
         {
             Source = score,
             Edits = edits,
             Scan = scan,
             Check = [.. (project.Check ?? []).Select(flag => new CheckFlag(MovedOn(flag.Bar, first, bars), flag.Source, flag.Reason, flag.Resolved)), .. own],
             DocumentPages = PageMap.Of(after, Math.Max(1, documentPages)),
-            ResumePoints = [.. project.ResumePoints.Select(point => point.At < at && (point.Passage is null || point.Passage.Span.End <= at) ? point
-                : point with { At = Tick.Zero, Passage = null, Focused = false, Loop = false })],
         };
         return new PageInserted(inserted, first, bars);
     }
@@ -78,9 +78,9 @@ internal static class ScanPageInsert
         return ScanCheck.Of(before, null).Bars.All(bar => numbers.GetValueOrDefault(bar.Span.Onset.Value + (bar.Span.Onset < at ? 0 : length), -1) == MovedOn(bar.Bar, first, bars));
     }
 
-    /// <summary>The notes' page reports with the page's at its place; none when the notes keep none.</summary>
-    private static IReadOnlyList<PageReport> Reports(IReadOnlyList<PageReport> kept, int page, PageReport? report, byte[] score) => kept.Count == 0 ? []
-        : PageReport.ForScore([.. kept.Take(page - 1), report ?? throw new ArgumentException("These notes keep each page's report: send the page's.", nameof(report)), .. kept.Skip(page - 1)], score);
+    /// <summary>The notes' page reports with the page's at its place; none when the notes keep none or the page came without one.</summary>
+    private static IReadOnlyList<PageReport> Reports(IReadOnlyList<PageReport> kept, int page, PageReport? report, byte[] score) => kept.Count == 0 || report is null ? []
+        : PageReport.ForScore([.. kept.Take(page - 1), report, .. kept.Skip(page - 1)], score);
 
     private static ImportedPiece Imported(Project project, byte[] score) => PieceImporter.Import(project.FileName, score).Piece
         ?? throw new ArgumentException("The notes with the page could not be read as music.", nameof(score));

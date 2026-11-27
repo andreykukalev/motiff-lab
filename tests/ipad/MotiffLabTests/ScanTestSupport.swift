@@ -88,22 +88,32 @@ enum ScanSupport {
 
     /// The piece of the file at `url` opened, `call` made on it and the file saved, as the score's screen saves a change.
     static func change(_ url: URL, _ call: String, _ request: String) throws {
-        let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
-        let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
-        defer { MusicCore.close(piece: piece) }
-        let answer = try XCTUnwrap(facadeObject(MusicCore.call(piece: piece, call, request)))
+        let answer = try XCTUnwrap(facadeObject(try opened(url) { piece in
+            let answer = MusicCore.call(piece: piece, call, request)
+            try Data(MusicCore.call(piece: piece, "project.save", "{}").utf8).write(to: url, options: .atomic)
+            return answer
+        }))
         XCTAssertNil(answer["error"], "\(call): \(answer)")
-        try Data(MusicCore.call(piece: piece, "project.save", "{}").utf8).write(to: url, options: .atomic)
+    }
+
+    /// music-core's answer to `call` on the piece of the file at `url`, the file left as it is.
+    static func called(_ url: URL, _ call: String, _ request: String = "{}") throws -> String {
+        try opened(url) { MusicCore.call(piece: $0, call, request) }
     }
 
     /// The pitches the piece of the file at `url` plays in `bar`, its corrections on, from the lowest; none for a bar it
     /// does not have.
     static func pitches(_ url: URL, bar: Int) throws -> [Int] {
+        let answer = facadeObject(try called(url, "corrections", #"{"bar": \#(bar)}"#))
+        return (answer?["notes"] as? [[String: Any]] ?? []).compactMap { $0["pitch"] as? Int }.sorted()
+    }
+
+    /// `use` on the piece of the file at `url`, opened for it and closed after.
+    private static func opened(_ url: URL, _ use: (Int32) throws -> String) throws -> String {
         let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: url.lastPathComponent, data: try Data(contentsOf: url), request: #"{"language": "en"}"#)))
         let piece = try XCTUnwrap((opened["piece"] as? NSNumber)?.int32Value)
         defer { MusicCore.close(piece: piece) }
-        let answer = facadeObject(MusicCore.call(piece: piece, "corrections", #"{"bar": \#(bar)}"#))
-        return (answer?["notes"] as? [[String: Any]] ?? []).compactMap { $0["pitch"] as? Int }.sorted()
+        return try use(piece)
     }
 
     /// Chooses «Четыре движка» in this iPad's settings, as Settings does; answers what was chosen, for `restore`.

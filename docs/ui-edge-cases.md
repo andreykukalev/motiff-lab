@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-26, v1.5 d-11):** current. New; replaces nothing.
+**Status (2026-11-27, v1.5 i-7):** current. New; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -45,6 +45,27 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 ## Pen and marks
 
 ## Library, import and scan
+
+- `E-scan-1` · A page of the PDF no engine read is marked at a bar that has a Check flag already · one flag: the page's
+  words are added to that flag's label, and a tap opens Check, which lists both · as a bar's notes sit beside its flag,
+  never on it (`page-marks.ts`); HIG: no control hidden under another · v1.5 i-7
+- `E-scan-2` · The unread page is the PDF's last (after every page the notes have) · its mark stands at the notes' last
+  bar and says «её место после такта N»; «Показать» selects that bar · the same mark as before a bar, the one place left
+  · v1.5 i-7
+- `E-scan-3` · «Повторить» in Check while the piece is open on its notes · the page is sent at once, but put into the
+  notes only once the piece is closed; meanwhile its mark leaves the score and Check says «Стр. N читается заново: она
+  встанет в ноты, когда пьеса закроется»; a second tap is not offered · as the open PDF's background recognition, whose
+  notes wait for its screen (SCAN-04); a running action shows it is busy · v1.5 i-7
+- `E-scan-4` · The batch's consent while the scan server is asked how long (a hosted server may take up to two minutes
+  to wake) · «Сколько ждать» says «Спрашиваю сервер распознавания, сколько это займёт…» and «Распознать ноты» stays
+  usable; no answer, or a server without jobs, gives the line it gave before (half a minute a page) · a missing loading
+  state is shown, never a number not known yet (robustness rule) · v1.5 i-7
+- `E-scan-5` · Sources' recognise panel for a recording, or for pages while something blocks them (sign-in, Pro, a
+  recognition already going) · no estimate line: only pages sent as a job have one, as the PDF's own panel · v1.5 i-7
+- `E-scan-6` · A page read again comes without its report into notes that keep each page's report · the page goes in and
+  the notes keep no reports from then on (one per page or none), so Check no longer tells a page's print quality; never
+  a refusal in words the player cannot act on · robustness rule (a page read is not lost for a missing number) · v1.5
+  i-7 (review 1)
 
 ## Drafts and the assistant
 

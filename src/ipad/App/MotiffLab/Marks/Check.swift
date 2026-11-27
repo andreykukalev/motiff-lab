@@ -87,6 +87,8 @@ struct CheckShelf: Equatable, Sendable {
     var engine: String?
     /// The scan's pages, in order; empty without page reports.
     var pages: [CheckPageEntry] = []
+    /// Where each page of a scan's notes starts, in order, with or without reports; empty for other notes (v1.5 i-7).
+    var pageStarts: [CheckPageStart] = []
     /// The working notes' music by its SHA-256 (v1.3 i-2), as `scan.join` named the score: what this iPad keeps of a scan's
     /// bars to check is found by it (`ScanReviewStore`).
     var fingerprint: String?
@@ -135,6 +137,7 @@ struct CheckShelf: Equatable, Sendable {
                 firstBar: number(entry["firstBar"]).map { Int($0) }, lastBar: number(entry["lastBar"]).map { Int($0) }
             )
         }
+        pageStarts = CheckPageStart.all(object["pageStarts"])
     }
 
     var hasFlags: Bool { !flags.isEmpty }
@@ -319,6 +322,8 @@ struct CheckDrawer: View {
                     }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
                     PhotoPagesCheck(score: score, text: text)
+                    // The PDF's pages no engine read, at their place, with «Повторить» (v1.5 i-7; built by Workspace).
+                    score.unreadPagesCheck(text)
                     if !check.pieces.isEmpty {
                         // Check by piece (version 0.5): the pieces of the layer with their bars to check.
                         Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))

@@ -13,7 +13,7 @@ internal enum PageRefusal
 {
     None,
 
-    /// <summary>Something the player put on the score but corrections stands in ticks that would move (<see cref="Project.CanInsertPage"/>).</summary>
+    /// <summary>Something the player put on the score but corrections and bookmarks stands in ticks that would move (<see cref="Project.CanInsertPage"/>).</summary>
     Work,
 
     /// <summary>A correction records a note sounding across the page's place, which the page would cut (<see cref="Events.NoteEditLog.Crosses"/>).</summary>
@@ -28,8 +28,9 @@ public sealed partial record Project
     /// <summary>
     /// Whether a page read again can be put into these notes (v1.3 i-1b; as <see cref="CanChangeBars"/>): only notes a scan
     /// read from this piece's PDF, while nothing the player put on the score stands in ticks that would move, except the
-    /// corrections and the checked bars, which <see cref="ScanPageInsert.Into"/> carries over, and resume points, which it keeps.
+    /// corrections and the checked bars, which <see cref="ScanPageInsert.Into"/> carries over, and the bookmarks and resume
+    /// points, which it moves on by the page (v1.5 i-7).
     /// </summary>
-    public bool CanInsertPage => HasNotes && Scan is not null && Document is not null && !PlacedInBars
+    public bool CanInsertPage => HasNotes && Scan is not null && Document is not null && !PlacedInBarsBesideBookmarks
         && Performances.Count == 0 && Assembly.IsEmpty && Drafts.Count == 0;
 }
