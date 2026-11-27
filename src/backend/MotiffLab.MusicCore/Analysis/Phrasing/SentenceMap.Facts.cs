@@ -2,7 +2,7 @@ using MotiffLab.MusicCore.Events;
 
 namespace MotiffLab.MusicCore.Analysis.Phrasing;
 
-/// <summary>The facts about sentences and phrases for Understand (S1-A4), in the structure lens, in the map's language.</summary>
+/// <summary>The facts about sentences and phrases for Understand (S1-A4), in the structure lens, and why the phrases were grouped as they are, in the map's language.</summary>
 public sealed partial class SentenceMap
 {
     /// <summary>
@@ -69,6 +69,23 @@ public sealed partial class SentenceMap
 
         return facts;
     }
+
+    /// <summary>A sentence's basis: the grouping's reasons after each of its phrases, in order; "it" for a sentence of <paramref name="onePhrase"/>.</summary>
+    private static string GroupBasis(IEnumerable<GroupReason> reasons, bool onePhrase, Words words) =>
+        Words.Capitalize(string.Join("; ", reasons.Select(reason => reason switch
+        {
+            { Rule: GroupRule.PieceEnds } when onePhrase => words.T("it ends with the piece", "она заканчивается вместе с произведением"),
+            { Rule: GroupRule.PieceEnds } => words.T($"phrase {reason.Phrase} ends with the piece", $"фраза {reason.Phrase} заканчивается вместе с произведением"),
+            { Rule: GroupRule.PlayerEnded } => words.T($"you ended it after phrase {reason.Phrase}", $"вы завершили его после фразы {reason.Phrase}"),
+            { Rule: GroupRule.PlayerJoined } => words.T($"you joined phrase {reason.Next} to it", $"вы присоединили к нему фразу {reason.Next}"),
+            { Rule: GroupRule.RepeatSign } => words.T($"a repeat sign stands after phrase {reason.Phrase}", $"после фразы {reason.Phrase} стоит знак репризы"),
+            { Rule: GroupRule.Consequent } => words.T(
+                $"phrase {reason.Next} starts where phrase {reason.Phrase} comes back note for note, so it reads as the consequent",
+                $"фраза {reason.Next} начинается там, где фраза {reason.Phrase} возвращается нота в ноту, поэтому читается как ответное построение"),
+            { Rule: GroupRule.FullClose } => words.T($"phrase {reason.Phrase} ends on the tonic, a full close", $"фраза {reason.Phrase} заканчивается на тонике, полная каденция"),
+            { Rule: GroupRule.HalfClose } => words.T($"phrase {reason.Phrase} ends on a half close, so it runs on", $"фраза {reason.Phrase} заканчивается половинной каденцией, поэтому продолжается"),
+            _ => words.T($"phrase {reason.Phrase} reads no close, so it runs on", $"во фразе {reason.Phrase} каденция не читается, поэтому она продолжается"),
+        }))) + ".";
 
     /// <summary>"phrases 1–2" in the genitive, as "состоит из" takes it: "фраз 1–2", "фразы 1".</summary>
     private static string PhrasesGenitive(Sentence sentence) =>
