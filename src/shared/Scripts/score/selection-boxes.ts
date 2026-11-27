@@ -2,7 +2,8 @@
 // (selection-place-layer.ts): the band's runs as the page shows them, a box set on an element, the staves a hand narrows
 // the band to (v0.6.2, #601), and whether a point lies on the music or on the page's margin.
 
-import type { Rect, Run, ScoreBar, ScoreGeometry } from "./score-geometry.js";
+import type { Rect } from "./page-reader.js";
+import type { Run, ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import type { PlaceBox } from "../selection/selection-places.js";
 
 export const BAND_CLASS = "sel-band";

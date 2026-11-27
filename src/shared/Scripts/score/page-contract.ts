@@ -9,7 +9,7 @@ import type { PracticeShown } from "../layout/practice-view.js";
 import type { CardOssia } from "./phrase-card.js";
 import type { BarBeatPlace } from "./phrase-drag.js";
 import type { BarFrame, InkPoint, MarkColour, MarkTool, PencilMark } from "./pencil-marks.js";
-import type { Rect } from "./score-geometry.js";
+import type { Rect } from "./page-reader.js";
 import type { TimemapEntry } from "./score-timeline.js";
 import type { SelectionChange } from "../selection/selection-gesture.js";
 import type { GridSpan } from "../selection/selection-grid.js";

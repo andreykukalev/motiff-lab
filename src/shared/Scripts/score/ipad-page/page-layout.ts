@@ -1,7 +1,8 @@
 // The pages of the iPad's score page: Verovio's A4 pages shown, where each bar sits read by the score geometry
 // (Scripts/score/score-geometry.ts), every mark placed again whenever the pages move, and which pages are in view told to
 // Swift (`pages`).
-import { type PageGeometry, ScoreGeometry, readPage } from "../score-geometry.js";
+import { type PageGeometry, readPage } from "../page-reader.js";
+import { ScoreGeometry } from "../score-geometry.js";
 import { ScoreTimeline } from "../score-timeline.js";
 import { type BarFrame, framesByTick } from "../pencil-marks.js";
 import type { LaidOut, PageCommands, PagesInView } from "../page-contract.js";

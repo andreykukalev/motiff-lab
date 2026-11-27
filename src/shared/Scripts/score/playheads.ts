@@ -12,7 +12,8 @@
 
 import type { Handle } from "../playback/playback-model.js";
 import { token } from "../layout/tokens.js";
-import type { Playhead, Rect, ScoreBar, ScoreGeometry } from "./score-geometry.js";
+import type { Rect } from "./page-reader.js";
+import type { Playhead, ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import type { ScoreBeats } from "./selection-beats.js";
 import { type BandHand, handStaves } from "./selection-boxes.js";
 

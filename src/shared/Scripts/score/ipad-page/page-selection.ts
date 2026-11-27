@@ -6,7 +6,8 @@
 import { SelectionLayer } from "../selection-layer.js";
 import { PlaceLayer } from "../selection-place-layer.js";
 import { gridLines, tupletBlocks, type GridSpan } from "../../selection/selection-grid.js";
-import type { ScoreGeometry, Rect } from "../score-geometry.js";
+import type { Rect } from "../page-reader.js";
+import type { ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PageSelection } from "../page-contract.js";
 import { pointerRules, post, state } from "./page-state.js";
 import { bookmarksTop } from "./page-bookmarks.js";

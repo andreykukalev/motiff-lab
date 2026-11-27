@@ -8,7 +8,8 @@ import { test } from "node:test";
 
 import { next, viewOf } from "../../src/shared/wwwroot/js/playback/playback-model.js";
 import { ScorePlayheadMarks, bandOf, edgeOf, inBand, playheadsOf } from "../../src/shared/wwwroot/js/score/playheads.js";
-import { ScoreGeometry, readPage } from "../../src/shared/wwwroot/js/score/score-geometry.js";
+import { readPage } from "../../src/shared/wwwroot/js/score/page-reader.js";
+import { ScoreGeometry } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 import { A4_LAYOUT } from "../../src/shared/wwwroot/js/score/score-page.js";
 import { ScoreTimeline } from "../../src/shared/wwwroot/js/score/score-timeline.js";
 import { ScoreBeats } from "../../src/shared/wwwroot/js/score/selection-beats.js";

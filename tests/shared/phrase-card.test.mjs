@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { CARD_SCALE, cardLayout, soundingIds } from "../../src/shared/wwwroot/js/score/phrase-card.js";
-import { readPage, staffFrames } from "../../src/shared/wwwroot/js/score/score-geometry.js";
+import { readPage, staffFrames } from "../../src/shared/wwwroot/js/score/page-reader.js";
 import createVerovioModule from "../../src/shared/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/shared/wwwroot/lib/verovio/verovio.mjs";
 
