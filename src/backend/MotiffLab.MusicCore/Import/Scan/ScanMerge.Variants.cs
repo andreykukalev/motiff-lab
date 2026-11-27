@@ -40,6 +40,17 @@ internal static partial class ScanMerge
             })];
     }
 
+    /// <summary>The bar's choices with the variant's staves taken from its first engine's reading of the bar; the others as they are.</summary>
+    private static List<Choice> Chosen(List<(Reading Reading, int Measure)> candidates, List<Choice> choices, ScanVariant variant)
+    {
+        (Reading reading, int measure) = candidates.FirstOrDefault(candidate => candidate.Reading.Engine == variant.Engines[0]);
+        return reading is null
+            ? throw new ArgumentException($"No engine {variant.Engines[0]} read the bar.", nameof(variant))
+            : [.. choices.Select(choice => variant.Staves.Any(staff => staff.Part == choice.Part + 1 && staff.Staff == choice.Staff)
+                ? choice with { Source = reading, SourceMeasure = measure }
+                : choice)];
+    }
+
     /// <summary>The staff spaces a crop reaches above the system's top line and below its bottom one: ledger lines, stems and beams.</summary>
     private const double CropSpaces = 4;
 

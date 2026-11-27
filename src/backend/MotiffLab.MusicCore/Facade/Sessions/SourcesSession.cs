@@ -51,7 +51,7 @@ internal sealed class SourcesSession
         return before with { Next = now.Next };
     }
 
-    /// <summary>What became of the working notes' marks on notes read again: all of them on the new reading's bars, those put in, and those that could not be.</summary>
+    /// <summary>What became of the working notes' marks on notes read again: those carried, on the new reading's bars (all but a bar read badly that was read again), those put in, and those that could not be.</summary>
     public sealed record MarksCarried(IReadOnlyList<ReadingMark> Marks, IReadOnlyList<ReadingMark> Applied, IReadOnlyList<ReadingMark> Unfit)
     {
         /// <summary>The toast's line: «учтено отметок: 2 · не учтено, в «Проверить»: 1 (такт 3)»; null when no mark was put in or left out.</summary>
@@ -262,8 +262,9 @@ internal sealed class SourcesSession
 
         // Numbered by the bars of the notes made, which a meter mark may number otherwise than the reading did.
         IReadOnlyList<(ReadingMark Mark, MarkOutcome Outcome)> numbered = marked.Numbered(again.Piece);
+        // A bar read badly read again has done its job: it sits in Check with its readings, and is not carried to be read again once more.
         return (again, new MarksCarried(
-            ScanOrigin.Ordered(numbered.Select(static each => each.Mark)),
+            ScanOrigin.Ordered(numbered.Where(static each => each.Mark.Kind != ReadingMarkKind.BadlyRead || each.Outcome != MarkOutcome.Applied).Select(static each => each.Mark)),
             [.. numbered.Where(static each => each.Outcome == MarkOutcome.Applied).Select(static each => each.Mark)],
             [.. numbered.Where(static each => each.Outcome == MarkOutcome.Unfit).Select(static each => each.Mark)]));
     }

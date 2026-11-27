@@ -45,7 +45,14 @@ internal sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSou
 }
 
 /// <summary>A page merged from several readings: its MusicXML, the engines that read it in the merge's order, and each bar in order.</summary>
-internal sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engines, IReadOnlyList<ScanMergedBar> Bars);
+internal sealed record ScanMergedPage(byte[] MusicXml, IReadOnlyList<string> Engines, IReadOnlyList<ScanMergedBar> Bars)
+{
+    /// <summary>
+    /// The page merged again with one bar's staves of a variant taken from its first engine's reading (by the bar's index on
+    /// the page), every other staff and bar as merged: the notes the page gives once that variant is chosen.
+    /// </summary>
+    public Func<int, ScanVariant, byte[]> WithVariant { get; init; } = static (_, _) => throw new InvalidOperationException("Not a merged page.");
+}
 
 /// <summary>
 /// Merges several engines' readings of one scanned page into one, staff by staff (ADR 0035, section 5; c-1a). Each reading
@@ -93,7 +100,11 @@ internal static partial class ScanMerge
     /// takes another reading than the one taken before, when an engine read it otherwise (<see cref="ReadAgain"/>).
     /// </summary>
     /// <exception cref="ArgumentException">No reading of the page is partwise MusicXML with bars.</exception>
-    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence = null, ScanBefore? before = null)
+    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence = null, ScanBefore? before = null) =>
+        Merged(readings, evidence, before, null) with { WithVariant = (measure, variant) => Merged(readings, evidence, before, (measure, variant)).MusicXml };
+
+    /// <summary>The merge, with the bar <paramref name="chosen"/> names written from its variant when given.</summary>
+    private static ScanMergedPage Merged(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence, ScanBefore? before, (int Measure, ScanVariant Variant)? chosen)
     {
         ArgumentNullException.ThrowIfNull(readings);
         List<Reading> ordered = [.. readings.Select((reading, index) => Reading.Of(reading, index)).OfType<Reading>().OrderBy(reading => reading.Rank)];
@@ -117,19 +128,11 @@ internal static partial class ScanMerge
                 .Where(pair => pair.Pairs[measure] is not null)
                 .Select(pair => (pair.Reading, pair.Pairs[measure]!.Value))];
             List<Choice> choices = [.. backbone.Staves().Select(each => Vote(candidates, measure, each.Part, each.Staff, backbone, page))];
-            if (earlier?.Another(candidates, measure) is { } another)
-            {
-                taken.AddRange(another);
-                bars.Add(new ScanMergedBar(ScanLevel.Check, Sources(another)) { Variants = Variants(candidates, another, all: true), Crop = page?.CropOf(measure), ReadAgain = true });
-                continue;
-            }
-
-            taken.AddRange(choices);
-            int fewest = choices.Min(choice => choice.Agreeing.Count);
-            ScanLevel level = fewest >= SureEngines ? ScanLevel.Sure : fewest >= AgreeingEngines ? ScanLevel.Probable : ScanLevel.Check;
-            bars.Add(level == ScanLevel.Check
-                ? new ScanMergedBar(level, Sources(choices)) { Variants = Variants(candidates, choices, all: false), Crop = page?.CropOf(measure) }
-                : new ScanMergedBar(level, Sources(choices)));
+            List<Choice>? another = earlier?.Another(candidates, measure);
+            taken.AddRange(chosen is { } variant && variant.Measure == measure ? Chosen(candidates, another ?? choices, variant.Variant) : another ?? choices);
+            bars.Add(another is not null
+                ? new ScanMergedBar(ScanLevel.Check, Sources(another)) { Variants = Variants(candidates, another, all: true), Crop = page?.CropOf(measure), ReadAgain = true }
+                : Voted(candidates, choices, page?.CropOf(measure)));
         }
 
         PrintedMeters(backbone, compared);
@@ -140,6 +143,20 @@ internal static partial class ScanMerge
             + $"{bars.Count(bar => bar.Level == ScanLevel.Check)} of {bars.Count} bars to check.");
         byte[] bytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n" + root.ToString(SaveOptions.DisableFormatting));
         return new ScanMergedPage(bytes, [.. ordered.Select(reading => reading.Engine)], bars);
+    }
+
+    /// <summary>Notes of a bar as the merge compares them: onset in the bar, pitch and length within the bar, in ticks.</summary>
+    internal static IEnumerable<(long Onset, int Pitch, long Length)> InBar(TickSpan bar, IEnumerable<MusicXmlNote> notes) =>
+        notes.Select(note => (note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value));
+
+    /// <summary>A bar as its staves were voted: its level by the fewest engines agreeing on a staff, a bar to check with its variants and <paramref name="crop"/>.</summary>
+    private static ScanMergedBar Voted(List<(Reading Reading, int Measure)> candidates, List<Choice> choices, ScanCrop? crop)
+    {
+        int fewest = choices.Min(choice => choice.Agreeing.Count);
+        ScanLevel level = fewest >= SureEngines ? ScanLevel.Sure : fewest >= AgreeingEngines ? ScanLevel.Probable : ScanLevel.Check;
+        return level == ScanLevel.Check
+            ? new ScanMergedBar(level, Sources(choices)) { Variants = Variants(candidates, choices, all: false), Crop = crop }
+            : new ScanMergedBar(level, Sources(choices));
     }
 
     /// <summary>Which engines gave each staff of a bar: those agreeing with the reading taken there.</summary>
@@ -299,9 +316,7 @@ internal static partial class ScanMerge
         /// <summary>The notes of one staff of a bar as the merge compares them: onset in the bar, pitch and length within the bar, in ticks.</summary>
         public IEnumerable<(long Onset, int Pitch, long Length)> Notes(int measure, int part, int staff)
         {
-            TickSpan bar = Import.Measures[measure].Span;
-            return _notes[(measure, part, staff)]
-                .Select(note => (note.Span.Onset.Value - bar.Onset.Value, note.Pitch, Math.Min(note.Span.End.Value, bar.End.Value) - note.Span.Onset.Value));
+            return InBar(Import.Measures[measure].Span, _notes[(measure, part, staff)]);
         }
 
         /// <summary>Whether one staff of a bar adds up to the meter in force there (<see cref="ScanRepair.AddsUp"/>).</summary>

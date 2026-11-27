@@ -50,9 +50,19 @@ internal static partial class ScanRequest
         byte[] score = Score(fields, merged);
         IReadOnlyList<byte[]> pages = ScanJoin.Split(score);
         IReadOnlyList<PageReport>? reports = Reports(fields, pages.Count);
-        (ImportedPiece piece, byte[] notes) = NotesOf(fields, score);
+        Func<byte[], ReadScore>? marking = Marking(fields);
+        (ImportedPiece piece, byte[] notes) = marking?.Invoke(score) is { } marked
+            ? (marked.Piece, marked.MusicXml)
+            : PieceImporter.Import("scan.musicxml", score) is { Piece: { } read }
+                ? (read, ScanRepair.Repair(score))
+                : throw FacadeException.BadRequest("The joined pages could not be read as music.");
         ScanCheck check = ScanCheck.Of(piece, reports);
         PageMap map = PageMap.Of(piece, pages.Count);
+        if (marking is not null)
+        {
+            MarkVariants(merged, score, piece, map, marking);
+        }
+
         return Answer.Write(json =>
         {
             json.WriteString("score", Encoding.UTF8.GetString(score));
@@ -65,28 +75,6 @@ internal static partial class ScanRequest
 
             json.WriteEndArray();
         });
-    }
-
-    /// <summary>
-    /// The joined score as the Notes made from it keep it, and as imported: repaired; with "file" (the piece's project file)
-    /// and "original" (the PDF read, its PDF by default), also with the working notes' marks «что не так» put in as
-    /// sources.notes.recognise puts them (<see cref="SourcesSession.Marked"/>, decision 16 of version 1.6), so Check finds
-    /// what this iPad keeps of the reading by the notes' fingerprint and bars.
-    /// </summary>
-    private static (ImportedPiece Piece, byte[] Notes) NotesOf(Request fields, byte[] score)
-    {
-        if (!fields.Has("file"))
-        {
-            return PieceImporter.Import("scan.musicxml", score) is { Piece: { } read }
-                ? (read, ScanRepair.Repair(score))
-                : throw FacadeException.BadRequest("The joined pages could not be read as music.");
-        }
-
-        Project project = MusicCoreFacade.ProjectIn(fields);
-        ImportedPiece working = PieceImporter.Import(project.FileName, project.Source).Piece ?? throw FacadeException.BadRequest("The piece's notes could not be read.");
-        ReadScore notes = SourcesSession.Read("notes.musicxml", score, Words.For(fields.Text("language")));
-        (ReadScore marked, _) = SourcesSession.Marked(project, working, fields.Text("original") ?? PieceOriginal.DocumentId, "notes.musicxml", notes);
-        return (marked.Piece, marked.MusicXml);
     }
 
     /// <summary>
