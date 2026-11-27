@@ -275,5 +275,6 @@
   "phrases.reattached.one": "Привязано заново: {0} фраза",
   "phrases.reattached.few": "Привязано заново: {0} фразы",
   "phrases.reattached.many": "Привязано заново: {0} фраз",
-  "phrases.reattachedNone": "Привязать не к чему: на этих местах фраз больше нет"
+  "phrases.reattachedNone": "Привязать не к чему: на этих местах фраз больше нет",
+  "sync.hide": "Скрыть"
 }

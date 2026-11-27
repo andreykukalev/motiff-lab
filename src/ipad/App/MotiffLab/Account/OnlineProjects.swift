@@ -37,9 +37,10 @@ struct OnlineProject: Identifiable, Equatable, Sendable {
     }
 }
 
-/// The projects saved online, on the iPad: listed, fetched with their ETag and sent with `If-Match` by the sync
-/// (version 0.2, `CloudSync`), and one listed but not here downloaded as a new project file (#335). Nothing saved online
-/// is ever deleted from the iPad.
+/// The projects saved online, on the iPad: listed, fetched with their ETag, sent and deleted with `If-Match` by the sync
+/// (version 0.2, `CloudSync`), and one listed but not here downloaded as a new project file (#335). Nothing is deleted
+/// online but a piece the player deleted here or one joined into another (`CloudSync`), and everything at the player's
+/// «Удалить аккаунт и данные онлайн» (`deleteEverything`).
 struct OnlineProjects {
     /// Why a project did not come, in the web's words (Account/OnlineProjects.cs).
     enum Failure: Error, Equatable {
@@ -115,15 +116,35 @@ struct OnlineProjects {
             .mapError(Self.failure)
     }
 
-    /// Deletes the project's online copy (version 0.6.1: a copy that joined the same piece, `CloudSync`); true once it is
-    /// gone, also when it was gone already.
-    func delete(_ id: String) async -> Bool {
-        guard let path = Self.path(of: id) else { return false }
-        switch await send(path, { request in request.httpMethod = "DELETE" }) {
-        case .success: return true
-        case .failure(.failed(.notFound)): return true
-        case .failure: return false
+    /// What the API answered a delete.
+    enum Deleted: Equatable, Sendable {
+        /// Gone, also when it was gone already (404).
+        case gone
+        /// Saved on another device since the ETag given (412): it stays online.
+        case changedOnline
+        case failed
+    }
+
+    /// Deletes the project's online copy (version 0.6.1: a copy that joined the same piece; v1.6: a piece the player
+    /// deleted here, `CloudSync`), with `ifMatch` only the copy that still has that ETag.
+    func delete(_ id: String, ifMatch: String?) async -> Deleted {
+        guard let path = Self.path(of: id) else { return .failed }
+        let answer = await send(path) { request in
+            request.httpMethod = "DELETE"
+            if let ifMatch { request.setValue(ifMatch, forHTTPHeaderField: "If-Match") }
         }
+        switch answer {
+        case .success, .failure(.failed(.notFound)): return .gone
+        case .failure(.changedOnline): return .changedOnline
+        case .failure: return .failed
+        }
+    }
+
+    /// Deletes everything the player keeps online in this environment: every project and the profile (the API's DELETE
+    /// /me; «Удалить аккаунт и данные онлайн», the 1.6 plan's decision 14). True once the API answered that it did.
+    func deleteEverything() async -> Bool {
+        guard case .success = await send("me", { request in request.httpMethod = "DELETE" }) else { return false }
+        return true
     }
 
     /// Sends the copy saved online (`project.online`) as the project's file, over the online copy with `ifMatch` when given.
