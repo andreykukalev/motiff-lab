@@ -113,6 +113,51 @@ public class ScanReadAgainTests
     }
 
     [Fact]
+    public void Engines_tied_on_another_reading_give_the_first_in_the_merges_order()
+    {
+        ScanReading[] three = [Reading("homr", First, ["G", "A", "B", "D"]), Reading("copisteria", First, ["G", "A", "B", "E"]), Reading("audiveris", First, ["G", "A", "B", "C"])];
+        ScanMergedPage before = ScanMerge.Merge(three);
+        Assert.Equal(["homr"], before.Bars[1].Staves[0].Engines);
+
+        ScanMergedPage again = ScanMerge.Merge(three, before: new ScanBefore(before.MusicXml, new HashSet<int> { 1 }));
+
+        Assert.Equal(["copisteria"], again.Bars[1].Staves[0].Engines);
+        Assert.Equal([["homr"], ["audiveris"]], again.Bars[1].Variants.Select(static variant => variant.Engines.ToArray()));
+    }
+
+    [Fact]
+    public void Working_notes_read_with_a_mark_still_know_the_reading_taken_before_and_take_another()
+    {
+        object[] readings = Sent(Readings());
+        var facade = new MusicCoreFacade();
+        string score = Join(facade, new { pages = new[] { readings } }).GetProperty("score").GetString()!;
+
+        // The working notes were read with bar 2 an octave higher as marked; then the player marks the bar read badly.
+        Marked(facade, score, """{"kind": "octave", "bar": 2, "staff": 1, "value": "8va"}""");
+        Recognise(facade, score);
+        Assert.DoesNotContain("\"error\"", facade.Call(1, "check.mark", """{"kind": "badlyRead", "bar": 2}"""), StringComparison.Ordinal);
+        string file = facade.Call(1, "project.save");
+        string working = Encoding.UTF8.GetString(ProjectFile.Read(Encoding.UTF8.GetBytes(file)).Source);
+        Assert.Equal([91, 93, 95, 86], Right(PieceImporter.Import("a.musicxml", Encoding.UTF8.GetBytes(working)).Piece!, 2));
+
+        JsonElement bar = Join(facade, new { score = working, replace = new[] { new { page = 1, readings, bad = new[] { 2 } } }, file })
+            .GetProperty("pages")[0].GetProperty("merge").GetProperty("bars")[1];
+
+        Assert.Equal(["audiveris"], bar.GetProperty("staves")[0].GetProperty("engines").EnumerateArray().Select(static engine => engine.GetString()));
+        JsonElement variant = Assert.Single(bar.GetProperty("variants").EnumerateArray());
+        Assert.Equal(["homr", "copisteria"], variant.GetProperty("engines").EnumerateArray().Select(static engine => engine.GetString()));
+        Assert.Equal([91, 93, 95, 86], variant.GetProperty("staves")[0].GetProperty("notes").EnumerateArray().Select(static note => note.GetProperty("pitch").GetInt32()));
+    }
+
+    /// <summary>The PDF read again as <paramref name="score"/>, the new Notes made the working notes.</summary>
+    private static void Recognise(MusicCoreFacade facade, string score)
+    {
+        string request = JsonSerializer.Serialize(new { original = PieceOriginal.DocumentId, musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = 1, now = "2026-11-27T10:05:00Z" });
+        Assert.DoesNotContain("\"error\"", facade.Call(1, "sources.notes.recognise", request), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"error\"", facade.Call(1, "sources.makeWorking", """{"id": "n_2"}"""), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_variant_a_mark_makes_the_same_as_the_notes_is_left_out_so_choosing_never_takes_back_what_a_mark_put_right()
     {
         // Both read a key of one sharp; homr reads bar 2's last quarter F#5 as the key gives it, copisteria F5 natural (no

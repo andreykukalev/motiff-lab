@@ -66,14 +66,14 @@ internal static class ScoreBuilder
         ReadAgain = [.. import.Measures.Where(measure => FirstOf(parts, measure).ReadAgain).Select(measure => measure.Index)],
     };
 
-    /// <summary>
-    /// Where each measure starts, exactly, and the end of the last: each lasts as long as its longest part, and one with no
-    /// content at all (not even a rest) a full bar of the signature in force.
-    /// </summary>
     /// <summary>The measure as the first part that has it reads it, where a scan merge's marks are.</summary>
     private static MeasureInfo FirstOf(List<PartReader> parts, MusicXmlMeasure measure) =>
         parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index];
 
+    /// <summary>
+    /// Where each measure starts, exactly, and the end of the last: each lasts as long as its longest part, and one with no
+    /// content at all (not even a rest) a full bar of the signature in force.
+    /// </summary>
     private static QuarterFraction[] MeasureStarts(List<PartReader> parts, List<Timed<TimeSignature>> times, int measureCount)
     {
         var starts = new QuarterFraction[measureCount + 1];

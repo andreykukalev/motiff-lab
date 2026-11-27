@@ -4,7 +4,12 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// A page as it was read before (its MusicXML, as <see cref="ScanJoin.Split"/> cuts it from the joined score) and its
 /// measures, by index from 0, the player marked as read badly («Как напечатано», step 3), for <see cref="ScanMerge.Merge"/>.
 /// </summary>
-internal sealed record ScanBefore(byte[] MusicXml, IReadOnlySet<int> Bad);
+/// <param name="Same">
+/// Whether the page merged with a reading's bar (its MusicXML, the bar by its index there) gives the notes the page read
+/// before has at a bad measure (its index), once the notes are made as they were (repaired, the player's marks put in);
+/// null compares the readings' notes with the page's as they are.
+/// </param>
+internal sealed record ScanBefore(byte[] MusicXml, IReadOnlySet<int> Bad, Func<byte[], int, int, bool>? Same = null);
 
 internal static partial class ScanMerge
 {
@@ -17,8 +22,10 @@ internal static partial class ScanMerge
         private readonly Reading _reading;
         private readonly Reading _backbone;
         private readonly Dictionary<int, int> _bad;
+        private readonly Func<byte[], int, int, bool>? _same;
 
-        private Before(Reading reading, Reading backbone, Dictionary<int, int> bad) => (_reading, _backbone, _bad) = (reading, backbone, bad);
+        private Before(Reading reading, Reading backbone, Dictionary<int, int> bad, Func<byte[], int, int, bool>? same) =>
+            (_reading, _backbone, _bad, _same) = (reading, backbone, bad, same);
 
         /// <summary>The page as read before beside the backbone; null without one, without a bar marked, or when it is no MusicXML of the backbone's parts.</summary>
         public static Before? Of(ScanBefore? before, Reading backbone)
@@ -39,16 +46,17 @@ internal static partial class ScanMerge
                 }
             }
 
-            return new Before(reading, backbone, bad);
+            return new Before(reading, backbone, bad, before.Same);
         }
 
         /// <summary>
         /// For a backbone bar paired with one marked as read badly, another reading than the one taken before: of the
-        /// candidates whose notes on the bar's staves are not those read before, the group most of them read alike, the first
-        /// in the merge's order among as many, every staff taken from it (from the backbone when it is in the group); null for
-        /// another bar, or when every engine read the bar as before.
+        /// candidates whose notes on the bar's staves are not those read before (as <see cref="ScanBefore.Same"/> makes
+        /// them, <paramref name="pageWith"/> merging the page with a group's bar), the group most of them read alike, the
+        /// first in the merge's order among as many, every staff taken from it (from the backbone when it is in the group);
+        /// null for another bar, or when every engine read the bar as before.
         /// </summary>
-        public List<Choice>? Another(List<(Reading Reading, int Measure)> candidates, int measure)
+        public List<Choice>? Another(List<(Reading Reading, int Measure)> candidates, int measure, Func<int, ScanVariant, byte[]> pageWith)
         {
             if (!_bad.TryGetValue(measure, out int earlier))
             {
@@ -58,8 +66,11 @@ internal static partial class ScanMerge
             (int Part, int Staff)[] staves = [.. _backbone.Staves()];
             string Key(Reading reading, int at) => string.Join("|", staves.Select(staff => reading.Content(at, staff.Part, staff.Staff)));
             string taken = Key(_reading, earlier);
+            bool Same(IGrouping<string, (Reading Reading, int Measure)> group) => _same is null
+                ? string.Equals(group.Key, taken, StringComparison.Ordinal)
+                : _same(pageWith(measure, new ScanVariant([group.First().Reading.Engine], [.. staves.Select(static staff => new ScanVariantStaff(staff.Part + 1, staff.Staff, []))])), measure, earlier);
             if (candidates.GroupBy(candidate => Key(candidate.Reading, candidate.Measure), StringComparer.Ordinal)
-                .Where(group => !string.Equals(group.Key, taken, StringComparison.Ordinal))
+                .Where(group => !Same(group))
                 .OrderByDescending(static group => group.Count())
                 .FirstOrDefault() is not { } other)
             {
