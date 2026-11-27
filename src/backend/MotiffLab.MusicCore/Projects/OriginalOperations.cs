@@ -14,26 +14,16 @@ internal static class OriginalOperations
 {
     /// <summary>
     /// A free id for a new original: <paramref name="stem"/> itself ("src_pdf") while the piece uses it nowhere (an original,
-    /// a removed one, a version, an unknown original), else the stem with the first free number ("src_pdf_2").
+    /// a removed one, a version, an unknown original), else the stem, "_" and an id from <paramref name="ids"/>; numbered,
+    /// the stem counts as the first, so the next is "src_pdf_2".
     /// </summary>
-    public static string NextOriginalId(this Project project, string stem)
+    public static string NextOriginalId(this Project project, string stem, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentException.ThrowIfNullOrWhiteSpace(stem);
+        ArgumentNullException.ThrowIfNull(ids);
         HashSet<string> taken = TakenOriginalIds(project);
-        if (!taken.Contains(stem))
-        {
-            return stem;
-        }
-
-        for (int number = 2; ; number++)
-        {
-            string candidate = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{stem}_{number}");
-            if (!taken.Contains(candidate))
-            {
-                return candidate;
-            }
-        }
+        return taken.Contains(stem) ? ids.Next(stem + "_", [.. taken, stem + "_1"], digits: 1) : stem;
     }
 
     private static HashSet<string> TakenOriginalIds(Project project) =>

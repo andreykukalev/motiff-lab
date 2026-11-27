@@ -49,7 +49,7 @@ public class OriginalOperationsTests
     public void Another_pdf_is_a_new_original_beside_the_first_with_its_bytes_in_the_file_and_never_online()
     {
         Project project = ScannedPdf();
-        string id = project.NextOriginalId(PieceOriginal.DocumentId);
+        string id = project.NextOriginalId(PieceOriginal.DocumentId, IdSource.Numbered);
 
         Project added = project.AddOriginal(Pdf(id, "Nocturne (Henle).pdf"), s_otherPdf);
 
@@ -64,7 +64,7 @@ public class OriginalOperationsTests
         JsonObject online = JsonNode.Parse(ProjectFile.Write(added.ForOnline()!))!.AsObject();
         Assert.All(online["originals"]!.AsArray(), original => Assert.Null(original!["data"]));
         Assert.Throws<ArgumentException>(() => added.AddOriginal(Pdf(id, "again.pdf"), s_otherPdf));
-        Assert.Equal("src_pdf_3", added.NextOriginalId(PieceOriginal.DocumentId));
+        Assert.Equal("src_pdf_3", added.NextOriginalId(PieceOriginal.DocumentId, IdSource.Numbered));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class OriginalOperationsTests
     public void An_original_goes_with_its_notes_only_when_the_working_notes_were_not_made_from_it()
     {
         byte[] musicXml = Scanned();
-        Project project = ScannedPdf().AddOriginal(Pdf("src_pdf_2", "Henle.pdf"), s_otherPdf).RecognisedAgain("src_pdf_2", musicXml, "homr 0.8.0", null, s_now.AddHours(3));
+        Project project = ScannedPdf().AddOriginal(Pdf("src_pdf_2", "Henle.pdf"), s_otherPdf).RecognisedAgain("src_pdf_2", musicXml, "homr 0.8.0", null, s_now.AddHours(3), IdSource.Numbered);
         Assert.Equal("n_2", Assert.Single(project.Sources.Notes).Id);
         Assert.Throws<InvalidOperationException>(() => project.RemoveOriginal(PieceOriginal.DocumentId, s_now, withNotes: true));
 
@@ -145,7 +145,7 @@ public class OriginalOperationsTests
         byte[] musicXml = Scanned();
         Project project = ScannedPdf()
             .AddOriginal(Pdf("src_pdf_2", "Nocturne (Henle).pdf"), s_otherPdf)
-            .RecognisedAgain("src_pdf_2", musicXml, "homr 0.8.0", null, s_now.AddHours(1))
+            .RecognisedAgain("src_pdf_2", musicXml, "homr 0.8.0", null, s_now.AddHours(1), IdSource.Numbered)
             .MakeWorking("n_2", out _)
             .RemoveOriginal(PieceOriginal.DocumentId, s_now.AddHours(2))
             .ViewHidden(Project.FirstNotesId, hidden: true);

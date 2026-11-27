@@ -18,7 +18,7 @@ public class NotesOperationsTests
         byte[] musicXml = Scanned();
         Project project = ScannedPdf();
 
-        Project again = project.RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr 0.8.0", Pages(musicXml, 3), s_now.AddHours(1));
+        Project again = project.RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr 0.8.0", Pages(musicXml, 3), s_now.AddHours(1), IdSource.Numbered);
 
         OtherNotes notes = Assert.Single(again.Sources.Notes);
         Assert.Equal(("n_2", "Nocturne.musicxml", "homr 0.8.0"), (notes.Id, notes.FileName, notes.Provenance.Engine));
@@ -28,13 +28,13 @@ public class NotesOperationsTests
         Assert.Equal(project.Edits, again.Edits);
         Assert.Equal(project.Source, again.Source);
         Assert.Equal(notes, Assert.Single(RoundTrip(again).Sources.Notes));
-        Assert.Throws<InvalidOperationException>(() => Project.CreateDocument("p_only", "a.pdf", s_pdf, s_now).RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr", null, s_now));
+        Assert.Throws<InvalidOperationException>(() => Project.CreateDocument("p_only", "a.pdf", s_pdf, s_now).RecognisedAgain(PieceOriginal.DocumentId, musicXml, "homr", null, s_now, IdSource.Numbered));
     }
 
     [Fact]
     public void Removing_notes_keeps_the_original_and_never_takes_the_working_notes()
     {
-        Project project = ScannedPdf().RecognisedAgain(PieceOriginal.DocumentId, Scanned(), "homr 0.8.0", null, s_now).ViewHidden("n_2", hidden: true);
+        Project project = ScannedPdf().RecognisedAgain(PieceOriginal.DocumentId, Scanned(), "homr 0.8.0", null, s_now, IdSource.Numbered).ViewHidden("n_2", hidden: true);
 
         Project removed = project.DeleteNotes("n_2");
 
@@ -50,7 +50,7 @@ public class NotesOperationsTests
     {
         Project worked = ProjectFileTests.Worked();
         Project project = worked with { Marks = worked.Marks.AddNote(new MarginNote("n_0001", new MusicCore.Time.TickSpan(new MusicCore.Time.Tick(0), 480), "Breathe", s_now)) };
-        var other = new OtherNotes(project.NextNotesId(), "minuet.musicxml", Original(), new NotesProvenance(NotesProvenance.Import) { From = [new ProvenanceSource("src_fur")] });
+        var other = new OtherNotes(project.NextNotesId(IdSource.Numbered), "minuet.musicxml", Original(), new NotesProvenance(NotesProvenance.Import) { From = [new ProvenanceSource("src_fur")] });
         Project two = project.AddNotes(other);
         Assert.Throws<ArgumentException>(() => two.AddNotes(other));
 

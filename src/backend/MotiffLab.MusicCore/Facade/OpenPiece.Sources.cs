@@ -38,7 +38,7 @@ internal sealed partial class OpenPiece
     internal SourcesSession Sources { get; } = new();
 
     /// <summary>This piece's project as the sources' calls that need no notes change it (<see cref="SourceRequest.Calls"/>), a PDF's pages shared over the bars.</summary>
-    internal SourceOwner HeldSources => new(() => Project, KeepSources, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+    internal SourceOwner HeldSources => new(() => Project, KeepSources, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words, Ids);
 
     /// <summary>
     /// The <paramref name="project"/> one of the sources' calls that need no notes makes, kept; when it took away a version
@@ -135,7 +135,7 @@ internal sealed partial class OpenPiece
         string original = request.Required("original");
         (ReadScore read, SourcesSession.MarksCarried? marks) = SourcesSession.Marked(
             Project, Piece, original, "notes.musicxml", SourcesSession.Read("notes.musicxml", SourceRequest.Base64(request.Required("musicXml"), "musicXml"), Words));
-        string id = Project.NextNotesId();
+        string id = string.Empty;
         PageMap pages = SourcesSession.ReadPages(read, request.Int("pages"));
         List<PageReport>? reports = ScanRequest.ReportsIn(request);
         string engine = request.Required("engine");
@@ -145,7 +145,9 @@ internal sealed partial class OpenPiece
             request,
             project =>
             {
-                (Project carried, carry) = SourcesSession.CarriedOver(State, project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), id, original, read);
+                Project again = project.RecognisedAgain(original, read.MusicXml, engine, pages, now, Ids, reports);
+                id = again.Sources.Notes[^1].Id;
+                (Project carried, carry) = SourcesSession.CarriedOver(State, again, id, original, read);
                 return SourcesSession.WithMarks(carried, id, marks, read);
             },
             json =>

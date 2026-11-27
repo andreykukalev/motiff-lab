@@ -144,7 +144,7 @@ public class UnknownValueTests
         byte[] scanned = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
         Project read = Project.CreateDocument("p_5a1c4e1a0b7d4c3e8f6a5b4c3d2e1f00", "Nocturne.pdf", Encoding.ASCII.GetBytes("%PDF-1.4\n%%EOF\n"), s_now)
             .Recognised(scanned, "homr 0.7.0", PageMap.Of(PieceImporter.Import("a.musicxml", scanned).Piece!, 1), s_now)
-            .RecognisedAgain(PieceOriginal.DocumentId, scanned, "homr 0.8.0", null, s_now);
+            .RecognisedAgain(PieceOriginal.DocumentId, scanned, "homr 0.8.0", null, s_now, IdSource.Numbered);
         OtherNotes again = read.Sources.Notes.Single();
         Project flagged = read with { Sources = read.Sources with { Notes = [again with { Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false)] }] } };
         Assert.Equal(CheckReason.CorrectionUnfit, ProjectFile.Read(ProjectFile.Write(flagged)).Sources.Notes.Single().Check!.Single().Reason);

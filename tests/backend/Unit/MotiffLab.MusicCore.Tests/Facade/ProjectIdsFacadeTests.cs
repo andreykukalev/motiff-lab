@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
+using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Projects;
 
 using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;
@@ -22,7 +24,7 @@ public partial class ProjectIdsFacadeTests
 
     private static readonly byte[] s_elise = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml"));
 
-    [GeneratedRegex("^(?<prefix>[a-z]+_)[0-9a-f]{32}$")]
+    [GeneratedRegex("^(?<prefix>[a-z_]+_)[0-9a-f]{32}$")]
     private static partial Regex RandomId();
 
     private static MusicCoreFacade Random(string? file = null)
@@ -73,6 +75,29 @@ public partial class ProjectIdsFacadeTests
         AssertRandom("pl_", Id(draft["places"]![0]));
         AssertRandom("v_", Id(draft["places"]![0]!["variants"]![0]));
         Assert.Equal(saved.ToJsonString(), Saved(Random(saved.ToJsonString())).ToJsonString());
+    }
+
+    [Fact]
+    public void Notes_a_version_and_an_original_after_the_first_of_its_kind_get_random_ids_the_answers_name()
+    {
+        MusicCoreFacade facade = Random();
+        string first = Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-27T10:00:00Z"}""").GetProperty("id").GetString()!;
+        string second = Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Take 2.m4a", "kept": "device", "now": "2026-11-27T10:01:00Z"}""").GetProperty("id").GetString()!;
+        string heard = Call(facade, "sources.notes.hear", RecordingPieceFacadeTests.Heard(second)).GetProperty("id").GetString()!;
+        var piece = PieceImporter.Import("FurElise.musicxml", s_elise).Piece!;
+        string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "performance"));
+        string version = Id(JsonNode.Parse(facade.Call(1, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}"""))!["performance"]);
+
+        // The first recording is the piece's recording, as on every device.
+        Assert.Equal(PieceOriginal.RecordingId, first);
+        AssertRandom("src_rec_", second);
+        AssertRandom("n_", heard);
+        AssertRandom("perf_", version);
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+        Assert.Equal(Project.FirstNotesId, saved.NotesId);
+        Assert.Equal(heard, Assert.Single(saved.Sources.Notes).Id);
+        Assert.Equal(version, Assert.Single(saved.Performances).Id);
+        Assert.Contains(saved.Originals, original => original.Id == second);
     }
 
     [Fact]

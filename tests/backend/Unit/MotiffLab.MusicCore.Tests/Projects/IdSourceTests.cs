@@ -11,6 +11,8 @@ public class IdSourceTests
         Assert.Equal("o_0001", IdSource.Numbered.Next("o_", []));
         Assert.Equal("o_0004", IdSource.Numbered.Next("o_", ["o_0001", "o_0003", "r_0009", "o_x", "o_3f9c4e1a0b7d4c3e8f6a5b4c3d2e1f00"]));
         Assert.Equal("pl_10000", IdSource.Numbered.Next("pl_", ["pl_9999"]));
+        // Notes and versions as builds before 1.6 wrote them.
+        Assert.Equal("n_3", IdSource.Numbered.Next("n_", ["n_1", "n_2"], digits: 1));
     }
 
     [Fact]

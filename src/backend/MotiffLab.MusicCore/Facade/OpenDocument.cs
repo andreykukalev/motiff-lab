@@ -144,7 +144,7 @@ internal sealed class OpenDocument
     ];
 
     /// <summary>This piece's project as the sources' calls change it (<see cref="SourceRequest.Calls"/>), in the request's "language".</summary>
-    internal SourceOwner HeldSources(Request request) => new(() => Project, project => Project = project, null, Words.For(request.Text("language")));
+    internal SourceOwner HeldSources(Request request) => new(() => Project, project => Project = project, null, Words.For(request.Text("language")), Ids);
 
     /// <summary>The PDF piece with the title, composer, tags and playlists of the request (contract 12), answered as its summary.</summary>
     private string Metadata(Request request)
