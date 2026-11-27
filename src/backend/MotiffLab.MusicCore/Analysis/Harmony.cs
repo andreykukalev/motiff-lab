@@ -251,7 +251,6 @@ internal static partial class HarmonyAnalyzer
     /// <param name="Cadence">How the steps end in the key; null without a key, when no motion is read.</param>
     /// <param name="Bars">Bars the selection touches.</param>
     /// <param name="Beats">Beats in the bar where the selection starts.</param>
-    /// <param name="Changed">The chords that start a change, in time order.</param>
     /// <param name="Changes">Each change with the pitch classes the two chords share.</param>
     private sealed record Measures(
         IReadOnlyList<ChordSpan> Chords,
@@ -262,7 +261,6 @@ internal static partial class HarmonyAnalyzer
         HeldBass? Pedal,
         int Bars,
         int Beats,
-        IReadOnlyList<ChordSpan> Changed,
         IReadOnlyList<Spread> Spreads,
         IReadOnlyList<Change> Changes);
 
@@ -319,7 +317,6 @@ internal static partial class HarmonyAnalyzer
             pedal,
             meter.BarAt(new Tick(span.End.Value - 1)).Number - meter.BarAt(span.Onset).Number + 1,
             meter.SignatureAt(span.Onset).Numerator,
-            [.. chords.Skip(1).Where((chord, i) => chord.Chord != chords[i].Chord)],
             spreads,
             changes);
     }

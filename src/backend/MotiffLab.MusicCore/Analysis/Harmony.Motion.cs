@@ -38,9 +38,9 @@ internal enum Cadence
 }
 
 /// <summary>
-/// The harmonic motion of a selection (testing item 14): its chords as steps of the key, what each does (tonic,
-/// subdominant, dominant) and what the motion gives, read from how it ends. A rule over the chords the finder read,
-/// so it is inferred, and uncertain where a chord is.
+/// The rules of a selection's harmonic motion (testing item 14): its chords as steps of the key, what each does
+/// (tonic, subdominant, dominant) and how the motion ends (the cadence); <c>Harmony.Facts.cs</c> words them. A rule
+/// over the chords the finder read, so it is inferred, and uncertain where a chord is.
 /// </summary>
 internal static partial class HarmonyAnalyzer
 {
