@@ -117,5 +117,9 @@
   "dna.zoneFar": "far keys",
   "dna.modulation": "Section {0} moves from {1} to {2}.",
   "dna.explainTitle": "What this is",
-  "insights.noNotes": "There are no notes in the selection."
+  "insights.noNotes": "There are no notes in the selection.",
+  "insights.ideas": "Ideas",
+  "insights.ideaPhrase": "phrase {0}",
+  "insights.phrasesChanged": "The phrase boundaries changed: some ideas and resume points have lost their phrase.",
+  "insights.reattach": "Attach again"
 }

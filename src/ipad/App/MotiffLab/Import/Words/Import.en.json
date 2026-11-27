@@ -279,5 +279,7 @@
   "recognition.notesReady": "Notes ready",
   "recognition.openNotes": "Open notes",
   "recognition.backgroundFailed": "Notes not recognised: {0}",
-  "recognition.runningOne": "Recognising «{0}»"
+  "recognition.runningOne": "Recognising «{0}»",
+  "scanMarked.noJobs": "This scan server does not read pages as jobs, so it cannot read the marked pages again with its other engines.",
+  "scanMarked.notRead": "No engine read these pages again: {0}. The notes stay as they were; try again later."
 }

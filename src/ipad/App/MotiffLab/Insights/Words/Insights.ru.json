@@ -122,5 +122,9 @@
   "dna.zoneFar": "далёкие",
   "dna.modulation": "Раздел {0}: переход из тональности {1} в {2}.",
   "dna.explainTitle": "Что это",
-  "insights.noNotes": "В выделении нет нот."
+  "insights.noNotes": "В выделении нет нот.",
+  "insights.ideas": "Идеи",
+  "insights.ideaPhrase": "фраза {0}",
+  "insights.phrasesChanged": "Границы фраз изменились: часть идей и мест продолжения осталась без своей фразы.",
+  "insights.reattach": "Привязать заново"
 }

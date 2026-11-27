@@ -38,11 +38,18 @@ extension ScoreScreenContent {
         if panels[.versions] && sourcesOn {
             sourcesSheet
         } else if panels[.check] {
-            CheckDrawer(score: score, checkModel: checkModel, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
+            CheckDrawer(
+                score: score, checkModel: checkModel, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, marking: viewing == nil,
+                marksReading: MarkedReadingCheck(reading: workspace.markedReading, checkModel: checkModel, sources: sources, text: text),
+                back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil
+            )
         } else if !panels.sheetOpen, let owner = mapOwner, let draft = piece.draft {
             DraftMap(score: score, seams: score.seamsModel, techniques: score.draftModel, draft: draft, owner: owner, text: text, reopen: reopen)
         } else {
-            InsightsSheet(insights: insights, selectionModel: selectionModel, player: player, range: variationRange, text: text) { change(.close(.insights)) }
+            InsightsSheet(
+                insights: insights, selectionModel: selectionModel, player: player, range: variationRange, text: text,
+                reattach: piece.shownOnly ? nil : { score.reattachPhrases() }
+            ) { change(.close(.insights)) }
         }
     }
 

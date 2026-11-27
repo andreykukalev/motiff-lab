@@ -5,7 +5,8 @@ import Foundation
 /// the filter chips narrow it to, the lenses under Details opened, the facts whose Evidence is open, and the fact whose
 /// places are ringed on the score and lit on the roll, or one place of it. A fact's Try opens the ways music-core offers
 /// for it; a way sounds at once (facade `try`, then the piece with the variation in place, `playback` of `inPlace`), and
-/// the row that holds it can Keep it as an idea (`idea.keep`) or Leave it (`variation.clear`). Each state is written only
+/// the row that holds it can Keep it as an idea (`idea.keep`) or Leave it (`variation.clear`); the ideas kept (`ideas`)
+/// show at the stream's top on the phrase of their anchor (#318). Each state is written only
 /// by its methods here; the views (InsightsStream.swift, FactRow.swift, KeyCircleCard.swift) show it and call
 /// them, and the score's workspace hands in the callbacks to the player. No view and no player belong here.
 @MainActor
@@ -42,6 +43,11 @@ final class InsightsController: ObservableObject {
     @Published private(set) var circle: KeyCircle?
     /// The fact whose row holds the circle, opened with On the circle; nil when it is closed.
     @Published private(set) var circleFor: String?
+    /// The ideas kept with the project (facade `ideas`), read with the stream and answered again by each Keep.
+    @Published private(set) var ideas: [KeptIdea] = []
+    /// Whether the piece keeps ideas to read: not a view only shown (a draft's view, other Notes), whose `ideas` music-core
+    /// refuses (read-only); the workspace sets it as it wires the controller.
+    var keepsIdeas = true
 
     /// A way tried: the fact it came from, the way, what changed in music-core's words, where the variation ends, and
     /// whether it was kept.
@@ -63,6 +69,9 @@ final class InsightsController: ObservableObject {
     var scaleReady: (@MainActor (_ notes: [PlaybackNote], _ range: Range<Double>) -> Void)?
     /// Stop the scale before its end.
     var scaleStop: (@MainActor () -> Void)?
+    /// An idea kept: music-core attached it to its phrase's anchor (#318), minted for it when the phrase had none, so the
+    /// phrases are to be read again.
+    var ideaKept: (@MainActor () -> Void)?
     /// Whether the scale sounds now: its button then stops it. The player's, told by `hearingAloneChanged`.
     @Published private(set) var scaleHeard = false
 
@@ -92,9 +101,12 @@ final class InsightsController: ObservableObject {
         guard let selection, !selection.noteIds.isEmpty else {
             understanding = nil
             loading = false
+            await loadIdeas(of: piece)
             return
         }
+        // Loading before the ideas are read, so a second load meanwhile does not read the facts again.
         loading = true
+        await loadIdeas(of: piece)
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.understand) }
         // The selection moved on while music-core read it: the newer call shows its own.
         guard understood == selection else { return }
@@ -105,6 +117,27 @@ final class InsightsController: ObservableObject {
         }
         if let lens, !(understanding?.lensesShown.contains(lens) ?? false) {
             self.lens = nil
+        }
+    }
+
+    /// The ideas kept with `piece`, read again: with the stream, and when the phrase anchors changed, sheet open or not,
+    /// whether or not the stream was read yet (an edit of the boundaries carries them and may join two into one, whose
+    /// ideas then name the one kept). Kept as they were when the call is refused; none on a view only shown (`keepsIdeas`).
+    func loadIdeas(of piece: Int32) async {
+        guard keepsIdeas else { return }
+        if let read = await PieceCore(piece: piece).ideas().value { ideas = read.ideas.map(KeptIdea.init) }
+    }
+
+    /// The ideas on the passage read, the strip at the stream's top (0018 section 6): each on the phrase of its anchor (#318,
+    /// its number from the phrases' "anchors"), whatever bars it was kept on, when that phrase overlaps the passage; one
+    /// attached to no phrase now (none, or one whose anchor no longer matches, E-insights-6) by its own bars.
+    func ideasShown(on phrases: PiecePhrases?) -> [KeptIdea.Shown] {
+        guard let passage = understood else { return [] }
+        return ideas.compactMap { idea in
+            let phrase = phrases?.unit(anchor: idea.anchor)
+            let onset = phrase?.onset ?? idea.onset
+            let end = phrase?.end ?? idea.end
+            return onset < passage.end && passage.onset < end ? KeptIdea.Shown(idea: idea, phrase: phrase) : nil
         }
     }
 
@@ -253,11 +286,13 @@ final class InsightsController: ObservableObject {
         let piece = piece
         let request = facadeRequest(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.ideaKeep, request) }
-        guard let object = facadeObject(answer), object["error"] == nil else {
-            problem = facadeObject(answer)?["message"] as? String
+        guard let kept = FacadeAnswer.decode(IdeasAnswer.self, answer, of: "idea.keep") else {
+            problem = FacadeAnswer.message(answer)
             return
         }
         self.trial?.kept = true
+        ideas = kept.ideas.map(KeptIdea.init)
+        ideaKept?()
     }
 
     /// Leaves the variation: music-core forgets it, and the original sounds again.

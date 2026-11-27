@@ -20,9 +20,10 @@ extension SourcesController {
         Self.readingOther(reading, than: original, in: layers, text: text)
     }
 
-    /// The words of `readingOther` for the original `reading` (nil: none is being recognised).
-    static func readingOther(_ reading: String?, than original: SourceLayers.Original, in layers: SourceLayers, text: UIText) -> String? {
-        guard let reading, reading != original.id else { return nil }
+    /// The words of `readingOther` for the original `reading` (nil: none is being recognised); with no `original`, also
+    /// when it is the one being read (`setReading`, Check's «Распознать заново с отметками»).
+    static func readingOther(_ reading: String?, than original: SourceLayers.Original?, in layers: SourceLayers, text: UIText) -> String? {
+        guard let reading, reading != original?.id else { return nil }
         return text.format("sources.sheet.readingOther", layers.original(reading)?.shown ?? "")
     }
 
@@ -39,12 +40,15 @@ extension SourcesController {
         let words: String
     }
 
-    /// A toast's text, then music-core's line of what became of the player's work, an answer's object's "text", when it
-    /// says something: the corrections on notes recognised again («Как напечатано», step 2: "carried"), the bookmarks and
-    /// phrases on notes made working (v1.5 c-11b: "followed").
-    nonisolated static func toastText(_ done: String, adding part: Any?) -> String {
-        guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return done }
-        return "\(done) · \(line)"
+    /// A toast's text, then music-core's lines of what became of the player's work, each an answer's object's "text", when
+    /// it says something: the corrections on notes recognised again («Как напечатано», step 2: "carried") and the marks
+    /// «что не так» their reading used (step 3: "marked"), the bookmarks and phrases on notes made working (v1.5 c-11b:
+    /// "followed").
+    nonisolated static func toastText(_ done: String, adding parts: Any?...) -> String {
+        parts.reduce(done) { told, part in
+            guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return told }
+            return "\(told) · \(line)"
+        }
     }
 
     /// The line before an original's pages are sent as a scan job (0035 section 6; v1.5 i-7, the 1.4 plan's answer 9: in
