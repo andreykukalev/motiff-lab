@@ -41,7 +41,7 @@ through the facade; the API references it.
   `StaffPlan.TakePiece` numbers the pieces of ids in both ways.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
-  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
+  records apart (`ProjectSummary`, `SavedMotif`, …); new entity ids from the caller's `IdSource` (`Random` on the iPad, `Numbered` in tests, #317) and a numbered project id re-keyed by `ProjectIds.Rekeyed` (kept in `Project.FormerIds`); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
   ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
@@ -57,7 +57,7 @@ through the facade; the API references it.
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
   `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
+  `Contract`; made with the `IdSource` its pieces take ids from (`OpenPiece.Ids`, `OpenDocument.Ids`, `SessionPiece.Ids`), and `open` with "onlineIds" re-keys a numbered project not saved online. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
   partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections, the sources, the performances and the marks, `OpenPiece.Selection`, `OpenPiece.Corrections`, `OpenPiece.Sources`, `OpenPiece.Performance` and `OpenPiece.Marks`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
@@ -91,7 +91,7 @@ through the facade; the API references it.
 ## The native build (`src/ipad/Core`)
 
 `Exports.cs`: the C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` (`include/motifflab_core.h`)
-over one `MusicCoreFacade`; no exception crosses them. `build.sh` packages the xcframework (the `iPad` workflow, on a
+over one `MusicCoreFacade` with random ids (`IdSource.Random`); no exception crosses them. `build.sh` packages the xcframework (the `iPad` workflow, on a
 Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.swift`, `PieceCore.swift`.
 
 ## Tests

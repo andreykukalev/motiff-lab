@@ -37,6 +37,6 @@ public sealed partial record Project
         return this with { ResumePoints = [.. ResumePoints.Where(point => point.Id != id)] };
     }
 
-    /// <summary>"r_0004": one more than the highest resume point number, so ids stay stable for the life of the project.</summary>
-    public string NextResumePointId() => NextId("r_", ResumePoints.Select(point => point.Id).Concat(UnknownIds(Unknown, "resumePoints")));
+    /// <summary>A new resume point's id from <paramref name="ids"/>, one no resume point of the file has; it stays for the life of the project.</summary>
+    public string NextResumePointId(IdSource ids) => ids.Next("r_", ResumePoints.Select(point => point.Id).Concat(UnknownIds(Unknown, "resumePoints")));
 }

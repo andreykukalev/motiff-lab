@@ -56,7 +56,7 @@ internal static class DraftTakes
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     /// <exception cref="InvalidOperationException">No sure приём is open.</exception>
-    public static (Draft Draft, IReadOnlyList<int> Taken) TakeSure(Draft draft, string placeId, DateTimeOffset at)
+    public static (Draft Draft, IReadOnlyList<int> Taken) TakeSure(Draft draft, string placeId, DateTimeOffset at, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(draft);
         PlaceTechnique[] sure = [.. draft.TechniquesOf(placeId).Where(static technique => technique.IsSure && technique.State == TechniqueState.Open)];
@@ -65,7 +65,7 @@ internal static class DraftTakes
             throw new InvalidOperationException("No sure приём of the place is left to take.");
         }
 
-        string group = Project.NextId("g_", draft.Steps.Select(static step => step.Group).OfType<string>());
+        string group = ids.Next("g_", draft.Steps.Select(static step => step.Group).OfType<string>());
         Dictionary<int, string> barsTaken = [];
         List<int> taken = [];
         foreach (PlaceTechnique technique in sure)

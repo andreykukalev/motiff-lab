@@ -118,7 +118,7 @@ internal sealed partial class OpenPiece
         ResumePoint point;
         try
         {
-            point = id is null ? ResumePoint.Start(Project.NextResumePointId(), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
+            point = id is null ? ResumePoint.Start(Project.NextResumePointId(Ids), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
             if (request.Has("name"))
             {
                 point = point.Rename(request.Text("name"));
@@ -173,7 +173,7 @@ internal sealed partial class OpenPiece
             ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : MarksSession.BarsTitle(State, selection.Span));
         string? factId = request.Text("factId");
         return Ideas(project => project.Keep(Observation.Create(
-            project.NextObservationId(),
+            project.NextObservationId(Ids),
             SavedPassage.Of(selection),
             chain is null ? null : KeptVariation.Create(chain, selection.Filter),
             name,

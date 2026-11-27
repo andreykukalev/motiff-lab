@@ -77,7 +77,7 @@ internal static class VariationCodec
         List<SavedVariation> apart = [];
         foreach (SavedVariation variation in variations)
         {
-            string id = hidden.Contains(variation.Id) ? Project.NextId("v_", ids) : variation.Id;
+            string id = hidden.Contains(variation.Id) ? IdSource.Numbered.Next("v_", ids) : variation.Id;
             ids.Add(id);
             apart.Add(variation with { Id = id });
         }

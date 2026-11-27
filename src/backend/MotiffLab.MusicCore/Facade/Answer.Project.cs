@@ -31,6 +31,8 @@ internal static partial class Answer
     {
         json.WriteStartObject(name);
         json.WriteString("id", project.Id);
+        // Version 18 (#317): the ids the piece was known by before it was re-keyed; left out when none.
+        JsonWrite.TextsIfAny(json, "formerIds", project.FormerIds);
         json.WriteString("fileName", project.FileName);
         json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
         json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));

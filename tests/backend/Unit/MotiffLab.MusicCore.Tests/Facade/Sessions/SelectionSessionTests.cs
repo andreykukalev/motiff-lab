@@ -19,7 +19,7 @@ public class SelectionSessionTests
         "FurElise.musicxml",
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml")),
         Words.English,
-        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero));
+        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero), IdSource.Numbered);
 
     private static MotifSelection Bars(OpenPiece piece, int first, int last) =>
         MotifSelector.Select(piece.Notes, piece.Piece.Meter, MotifSelector.Bars(piece.Piece.Meter, first, last, piece.Piece.End), SelectionFilter.All);

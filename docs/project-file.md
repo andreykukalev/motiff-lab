@@ -18,6 +18,7 @@ Ticks are integers at 480 per quarter ([0002](architecture/adr/0002-canonical-ti
   "version": 18,
   "minReader": 18,                 // the oldest version that may read the file (version 18)
   "id": "p_…",                    // the project's id
+  "formerIds": [ "p_0003" ],       // optional (version 18): the ids the project had before it was re-keyed, oldest first
   "fileName": "minuet.musicxml",   // the piece's file name: how the working notes' music is read (by its extension), and its title when nothing else names it
   "createdAt": "…", "lastOpened": "…",
   "originals": [ … ],              // every original of the piece, and the tombstones of removed ones
@@ -31,6 +32,12 @@ Each layer is an object or array of objects; a reader that meets a field it does
 ### Files of a later version (`minReader`)
 
 A file of version 18 or later carries `minReader`, a whole number from 1. A file whose `minReader` is above this build's version (even one of version 18), or of a later version without `minReader`, is refused with "This project was saved by a newer version of Motiff Lab" before any other field is read (#315, criterion 4). A file of version 18 or later without `minReader`, or with one that is not a whole number of 1 or more, is damaged. A file of a later version whose `minReader` this build meets is read as this layout, every unknown field, setting and operation kept, and opens **read-only** (`Project.Newer`, `Project.IsReadOnly`): it is shown and played, and written again as it came, its `version` and `minReader` the larger of its own and this build's, but never saved (`ProjectFile.Save` refuses it, and so does every facade call that answers the file, with the error `readOnly`). The iPad says so in one line under the bar of every view of the piece. #315 criterion 3 (a later version alone opens read-only) conflicts with criterion 4; this build follows 4.
+
+### Ids (`id`, `formerIds`)
+
+A project's id is `p_` and 32 lowercase hex digits (0026 S3), a new GUID for a new project. Every entity the player makes in it gets an id of its prefix and 32 random hex digits too (`o_`, `r_`, `b_`, `pb_`, `c_`, `n_` for a margin note, `h_`, `m_`, `v_`, `d_`, `pl_`, `g_` for a group of steps), from the `IdSource` the app gives music-core (#317), so two devices working offline never make the same one; ids are only compared whole, and the numbered ids of earlier builds (`o_0003`) stay valid (V1). Ids that must come out the same on every read (a variation kept hidden, a carried note) are still numbered. The ids of Notes (`n_1`), versions compared (`perf_1`) and originals are numbered as before.
+
+An id that is `p_` and digits alone (`p_0003`, made by a counter in each run by earlier builds, V8) is re-keyed when the app opens the file naming its projects saved online (`open`'s "onlineIds"; the iPad does not send it yet), unless the project is among them (the 1.6 plan's decision 9: the sync re-keys those): the new id is `p_` and the first 32 hex digits of the SHA-256 of `{old id}|{createdAt}|{fingerprint}` in UTF-8, `createdAt` as the file writes it and the fingerprint the SHA-256 (64 lowercase hex digits) of the working notes' music, else of the PDF, else the one the PDF's description keeps, else of no bytes (`ProjectIds.Rekeyed`, 0026 C4; the golden `v18-rekeyed.motiff.json`). The old id goes last into `formerIds`, so whatever names the piece by it can follow it. One file re-keyed on two devices gets one id; two pieces that carried one numbered id get two; a re-keyed id is not re-keyed again. `formerIds` is written only when there is one, is a list of distinct texts that are not blank and never names the project's own id, else the file is damaged; in the sync it is bookkeeping.
 
 ## Originals (`originals`)
 

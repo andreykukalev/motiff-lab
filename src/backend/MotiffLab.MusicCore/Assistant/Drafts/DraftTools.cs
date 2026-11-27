@@ -92,7 +92,7 @@ internal static class DraftTools
         Words w = scope.Words;
         int[] numbers = [.. parameters.GetProperty("techniques").EnumerateArray().Select(static number => number.GetInt32())];
         int? bar = parameters.GetProperty("bar") is { ValueKind: JsonValueKind.Number } only ? only.GetInt32() : null;
-        string? group = numbers.Length > 1 ? Project.NextId("g_", scope.Draft.Steps.Select(static step => step.Group).OfType<string>()) : null;
+        string? group = numbers.Length > 1 ? scope.Ids.Next("g_", scope.Draft.Steps.Select(static step => step.Group).OfType<string>()) : null;
         Draft after = scope.Draft;
         List<PlaceTechnique> techniques = [];
         foreach (int number in numbers)
@@ -138,7 +138,7 @@ internal static class DraftTools
 
         try
         {
-            Draft put = DraftBridges.Put(scope.Draft, scope.Place.Id, scope.At);
+            Draft put = DraftBridges.Put(scope.Draft, scope.Place.Id, scope.At, scope.Ids);
             return (put, put.Places[scope.Index].Id);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)

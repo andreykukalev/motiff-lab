@@ -37,7 +37,7 @@ public class OriginalOperationsTests
         return project with
         {
             Edits = new NoteEditLog([new NoteEdit(first.Id, before, before with { Pitch = new Pitch(before.Pitch.MidiNumber + 1) })]),
-            DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Coda", s_now),
+            DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Coda", s_now, IdSource.Numbered),
         };
     }
 

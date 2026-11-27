@@ -186,8 +186,8 @@ public class UnknownValueTests
         Assert.Empty(project.Bookmarks);
         UnknownEntity bookmark = Assert.Single(project.Unknown, entity => entity.List == "bookmarks.items");
         Assert.Equal(("b_0001", "c_0001", (string?)null), (bookmark.Id, bookmark.Owner, bookmark.Enum));
-        Assert.Equal("c_0002", project.NextCategoryId());
-        Assert.Equal("b_0002", project.NextBookmarkId());
+        Assert.Equal("c_0002", project.NextCategoryId(IdSource.Numbered));
+        Assert.Equal("b_0002", project.NextBookmarkId(IdSource.Numbered));
         Assert.True(JsonNode.DeepEquals(file, Node(ProjectFile.Write(project))));
     }
 
@@ -231,7 +231,7 @@ public class UnknownValueTests
         static Bookmark Beside(string id) => new(id, "Beside", BookmarkCategory.PractiseId, new TickSpan(Tick.Zero, 480), FromPhrase: false, s_now);
 
         Assert.Throws<ArgumentException>(() => project.AddBookmark(Beside("b_0001")));
-        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId())) with { Variations = [clashing, .. project.Variations] }));
+        JsonObject written = Node(ProjectFile.Write(project.AddBookmark(Beside(project.NextBookmarkId(IdSource.Numbered))) with { Variations = [clashing, .. project.Variations] }));
 
         JsonArray variations = written["workspace"]!["variations"]!.AsArray();
         Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005", "v_0012", "v_0006"], Ids(written, "variations")[..7]);
@@ -251,9 +251,9 @@ public class UnknownValueTests
         Assert.Empty(project.ResumePoints);
         Assert.Empty(project.Observations);
         Assert.Empty(project.Marks.Highlights);
-        Assert.Equal("r_0002", project.NextResumePointId());
-        Assert.Equal("o_0002", project.NextObservationId());
-        Assert.Equal("h_0002", project.Marks.NextHighlightId());
+        Assert.Equal("r_0002", project.NextResumePointId(IdSource.Numbered));
+        Assert.Equal("o_0002", project.NextObservationId(IdSource.Numbered));
+        Assert.Equal("h_0002", project.Marks.NextHighlightId(IdSource.Numbered));
         Assert.Equal(["Hand", "Hand"], project.Unknown.Select(entity => entity.Enum));
         Assert.Equal("InkColour", Assert.Single(project.Marks.Unknown).Enum);
     }

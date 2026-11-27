@@ -14,8 +14,9 @@ namespace MotiffLab.MusicCore.Assistant.Drafts;
 /// </summary>
 public sealed class DraftScope
 {
-    private DraftScope(Draft draft, DraftPlace place, DraftVariant? variant, Func<string, AssistantPiece> piece, DateTimeOffset at, Words words)
+    private DraftScope(Draft draft, DraftPlace place, DraftVariant? variant, Func<string, AssistantPiece> piece, DateTimeOffset at, Words words, IdSource ids)
     {
+        Ids = ids;
         Draft = draft;
         Place = place;
         Index = draft.Places.ToList().IndexOf(place);
@@ -47,13 +48,16 @@ public sealed class DraftScope
 
     public Words Words { get; }
 
+    /// <summary>Where the ids of what a step makes come from (a group, a bridge's place and candidates): the caller's.</summary>
+    public IdSource Ids { get; }
+
     /// <summary>
     /// The place <paramref name="placeId"/> of the draft <paramref name="draftId"/> of <paramref name="project"/>, with the
     /// variant <paramref name="variantId"/> or, when null, the place's first variant that is not its base.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such draft, place or variant.</exception>
     /// <exception cref="ArgumentException">The variant is the base, or the base or the variant spans more bars than a question takes.</exception>
-    public static DraftScope Of(Project project, string draftId, string placeId, string? variantId, DateTimeOffset at, Words words)
+    public static DraftScope Of(Project project, string draftId, string placeId, string? variantId, DateTimeOffset at, Words words, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(project);
         Draft draft = project.FindDraft(draftId) ?? throw new KeyNotFoundException($"There is no draft {draftId}.");
@@ -66,7 +70,7 @@ public sealed class DraftScope
             throw new ArgumentException(words.T("The variant built from is not the place's base.", "Вариант, из которого собирают, — не основа места."), nameof(variantId));
         }
 
-        var scope = new DraftScope(draft, place, variant, id => Piece(project, draftId, id, words), at, words);
+        var scope = new DraftScope(draft, place, variant, id => Piece(project, draftId, id, words), at, words, ids);
         foreach (AssistantPiece piece in new[] { scope.Base, scope.Heard }.OfType<AssistantPiece>())
         {
             if (piece.LastBar - piece.FirstBar + 1 > MotifSelection.MaxBars)

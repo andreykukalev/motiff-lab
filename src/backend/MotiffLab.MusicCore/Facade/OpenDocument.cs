@@ -16,16 +16,23 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed class OpenDocument
 {
-    private OpenDocument(Project project) => Project = project;
+    private OpenDocument(Project project, IdSource ids)
+    {
+        Project = project;
+        Ids = ids;
+    }
 
     public Project Project { get; private set; }
+
+    /// <summary>Where the ids of what is made in the piece come from: the facade's (<see cref="MusicCoreFacade(IdSource)"/>).</summary>
+    public IdSource Ids { get; }
 
     /// <summary>
     /// A new PDF piece from the file the player added. With <paramref name="photos"/> (v0.4, the iPad's «Фото страниц»
     /// experiment), the PDF is the player's photos of that many pages put together on the device, and its original is
     /// described so (<see cref="OriginalKind.Images"/>, a value of the project file since 0.3).
     /// </summary>
-    public static OpenDocument Create(string id, string fileName, byte[] pdf, Words words, DateTimeOffset now, int? photos = null)
+    public static OpenDocument Create(string id, string fileName, byte[] pdf, Words words, DateTimeOffset now, IdSource ids, int? photos = null)
     {
         if (PdfDocument.CheckSize(pdf.Length) is { } rejection)
         {
@@ -38,7 +45,7 @@ internal sealed class OpenDocument
         }
 
         return PdfDocument.IsPdf(pdf)
-            ? new OpenDocument(Photographed(Project.CreateDocument(id, Path.ChangeExtension(fileName, PdfDocument.Extension), pdf, now), photos))
+            ? new OpenDocument(Photographed(Project.CreateDocument(id, Path.ChangeExtension(fileName, PdfDocument.Extension), pdf, now), photos), ids)
             : throw new FacadeException("import", words.T("This file is not a PDF, though its name ends in .pdf.", "Этот файл не PDF, хотя его имя кончается на .pdf.")) { Data = { ["reason"] = "damaged" } };
     }
 
@@ -48,7 +55,7 @@ internal sealed class OpenDocument
     /// when sent, give its fingerprint and size, as <c>sources.original.add</c> takes them. "device" is the device that keeps
     /// the sound ("ipad", the default, or "web").
     /// </summary>
-    public static OpenDocument CreateRecording(string id, string fileName, ReadOnlySpan<byte> sound, Request request, DateTimeOffset now)
+    public static OpenDocument CreateRecording(string id, string fileName, ReadOnlySpan<byte> sound, Request request, DateTimeOffset now, IdSource ids)
     {
         Request recording = request.Object("recording");
         try
@@ -60,7 +67,7 @@ internal sealed class OpenDocument
                 sound.IsEmpty ? recording.Text("sha256") : PieceOriginal.Fingerprint(sound),
                 sound.IsEmpty ? null : sound.Length,
                 SourceRequest.DeviceOf(request),
-                now));
+                now), ids);
         }
         catch (ArgumentException exception)
         {
@@ -73,8 +80,8 @@ internal sealed class OpenDocument
     /// (testing item 16), opened in its "PDF" view, the calls here being about the PDF and its marks; or (version 17) a
     /// piece that is only its recording.
     /// </summary>
-    public static OpenDocument Open(Project project) =>
-        project is { Document: not null } or { IsOnlyRecording: true } ? new OpenDocument(project) : throw new ArgumentException("The project has no PDF or recording of its own.", nameof(project));
+    public static OpenDocument Open(Project project, IdSource ids) =>
+        project is { Document: not null } or { IsOnlyRecording: true } ? new OpenDocument(project, ids) : throw new ArgumentException("The project has no PDF or recording of its own.", nameof(project));
 
     /// <summary>
     /// The open answer: the project's summary and what the document is, or for a piece that is only its recording (version
@@ -127,10 +134,10 @@ internal sealed class OpenDocument
         new("document", static (document, request) => document.Pages(request), CallFlags.NeedsPdf),
         new("document.replace", static (document, request) => document.Replace(request), CallFlags.NeedsPdf),
         new("document.marks", static (document, request) => Answer.Write(json => Marks(json, document.Project.PageMarksOf(document.OriginalOf(request)))), CallFlags.NeedsPdf),
-        new("document.ink.add", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !Ids(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])), CallFlags.NeedsPdf),
+        new("document.ink.add", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !StrokeIds(request.Elements("strokes")).Contains(stroke.Id)), .. request.Elements("strokes").Select(ReadStroke)])), CallFlags.NeedsPdf),
         new("document.ink.remove", static (document, request) => document.Change(request, marks => marks.WithInk([.. marks.Ink.Where(stroke => !request.Texts("ids").Contains(stroke.Id))])), CallFlags.NeedsPdf),
         new("document.ink.clear", static (document, request) => document.Change(request, marks => marks.WithInk(request.Int("page") is { } page ? [.. marks.Ink.Where(stroke => stroke.Bar.Value != page)] : [])), CallFlags.NeedsPdf),
-        new("document.bookmark.add", static (document, request) => document.Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), request.Now())), CallFlags.NeedsPdf),
+        new("document.bookmark.add", static (document, request) => document.Change(request, marks => marks.AddBookmark(request.Int("page") ?? throw FacadeException.BadRequest("Send \"page\", from 1."), request.Text("name"), request.Now(), document.Ids)), CallFlags.NeedsPdf),
         new("document.bookmark.rename", static (document, request) => document.Change(request, marks => marks.RenameBookmark(request.Required("id"), request.Text("name"))), CallFlags.NeedsPdf),
         new("document.bookmark.remove", static (document, request) => document.Change(request, marks => marks.RemoveBookmark(request.Required("id"))), CallFlags.NeedsPdf),
         new("document.read", static (document, request) => document.Read(request), CallFlags.NeedsPdf),
@@ -283,7 +290,7 @@ internal sealed class OpenDocument
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        Project = read.AddResumePoint(ResumePoint.Start(read.NextResumePointId(), now));
+        Project = read.AddResumePoint(ResumePoint.Start(read.NextResumePointId(Ids), now));
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", Project);
@@ -328,7 +335,7 @@ internal sealed class OpenDocument
         return Answer.Write(json => Answer.Project(json, "project", Project));
     }
 
-    private static HashSet<string> Ids(IReadOnlyList<JsonElement> strokes) =>
+    private static HashSet<string> StrokeIds(IReadOnlyList<JsonElement> strokes) =>
         [.. strokes.Select(static stroke => stroke.TryGetProperty("id", out JsonElement id) ? id.GetString() ?? "" : "")];
 
     /// <summary>A stroke as the app sends it: the pencil layer's shape, with "page" for the page it starts on (from 1).</summary>
