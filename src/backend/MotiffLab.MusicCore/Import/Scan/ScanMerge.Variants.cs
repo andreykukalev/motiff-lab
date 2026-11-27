@@ -19,11 +19,12 @@ internal static partial class ScanMerge
 {
     /// <summary>
     /// The variants of a bar to check: each reading paired with the bar, grouped by its notes on the staves no two engines
-    /// agree on, in the merge's order; the group whose notes the merge took on all of them is left out.
+    /// agree on (on <paramref name="all"/> its staves for a bar read again), in the merge's order; the group whose notes the
+    /// merge took on all of them is left out.
     /// </summary>
-    private static List<ScanVariant> Variants(List<(Reading Reading, int Measure)> candidates, List<Choice> choices)
+    private static List<ScanVariant> Variants(List<(Reading Reading, int Measure)> candidates, List<Choice> choices, bool all)
     {
-        Choice[] open = [.. choices.Where(choice => choice.Agreeing.Count < AgreeingEngines)];
+        Choice[] open = [.. choices.Where(choice => all || choice.Agreeing.Count < AgreeingEngines)];
         string Key(Reading reading, int measure) => string.Join("|", open.Select(choice => reading.Content(measure, choice.Part, choice.Staff)));
         string taken = string.Join("|", open.Select(choice => choice.Source.Content(choice.SourceMeasure, choice.Part, choice.Staff)));
         return [.. candidates

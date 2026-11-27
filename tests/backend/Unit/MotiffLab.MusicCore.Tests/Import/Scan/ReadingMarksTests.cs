@@ -11,9 +11,9 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 
 /// <summary>
-/// The player's marks «что не так» put into a new reading of the pages («Как напечатано», step 3, c-14b1): hands, a clef,
-/// an octave sign, a key and a time signature, each on synthetic MusicXML of two bars on two staves, and the marks that
-/// cannot go in or wait for a later step.
+/// The player's marks «что не так» put into a new reading of the pages («Как напечатано», step 3, c-14b1, c-14b2): hands, a
+/// clef, an octave sign, a key, a time signature and triplets, each on synthetic MusicXML of bars on two staves, a bar read
+/// badly, and the marks that cannot go in.
 /// </summary>
 public class ReadingMarksTests
 {
@@ -119,7 +119,7 @@ public class ReadingMarksTests
     }
 
     [Fact]
-    public void A_mark_the_reading_cannot_take_is_unfit_and_triplets_and_a_bar_read_badly_wait()
+    public void A_mark_the_reading_cannot_take_is_unfit_and_a_bar_read_badly_only_where_the_merge_read_it_again()
     {
         byte[] score = Encoding.UTF8.GetBytes(Score());
         ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
@@ -130,9 +130,64 @@ public class ReadingMarksTests
 
         MarkedReading marked = ReadingMarks.Apply(score, read, [beyond, staff, triplets, badly]);
 
+        // Bars that add up as read, with no triplet, are not in triplets; no merge read bar 1 again.
         Assert.Same(score, marked.Score);
-        Assert.Equal([(beyond, MarkOutcome.Unfit), (staff, MarkOutcome.Unfit), (triplets, MarkOutcome.Waiting), (badly, MarkOutcome.Waiting)],
+        Assert.Equal([(beyond, MarkOutcome.Unfit), (staff, MarkOutcome.Unfit), (triplets, MarkOutcome.Unfit), (badly, MarkOutcome.Unfit)],
             marked.Marks.Select(static mark => (mark.Mark, mark.Outcome)));
+
+        string again = Score().Replace("<measure number=\"1\">", $"<measure number=\"1\"><direction><direction-type><other-direction print-object=\"no\">{MusicXmlImport.ReadAgainMark}</other-direction></direction-type></direction>", StringComparison.Ordinal);
+        byte[] bytes = Encoding.UTF8.GetBytes(again);
+        Assert.Equal([MarkOutcome.Applied], ReadingMarks.Apply(bytes, PieceImporter.Import("a.musicxml", bytes).Piece!, [badly]).Marks.Select(static mark => mark.Outcome));
+    }
+
+    /// <summary>A 4/4 bar: twelve eighths on staff 1 (as an engine that lost the triplets reads them: half as long again as the bar), a whole note on staff 2.</summary>
+    private static byte[] Eighths() => ScanRepairTests.Score(2, "4",
+        string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12))
+        + ScanRepairTests.Backup(12) + ScanRepairTests.Note("C", 3, 8, 2));
+
+    private static (long Onset, long Length)[] Timing(ImportedPiece piece, Hand hand) =>
+        [.. piece.Notes.Where(note => note.Hand?.Value == hand).OrderBy(static note => note.Span.Onset).Select(static note => (note.Span.Onset.Value, note.Span.Duration))];
+
+    [Fact]
+    public void Triplets_marked_re_time_a_staff_half_as_long_again_as_its_bar_in_3_in_the_time_of_2_exactly()
+    {
+        byte[] score = Eighths();
+        ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
+
+        MarkedReading marked = ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        // Triplet eighths, 160 ticks each, in the divisions made three times finer; the whole note on staff 2 is kept.
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        Assert.Equal(Enumerable.Range(0, 12).Select(static i => ((long)i * 160, 160L)), Timing(piece, Hand.Right));
+        Assert.Equal([(0L, 1920L)], Timing(piece, Hand.Left));
+        Assert.Equal(1920, piece.MusicXml!.Measures[0].Span.Duration);
+        string text = Encoding.UTF8.GetString(marked.Score);
+        Assert.Equal(12, text.Split("<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>").Length - 1);
+        Assert.Contains("<divisions>6</divisions>", text, StringComparison.Ordinal);
+        Assert.Equal(marked.Score, ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]).Score);
+    }
+
+    [Fact]
+    public void No_triplets_marked_take_a_staff_written_in_triplets_out_of_them_and_a_bar_they_do_not_fit_stays_as_read()
+    {
+        // Eight triplet eighths come to two thirds of the bar: read as straight eighths, they fill it.
+        string tuplet = "<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>";
+        byte[] triplets = ScanRepairTests.Score(3, "4",
+            string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1).Replace("<voice>", tuplet + "<voice>", StringComparison.Ordinal), 8))
+            + ScanRepairTests.Backup(8) + ScanRepairTests.Note("C", 3, 12, 2));
+        MarkedReading marked = ReadingMarks.Apply(triplets, PieceImporter.Import("a.musicxml", triplets).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "no")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        Assert.Equal(Enumerable.Range(0, 8).Select(static i => ((long)i * 240, 240L)), Timing(piece, Hand.Right));
+        Assert.DoesNotContain("time-modification", Encoding.UTF8.GetString(marked.Score), StringComparison.Ordinal);
+
+        // Thirteen eighths add up to neither the bar nor half as long again: every note as read.
+        byte[] over = ScanRepairTests.Score(2, "4", string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 13)) + ScanRepairTests.Backup(13) + ScanRepairTests.Note("C", 3, 8, 2));
+        MarkedReading unfit = ReadingMarks.Apply(over, PieceImporter.Import("a.musicxml", over).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+        Assert.Same(over, unfit.Score);
+        Assert.Equal([MarkOutcome.Unfit], unfit.Marks.Select(static mark => mark.Outcome));
     }
 
     [Fact]

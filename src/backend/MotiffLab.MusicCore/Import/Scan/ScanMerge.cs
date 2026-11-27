@@ -39,6 +39,9 @@ internal sealed record ScanMergedBar(ScanLevel Level, IReadOnlyList<ScanStaffSou
 
     /// <summary>A bar to check: where it is on the page image, from the page's evidence; null without evidence or where the bar was not found.</summary>
     public ScanCrop? Crop { get; init; }
+
+    /// <summary>A bar the player marked as read badly, taken from another reading than the one taken before (<see cref="ScanBefore"/>): always to check.</summary>
+    public bool ReadAgain { get; init; }
 }
 
 /// <summary>A page merged from several readings: its MusicXML, the engines that read it in the merge's order, and each bar in order.</summary>
@@ -86,10 +89,11 @@ internal static partial class ScanMerge
     /// <summary>
     /// The readings of one page merged staff by staff, with the page's evidence when the scan server gave one. A reading
     /// that is not partwise MusicXML with bars is left out, as an engine that did not read the page (spec 2а): the page
-    /// merges on the rest.
+    /// merges on the rest. With the page as read <paramref name="before"/>, each bar the player marked there as read badly
+    /// takes another reading than the one taken before, when an engine read it otherwise (<see cref="ReadAgain"/>).
     /// </summary>
     /// <exception cref="ArgumentException">No reading of the page is partwise MusicXML with bars.</exception>
-    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence = null)
+    public static ScanMergedPage Merge(IReadOnlyList<ScanReading> readings, ScanEvidence? evidence = null, ScanBefore? before = null)
     {
         ArgumentNullException.ThrowIfNull(readings);
         List<Reading> ordered = [.. readings.Select((reading, index) => Reading.Of(reading, index)).OfType<Reading>().OrderBy(reading => reading.Rank)];
@@ -104,6 +108,7 @@ internal static partial class ScanMerge
             .Select(reading => (reading, reading == backbone ? [.. Enumerable.Range(0, backbone.Measures).Select(i => (int?)i)] : Align(backbone, reading)))];
 
         Page? page = Page.Of(evidence, backbone);
+        Before? earlier = Before.Of(before, backbone);
         var bars = new List<ScanMergedBar>(backbone.Measures);
         var taken = new List<Choice>();
         for (int measure = 0; measure < backbone.Measures; measure++)
@@ -111,31 +116,35 @@ internal static partial class ScanMerge
             List<(Reading Reading, int Measure)> candidates = [.. compared
                 .Where(pair => pair.Pairs[measure] is not null)
                 .Select(pair => (pair.Reading, pair.Pairs[measure]!.Value))];
-            var staves = new List<ScanStaffSource>();
-            var choices = new List<Choice>();
-            foreach ((int part, int staff) in backbone.Staves())
+            List<Choice> choices = [.. backbone.Staves().Select(each => Vote(candidates, measure, each.Part, each.Staff, backbone, page))];
+            if (earlier?.Another(candidates, measure) is { } another)
             {
-                Choice choice = Vote(candidates, measure, part, staff, backbone, page);
-                choices.Add(choice);
-                staves.Add(new ScanStaffSource(part + 1, staff, [.. choice.Agreeing.Select(reading => reading.Engine)]));
+                taken.AddRange(another);
+                bars.Add(new ScanMergedBar(ScanLevel.Check, Sources(another)) { Variants = Variants(candidates, another, all: true), Crop = page?.CropOf(measure), ReadAgain = true });
+                continue;
             }
 
             taken.AddRange(choices);
             int fewest = choices.Min(choice => choice.Agreeing.Count);
             ScanLevel level = fewest >= SureEngines ? ScanLevel.Sure : fewest >= AgreeingEngines ? ScanLevel.Probable : ScanLevel.Check;
             bars.Add(level == ScanLevel.Check
-                ? new ScanMergedBar(level, staves) { Variants = Variants(candidates, choices), Crop = page?.CropOf(measure) }
-                : new ScanMergedBar(level, staves));
+                ? new ScanMergedBar(level, Sources(choices)) { Variants = Variants(candidates, choices, all: false), Crop = page?.CropOf(measure) }
+                : new ScanMergedBar(level, Sources(choices)));
         }
 
         PrintedMeters(backbone, compared);
         XElement root = Written(backbone, taken, bars);
         ScanRepair.Say(root, $"Motiff Lab scan merge: each staff of each bar from the reading most of {string.Join(", ", ordered.Select(reading => reading.Engine))} agree on; "
             + (page is null ? "" : "without agreement, the reading the page's symbols agree with; ")
+            + (bars.Any(static bar => bar.ReadAgain) ? $"{bars.Count(static bar => bar.ReadAgain)} bars the player marked as read badly from another reading than before; " : "")
             + $"{bars.Count(bar => bar.Level == ScanLevel.Check)} of {bars.Count} bars to check.");
         byte[] bytes = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n" + root.ToString(SaveOptions.DisableFormatting));
         return new ScanMergedPage(bytes, [.. ordered.Select(reading => reading.Engine)], bars);
     }
+
+    /// <summary>Which engines gave each staff of a bar: those agreeing with the reading taken there.</summary>
+    private static List<ScanStaffSource> Sources(List<Choice> choices) =>
+        [.. choices.Select(choice => new ScanStaffSource(choice.Part + 1, choice.Staff, [.. choice.Agreeing.Select(reading => reading.Engine)]))];
 
     /// <summary>The place of an engine in <see cref="EngineOrder"/> by its name's first word, any case; others after, by the order given.</summary>
     private static int RankOf(string engine, int given)

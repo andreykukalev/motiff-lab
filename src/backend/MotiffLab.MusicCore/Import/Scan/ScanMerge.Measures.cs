@@ -34,20 +34,21 @@ internal static partial class ScanMerge
 
         foreach ((ScanRepair.Bar bar, int measure) in backbone.Parts[0].Select((bar, measure) => (bar, measure)).Where(pair => bars[pair.measure].Level == ScanLevel.Check))
         {
-            Mark(bar.Measure);
+            Mark(bar.Measure, bars[measure].ReadAgain ? MusicXmlImport.ReadAgainMark : MusicXmlImport.EnginesDisagreeMark);
         }
 
         return backbone.Root;
     }
 
     /// <summary>
-    /// Marks a measure as one no two engines agree on, with a hidden direction (<see cref="MusicXmlImport.EnginesDisagreeMark"/>)
-    /// at its start, after its attributes and layout, which the importer reads and <see cref="ScanCheck"/> flags.
+    /// Marks a measure as one no two engines agree on (<see cref="MusicXmlImport.EnginesDisagreeMark"/>) or one read again
+    /// (<see cref="MusicXmlImport.ReadAgainMark"/>), with a hidden direction at its start, after its attributes and layout,
+    /// which the importer reads and <see cref="ScanCheck"/> flags.
     /// </summary>
-    private static void Mark(XElement measure)
+    private static void Mark(XElement measure, string text)
     {
         XElement mark = new("direction", new XElement("direction-type",
-            new XElement("other-direction", new XAttribute("print-object", "no"), MusicXmlImport.EnginesDisagreeMark)));
+            new XElement("other-direction", new XAttribute("print-object", "no"), text)));
         if (measure.Elements().TakeWhile(child => child.Name.LocalName is "attributes" or "print").LastOrDefault() is { } before)
         {
             before.AddAfterSelf(mark);

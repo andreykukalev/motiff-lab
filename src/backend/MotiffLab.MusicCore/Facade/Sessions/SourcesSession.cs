@@ -218,26 +218,27 @@ internal sealed class SourcesSession
     };
 
     /// <summary>
-    /// The working notes' marks «что не так» put into <paramref name="read"/>, the notes read again from the original
+    /// The working notes' marks «что не так» (those of <paramref name="project"/>, whose notes are imported as
+    /// <paramref name="working"/>) put into <paramref name="read"/>, the notes read again from the original
     /// <paramref name="original"/> («Как напечатано», step 3, <see cref="ReadingMarks"/>), when the working notes are a reading
     /// of it with marks; each mark first placed on the bar of the new reading its bar's music starts (<see cref="ReadingMatch"/>),
     /// a mark whose bar has no such place placed where its music lies and not put in; <paramref name="fileName"/> names the reading as it is imported. Answers
     /// the reading with the marks in and what became of them; the reading as it was and null with no marks.
     /// </summary>
-    public static (ReadScore Read, MarksCarried? Marks) Marked(SessionPiece piece, string original, string fileName, ReadScore read)
+    public static (ReadScore Read, MarksCarried? Marks) Marked(Project project, ImportedPiece working, string original, string fileName, ReadScore read)
     {
-        if (piece.Project.Scan is not { Marks.Count: > 0 } scan || (scan.From ?? PieceOriginal.DocumentId) != original)
+        if (project.Scan is not { Marks.Count: > 0 } scan || (scan.From ?? PieceOriginal.DocumentId) != original)
         {
             return (read, null);
         }
 
-        ReadingMatch match = new(piece.Piece, read.Piece);
-        int first = piece.Piece.Meter.BarAt(Tick.Zero).Number;
+        ReadingMatch match = new(working, read.Piece);
+        int first = working.Meter.BarAt(Tick.Zero).Number;
         List<ReadingMark> moved = [];
         HashSet<int> lost = [];
         foreach (ReadingMark mark in scan.Marks)
         {
-            Bar earlier = piece.Piece.Meter.GetBar(Math.Max(first, mark.Bar));
+            Bar earlier = working.Meter.GetBar(Math.Max(first, mark.Bar));
             if (match.Moved(earlier) is { } bar)
             {
                 moved.Add(mark.At(bar.Number));
