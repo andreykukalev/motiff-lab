@@ -45,6 +45,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   pages with «Четыре движка» go to the background recognition as a PDF does (`Pdf.swift`), the job's page reports kept
   with the notes; the progress «страница 3 из 5 · около 1 мин 40 с» (`ScanProgress.secondsLeft`, `about(seconds:)`,
   `RecognitionTop.jobLine`).
+- v1.5 r-2b: the batch writes a piece's notes only by `RecognitionQueue.write`, never into a piece deleted meanwhile
+  (E-scan-8); `ScanProblem` says every problem in the interface's language (`.slow` for a server that answered late); a
+  folder import names the piece's file by its title as music-core gives it (`FolderPlanning.confirm`'s title).
 - `ScanCrops.swift` (v1.3 i-2, 0035 section 6): `ScanCrop` (a bar's evidence box on the server's turned image as a rect on the PDF page, and its turn), `ScanCrops.keepReview`, run by `readByJob` after `scan.join`: the Check bars' variants and crops cut from the PDF kept on this iPad (`ScanReviewStore`); nothing is sent. Tests: `ScanReviewTests`.
 
 - `PhotoReview.swift`: the photos of pages put in order and made one PDF piece (`PhotoPiece.make(pdf:pages:title:language:)`,

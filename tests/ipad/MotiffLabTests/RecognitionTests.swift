@@ -173,4 +173,25 @@ final class RecognitionTests: XCTestCase {
         XCTAssertEqual(LibraryMarks.all([a, other], shown: shown), [a, b, other])
         XCTAssertEqual(LibraryMarks.all([a, b, other], shown: shown), [other])
     }
+
+    /// v1.5 r-2b: notes read for a piece the player deleted meanwhile are not written back, which made the piece come back,
+    /// nor over the piece a new import of the same PDF saved under its file's name (review); the batch says it is no longer
+    /// in the library. The piece that is still there, its id the one read at the start, is written.
+    func testNotesReadForAPieceDeletedMeanwhileAreNotWrittenBack() async throws {
+        let russian = UIText(language: "ru")
+        let missing = RecognitionFailure(reason: "Пьесы больше нет в библиотеке")
+        let gone = base.appendingPathComponent("Gone.motiff.json")
+        let refused = await RecognitionQueue.write("{}", to: gone, project: "p_pages", text: russian)
+        XCTAssertEqual(refused, missing)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: gone.path), "not made again")
+
+        let here = try ScanSupport.pdfPiece(in: base)
+        let theNewOne = try Data(contentsOf: here)
+        let overAnother = await RecognitionQueue.write("{}", to: here, project: "p_deleted", text: russian)
+        XCTAssertEqual(overAnother, missing, "the file under the name is another piece's now")
+        XCTAssertEqual(try Data(contentsOf: here), theNewOne, "and stays as it was")
+        let written = await RecognitionQueue.write("{}", to: here, project: "p_pages", text: russian)
+        XCTAssertNil(written)
+        XCTAssertEqual(try String(contentsOf: here, encoding: .utf8), "{}")
+    }
 }

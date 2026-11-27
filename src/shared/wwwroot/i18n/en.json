@@ -13,6 +13,8 @@
   "account.title": "Your account",
 
   "import.scanBusy": "Reading the notes… this takes a while for each page",
+  "import.scanSetUp": "Motiff Lab can read a PDF or a photo of printed music with a scan server.",
+  "import.scanSetUpLink": "Set it up in Settings",
 
   "selection.undo": "Undo",
   "selection.redo": "Redo",

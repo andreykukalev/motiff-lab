@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 
 /// A piece open in music-core: its number in the facade, its title, its score's pages and its project file.
 struct OpenPiece: Identifiable, Sendable {
@@ -43,6 +44,9 @@ struct OpenPiece: Identifiable, Sendable {
     /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `pdf`, the PDF of a piece that
     /// is only a PDF and whose PDF is not in its file, read where it lies, `data` being the project file (version 0.5).
     static func open(fileName: String, data: Data, language: String, title given: String? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
+        // E-library-2: a PDF this iPad cannot show is refused before it becomes a piece, as a damaged MusicXML is: its
+        // screen would only say it cannot be read, and the library would keep a piece that never opens.
+        if data.starts(with: pdfStart), readablePdf(data) == nil { return .failure(EngraveError(message: UIText.of(language)["pdf.unreadable"])) }
         let fields = openRequest(language: language, asPdf: asPdf, pdf: pdf)
         let request = facadeRequest(fields)
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
@@ -76,6 +80,17 @@ struct OpenPiece: Identifiable, Sendable {
                 return .failure(error)
             }
         }
+    }
+
+    /// How a PDF's bytes start, as music-core tells a PDF.
+    static let pdfStart = Data("%PDF".utf8)
+
+    /// The bytes as a PDF this iPad can show and read page by page: one that starts as a PDF, opens, is not locked with a
+    /// password and has a page; nil for any other. The one test of it: opening a file, sending one a page a request
+    /// (`ScanServer.recognise`) and a folder import's facts (`FolderScan.facts`).
+    static func readablePdf(_ data: Data) -> PDFDocument? {
+        guard data.starts(with: pdfStart), let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else { return nil }
+        return document
     }
 
     /// The open request's fields: the language and "edits": "piece", so a project file lays the player's corrections one

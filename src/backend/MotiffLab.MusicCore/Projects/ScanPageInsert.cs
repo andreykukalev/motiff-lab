@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Pieces;
@@ -15,9 +16,10 @@ internal static class ScanPageInsert
     /// checked bars and Check flags after it move on by its bars, its own bars get the scan's flags, the page's report goes in
     /// at its place when the notes keep reports (with no <paramref name="report"/>, a page read again without one, the notes keep
     /// none from then on: one report per page or none, v1.5 i-7), the PDF's
-    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and the bookmarks and resume
-    /// points at or after the page move on by its length (<see cref="FollowedWork.Inserted"/>, v1.5 i-7). Refused, with why, while <see cref="Project.CanInsertPage"/>
-    /// is false or when the corrections or the bars cannot be carried over exactly: nothing is dropped.
+    /// <paramref name="documentPages"/> pages are mapped again as <c>document.read</c> maps them, and the player's work at or after
+    /// the page (bookmarks, resume points, phrases, ideas, motifs, marks) moves on by its length (<see cref="FollowedWork.Inserted"/>,
+    /// v1.5 i-7 and r-2b). Refused, with why, while <see cref="Project.CanInsertPage"/> is false or when the corrections, the bars
+    /// or what names a note cannot be carried over exactly: nothing is dropped.
     /// </summary>
     /// <exception cref="ArgumentException">The place or the page is not one.</exception>
     public static PageInserted Into(Project project, int page, byte[] musicXml, PageReport? report, int documentPages)
@@ -45,7 +47,8 @@ internal static class ScanPageInsert
             return PageInserted.Not(PageRefusal.Across);
         }
 
-        if (put.Length == 0 || project.Edits.CarriedOver(before.Notes, after.Notes, at, length) is not { } edits)
+        if (put.Length == 0 || NoteEditLog.IdsMovedOn(before.Notes, after.Notes, at, length) is not { } ids
+            || project.Edits.CarriedOver(before.Notes, after.Notes, at, length, ids) is not { } edits)
         {
             return PageInserted.Not(PageRefusal.NotExact);
         }
@@ -59,8 +62,13 @@ internal static class ScanPageInsert
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
         ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
-        // Bookmarks and resume points move on with the bars after the page (v1.5 i-7); nothing else in ticks is there to move (CanInsertPage).
-        Project inserted = FollowedWork.Inserted(project, before.Meter, after.Meter, at, length).Project with
+        // The player's work in ticks moves on with the bars after the page, by one rule (v1.5 i-7, r-2b); nothing else is there to move (CanInsertPage).
+        if (FollowedWork.Inserted(project, before.Meter, after.Meter, at, length, ids) is not { } followed)
+        {
+            return PageInserted.Not(PageRefusal.Notes);
+        }
+
+        Project inserted = followed.Project with
         {
             Source = score,
             Edits = edits,

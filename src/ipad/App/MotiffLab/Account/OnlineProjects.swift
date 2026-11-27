@@ -161,8 +161,9 @@ struct OnlineProjects {
         case .success(let downloaded): data = downloaded
         case .failure(let failure): return .failure(failure)
         }
-        guard await PieceSummary.read(data)?.id == project.id else { return .failure(.problem) }
-        let url = ProjectFiles.newURL(for: project.title, in: folder)
+        guard let summary = await PieceSummary.read(data), summary.id == project.id else { return .failure(.problem) }
+        // Named by the work's title, as the library shows it (v1.5 r-2b), before the name of the file it was opened from.
+        let url = ProjectFiles.newURL(for: summary.title ?? project.title, in: folder)
         do {
             try data.write(to: url, options: .withoutOverwriting)
         } catch {

@@ -49,13 +49,15 @@ enum ProjectFiles {
         return (fileName as NSString).deletingPathExtension
     }
 
-    /// A new file for a piece of this title: "Title.motiff.json", or "Title 2.motiff.json" when that is taken.
+    /// The most a new file's name takes before its number and `.motiff.json`, in bytes of UTF-8: the iPad's file system
+    /// takes 255 a name, and a Russian letter is two of them, a Chinese one three, an emoji up to about thirty.
+    static let nameBytes = 200
+
+    /// A new file for a piece of this title, the work's title as the library shows it (v1.5 r-2b; the lead's a-2/2):
+    /// "Title.motiff.json", or "Title 2.motiff.json" when that is taken (by any case or form of the letters the file system
+    /// takes as the same). Its name is `fileName(for:)`.
     static func newURL(for title: String, in folder: URL = folder) -> URL {
-        let safe = title
-            .components(separatedBy: CharacterSet(charactersIn: "/\\:?*\"<>|").union(.newlines).union(.controlCharacters))
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
-        let base = safe.isEmpty ? "Piece" : String(safe.prefix(120))
+        let base = fileName(for: title)
         var url = folder.appendingPathComponent(base + suffix)
         var number = 2
         while FileManager.default.fileExists(atPath: url.path) {
@@ -63,6 +65,26 @@ enum ProjectFiles {
             number += 1
         }
         return url
+    }
+
+    /// The name a piece of this title is saved under, before its number and `.motiff.json`: the characters a file name cannot
+    /// hold made spaces, no dot first (a name that starts with one is hidden, and the library would not list the piece),
+    /// at most `nameBytes` bytes cut between letters, never inside one; "Piece" when nothing is left.
+    /// E-library-3.
+    static func fileName(for title: String) -> String {
+        let safe = title
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:?*\"<>|").union(.newlines).union(.controlCharacters))
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        var base = ""
+        var bytes = 0
+        for letter in safe.drop(while: { $0 == "." || $0.isWhitespace }) {
+            bytes += String(letter).utf8.count
+            guard bytes <= nameBytes else { break }
+            base.append(letter)
+        }
+        base = base.trimmingCharacters(in: .whitespaces)
+        return base.isEmpty ? "Piece" : base
     }
 
     /// Asks music-core for the piece's project file and writes it, whole, to the url.

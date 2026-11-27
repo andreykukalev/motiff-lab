@@ -49,7 +49,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 - `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted or a recording) and
   `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`; `hearLine`:
   beside the working notes, or the piece's own notes when it has none, v1.1), Send →
-  `SourcesController.recognise`.
+  `SourcesController.recognise`; with no scan server set it says how to set one up (`SourcesController.noScanServer`, as
+  the PDF's `ReadNotesPanel`, v1.5 r-2b).
 - `SourcesDialogs.swift` (v0.10 s-1): the sheet's dialogs in one modifier: deleting an original (`DeleteOriginalDialog`)
   or Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations

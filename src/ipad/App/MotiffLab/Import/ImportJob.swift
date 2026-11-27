@@ -104,7 +104,8 @@ enum PieceMaker {
         guard let confirmed = await FolderPlanning.confirm(made, title: item.title, composer: item.composer, tags: item.tags, playlists: item.playlists) else {
             return .failure(ProjectError(message: "folderImport.failDamaged"))
         }
-        let url = ProjectFiles.newURL(for: item.title ?? ProjectFiles.title(of: file.name), in: projects)
+        // Named by the work's title (v1.5 r-2b), as «Открыть файл» names a piece: a score's own title before the file's name.
+        let url = ProjectFiles.newURL(for: confirmed.title ?? item.title ?? ProjectFiles.title(of: file.name), in: projects)
         do {
             try Data(confirmed.file.utf8).write(to: url, options: .atomic)
         } catch {

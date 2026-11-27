@@ -51,6 +51,32 @@ final class ScanPartsTests: XCTestCase {
         XCTAssertTrue(ScanProblem.tooManyPages(101).text(russian).hasPrefix("В этом PDF 101 стр."))
     }
 
+    /// v1.5 r-2b: a server that does not answer, answers late or is not a scan server is said in the interface's language
+    /// (these were in English in a Russian interface).
+    func testAServerThatDoesNotAnswerIsSaidInBothLanguages() throws {
+        let server = try XCTUnwrap(ScanServer.parse("http://192.168.1.20:8000"))
+        XCTAssertEqual(ScanProblem.unreachable(server).text(russian), "Сервер распознавания по адресу http://192.168.1.20:8000/ не отвечает. Проверьте, что он запущен (см. Настройки) и что этот iPad может до него дотянуться.")
+        XCTAssertEqual(ScanProblem.unreachable(server).text(english), "The scan server at http://192.168.1.20:8000/ does not answer. Check that it is running (see Settings), and that this iPad may reach it.")
+        XCTAssertEqual(ScanProblem.notAScanServer.text(russian), "По этому адресу что-то отвечает, но это не сервер распознавания Motiff Lab.")
+        XCTAssertEqual(ScanServer.problem(URLError(.timedOut), address: server), .slow)
+        XCTAssertEqual(ScanProblem.slow.text(russian), "Сервер распознавания слишком долго не отвечал.")
+        XCTAssertEqual(ScanProblem.slow.onPage(3, russian), .server("Страница 3: Сервер распознавания слишком долго не отвечал."), "which page, as before")
+        XCTAssertEqual(ScanServer.problem(URLError(.cannotConnectToHost), address: server), .unreachable(server))
+    }
+
+    /// v1.5 r-2b, review: a photo page the server did not answer in time fails only that page, as the server's own words on
+    /// it do, so the photos after it are still sent and joined (`PhotoReader.send`); a server that is not there, or a sign-in,
+    /// would meet every page after and stops them.
+    func testATimedOutPageDoesNotStopTheOthers() throws {
+        let server = try XCTUnwrap(ScanServer.parse("http://192.168.1.20:8000"))
+        XCTAssertTrue(ScanServer.problem(URLError(.timedOut), address: server).failsOnlyItsPage)
+        XCTAssertTrue(ScanProblem.server("The page is empty.").failsOnlyItsPage)
+        XCTAssertFalse(ScanServer.problem(URLError(.cannotConnectToHost), address: server).failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.notAScanServer.failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.signIn.failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.needsPro.failsOnlyItsPage)
+    }
+
     func testTheIPadSendsAPageARequest() {
         XCTAssertEqual(ScanParts.pagesARequest, 1)
         XCTAssertEqual(ScanParts.plan(pages: 3, maxPages: ScanParts.pagesARequest), [1...1, 2...2, 3...3])

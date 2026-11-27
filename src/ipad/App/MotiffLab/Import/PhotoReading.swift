@@ -80,7 +80,7 @@ final class PhotoReader: ObservableObject {
             return nil
         case .failure(let failure):
             readings.set(page, .failed(message: failure.text(text), report: answer.report))
-            if case .server = failure { return nil }
+            if failure.failsOnlyItsPage { return nil }
             return failure.text(text)
         }
     }

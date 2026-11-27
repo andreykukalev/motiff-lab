@@ -159,7 +159,7 @@ struct CloudSync {
 
     private func download(_ id: String, _ local: Local?, _ row: OnlineProject, _ records: inout [String: SyncRecord]) async -> Bool {
         guard case .success(let fetched) = await online.fetch(id), let remote = String(data: fetched.data, encoding: .utf8),
-              await PieceSummary.read(fetched.data)?.id == id
+              let summary = await PieceSummary.read(fetched.data), summary.id == id
         else { return false }
         var record = records[id] ?? SyncRecord()
         if let etag = fetched.etag, etag == record.etag {
@@ -171,7 +171,7 @@ struct CloudSync {
         var fields: [String: Any] = ["file": remote]
         if let data = local?.data, let text = String(data: data, encoding: .utf8) { fields["here"] = text }
         guard let kept = await Self.core(.projectPulled, fields)?["file"] as? String,
-              write(kept, to: local?.url, title: row.title) != nil
+              write(kept, to: local?.url, title: summary.title ?? row.title) != nil
         else { return false }
         records[id] = SyncRecord(etag: fetched.etag, savedAt: row.savedAt, hash: Self.hash(Data(kept.utf8)))
         return true
@@ -257,7 +257,8 @@ struct CloudSync {
         return FileManager.default.fileExists(atPath: links.path) || KeptCopies.has(project: id) || !OriginalSounds.ids(project: id).isEmpty
     }
 
-    /// Writes a project file in place, or as a new file named by its title; nil when it could not be written.
+    /// Writes a project file in place, or as a new file named by its title (the work's, as the library shows it, v1.5 r-2b);
+    /// nil when it could not be written.
     private func write(_ file: String, to url: URL?, title: String) -> URL? {
         let target = url ?? ProjectFiles.newURL(for: title, in: folder)
         do {

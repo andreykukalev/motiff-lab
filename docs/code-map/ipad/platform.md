@@ -42,10 +42,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `Import/RecognitionQueue`, so `Pdf/` and `Sources/` name nothing of `Import/` for it.
 - `OpenPiece.swift`: a piece opened in music-core: engraved, or a PDF piece (`isDocument`), or, since v1.1 (finding 29),
   a piece that is only its recording (`recording`, its original's id), neither engraved; a draft opened to be shown
-  carries its places (`draft`, v1.1).
+  carries its places (`draft`, v1.1). `OpenPiece.readablePdf` is the one test of a PDF this iPad can show (opens, not
+  locked, a page): opening a file, a PDF sent a page a request (`ScanServer.recognise`), a folder's facts (v1.5 r-2b).
 - `ProjectFiles.swift`: `ProjectFileCache` (what music-core read from each file, kept by its bytes: the library's
   summaries, other pieces' drafts), `PieceSummary.shownTitle` (a library line's title); the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
-  JPEG or PNG, a recording); `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
+  JPEG or PNG, a recording); `newURL(for:)`, the one way a new project file is named, by the work's title as the library
+  shows it (v1.5 r-2b: a piece from Files, a folder import, a project kept from online), made safe by `fileName(for:)`
+  (no character a name cannot hold, no dot first, at most `nameBytes` of UTF-8 cut between letters), numbered when taken; `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
 - `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
   project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and
   bytes for the fingerprint, up to `fingerprintLimit`).

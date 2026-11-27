@@ -412,7 +412,7 @@ struct LibraryView: View {
     private func openExample() async {
         guard let example = OpenPiece.example else { return }
         let language = text.language
-        await show(saveAs: example.title) {
+        await show(saveNew: true) {
             await OpenPiece.open(fileName: example.fileName, data: example.data, language: language, title: example.title)
         }
     }
@@ -526,15 +526,16 @@ struct LibraryView: View {
                 let data = try Data(contentsOf: url)
                 let language = text.language
                 let name = url.lastPathComponent
-                await show(saveAs: ProjectFiles.title(of: name)) { await OpenPiece.open(fileName: name, data: data, language: language) }
+                await show(saveNew: true) { await OpenPiece.open(fileName: name, data: data, language: language) }
             } catch {
                 problem = error.localizedDescription
             }
         }
     }
 
-    /// Opens a piece and shows its score: saved to its own project file, or as a new one in Documents.
-    private func show(file: URL? = nil, saveAs title: String? = nil, landing: Landing? = nil, _ opener: () async -> Result<OpenPiece, EngraveError>) async {
+    /// Opens a piece and shows its score: saved to its own project file, or as a new one in Documents named by the piece's
+    /// title, the one its line shows (the player's, the score's, else the file's name; v1.5 r-2b), not by the file it came from.
+    private func show(file: URL? = nil, saveNew: Bool = false, landing: Landing? = nil, _ opener: () async -> Result<OpenPiece, EngraveError>) async {
         opening = true
         defer { opening = false }
         problem = nil
@@ -542,8 +543,8 @@ struct LibraryView: View {
         case .success(var opened):
             if let file {
                 opened.file = file
-            } else if let title {
-                let url = ProjectFiles.newURL(for: title)
+            } else if saveNew {
+                let url = ProjectFiles.newURL(for: opened.title)
                 do {
                     try await ProjectFiles.save(piece: opened.id, to: url)
                     opened.file = url

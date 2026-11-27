@@ -159,14 +159,15 @@ enum FolderPlanning {
     }
 
     /// The piece's metadata once the player added it with the suggestions as they stood (`library.confirm`): the title and
-    /// composer fill only what the player had not set, the tags and playlists are added. The project file to save.
-    static func confirm(_ file: String, title: String?, composer: String?, tags: [String], playlists: [String]) async -> (file: String, project: String)? {
+    /// composer fill only what the player had not set, the tags and playlists are added. The project file to save, and its
+    /// title as the library shows it (music-core's: the player's, the score's, else the file's name), which names the file.
+    static func confirm(_ file: String, title: String?, composer: String?, tags: [String], playlists: [String]) async -> (file: String, project: String, title: String?)? {
         var request: [String: Any] = ["file": file, "tags": tags, "playlists": playlists]
         if let title, !title.isEmpty { request["title"] = title }
         if let composer, !composer.isEmpty { request["composer"] = composer }
         guard let answer = await call(.libraryConfirm, request), let object = facadeObject(answer),
               let changed = object["file"] as? String, let project = (object["project"] as? [String: Any])?["id"] as? String else { return nil }
-        return (changed, project)
+        return (changed, project, PieceSummary(answer: answer)?.title)
     }
 
     /// One call on piece 0; nil for an error.
