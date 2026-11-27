@@ -300,7 +300,7 @@ which needs the focus's version notes; `openSources(atBar:)`, the root's `versio
 the model (`MarkerPopover`, `SourcesSheet.versions`), so two folder edges to Workspace went. What stays the root's is
 split by concern into extension files beside it, each with one responsibility (`ScoreSelecting`, `ScoreMarks`,
 `ScoreFocus`, `ScoreInput`, `ScorePageLayout`, `ScorePlayheads`, `ScoreVersions`, resume in `ScoreScreenViews`), and
-`BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 566 lines and its
+`BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 576 lines and its
 two quality entries went. The bar holds no controller: the screen makes Practice and the layers list, and the modes get
 the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
 (`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
