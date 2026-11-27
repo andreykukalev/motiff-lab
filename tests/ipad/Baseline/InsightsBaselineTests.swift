@@ -20,17 +20,19 @@ final class InsightsBaselineTests: XCTestCase {
 
     /// An idea kept on `unit` as «Оставить» keeps one, which music-core attaches to the phrase's anchor: the id of the one
     /// its answer adds to `kept`.
-    private func keep(on unit: PhraseUnit, of piece: Int32, besides kept: [String]) throws -> String {
+    private func keep(on unit: PhraseUnit, of piece: Int32, besides kept: [String]) async throws -> String {
         let span = #"{"span": {"onset": \#(Int(unit.onset)), "end": \#(Int(unit.end))}}"#
-        _ = MusicCore.call(piece: piece, "select", span)
-        let answer = MusicCore.call(piece: piece, "idea.keep", #"{"name": "Мотив", "note": "здесь", "now": "2026-11-27T12:00:00Z"}"#)
+        let answer = await MusicCore.run {
+            _ = MusicCore.call(piece: piece, "select", span)
+            return MusicCore.call(piece: piece, "idea.keep", #"{"name": "Мотив", "note": "здесь", "now": "2026-11-27T12:00:00Z"}"#)
+        }
         let ideas = FacadeAnswer.decode(IdeasAnswer.self, answer, of: "idea.keep")?.ideas ?? []
         return try XCTUnwrap(ideas.first { !kept.contains($0.id) && $0.anchor != nil }?.id, answer)
     }
 
     /// INS-01: ideas kept on phrases 2 and 3, Insights closed; phrase 3 joins phrase 2 (its boundary removed), which keeps
-    /// one anchor: the ideas are read again at once, the sheet still closed, so the strip shows both on the joined phrase
-    /// when Insights opens on it, «фраза 2», under «Идеи».
+    /// one anchor: the ideas are read again at once, the sheet still closed, so when Insights opens on the joined phrase the
+    /// ideas it shows are both, each named as «фраза 2». The strip as drawn is the device's.
     func testINS01TheIdeasStripShowsEachIdeaOnThePhraseOfItsAnchorReadAgainWhenTheAnchorsChange() async throws {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let piece = try await OpenPiece.open(fileName: example.fileName, data: example.data, language: "ru", title: example.title).get()
@@ -46,11 +48,10 @@ final class InsightsBaselineTests: XCTestCase {
         let second = try XCTUnwrap(score.selectionModel.phrases?.unit(2), "phrase 2 of the kit's piece")
         let third = try XCTUnwrap(score.selectionModel.phrases?.unit(3), "phrase 3 of the kit's piece")
         var ideas: [String] = []
+        for unit in [second, third] { ideas.append(try await keep(on: unit, of: piece.id, besides: ideas)) }
         await session.step("an idea kept on phrase 2 and one on phrase 3, the phrases read again") {
-            for unit in [second, third] { ideas.append((try? keep(on: unit, of: piece.id, besides: ideas)) ?? "") }
             await score.selectionModel.loadPhrases(of: piece.id)
         }
-        XCTAssertFalse(ideas.contains(""), "both kept on an anchor")
         await session.until("the anchors' reaction read the ideas") { Set(insights.ideas.map(\.id)) == Set(ideas) }
         XCTAssertFalse(workspace.panels[.insights], "the sheet is closed")
 
