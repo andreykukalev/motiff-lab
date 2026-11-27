@@ -110,7 +110,7 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   pages kept in the project file (`check` answers `unreadPages`, `readPages`) are marked and listed in Check as before,
   without «Повторить», which needs the queue's PDF · robustness rule: a page no engine read is never forgotten silently
   · v1.6 c-14a
-- `E-library-4` · A project saved by a newer version of Motiff Lab that this build may read · it opens and plays; one line
+- `E-library-6` · A project saved by a newer version of Motiff Lab that this build may read · it opens and plays; one line
   hung under the bar of every view of the piece (PDF, Notes, the roll, a recording) says it is read-only and nothing done
   is saved (Russian and English), written once by `PieceScreen` and drawn by `TopBar`, never one copy per screen; it takes
   no touch and does not move the bar; the work done is not saved, and no save is offered as failed · robustness rule: the
