@@ -46,4 +46,4 @@ in progress (`making`, set before the collection is saved, so the button is off 
 ## Baseline entries that protect it
 
 UX baseline: `VIEW-01`, `VIEW-02` (switching PDF | Notes). Quality ratchet: `PdfController.swift`'s nine Ink edges (the
-pen's state on the model), `PiecePartsSheet.swift` (`FieldLook`).
+pen's state on the model); `PiecePartsSheet.swift`'s to `FieldLook` went with it to Platform (v1.6 i-14).

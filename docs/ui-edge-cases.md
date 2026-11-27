@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-13):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-14):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -54,7 +54,7 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   shows as off) · one save; the second tap does nothing · as Keep tapped twice keeps one idea (`E-insights-3`) and the
   button is off while it saves (`ProfileController.save`) · v1.6 i-14
 - `E-settings-3` · The profile's photo chosen again, or removed, while one picked before still loads; the same photo
-  picked again after «Удалить фото» · the latest choice shows: a photo that loads after a later choice or a removal is
+  picked again after «Убрать фото» · the latest choice shows: a photo that loads after a later choice or a removal is
   left, and a photo picked again is read again; before, the slower one won, and the same photo picked again did nothing
   (the picker kept it selected) · a control shows what was last chosen (HIG), as the plan's latest ask wins
   (`Account.refreshPlan`) · v1.6 i-14
