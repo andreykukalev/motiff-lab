@@ -42,11 +42,27 @@ public sealed partial class SentenceMap
         return position.Alteration == 0 ? (((position.Step % ScaleSteps.StepsPerOctave) + ScaleSteps.StepsPerOctave) % ScaleSteps.StepsPerOctave) + 1 : null;
     }
 
+    /// <summary>The rule that ends a sentence after a phrase or runs it on, in the order the grouping tries them; the player's decisions come first.</summary>
+    private enum GroupRule
+    {
+        PieceEnds,
+        PlayerEnded,
+        PlayerJoined,
+        RepeatSign,
+        Consequent,
+        FullClose,
+        HalfClose,
+        NoClose,
+    }
+
+    /// <summary>Why the grouping did what it did after phrase <paramref name="Phrase"/>; <paramref name="Next"/> is the phrase after it, 0 at the end of the piece.</summary>
+    private readonly record struct GroupReason(GroupRule Rule, int Phrase, int Next);
+
     private static IReadOnlyList<Sentence> Group(IReadOnlyList<Phrase> phrases, IReadOnlyList<PhraseClose> closes, PhraseEdits edits, Words words)
     {
         var sentences = new List<Sentence>();
         var current = new List<Phrase>();
-        var reasons = new List<string>();
+        var reasons = new List<GroupReason>();
         var forcedEnds = edits.Added.ToHashSet();
         var forcedRunsOn = edits.Removed.ToHashSet();
         double confidence = 1;
@@ -57,56 +73,13 @@ public sealed partial class SentenceMap
             Phrase phrase = phrases[i];
             current.Add(phrase);
             Phrase? next = i + 1 < phrases.Count ? phrases[i + 1] : null;
-            PhraseClose close = closes[i];
-            bool ends;
-            if (next is null)
+            (GroupReason reason, bool ends, double? reading) = After(phrase, next, closes[i], current.Count == 1, forcedEnds, forcedRunsOn);
+            reasons.Add(reason);
+            edited |= reason.Rule is GroupRule.PlayerEnded or GroupRule.PlayerJoined;
+            if (reading is { } read)
             {
-                ends = true;
-                reasons.Add(current.Count == 1
-                    ? words.T("it ends with the piece", "она заканчивается вместе с произведением")
-                    : words.T($"phrase {phrase.Number} ends with the piece", $"фраза {phrase.Number} заканчивается вместе с произведением"));
-            }
-            else if (forcedEnds.Contains(next.Span.Onset))
-            {
-                ends = true;
-                edited = true;
-                reasons.Add(words.T($"you ended it after phrase {phrase.Number}", $"вы завершили его после фразы {phrase.Number}"));
-            }
-            else if (forcedRunsOn.Contains(next.Span.Onset))
-            {
-                ends = false;
-                edited = true;
-                reasons.Add(words.T($"you joined phrase {next.Number} to it", $"вы присоединили к нему фразу {next.Number}"));
-            }
-            else if (next.Start?.Evidence.Contains(PhraseEvidence.RepeatSign) == true)
-            {
-                ends = true;
-                reasons.Add(words.T($"a repeat sign stands after phrase {phrase.Number}", $"после фразы {phrase.Number} стоит знак репризы"));
-            }
-            else if (next.Start?.Evidence.Contains(PhraseEvidence.Repetition) == true && current.Count == 1)
-            {
-                ends = false;
                 detected = false;
-                confidence = Math.Min(confidence, Math.Min(GroupConfidence, next.Start.Attribution.Confidence));
-                reasons.Add(words.T(
-                    $"phrase {next.Number} starts where phrase {phrase.Number} comes back note for note, so it reads as the consequent",
-                    $"фраза {next.Number} начинается там, где фраза {phrase.Number} возвращается нота в ноту, поэтому читается как ответное построение"));
-            }
-            else if (close.Kind == CloseKind.Full)
-            {
-                ends = true;
-                detected = false;
-                confidence = Math.Min(confidence, Math.Min(GroupConfidence, close.Attribution.Confidence));
-                reasons.Add(words.T($"phrase {phrase.Number} ends on the tonic, a full close", $"фраза {phrase.Number} заканчивается на тонике, полная каденция"));
-            }
-            else
-            {
-                ends = false;
-                detected = false;
-                confidence = Math.Min(confidence, Math.Min(GroupConfidence, close.Attribution.Confidence));
-                reasons.Add(close.Kind == CloseKind.Half
-                    ? words.T($"phrase {phrase.Number} ends on a half close, so it runs on", $"фраза {phrase.Number} заканчивается половинной каденцией, поэтому продолжается")
-                    : words.T($"phrase {phrase.Number} reads no close, so it runs on", $"во фразе {phrase.Number} каденция не читается, поэтому она продолжается"));
+                confidence = Math.Min(confidence, Math.Min(GroupConfidence, read));
             }
 
             if (ends)
@@ -116,8 +89,7 @@ public sealed partial class SentenceMap
                 Attribution found = detected && startsMarked
                     ? edited ? Attribution.UserEdited : new Attribution(Provenance.Detected, MarkedConfidence)
                     : new Attribution(Provenance.Inferred, Math.Min(confidence, GroupConfidence));
-                string basis = Words.Capitalize(string.Join("; ", reasons)) + ".";
-                sentences.Add(new Sentence(sentences.Count + 1, TickSpan.FromBounds(first.Span.Onset, phrase.Span.End), first.FirstBar, phrase.LastBar, [.. current], found, basis));
+                sentences.Add(new Sentence(sentences.Count + 1, TickSpan.FromBounds(first.Span.Onset, phrase.Span.End), first.FirstBar, phrase.LastBar, [.. current], found, GroupBasis(reasons, current.Count == 1, words)));
                 current.Clear();
                 reasons.Clear();
                 confidence = 1;
@@ -127,5 +99,45 @@ public sealed partial class SentenceMap
         }
 
         return sentences;
+    }
+
+    /// <summary>
+    /// The first rule that holds after <paramref name="phrase"/>, whether the sentence ends there, and the confidence of
+    /// the reading it rests on (null when the file, the piece's end or the player decides it).
+    /// </summary>
+    private static (GroupReason Reason, bool Ends, double? Reading) After(Phrase phrase, Phrase? next, PhraseClose close, bool alone, HashSet<Tick> forcedEnds, HashSet<Tick> forcedRunsOn)
+    {
+        if (next is null)
+        {
+            return (new GroupReason(GroupRule.PieceEnds, phrase.Number, 0), true, null);
+        }
+
+        if (forcedEnds.Contains(next.Span.Onset))
+        {
+            return (new GroupReason(GroupRule.PlayerEnded, phrase.Number, next.Number), true, null);
+        }
+
+        if (forcedRunsOn.Contains(next.Span.Onset))
+        {
+            return (new GroupReason(GroupRule.PlayerJoined, phrase.Number, next.Number), false, null);
+        }
+
+        if (next.Start?.Evidence.Contains(PhraseEvidence.RepeatSign) == true)
+        {
+            return (new GroupReason(GroupRule.RepeatSign, phrase.Number, next.Number), true, null);
+        }
+
+        if (next.Start?.Evidence.Contains(PhraseEvidence.Repetition) == true && alone)
+        {
+            return (new GroupReason(GroupRule.Consequent, phrase.Number, next.Number), false, next.Start.Attribution.Confidence);
+        }
+
+        GroupRule rule = close.Kind switch
+        {
+            CloseKind.Full => GroupRule.FullClose,
+            CloseKind.Half => GroupRule.HalfClose,
+            _ => GroupRule.NoClose,
+        };
+        return (new GroupReason(rule, phrase.Number, next.Number), rule == GroupRule.FullClose, close.Attribution.Confidence);
     }
 }
