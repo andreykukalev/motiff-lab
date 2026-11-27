@@ -26,26 +26,6 @@ struct UncertainLengthsEntry: Identifiable, Equatable, Sendable {
     var id: Int { bar }
 }
 
-/// One page of a scan the server reported on, as `check` counts it (v0.4, within contract 12): its place in the notes from
-/// 1, its quality ("good", "weak" or "poor"), how far the server turned it, its bars and how many of them are doubtful, and
-/// its first and last bar (nil without bars).
-struct CheckPageEntry: Identifiable, Equatable, Sendable {
-    var page: Int
-    var quality: String
-    var rotation: Int
-    var bars: Int
-    var doubtful: Int
-    var firstBar: Int?
-    var lastBar: Int?
-    var id: Int { page }
-
-    /// The bars to show for the page.
-    var barRange: ClosedRange<Int>? {
-        guard let firstBar, let lastBar, firstBar <= lastBar else { return nil }
-        return firstBar...lastBar
-    }
-}
-
 extension PageSummaryLine {
     /// «Страница 4: 9 из 12 тактов под вопросом», for a page as `check` counts it.
     static func of(_ page: CheckPageEntry, _ text: UIText) -> PageSummaryLine {
@@ -266,7 +246,9 @@ struct NoteCorrections: Equatable, Sendable {
 /// their reasons, Show, Fix notes and Looks right, a recording's note lengths to check, then the bars checked, to check
 /// again. Over the right of the page in landscape and the lower half in portrait, as Insights.
 struct CheckDrawer: View {
-    @ObservedObject var score: ScoreController
+    /// The score, for the parts of Check about a scan's pages, which select on it.
+    let score: ScoreController
+    @ObservedObject var checkModel: CheckModel
     @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
@@ -276,7 +258,7 @@ struct CheckDrawer: View {
     @State private var shownPiece: Int?
 
     var body: some View {
-        let check = score.check
+        let check = checkModel.check
         let how = check.how(text)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: CGFloat.ds("s-2")) {
@@ -313,7 +295,7 @@ struct CheckDrawer: View {
                             .dsType(.caption)
                             .foregroundStyle(Color.ds("ink-2"))
                     }
-                    if !score.editsOn {
+                    if !checkModel.editsOn {
                         // «Мои правки» off (version 0.5): the notes are as recognised and Fix notes waits for them on.
                         Text(text["edits.off"])
                             .dsType(.caption)
@@ -321,7 +303,7 @@ struct CheckDrawer: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     // A scan's pages in doubt, from the page reports kept with it (v0.4, «Фото страниц»).
-                    PhotoPagesCheck(score: score, text: text)
+                    PhotoPagesCheck(pages: check.pages, text: text) { score.selectBars($0.lowerBound, $0.upperBound, extend: false) }
                     // The PDF's pages no engine read, at their place, with «Повторить» (v1.5 i-7; built by Workspace).
                     score.unreadPagesCheck(text)
                     if !check.pieces.isEmpty {
@@ -382,7 +364,7 @@ struct CheckDrawer: View {
                         .accessibilityAddTraits(shown ? .isSelected : [])
                 }
                 if piece.open > 0 {
-                    Button(text["scanCheck.looksRight"]) { score.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
+                    Button(text["scanCheck.looksRight"]) { checkModel.resolveCheckPiece(first: piece.firstBar, last: piece.lastBar) }
                         .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                 }
             }
@@ -396,7 +378,7 @@ struct CheckDrawer: View {
 
     private func openEntry(_ bar: CheckShelf.BarFlags) -> some View {
         let selected = selectionModel.selection?.firstBar == bar.bar
-        let fixing = score.corrections?.bar == bar.bar
+        let fixing = checkModel.corrections?.bar == bar.bar
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             HStack(spacing: CGFloat.ds("s-2")) {
                 Text("?")
@@ -417,24 +399,24 @@ struct CheckDrawer: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             // The bar tapped where the scan's engines disagree (v1.3 i-2): its crop and the engines' readings.
-            if selected, let review = score.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
+            if selected, let review = checkModel.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
                 ScanReviewBlock(
-                    entry: review.bar(bar.bar), crop: score.scanCrops[bar.bar], bar: bar.bar, chosen: score.variantChoice.engines(in: bar.bar),
-                    editsOn: score.editsOn, text: text, choose: { score.chooseVariant($0, bar: bar.bar) }, undo: { score.undoVariant() }
+                    entry: review.bar(bar.bar), crop: checkModel.scanCrops[bar.bar], bar: bar.bar, chosen: checkModel.variantChoice.engines(in: bar.bar),
+                    editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
                 )
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+                Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(bar.span == nil)
-                Button(text["check.fix"]) { score.fixCheckBar(bar.bar) }
+                Button(text["check.fix"]) { checkModel.fixCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    .disabled(bar.span == nil || !score.editsOn)
-                Button(text["scanCheck.looksRight"]) { score.resolveCheck(bar.bar, true) }
+                    .disabled(bar.span == nil || !checkModel.editsOn)
+                Button(text["scanCheck.looksRight"]) { checkModel.resolveCheck(bar.bar, true) }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }
-            if fixing, let corrections = score.corrections {
-                CorrectionsList(score: score, corrections: corrections, text: text)
+            if fixing, let corrections = checkModel.corrections {
+                CorrectionsList(checkModel: checkModel, corrections: corrections, text: text)
             }
         }
         .padding(CGFloat.ds("s-3"))
@@ -462,7 +444,7 @@ struct CheckDrawer: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+            Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(bar.span == nil)
         }
@@ -482,10 +464,10 @@ struct CheckDrawer: View {
                     .foregroundStyle(Color.ds("ink-2"))
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["scanCheck.show"]) { score.showCheckBar(bar.bar) }
+                Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     .disabled(bar.span == nil)
-                Button(text["scanCheck.again"]) { score.resolveCheck(bar.bar, false) }
+                Button(text["scanCheck.again"]) { checkModel.resolveCheck(bar.bar, false) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     .accessibilityHint(text["scanCheck.againHint"])
             }
@@ -498,7 +480,7 @@ struct CheckDrawer: View {
 /// later, shorter or longer, softer or louder, taken out or put back as imported; the last correction undone; the notes
 /// taken out, to put back. Each correction is kept with the piece, and the score is engraved again.
 struct CorrectionsList: View {
-    @ObservedObject var score: ScoreController
+    let checkModel: CheckModel
     let corrections: NoteCorrections
     let text: UIText
 
@@ -506,7 +488,7 @@ struct CorrectionsList: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["correct.hint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button(text["correct.undo"]) { score.undoCorrection() }
+                Button(text["correct.undo"]) { checkModel.undoCorrection() }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(corrections.count == 0)
                     .accessibilityHint(text["correct.undoHint"])
@@ -519,7 +501,7 @@ struct CorrectionsList: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
                 ForEach(corrections.removed) { removed in
-                    Button(text.format("correct.revertAt", removed.name, removed.place.text(text))) { score.revertNote(removed.id) }
+                    Button(text.format("correct.revertAt", removed.name, removed.place.text(text))) { checkModel.revertNote(removed.id) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 }
             }
@@ -542,19 +524,19 @@ struct CorrectionsList: View {
                 Text(text["performance.takenNote"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             } else {
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    stepper(text["notes.note"], note.name, down: (text["notes.lower"], true), up: (text["notes.higher"], true)) { score.correctNote(note.id, pitch: $0) }
-                    stepper(text["notes.where"], "", down: (text["notes.earlier"], note.canEarlier), up: (text["notes.later"], true)) { score.correctNote(note.id, onset: $0) }
+                    stepper(text["notes.note"], note.name, down: (text["notes.lower"], true), up: (text["notes.higher"], true)) { checkModel.correctNote(note.id, pitch: $0) }
+                    stepper(text["notes.where"], "", down: (text["notes.earlier"], note.canEarlier), up: (text["notes.later"], true)) { checkModel.correctNote(note.id, onset: $0) }
                 }
                 HStack(spacing: CGFloat.ds("s-3")) {
-                    stepper(text["notes.length"], note.length, down: (text["notes.shorter"], note.canShorter), up: (text["notes.longer"], true)) { score.correctNote(note.id, length: $0) }
-                    stepper(text["notes.velocity"], String(note.velocity), down: (text["notes.softer"], note.velocity > 1), up: (text["notes.louder"], note.velocity < 127)) { score.correctNote(note.id, velocity: $0) }
+                    stepper(text["notes.length"], note.length, down: (text["notes.shorter"], note.canShorter), up: (text["notes.longer"], true)) { checkModel.correctNote(note.id, length: $0) }
+                    stepper(text["notes.velocity"], String(note.velocity), down: (text["notes.softer"], note.velocity > 1), up: (text["notes.louder"], note.velocity < 127)) { checkModel.correctNote(note.id, velocity: $0) }
                 }
                 HStack(spacing: CGFloat.ds("s-2")) {
-                    Button(text["notes.remove"]) { score.removeNote(note.id) }
+                    Button(text["notes.remove"]) { checkModel.removeNote(note.id) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                         .accessibilityHint(text["notes.removeFromPieceHint"])
                     if note.edited {
-                        Button(text["notes.revert"]) { score.revertNote(note.id) }
+                        Button(text["notes.revert"]) { checkModel.revertNote(note.id) }
                             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                             .accessibilityHint(text["notes.revertHint"])
                     }

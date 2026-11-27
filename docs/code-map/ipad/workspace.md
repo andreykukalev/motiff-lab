@@ -79,7 +79,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
   pen for its history; `recolour` sends a step's change again for the Pen's Undo and Redo (v1.4 i-5).
 - `ScoreController.swift`: the page (the menu's drag, marks, corrections, versions, Expand on the page); the
   models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
-  [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`).
+  [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`; `CheckModel`, through
+  `CheckScore`, v1.6 i-8: the root keeps drawing the flags, `drawChecks`, and `showProblem`).
 
 ## The contract others may rely on
 
@@ -103,7 +104,7 @@ them, and the order inside each:
    `focused && asRoll` (`focusRollChanged`: `.rollOnCard`, then the roll); `panels[.roll]`
    (`rollDrawerChanged`: `.roll`, then `roll.show` or `cancelNoteEdit`); `panels[.insights]` (`.insights`, then load or
    `clearChoice`).
-2. `checking`: `placeFromMoreOpen` (`.placeFromMore`); `panels[.check]` (`score.checkDrawerOpen`, then `.check`);
+2. `checking`: `placeFromMoreOpen` (`.placeFromMore`); `panels[.check]` (`score.checkModel.drawerOpen`, then `.check`);
    `panels[.versions]` (`.versions`, with Expand as it is now); `otherPlaceOpen(focused:)` (`.otherPlace`).
 3. `sourcing`: `panels[.versions]` (`insights.leave()`). 4. `following`: `rollPlace` (`roll.place`, then
    `showRollPosition` while it is shown); `playRange` (the player first, then `syncPlayheads`). 5. `body`:
@@ -116,7 +117,7 @@ reaction moved, merged or reordered changes what a player sees for a frame or mo
 
 ## The state it owns
 
-`ScoreController`: drawing the marks on the page, corrections; `mode` (never nil since v0.6.5);
+`ScoreController`: drawing the marks and Check's flags on the page; `mode` (never nil since v0.6.5);
 the models. `ScoreWorkspace`: the controllers and `panels` (PanelState), the one copy of which panels are open and
 whether Sources is there (`panels.sourcesOn`); `resumeId`, `handingOver`.
 `ScoreScreenContent`: what only the view shows (the drawer's height, Piece DNA, a view shown over the piece).

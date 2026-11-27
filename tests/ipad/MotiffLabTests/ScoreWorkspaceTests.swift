@@ -175,9 +175,9 @@ final class ScoreWorkspaceTests: XCTestCase {
     func testThePageAndInsightsFollowWhatTheViewObserves() {
         let workspace = make()
         workspace.checkDrawerChanged(true)
-        XCTAssertTrue(workspace.score.checkDrawerOpen)
+        XCTAssertTrue(workspace.score.checkModel.drawerOpen)
         workspace.checkDrawerChanged(false)
-        XCTAssertFalse(workspace.score.checkDrawerOpen)
+        XCTAssertFalse(workspace.score.checkModel.drawerOpen)
         workspace.hearingAloneChanged(true)
         XCTAssertTrue(workspace.insights.scaleHeard)
         workspace.hearingAloneChanged(false)

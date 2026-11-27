@@ -259,3 +259,19 @@ drawn and the one gone to, and the lists of layers. The views observe the two mo
 or a highlight, going to a bookmark or a note and what the page hides stay in the root, with its page calls, until step
 9. The risk under Consequences holds: SwiftUI's update timing of the views that now observe these models is checked on
 the device at the next version.
+
+## Note (S6, `CheckModel`, v1.6 i-8)
+
+`CheckModel` (`Marks/CheckModel.swift`, reading `SelectionModel`) owns Check: the shelf as music-core answered the last
+`check` call, whether the drawer is open, what this iPad kept of the working notes' scan (variants and crops) and the
+variant chosen last, the bar listed to correct (Fix notes), «Мои правки» and the roll's note editor, with `editsKept`.
+It calls music-core itself and reaches the root through `CheckScore`, as `PenModel` does through `PenScore`: the bar
+selected and shown (`showSpan`), the flags drawn (`drawChecks`, which stays in the root because the pages of a scan no
+engine read are `Workspace`'s), what the page hides (`applyLayers`), the notes changed (`notesDidChange`) and the
+screen's two lines (`showNotice`, `showProblem`). Whether scans go as jobs (`ScanServer.jobs`, Import's) is handed in;
+the assistant's draft comes as its request and first bar, so the model names no Assistant type. The views observe the
+model (`CheckDrawer`, `EditsLayerSection`, `LayersList`, `MorePanel`, `UnreadPagesCheck`); Roll and Import get what they
+show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `NoteEditorState` and `CheckPageEntry` moved
+to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
+(`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
+(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
