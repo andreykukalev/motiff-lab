@@ -88,9 +88,6 @@ public sealed partial class SentenceMap
         return new SentenceMap(_phrases, Group(_phrases.Phrases, Closes, edits, _words), Closes, Key, edits, _words);
     }
 
-    /// <summary>The sentence that holds a position; the last sentence for the end of the piece or later.</summary>
-    public Sentence At(Tick position) => Sentences.LastOrDefault(sentence => sentence.Span.Onset <= position) ?? Sentences[0];
-
     /// <summary>
     /// The edits that make <paramref name="span"/> one sentence, given that its edges are phrase boundaries or
     /// the piece's ends: the sentence ends at both edges and runs on across every phrase boundary inside.

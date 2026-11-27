@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Invitations;
 
-/// <summary>What the experiment catalogue and the Try chips read: a motif, the piece around it, and what the engine measured.</summary>
+/// <summary>What the Try chips read: a motif, the piece around it, and what the engine measured.</summary>
 /// <param name="Notes">The notes of the piece; the motif's notes are picked by id.</param>
 /// <param name="Character">The motif's character facts (<see cref="MotifAnalyzer.AnalyzeCharacter"/>).</param>
 internal sealed record InvitationContext(

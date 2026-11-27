@@ -197,7 +197,7 @@ public class MelodicSequenceTests
     }
 
     [Fact]
-    public void Chained_sequences_keep_ids_unique_and_undo_back_to_the_original()
+    public void Chained_sequences_keep_ids_unique_and_the_original_as_it_was()
     {
         Note[] notes = Rising();
         VariationChain chain = VariationChain.Start(notes, Context(notes, s_cMajor))
@@ -209,10 +209,7 @@ public class MelodicSequenceTests
         Assert.Equal(12, chain.Current.Select(note => note.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.All(chain.Result!.Checks, check => Assert.Equal(KeepStatus.Kept, check.Status));
         Assert.DoesNotContain("The motif repeats", chain.Result.Explanation, StringComparison.Ordinal);
-
-        VariationChain undone = chain.Undo().Undo();
-        Assert.Equal(notes, undone.Current);
-        Assert.Equal(chain.Current, undone.Redo().Redo().Current);
+        Assert.Equal(notes, chain.Original);
     }
 
     [Fact]

@@ -31,9 +31,10 @@ internal static partial class Answer
             json.WriteNull("pending");
         }
 
-        json.WriteNumber("undone", chain.Undone.Count);
+        // The chain keeps no undone steps (no call undoes one); "undone" and "canRedo" stay in the contract with these values.
+        json.WriteNumber("undone", 0);
         json.WriteBoolean("canUndo", chain.CanUndo);
-        json.WriteBoolean("canRedo", chain.CanRedo);
+        json.WriteBoolean("canRedo", false);
         json.WriteString("acceptDisabledReason", chain.AcceptDisabledReason);
         json.WriteString("editDisabledReason", chain.EditDisabledReason);
         Notes(json, "original", chain.Original);

@@ -5,14 +5,14 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Playback;
-using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Analysis;
 
 /// <summary>
-/// Automatic bookmarks (an experiment; Andrei, 2026-11-11): the boundaries of the pieces, movements and large sections of a
-/// long score or recording, found from what the file shows, proposed as sections to confirm, move or dismiss.
+/// The pieces of a long score or recording (version 0.5; automatic bookmarks, Andrei, 2026-11-11): the boundaries of its
+/// pieces, movements and large sections, found from what the file shows (<see cref="SectionFinder.FindPieces"/>); in a
+/// recording a silence alone is not a boundary (Andrei, 2026-11-12), and the player's number of pieces makes up the rest.
 /// </summary>
 public class SectionFinderTests
 {
@@ -60,11 +60,11 @@ public class SectionFinderTests
             Keys = [new KeySignature(Tick.Zero, 0, KeyMode.Major), new KeySignature(At(21), -1, KeyMode.Minor)],
         };
 
-        FoundSections found = SectionFinder.Find(evidence);
+        FoundSections found = SectionFinder.FindPieces(evidence);
 
         Assert.Equal(2, found.Items.Count);
         FoundSection opening = found.Items[0], second = found.Items[1];
-        Assert.True(opening.IsOpening);
+        Assert.Equal(SectionCueKind.Opening, Assert.Single(opening.Cues).Kind);
         Assert.Equal((1, 20), (opening.FirstBar, opening.LastBar));
         Assert.Equal(TickSpan.FromBounds(Tick.Zero, At(21)), opening.Span);
         Assert.Equal((21, 40), (second.FirstBar, second.LastBar));
@@ -74,18 +74,18 @@ public class SectionFinderTests
         Assert.Equal(Provenance.Inferred, second.Attribution.Provenance);
         Assert.Equal("double bar line, key changes to D minor", second.ReasonIn(Words.English));
         Assert.Equal("двойная черта, смена тональности на ре минор", second.ReasonIn(Words.Russian));
-        Assert.Equal("Part 2, bars 21–40", second.TitleIn(Words.English));
-        Assert.Equal("Часть 2, такты 21–40", second.TitleIn(Words.Russian));
+        Assert.Equal("Piece 2", second.PieceTitleIn(Words.English));
+        Assert.Equal("Пьеса 2", second.PieceTitleIn(Words.Russian));
         Assert.Equal("начало пьесы", opening.ReasonIn(Words.Russian));
         Assert.Equal("possible", second.ConfidenceIn(Words.English));
     }
 
     [Fact]
-    public void One_weak_fact_proposes_nothing_and_repeat_signs_are_not_boundaries()
+    public void One_weak_fact_proposes_no_boundary_and_repeat_signs_are_not_boundaries()
     {
-        Assert.Empty(SectionFinder.Find(Score(40, Before(21, "light-light"))).Items);
-        Assert.Empty(SectionFinder.Find(Score(40, Before(21, "light-heavy", repeat: true), Before(21, "heavy-light", repeat: true))).Items);
-        Assert.Empty(SectionFinder.Find(new SectionEvidence([], MeterMap.Default, Tick.Zero)).Items);
+        Assert.Single(SectionFinder.FindPieces(Score(40, Before(21, "light-light"))).Items);
+        Assert.Single(SectionFinder.FindPieces(Score(40, Before(21, "light-heavy", repeat: true), Before(21, "heavy-light", repeat: true))).Items);
+        Assert.Empty(SectionFinder.FindPieces(new SectionEvidence([], MeterMap.Default, Tick.Zero)).Items);
     }
 
     [Fact]
@@ -96,11 +96,11 @@ public class SectionFinderTests
             Texts = [new MusicXmlText(At(31), 0, 30, "II. Andante", IsRehearsal: false), new MusicXmlText(At(31).Offset(Quarter + 1), 0, 30, "dolce", IsRehearsal: false)],
         };
 
-        FoundSection second = Assert.Single(SectionFinder.Find(evidence).Items, section => !section.IsOpening);
+        FoundSection second = Assert.Single(SectionFinder.FindPieces(evidence).Items, section => section.Number > 1);
 
         Assert.Equal(31, second.FirstBar);
         Assert.Equal("II. Andante", second.Heading);
-        Assert.Equal("II. Andante, bars 31–60", second.TitleIn(Words.English));
+        Assert.Equal("II. Andante", second.PieceTitleIn(Words.English));
         Assert.Equal("надпись «II. Andante», заключительная черта", second.ReasonIn(Words.Russian));
         Assert.Equal("likely", second.ConfidenceIn(Words.English));
     }
@@ -113,7 +113,7 @@ public class SectionFinderTests
             Keys = [new KeySignature(Tick.Zero, 0, KeyMode.Major), new KeySignature(At(21), 2, KeyMode.Major)],
         };
 
-        FoundSections found = SectionFinder.Find(evidence);
+        FoundSections found = SectionFinder.FindPieces(evidence);
 
         Assert.Equal([1, 21], found.Items.Select(section => section.FirstBar));
         Assert.Equal("final bar line, key changes to D major", found.Items[1].ReasonIn(Words.English));
@@ -128,7 +128,7 @@ public class SectionFinderTests
         PlaybackTempo[] tempos = [new(Tick.Zero, 500_000), new(At(17), 750_000), new(At(28), 760_000), new(new Tick(At(28).Value + Quarter), 800_000)];
         var evidence = new SectionEvidence(notes, meter, new Tick(At(17).Value + (16 * 3 * Quarter))) { Tempos = tempos };
 
-        FoundSection second = Assert.Single(SectionFinder.Find(evidence).Items, section => !section.IsOpening);
+        FoundSection second = Assert.Single(SectionFinder.FindPieces(evidence).Items, section => section.Number > 1);
 
         Assert.Equal(17, second.FirstBar);
         Assert.Equal(32, second.LastBar);
@@ -146,7 +146,7 @@ public class SectionFinderTests
             Keys = [new KeySignature(Tick.Zero, 0, null), new KeySignature(At(21), -1, null)],
         };
 
-        FoundSection second = Assert.Single(SectionFinder.Find(evidence).Items, section => !section.IsOpening);
+        FoundSection second = Assert.Single(SectionFinder.FindPieces(evidence).Items, section => section.Number > 1);
 
         Assert.Equal(21, second.FirstBar);
         Assert.Equal("new key signature: 1 ♭, 2 bars of rest before", second.ReasonIn(Words.English));
@@ -161,12 +161,13 @@ public class SectionFinderTests
         notes.AddRange(Bars(21, 40, bar => bar == 30 ? [60] : [60, 64, 67, 72], heard: true).Where(note => note.Span.Onset != new Tick((29 * Bar) + Quarter)));
         var evidence = new SectionEvidence(notes, MeterMap.Default, new Tick(40 * Bar)) { Heard = true };
 
-        FoundSections found = SectionFinder.Find(evidence);
+        // A silence alone parts pieces only to make up the player's number of them.
+        FoundSections found = SectionFinder.FindPieces(evidence, count: 9);
 
-        FoundSection second = Assert.Single(found.Items, section => !section.IsOpening);
+        FoundSection second = Assert.Single(found.Items, section => section.Number > 1);
         Assert.Equal(21, second.FirstBar);
-        Assert.Equal("4 s of silence before", second.ReasonIn(Words.English));
-        Assert.Equal("перед этим 4 с тишины", second.ReasonIn(Words.Russian));
+        Assert.StartsWith("4 s of silence before, ", second.ReasonIn(Words.English), StringComparison.Ordinal);
+        Assert.StartsWith("перед этим 4 с тишины, ", second.ReasonIn(Words.Russian), StringComparison.Ordinal);
         Assert.Equal("начало записи", found.Items[0].ReasonIn(Words.Russian));
     }
 
@@ -183,7 +184,7 @@ public class SectionFinderTests
         ];
         var evidence = new SectionEvidence(notes, MeterMap.Default, new Tick(40 * Bar)) { Heard = true, Tempos = tempos };
 
-        FoundSection second = Assert.Single(SectionFinder.Find(evidence).Items, section => !section.IsOpening);
+        FoundSection second = Assert.Single(SectionFinder.FindPieces(evidence).Items, section => section.Number > 1);
 
         Assert.Equal(21, second.FirstBar);
         Assert.Contains(second.Cues, cue => cue.Kind == SectionCueKind.HeardKey);
@@ -201,8 +202,8 @@ public class SectionFinderTests
         PlaybackTempo[] tempos = [new(Tick.Zero, 500_000), new(At(17), 750_000)];
         var evidence = new SectionEvidence(notes, meter, new Tick(At(17).Value + (16 * 3 * Quarter))) { Tempos = tempos, Heard = true };
 
-        Assert.Empty(SectionFinder.Find(evidence).Items);
-        Assert.NotEmpty(SectionFinder.Find(evidence with { Heard = false }).Items);
+        Assert.Single(SectionFinder.FindPieces(evidence).Items);
+        Assert.Equal(2, SectionFinder.FindPieces(evidence with { Heard = false }).Items.Count);
     }
 
     [Fact]
@@ -215,55 +216,7 @@ public class SectionFinderTests
     }
 
     [Fact]
-    public void A_moved_boundary_moves_the_end_of_the_section_before_and_says_where_it_was_found()
-    {
-        FoundSections found = SectionFinder.Find(Score(40, Before(21, "light-heavy")));
-
-        Assert.False(found.CanMove(1, 5));
-        Assert.False(found.CanMove(2, 1));
-        Assert.False(found.CanMove(2, 41));
-        Assert.True(found.CanMove(2, 40));
-        Assert.Throws<ArgumentOutOfRangeException>(() => found.Move(2, 1));
-
-        FoundSections moved = found.Move(2, 23);
-
-        Assert.Equal((1, 22), (moved.Items[0].FirstBar, moved.Items[0].LastBar));
-        Assert.Equal(At(23), moved.Items[0].Span.End);
-        Assert.Equal((23, 40), (moved.Items[1].FirstBar, moved.Items[1].LastBar));
-        Assert.Equal(TickSpan.FromBounds(At(23), new Tick(40 * Bar)), moved.Items[1].Span);
-        Assert.Equal("moved from bar 21; found by: final bar line", moved.Items[1].ReasonIn(Words.English));
-        Assert.Equal(21, moved.Move(2, 25).Items[1].MovedFrom);
-        Assert.Same(moved, moved.Move(2, 23));
-    }
-
-    [Fact]
-    public void A_dismissed_section_joins_the_one_before_and_once_none_is_left_nothing_is_proposed()
-    {
-        FoundSections found = SectionFinder.Find(Score(48, Before(17, "light-heavy"), Before(33, "light-heavy")));
-        Assert.Equal([1, 17, 33], found.Items.Select(section => section.FirstBar));
-
-        FoundSections fewer = found.Dismiss(2);
-
-        Assert.Equal([1, 33], fewer.Items.Select(section => section.FirstBar));
-        Assert.Equal([1, 2], fewer.Items.Select(section => section.Number));
-        Assert.Equal(32, fewer.Items[0].LastBar);
-        Assert.Equal(At(33), fewer.Items[0].Span.End);
-        Assert.Empty(fewer.Dismiss(2).Items);
-        Assert.Same(fewer, fewer.Dismiss(9));
-    }
-
-    [Fact]
-    public void A_section_a_bookmark_already_starts_at_is_no_longer_pending()
-    {
-        FoundSections found = SectionFinder.Find(Score(40, Before(21, "light-heavy")));
-        var bookmark = new Bookmark("b_0001", found.Items[1].TitleIn(Words.English), BookmarkCategory.StructureId, found.Items[1].Span, FromPhrase: false, DateTimeOffset.UnixEpoch);
-
-        Assert.Equal([1], found.Pending([bookmark]).Select(section => section.Number));
-        Assert.Equal(2, found.Pending([]).Count);
-    }
-
-    [Fact]
-    public void The_same_evidence_gives_the_same_sections()
+    public void The_same_score_gives_the_same_pieces()
     {
         SectionEvidence evidence = Score(48, Before(17, "light-heavy"), Before(33, "light-light")) with
         {
@@ -272,7 +225,7 @@ public class SectionFinderTests
 
         static string Read(FoundSections found) => string.Join(" | ", found.Items.Select(section => $"{section.Span} {section.Confidence} {section.ReasonIn(Words.English)}"));
 
-        Assert.Equal(Read(SectionFinder.Find(evidence)), Read(SectionFinder.Find(evidence)));
+        Assert.Equal(Read(SectionFinder.FindPieces(evidence)), Read(SectionFinder.FindPieces(evidence)));
     }
 
     [Fact]
@@ -285,11 +238,11 @@ public class SectionFinderTests
         Assert.Contains(piece.MusicXml.Texts, text => text.Text == "Trio" && text.At == At(9) && !text.IsRehearsal);
         Assert.Contains(piece.MusicXml.Texts, text => text.Text == "A" && text.IsRehearsal);
 
-        FoundSections found = SectionFinder.Find(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
+        FoundSections found = SectionFinder.FindPieces(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
 
-        FoundSection trio = Assert.Single(found.Items, section => !section.IsOpening);
+        FoundSection trio = Assert.Single(found.Items, section => section.Number > 1);
         Assert.Equal((9, 16), (trio.FirstBar, trio.LastBar));
-        Assert.Equal("Trio, bars 9–16", trio.TitleIn(Words.English));
+        Assert.Equal("Trio", trio.PieceTitleIn(Words.English));
         Assert.Equal("надпись «Trio», двойная черта, смена тональности на фа мажор", trio.ReasonIn(Words.Russian));
     }
 
@@ -299,7 +252,7 @@ public class SectionFinderTests
         static FoundSections Read(string path)
         {
             ImportedPiece piece = PieceImporter.Import(Path.GetFileName(path), File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, path))).Piece!;
-            return SectionFinder.Find(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
+            return SectionFinder.FindPieces(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
         }
 
         FoundSections found = Read(Path.Combine("Analysis", "Fixtures", "two-pieces.musicxml"));
@@ -308,12 +261,98 @@ public class SectionFinderTests
         Assert.Equal((0, 105), (found.Items[0].FirstBar, found.Items[0].LastBar));
         FoundSection ode = found.Items[1];
         Assert.Equal((106, 121), (ode.FirstBar, ode.LastBar));
-        Assert.Equal("Ode to Joy, bars 106–121", ode.TitleIn(Words.English));
+        Assert.Equal("Ode to Joy", ode.PieceTitleIn(Words.English));
         Assert.Equal("likely", ode.ConfidenceIn(Words.English));
         Assert.Equal(
             "final bar line, key changes to C major, heading “Ode to Joy”, time signature changes to 4/4, tempo changes to quarter = 100",
             ode.ReasonIn(Words.English));
-        Assert.Empty(Read(Path.Combine("Import", "MusicXml", "Fixtures", "FurElise.musicxml")).Items);
+        Assert.Single(Read(Path.Combine("Import", "MusicXml", "Fixtures", "FurElise.musicxml")).Items);
+    }
+
+    /// <summary>
+    /// A recording of 60 bars at 120 BPM (a bar lasts 2 s): bars 19–20 and 39–40 silent. With <paramref name="change"/>
+    /// the music after the first silence is in E flat minor at 80 BPM; after the second, the same as before it.
+    /// </summary>
+    private static SectionEvidence Concert(bool change)
+    {
+        int[] home = [60, 64, 67, 72], away = [63, 66, 70, 75];
+        var notes = Bars(1, 18, _ => home, heard: true);
+        notes.AddRange(Bars(21, 38, _ => change ? away : home, heard: true));
+        notes.AddRange(Bars(41, 60, _ => change ? away : home, heard: true));
+        PlaybackTempo[] tempos =
+        [
+            .. Enumerable.Range(0, 18 * 4).Select(beat => new PlaybackTempo(new Tick(beat * Quarter), 500_000)),
+            .. Enumerable.Range(20 * 4, 40 * 4).Select(beat => new PlaybackTempo(new Tick(beat * Quarter), change ? 750_000 : 500_000)),
+        ];
+        return new SectionEvidence(notes, MeterMap.Default, new Tick(60 * Bar)) { Heard = true, Tempos = tempos };
+    }
+
+    [Fact]
+    public void In_a_recording_a_silence_alone_is_no_boundary_but_with_a_new_key_and_tempo_it_is()
+    {
+        FoundSections same = SectionFinder.FindPieces(Concert(change: false));
+        FoundSection whole = Assert.Single(same.Items);
+        Assert.Equal((1, 60), (whole.FirstBar, whole.LastBar));
+        Assert.Equal("Piece 1", whole.PieceTitleIn(Words.English));
+
+        FoundSections changed = SectionFinder.FindPieces(Concert(change: true));
+        Assert.Equal([1, 21], changed.Items.Select(section => section.FirstBar));
+        FoundSection second = changed.Items[1];
+        Assert.Contains(second.Cues, cue => cue.Kind == SectionCueKind.HeardTempo);
+        Assert.False(second.IsOnlySilence);
+        Assert.Equal("Пьеса 2", second.PieceTitleIn(Words.Russian));
+    }
+
+    [Fact]
+    public void The_players_number_of_pieces_takes_the_silences_alone_longest_first_and_says_so()
+    {
+        // The second silence is made longer: bar 41's notes start a bar later.
+        SectionEvidence evidence = Concert(change: false);
+        evidence = evidence with { Notes = [.. evidence.Notes.Where(note => note.Span.Onset < At(41) || note.Span.Onset >= At(42))] };
+
+        FoundSections two = SectionFinder.FindPieces(evidence, count: 2);
+        Assert.Equal([1, 42], two.Items.Select(section => section.FirstBar));
+        Assert.True(two.Items[1].IsOnlySilence);
+        Assert.Equal("6 s of silence before, only a pause: the key and the tempo stay the same", two.Items[1].ReasonIn(Words.English));
+        Assert.EndsWith("только пауза: тональность и темп те же", two.Items[1].ReasonIn(Words.Russian), StringComparison.Ordinal);
+
+        Assert.Equal([1, 21, 42], SectionFinder.FindPieces(evidence, count: 3).Items.Select(section => section.FirstBar));
+        Assert.Equal([1, 21, 42], SectionFinder.FindPieces(evidence, count: 9).Items.Select(section => section.FirstBar));
+        Assert.Single(SectionFinder.FindPieces(evidence, count: 1).Items);
+        Assert.Throws<ArgumentOutOfRangeException>(() => SectionFinder.FindPieces(evidence, count: 0));
+    }
+
+    [Fact]
+    public void A_strong_boundary_comes_before_a_silence_alone_when_the_number_is_reached()
+    {
+        FoundSections one = SectionFinder.FindPieces(Concert(change: true), count: 2);
+
+        Assert.Equal([1, 21], one.Items.Select(section => section.FirstBar));
+        Assert.False(one.Items[1].IsOnlySilence);
+    }
+
+    [Fact]
+    public void In_notation_the_rules_stay_and_the_number_adds_the_weaker_boundaries()
+    {
+        var notes = Bars(1, 40, _ => [60, 64, 67, 72]);
+        var evidence = new SectionEvidence(notes, MeterMap.Default, new Tick(40 * Bar))
+        {
+            Barlines = [new MusicXmlBarline(At(21), 20, "light-light", false)],
+        };
+
+        Assert.Single(SectionFinder.FindPieces(evidence).Items);
+        FoundSections two = SectionFinder.FindPieces(evidence, count: 2);
+        Assert.Equal([1, 21], two.Items.Select(section => section.FirstBar));
+        Assert.Equal("double bar line", two.Items[1].ReasonIn(Words.English));
+        Assert.Empty(SectionFinder.FindPieces(new SectionEvidence([], MeterMap.Default, Tick.Zero)).Items);
+    }
+
+    [Fact]
+    public void The_same_evidence_and_number_give_the_same_pieces()
+    {
+        static string Read(FoundSections found) => string.Join(" | ", found.Items.Select(section => $"{section.Span} {section.Confidence} {section.ReasonIn(Words.English)}"));
+
+        Assert.Equal(Read(SectionFinder.FindPieces(Concert(change: false), 3)), Read(SectionFinder.FindPieces(Concert(change: false), 3)));
     }
 
     /// <summary>Sixteen bars of 4/4 in C major; a double bar line before bar 9, where "Trio" begins in F major; a final bar line at the end.</summary>

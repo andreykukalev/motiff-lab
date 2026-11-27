@@ -29,8 +29,8 @@ public sealed record HandEditParameters(HandEditKind Kind, string NoteId, NoteVa
 }
 
 /// <summary>
-/// A note edited by hand in a variation (S1-E7): a step like any other in the chain, so it can be
-/// undone, redone and saved, and the Keep chips are checked again after it (S1-E9). A variation made
+/// A note edited by hand in a variation (S1-E7): a step like any other in the chain, so it is saved
+/// and run again on open, and the Keep chips are checked again after it (S1-E9). A variation made
 /// only of hand edits is a hand-made variation, a first-class result.
 /// </summary>
 /// <remarks>

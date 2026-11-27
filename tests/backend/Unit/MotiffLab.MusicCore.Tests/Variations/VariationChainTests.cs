@@ -80,39 +80,6 @@ public class VariationChainTests
     }
 
     [Fact]
-    public void Undoing_three_accepted_steps_gives_the_original_note_for_note()
-    {
-        VariationChain chain = Accepted(s_halfTime, s_later, s_doubleTime);
-
-        VariationChain undone = chain.Undo().Undo().Undo();
-
-        Assert.Equal(Motif(), undone.Current);
-        Assert.Null(undone.Result);
-        Assert.False(undone.CanUndo);
-        Assert.Equal(3, undone.Undone.Count);
-    }
-
-    [Fact]
-    public void Redo_brings_back_the_undone_steps_in_order()
-    {
-        VariationChain chain = Accepted(s_halfTime, s_later, s_doubleTime);
-
-        VariationChain redone = chain.Undo().Undo().Redo().Redo();
-
-        Assert.Equal(chain.Current, redone.Current);
-        Assert.False(redone.CanRedo);
-    }
-
-    [Fact]
-    public void Accepting_a_new_step_clears_redo()
-    {
-        VariationChain chain = Accepted(s_halfTime, s_later).Undo().Propose(RhythmReshape.Instance, s_doubleTime).Accept();
-
-        Assert.False(chain.CanRedo);
-        Assert.Equal(2, chain.Steps.Count);
-    }
-
-    [Fact]
     public void The_original_is_never_overwritten()
     {
         Note[] motif = Motif();
@@ -126,7 +93,7 @@ public class VariationChainTests
     }
 
     [Fact]
-    public void Undo_and_redo_reach_back_fifty_steps_and_the_chain_stops_there()
+    public void A_chain_holds_fifty_steps_and_stops_there()
     {
         RhythmReshapeParameters[] steps = Enumerable.Range(0, VariationChain.MaxSteps)
             .Select(i => i % 2 == 0 ? s_later : new RhythmReshapeParameters(RhythmReshapeKind.Displace, 2))
@@ -134,24 +101,10 @@ public class VariationChainTests
         VariationChain chain = Accepted(steps);
 
         Assert.Equal(VariationChain.MaxSteps, chain.Steps.Count);
+        Assert.Equal("A variation holds up to 50 steps.", chain.EditDisabledReason);
         VariationChain proposed = chain.Propose(RhythmReshape.Instance, s_later);
         Assert.NotNull(proposed.AcceptDisabledReason);
         Assert.Throws<InvalidOperationException>(proposed.Accept);
-
-        VariationChain undone = chain;
-        for (int i = 0; i < VariationChain.MaxSteps; i++)
-        {
-            undone = undone.Undo();
-        }
-
-        Assert.Equal(Motif(), undone.Current);
-        VariationChain redone = undone;
-        for (int i = 0; i < VariationChain.MaxSteps; i++)
-        {
-            redone = redone.Redo();
-        }
-
-        Assert.Equal(chain.Current, redone.Current);
     }
 
     [Fact]
@@ -180,41 +133,11 @@ public class VariationChainTests
     }
 
     [Fact]
-    public void Replay_runs_the_same_steps_over_other_notes()
-    {
-        VariationChain chain = Accepted(s_halfTime).Propose(RhythmReshape.Instance, s_later);
-        Note[] longer = [.. Motif(), Note("n5", 72, 4 * Quarter, Quarter)];
-
-        VariationChain replayed = chain.Replay(longer, new VariationContext(new TickSpan(Tick.Zero, 8 * Quarter), s_keep))!;
-
-        Assert.Single(replayed.Steps);
-        Assert.NotNull(replayed.Pending);
-        Assert.Equal(5, replayed.Result!.Notes.Count);
-        Assert.Equal(4080L, replayed.Result.Notes[^1].Span.Onset.Value);
-    }
-
-    [Fact]
-    public void Replay_gives_null_when_a_step_can_no_longer_run()
-    {
-        VariationChain chain = Accepted(s_halfTime);
-
-        Assert.Null(chain.Replay(Motif(), chain.Context with { Keep = new HashSet<KeepProperty> { KeepProperty.Rhythm } }));
-    }
-
-    [Fact]
     public void Proposing_a_step_the_keep_choices_rule_out_throws()
     {
         VariationChain chain = Start(new HashSet<KeepProperty> { KeepProperty.Rhythm });
 
         Assert.NotNull(chain.UnavailableReason(RhythmReshape.Instance, s_halfTime));
         Assert.Throws<InvalidOperationException>(() => chain.Propose(RhythmReshape.Instance, s_halfTime));
-    }
-
-    [Fact]
-    public void Undo_and_redo_with_nothing_to_take_back_throw()
-    {
-        Assert.Throws<InvalidOperationException>(() => Start().Undo());
-        Assert.Throws<InvalidOperationException>(() => Start().Redo());
-        Assert.Throws<InvalidOperationException>(() => Start().Accept());
     }
 }

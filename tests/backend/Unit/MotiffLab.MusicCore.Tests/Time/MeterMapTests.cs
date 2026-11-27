@@ -11,6 +11,13 @@ public class MeterMapTests
 
     private static MetricPosition Pos(int bar, int beat, long offset = 0) => new(bar, beat, offset);
 
+    /// <summary>The tick a position names, read back from its bar: the bar's start less its lead-in, plus the beats and the offset.</summary>
+    private static Tick Back(MeterMap map, MetricPosition position)
+    {
+        Bar bar = map.GetBar(position.Bar);
+        return bar.Span.Onset.Offset(((position.Beat - 1L) * bar.Signature.BeatTicks) + position.BeatOffset - bar.LeadIn);
+    }
+
     [Fact]
     public void Default_map_is_four_four_from_bar_one()
     {
@@ -88,9 +95,7 @@ public class MeterMapTests
         MeterMap map = new([Change(0, TimeSignature.CommonTime)], pickupDuration: 240);
 
         Assert.Equal(Pos(0, 4, 240), map.ToPosition(Tick.Zero));
-        Assert.Equal(Tick.Zero, map.ToTick(Pos(0, 4, 240)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(0, 4)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(0, 1)));
+        Assert.Equal(Tick.Zero, Back(map, Pos(0, 4, 240)));
     }
 
     [Fact]
@@ -122,7 +127,6 @@ public class MeterMapTests
 
         Assert.Equal(Pos(2, 3, 479), map.ToPosition(new Tick(3359)));
         Assert.Equal(Pos(3, 1), map.ToPosition(new Tick(3360)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(2, 4)));
     }
 
     [Fact]
@@ -132,7 +136,6 @@ public class MeterMapTests
 
         Assert.Equal(new TickSpan(Tick.Zero, 600), map.GetBar(1).Span);
         Assert.Equal(Pos(1, 2, 119), map.ToPosition(new Tick(599)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(1, 2, 120)));
         Assert.Equal(Pos(2, 1), map.ToPosition(new Tick(600)));
     }
 
@@ -178,7 +181,7 @@ public class MeterMapTests
 
         Tick position = new(tick);
 
-        Assert.Equal(position, map.ToTick(map.ToPosition(position)));
+        Assert.Equal(position, Back(map, map.ToPosition(position)));
     }
 
     [Fact]
@@ -193,7 +196,7 @@ public class MeterMapTests
             Tick position = new(tick);
             MetricPosition metric = map.ToPosition(position);
 
-            Assert.Equal(position, map.ToTick(metric));
+            Assert.Equal(position, Back(map, metric));
             Assert.True(map.BarAt(position).Span.Contains(position));
             Assert.Equal(map.BarAt(position).Number, metric.Bar);
         }
@@ -236,19 +239,7 @@ public class MeterMapTests
     public void Bar_numbers_outside_the_piece_are_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => MeterMap.Default.GetBar(0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => MeterMap.Default.ToTick(Pos(0, 1)));
         Assert.Throws<ArgumentOutOfRangeException>(() => new MeterMap([Change(0, s_threeFour)], 480).GetBar(-1));
-    }
-
-    [Fact]
-    public void Invalid_metric_positions_are_rejected()
-    {
-        MeterMap map = MeterMap.Default;
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(1, 0)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(1, 5)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(1, 1, 480)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => map.ToTick(Pos(1, 1, -1)));
     }
 
     [Fact]

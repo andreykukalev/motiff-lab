@@ -50,10 +50,10 @@ public class PiecePartsTests
     {
         Project book = Book();
         ImportedPiece piece = OpenedProject.Open(book).Piece;
-        FoundSections found = SectionFinder.Find(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
+        FoundSections found = SectionFinder.FindPieces(SectionEvidence.Of(piece, piece.Notes, PlaybackScore.FromPiece(piece).Tempos));
         FoundSection ode = found.Items[1];
 
-        PieceSplit split = PieceParts.Split(book, [new("Für Elise", PartUnit.Bars, 0, ode.FirstBar - 1), new(ode.NameIn(Words.English), PartUnit.Bars, ode.FirstBar, ode.LastBar)], Options());
+        PieceSplit split = PieceParts.Split(book, [new("Für Elise", PartUnit.Bars, 0, ode.FirstBar - 1), new(ode.PieceTitleIn(Words.English), PartUnit.Bars, ode.FirstBar, ode.LastBar)], Options());
 
         Assert.Equal(2, split.Parts.Count);
         (PiecePart elise, PiecePart joy) = (split.Parts[0], split.Parts[1]);

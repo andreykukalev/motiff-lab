@@ -94,12 +94,6 @@ public sealed class PhraseLevels
         return units.LastOrDefault(unit => unit.Span.Onset <= position) ?? units[0];
     }
 
-    /// <summary>The unit of a level whose span is exactly <paramref name="span"/>, or null.</summary>
-    public PhraseUnit? Matching(PhraseLevel level, TickSpan span) => Units(level).FirstOrDefault(unit => unit.Span == span);
-
-    /// <summary>The unit of a level that <paramref name="span"/> lies within, or null when it crosses units.</summary>
-    public PhraseUnit? Containing(PhraseLevel level, TickSpan span) => Units(level).FirstOrDefault(unit => unit.Contains(span));
-
     /// <summary>The unit of the next coarser level that holds <paramref name="unit"/>; null for a sentence.</summary>
     public PhraseUnit? Parent(PhraseUnit unit)
     {
@@ -122,16 +116,6 @@ public sealed class PhraseLevels
         Tick stop = _meter.GetBar(unit.FirstBar + Motifs.MotifSelection.MaxStructureBars - 1).Span.End;
         return TickSpan.FromBounds(unit.Span.Onset, stop < unit.Span.End ? stop : unit.Span.End);
     }
-
-    /// <summary>The level whose units <paramref name="span"/> is one of, finest first; null when it is none.</summary>
-    public PhraseLevel? LevelOf(TickSpan span) => All.Cast<PhraseLevel?>().FirstOrDefault(level => Matching(level!.Value, span) is not null);
-
-    /// <summary>
-    /// Where a selection goes when the level changes to <paramref name="to"/> (decision record 0018, section 3):
-    /// the unit that is exactly the selection, else the unit that encloses it, else, when the selection spans
-    /// several units of the finer level, the one it starts in.
-    /// </summary>
-    internal PhraseUnit Map(TickSpan span, PhraseLevel to) => Matching(to, span) ?? Containing(to, span) ?? At(to, span.Onset);
 
     /// <summary>
     /// The edits that make <paramref name="span"/> one unit at <paramref name="level"/> (Make phrase, moving a
