@@ -332,7 +332,7 @@ final class SourcesController: ObservableObject {
     }
 
     /// The original's pages as kept in the piece, and its file's name; music-core's words when it has none.
-    private func keptPdf(_ original: SourceLayers.Original) async -> Result<(data: Data, fileName: String), Refusal> {
+    func keptPdf(_ original: SourceLayers.Original) async -> Result<(data: Data, fileName: String), Refusal> {
         let kept = await call(.sourcesPdf, ["id": original.id])
         guard let object = facadeObject(kept), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(Refusal(words: facadeObject(kept)?["message"] as? String ?? text["pdf.readNone"]))
@@ -417,7 +417,7 @@ final class SourcesController: ObservableObject {
     /// original, shown fresh once, saved, and told in the toast. On a piece with no notes until now they are its working
     /// notes: the piece opens again on them in this screen's place (`reopen`), the toast on the next screen (v1.1,
     /// finding 29). Answers why not, or nil once kept.
-    private func keepRecognised(_ name: PieceCore.Call, _ read: Recognised) async -> String? {
+    func keepRecognised(_ name: PieceCore.Call, _ read: Recognised) async -> String? {
         let first = layers.working == nil
         var fields = read.fields
         var answer = await call(name, fields)
@@ -432,7 +432,7 @@ final class SourcesController: ObservableObject {
         fresh = id
         status = nil
         await save()
-        await tell(SourcesToast(text: Self.toastText(read.toast, adding: facadeObject(answer)?["carried"])), reopening: first)
+        await tell(SourcesToast(text: Self.toastText(read.toast, adding: facadeObject(answer)?["carried"], facadeObject(answer)?["marked"])), reopening: first)
         return nil
     }
 

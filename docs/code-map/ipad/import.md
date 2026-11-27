@@ -6,7 +6,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 `AddPiece`, `FolderFoundSheet`, `FolderImport`, `FolderPlan`, `FolderReview`, `FolderScan`, `ImportBanner`,
 `ImportFolders`, `ImportJob`, `PartHearing`, `PhotoCapture`, `PhotoPages`, `PhotoReading`, `PhotoReadings`, `PhotoReview`,
-`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanCrops`, `ScanJobs`, `ScanPageAgain`, `ScanParts`, `VectorPages` (`.swift`).
+`Recognition`, `RecognitionViews`, `Recording`, `RecordingPiece`, `Scan`, `ScanCrops`, `ScanJobs`, `ScanMarkedPages`, `ScanPageAgain`, `ScanParts`, `VectorPages` (`.swift`).
 
 - `ScanJobs.swift` (v1.3, the engine choice «Четыре движка», `ScanServer.allEngines`, the default since the 1.3 hotfix; decision record 0035 section 6): `ScanHealth` (`/health`'s
   seconds a page and queue, the estimate), `ScanJobPlan` (the pages the vector reader read here and those for the server,
@@ -37,6 +37,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   job), each read page put into the same notes at its place by `scan.insert` (`place(of:read:)`: after the PDF pages the
   notes have before it, kept as `RecognitionItem.read` at the first read; the file read again once the job is done), the bars to check carried to the new fingerprint (`keepReview`'s "was"); the file written
   (`RecognitionQueue.recognise(again:)`), then the job deleted; a page again unread keeps the line with «Повторить» and the reason (`RecognitionItem.reason`, «Не вставлено: …»).
+- `ScanMarkedPages.swift` (v1.6 c-14b3): the pages of a PDF's notes with marks «что не так», and only those, read again
+  for `scan.join`'s "replace": a page the vector reader reads stays on this iPad unless a bar of it is marked as read
+  badly (`split`, E-scan-19); the others go as one job (`ScanServer.readJob`, the target asked only then) with their
+  "bad" bars; a marked page no engine read fails the whole reading (E-scan-18). Run by `Workspace/ScoreMarkedReading`.
 
 - v1.5 i-7 (the v1.4 plan's answer 9): a page no engine read is marked in the notes (`Workspace/ScoreUnreadPages.swift`:
   `UnreadPage`, from `RecognitionItem.read` and `check`'s "pageStarts", drawn with the Check flags) and listed in Check

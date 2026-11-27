@@ -75,6 +75,8 @@ struct CheckShelf: Equatable, Sendable {
     /// The working notes' music by its SHA-256 (v1.3 i-2), as `scan.join` named the score: what this iPad keeps of a scan's
     /// bars to check is found by it (`ScanReviewStore`).
     var fingerprint: String?
+    /// The player's marks «что не так» on notes read from a PDF or photos (v1.6 c-14b3), in bar order; empty for others.
+    var marks: [ReadingMarkEntry] = []
 
     init() {}
 
@@ -123,13 +125,17 @@ struct CheckShelf: Equatable, Sendable {
         pageStarts = CheckPageStart.all(object["pageStarts"])
         unreadPages = (object["unreadPages"] as? [NSNumber] ?? []).map(\.intValue)
         readPages = (object["readPages"] as? [NSNumber] ?? []).map(\.intValue)
+        marks = ReadingMarkEntry.all(object["marks"])
     }
 
     var hasFlags: Bool { !flags.isEmpty }
 
-    /// Something to check: a flag, or a recording's notes of uncertain length (#352), which a recording heard without a
-    /// flag can have too; More offers Check for either (E-sheets-1).
-    var hasEntries: Bool { hasFlags || !lengths.isEmpty }
+    /// Something to check: a flag, a recording's notes of uncertain length (#352), which a recording heard without a
+    /// flag can have too, or a mark «что не так» (v1.6 c-14b3); More offers Check for any (E-sheets-1).
+    var hasEntries: Bool { hasFlags || !lengths.isEmpty || !marks.isEmpty }
+
+    /// Notes read from a PDF or photos take marks «что не так»; music-core refuses them on others (`check.mark`).
+    var takesMarks: Bool { origin == "scanned" }
 
     /// The reason of a scan's bar no two engines agree on some staff of (v1.3), as `check` writes music-core's CheckReason.
     static let enginesDisagree = "enginesDisagree"
@@ -250,13 +256,17 @@ struct NoteCorrections: Equatable, Sendable {
 /// The Check drawer (0018 section 9, the web app's `.check-sheet`): where the doubts come from, the bars still to check with
 /// their reasons, Show, Fix notes and Looks right, a recording's note lengths to check, then the bars checked, to check
 /// again. Over the right of the page in landscape and the lower half in portrait, as Insights.
-struct CheckDrawer: View {
+struct CheckDrawer<MarksReading: View>: View {
     /// The score, for the parts of Check about a scan's pages, which select on it.
     let score: ScoreController
     @ObservedObject var checkModel: CheckModel
     @ObservedObject var selectionModel: SelectionModel
     let text: UIText
     let close: () -> Void
+    /// «Что не так?» on notes read from a PDF (v1.6 c-14b3): false on notes only shown, which take no marks (E-scan-16).
+    let marking: Bool
+    /// «Распознать заново с отметками» under the marks (built by Workspace, `MarkedReadingCheck`).
+    let marksReading: MarksReading
     /// "‹ More" when opened from More: closes the drawer and opens More again (testing item 20); nil from elsewhere.
     var back: (label: String, action: () -> Void)?
     /// The piece of the layer the list keeps to, after Open (version 0.5, Check by piece), by its first bar; nil for every piece.
@@ -311,6 +321,7 @@ struct CheckDrawer: View {
                     PhotoPagesCheck(pages: check.pages, text: text) { score.selectBars($0.lowerBound, $0.upperBound, extend: false) }
                     // The PDF's pages no engine read, at their place, with «Повторить» (v1.5 i-7; built by Workspace).
                     score.unreadPagesCheck(text)
+                    ReadingMarksSection(checkModel: checkModel, marking: marking, text: text, reading: marksReading)
                     if !check.pieces.isEmpty {
                         // Check by piece (version 0.5): the pieces of the layer with their bars to check.
                         Text(text["checkPieces.title"]).overline().padding(.top, CGFloat.ds("s-2"))
@@ -386,12 +397,7 @@ struct CheckDrawer: View {
         let fixing = checkModel.corrections?.bar == bar.bar
         return VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             HStack(spacing: CGFloat.ds("s-2")) {
-                Text("?")
-                    .font(DesignTokens.font(weight: 700, size: 11))
-                    .foregroundStyle(Color.ds("notation"))
-                    .frame(width: 18, height: 18)
-                    .background(Color.ds("warning-fill"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-xs")))
-                    .accessibilityHidden(true)
+                CheckFlagSign()
                 Text(text.format("check.bar", String(bar.bar)))
                     .font(DesignTokens.font(weight: 600, size: 15))
                     .foregroundStyle(Color.ds("ink"))
@@ -410,13 +416,18 @@ struct CheckDrawer: View {
                     editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
                 )
             }
-            HStack(spacing: CGFloat.ds("s-2")) {
+            FlowRow(spacing: CGFloat.ds("s-2")) {
                 Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(bar.span == nil)
                 Button(text["check.fix"]) { checkModel.fixCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                     .disabled(bar.span == nil || !checkModel.editsOn)
+                // What the page prints there, for the next reading of notes read from a PDF (v1.6 c-14b3).
+                if marking && checkModel.check.takesMarks {
+                    WhatsWrongMenu(checkModel: checkModel, bars: bar.bar...bar.bar, text: text)
+                        .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
+                }
                 Button(text["scanCheck.looksRight"]) { checkModel.resolveCheck(bar.bar, true) }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }

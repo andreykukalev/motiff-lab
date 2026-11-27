@@ -170,5 +170,12 @@
   "recognition.unreadBefore": "Page {0} not recognised · its place is before bar {1}",
   "recognition.unreadAfter": "Page {0} not recognised · its place is after bar {1}",
   "recognition.unreadHeading": "Pages not recognised",
-  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it.",
+  "markedReading.readAgain": "Recognise again with the marks",
+  "markedReading.readAgainHint": "Reads only the marked pages again; the new notes stand beside the working ones in Sources.",
+  "markedReading.toast.one": "Read again with the marks · {0} page",
+  "markedReading.toast.many": "Read again with the marks · {0} pages",
+  "markedReading.noPdf": "The PDF these notes were read from is not kept in the piece on this iPad, so its pages cannot be read again.",
+  "markedReading.noPages": "The marked bars could not be found on the pages of these notes.",
+  "markedReading.needsJobs": "A marked page has to go to the scan server, which reads it again with all its engines: choose «Four engines» for scanning in Settings."
 }

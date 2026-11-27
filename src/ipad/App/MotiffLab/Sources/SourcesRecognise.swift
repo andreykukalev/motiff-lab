@@ -144,11 +144,14 @@ extension SourcesController {
         let words: String
     }
 
-    /// A toast's text, then music-core's line of what became of the player's work, an answer's object's "text", when it
-    /// says something: the corrections on notes recognised again («Как напечатано», step 2: "carried"), the bookmarks and
-    /// phrases on notes made working (v1.5 c-11b: "followed").
-    nonisolated static func toastText(_ done: String, adding part: Any?) -> String {
-        guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return done }
-        return "\(done) · \(line)"
+    /// A toast's text, then music-core's lines of what became of the player's work, each an answer's object's "text", when
+    /// it says something: the corrections on notes recognised again («Как напечатано», step 2: "carried") and the marks
+    /// «что не так» their reading used (step 3: "marked"), the bookmarks and phrases on notes made working (v1.5 c-11b:
+    /// "followed").
+    nonisolated static func toastText(_ done: String, adding parts: Any?...) -> String {
+        parts.reduce(done) { told, part in
+            guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return told }
+            return "\(told) · \(line)"
+        }
     }
 }
