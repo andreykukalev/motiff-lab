@@ -25,7 +25,7 @@ public class PieceLayerTests
     private static Project Fresh() => Project.Create("p_concert", "concert.mid", s_source, s_now)
         .AddBookmark(new Bookmark("b_0001", "Hard bars", BookmarkCategory.PractiseId, TickSpan.FromBounds(At(3), At(5)), FromPhrase: false, s_now));
 
-    private static Project Saved(params PieceStart[] pieces) => PieceLayer.Save(Fresh(), pieces, MeterMap.Default, s_end, Words.Russian, s_now);
+    private static Project Saved(params PieceStart[] pieces) => PieceLayer.Save(Fresh(), pieces, MeterMap.Default, s_end, Words.Russian, s_now, IdSource.Numbered);
 
     [Fact]
     public void Saving_writes_one_bookmark_a_piece_from_its_first_bar_to_the_next_in_a_category_named_in_the_players_language()
@@ -53,7 +53,7 @@ public class PieceLayerTests
         Project first = Saved(new PieceStart("A", 1), new PieceStart("B", 21), new PieceStart("C", 41));
         string[] ids = [.. PieceLayer.Read(first, MeterMap.Default).Select(piece => piece.BookmarkId)];
 
-        Project second = PieceLayer.Save(first, [new PieceStart("A", 1), new PieceStart("B and C", 25)], MeterMap.Default, s_end, Words.English, s_now.AddHours(1));
+        Project second = PieceLayer.Save(first, [new PieceStart("A", 1), new PieceStart("B and C", 25)], MeterMap.Default, s_end, Words.English, s_now.AddHours(1), IdSource.Numbered);
 
         IReadOnlyList<LayerPiece> layer = PieceLayer.Read(second, MeterMap.Default);
         Assert.Equal(ids[..2], layer.Select(piece => piece.BookmarkId));
@@ -62,7 +62,7 @@ public class PieceLayerTests
         Assert.Null(second.FindBookmark(ids[2]));
         Assert.Equal("Пьесы", second.FindCategory(BookmarkCategory.PiecesId)!.Name);
 
-        Project cleared = PieceLayer.Save(second, [], MeterMap.Default, s_end, Words.English, s_now);
+        Project cleared = PieceLayer.Save(second, [], MeterMap.Default, s_end, Words.English, s_now, IdSource.Numbered);
         Assert.Empty(PieceLayer.Read(cleared, MeterMap.Default));
         Assert.NotNull(cleared.FindBookmark("b_0001"));
     }

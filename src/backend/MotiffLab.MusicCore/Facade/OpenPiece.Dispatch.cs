@@ -14,8 +14,9 @@ internal sealed partial class OpenPiece
         [
             new("piece", static (piece, _) => Answer.Write(json => Answer.Piece(json, piece.Piece, piece.Notes, withNotes: true, piece.Words)), CallFlags.Showing | CallFlags.OpenFirst),
             new("language", static (piece, request) => piece.Language(request), CallFlags.Showing),
-            new("phrases", static (piece, request) => Answer.Write(json => Answer.Phrases(json, piece.Levels, piece.Structure.Sections, LevelOf(request) ?? piece.Level, piece.Words, piece.Piece.Meter)), CallFlags.Showing | CallFlags.OpenFirst),
+            new("phrases", static (piece, request) => Answer.Write(json => piece.PhrasesAnswer(json, LevelOf(request) ?? piece.Level)), CallFlags.Showing | CallFlags.OpenFirst),
             new("phrases.edit", static (piece, request) => piece.EditPhrases(request)),
+            new("phrases.reattach", static (piece, _) => piece.ReattachPhrases()),
             new("notation", static (piece, request) => piece.Notation(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("playback", static (piece, request) => piece.Playback(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("tempo.set", static (piece, request) => piece.SetTempo(request)),
@@ -46,8 +47,10 @@ internal sealed partial class OpenPiece
             new("project.metadata", static (piece, request) => piece.Change(project => MetadataRequest.Apply(project, request), json => Answer.Project(json, "project", piece.Project))),
             new("check", static (piece, _) => Answer.Write(piece.CheckAnswer), CallFlags.Showing | CallFlags.OpenFirst),
             new("check.resolve", static (piece, request) => piece.Change(project => PiecesRequest.Resolve(project, request), piece.CheckAnswer)),
+            new("check.mark", static (piece, request) => piece.Change(project => ReadingMarkRequest.Mark(project, piece.Piece, request), piece.CheckAnswer)),
+            new("check.unmark", static (piece, request) => piece.Change(project => ReadingMarkRequest.Unmark(project, request), piece.CheckAnswer)),
             new("pieces.find", static (piece, request) => Answer.Write(json => PiecesRequest.Find(json, piece.Project, piece.Piece, piece.Notes, piece.Words, request))),
-            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
+            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), piece.Ids, request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
             new("tempo", static (piece, _) => Answer.Write(json => TempoRequest.Write(json, piece.Project, piece.Piece, piece.Words))),
         ];
     }

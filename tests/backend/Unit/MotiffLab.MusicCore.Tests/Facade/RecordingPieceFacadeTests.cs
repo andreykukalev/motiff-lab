@@ -24,7 +24,7 @@ public class RecordingPieceFacadeTests
     private const string Request = """{"id": "p_rec", "now": "2026-11-19T23:30:00Z", "language": "en", "recording": {"durationMs": 183500}}""";
 
     /// <summary>The notes a transcription heard in the whole recording, as the app sends them.</summary>
-    private static string Heard(string original)
+    internal static string Heard(string original)
     {
         var piece = PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));
@@ -76,7 +76,7 @@ public class RecordingPieceFacadeTests
         string file = facade.Call(1, "project.save", """{"now": "2026-11-19T23:35:00Z"}""");
         JsonElement reopened = Json(new MusicCoreFacade().Open("Etude in E" + ProjectFile.Extension, Encoding.UTF8.GetBytes(file), """{"language": "en"}"""));
 
-        Assert.Equal(17, Json(file).GetProperty("version").GetInt32());
+        Assert.Equal(18, Json(file).GetProperty("version").GetInt32());
         Assert.Equal(1, reopened.GetProperty("piece").GetInt32());
         Assert.Equal(opened.GetProperty("recording").GetRawText(), reopened.GetProperty("recording").GetRawText());
         Assert.Equal("Etude in E", Json(new MusicCoreFacade().Call(0, "project.summary", JsonSerializer.Serialize(new { file }))).GetProperty("project").GetProperty("title").GetString());

@@ -46,16 +46,16 @@ public sealed record DocumentMarks
     /// <summary>The bookmark on a page, if there is one.</summary>
     internal PageBookmark? BookmarkOn(int page) => Bookmarks.FirstOrDefault(bookmark => bookmark.Page == page);
 
-    /// <summary>Bookmarks a page, named or not; a page already bookmarked keeps its bookmark.</summary>
-    public DocumentMarks AddBookmark(int page, string? name, DateTimeOffset now)
+    /// <summary>Bookmarks a page, named or not, its id from <paramref name="ids"/>; a page already bookmarked keeps its bookmark.</summary>
+    public DocumentMarks AddBookmark(int page, string? name, DateTimeOffset now, IdSource ids)
     {
         if (BookmarkOn(page) is not null)
         {
             return this;
         }
 
-        int next = Bookmarks.Select(static bookmark => int.TryParse(bookmark.Id.AsSpan(3), out int number) ? number : 0).DefaultIfEmpty(0).Max() + 1;
-        var bookmark = new PageBookmark($"pb_{next:D4}", page, name, now);
+        ArgumentNullException.ThrowIfNull(ids);
+        var bookmark = new PageBookmark(ids.Next("pb_", Bookmarks.Select(static bookmark => bookmark.Id)), page, name, now);
         return this with { Bookmarks = [.. Bookmarks.Append(bookmark).OrderBy(static item => item.Page)] };
     }
 

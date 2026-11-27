@@ -102,7 +102,7 @@ internal static class PartsRequest
 
         json.WriteNumber("notes", part.Notes.Count);
         Answer.Project(json, "project", part.Project);
-        json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(part.Project)));
+        json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(part.Project)));
         json.WriteEndObject();
     }
 

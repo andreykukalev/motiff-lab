@@ -5,8 +5,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>What the player kept about the piece's phrases (#78): the ideas.</summary>
 public sealed partial record Project
 {
-    /// <summary>"o_0004": one more than the highest observation number.</summary>
-    public string NextObservationId() => NextId("o_", Observations.Select(observation => observation.Id).Concat(UnknownIds(Unknown, "observations")));
+    /// <summary>A new idea's id from <paramref name="ids"/>, one no idea of the file has, known to this build or not.</summary>
+    public string NextObservationId(IdSource ids) => ids.Next("o_", Observations.Select(observation => observation.Id).Concat(UnknownIds(Unknown, "observations")));
 
     /// <summary>What the player kept about the piece's phrases (#78), the ideas, in the order it was kept.</summary>
     public IReadOnlyList<Observation> Observations { get; init; } = [];

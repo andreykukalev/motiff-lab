@@ -137,6 +137,6 @@ public sealed record Motif
     internal static string DefaultName(int number, int firstBar, int lastBar)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(number, 1);
-        return firstBar == lastBar ? $"Motif {number} · bar {firstBar}" : $"Motif {number} · bars {firstBar}–{lastBar}";
+        return $"Motif {number} · {Words.English.Bars(firstBar, lastBar)}";
     }
 }

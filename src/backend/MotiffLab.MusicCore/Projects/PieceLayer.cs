@@ -82,10 +82,10 @@ internal static class PieceLayer
     /// The project with the pieces layer replaced by <paramref name="pieces"/>: one bookmark each, from its first bar to the
     /// first bar of the next, the last to <paramref name="end"/>. The layer's bookmarks keep their ids in score order, so
     /// saving again on another device changes them rather than adding more; the category is added, named in the player's
-    /// language, when the project has none yet. None clears the layer.
+    /// language, when the project has none yet. None clears the layer. A new bookmark takes its id from <paramref name="ids"/>.
     /// </summary>
     /// <exception cref="ArgumentException">The pieces are not in order, a bar before the piece's first, or after its last.</exception>
-    public static Project Save(Project project, IReadOnlyList<PieceStart> pieces, MeterMap meter, Tick end, Words words, DateTimeOffset now)
+    public static Project Save(Project project, IReadOnlyList<PieceStart> pieces, MeterMap meter, Tick end, Words words, DateTimeOffset now, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -105,7 +105,7 @@ internal static class PieceLayer
             Tick onset = index == 0 && pieces[0].FirstBar == firstBar ? Tick.Zero : meter.GetBar(pieces[index].FirstBar).Span.Onset;
             Tick until = index + 1 < pieces.Count ? meter.GetBar(pieces[index + 1].FirstBar).Span.Onset : end;
             Bookmark? reused = index < kept.Length ? kept[index] : null;
-            saved = saved.AddBookmark(new Bookmark(reused?.Id ?? saved.NextBookmarkId(), TitleOf(pieces[index], index + 1, words), BookmarkCategory.PiecesId, TickSpan.FromBounds(onset, until), FromPhrase: false, reused?.CreatedAt ?? now));
+            saved = saved.AddBookmark(new Bookmark(reused?.Id ?? saved.NextBookmarkId(ids), TitleOf(pieces[index], index + 1, words), BookmarkCategory.PiecesId, TickSpan.FromBounds(onset, until), FromPhrase: false, reused?.CreatedAt ?? now));
         }
 
         return saved;

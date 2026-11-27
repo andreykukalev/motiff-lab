@@ -38,6 +38,11 @@ internal static partial class ScanRequest
             byte[] musicXml = Read(fields.Element("reading") ?? throw FacadeException.BadRequest("Send \"reading\", the page read again."), page, merged);
             PageReport? report = ReportsIn(fields) is { Count: > 0 } reports ? reports[0] : null;
             inserted = ScanPageInsert.Into(project, page, musicXml, report, fields.Int("pages") ?? project.DocumentPages?.Pages ?? 1);
+            // Version 18: with "pdfPage", the PDF's page put in, the notes no longer keep it as unread.
+            if (fields.Int("pdfPage") is { } pdfPage && inserted.Project is { Scan: { } scan } put)
+            {
+                inserted = inserted with { Project = put with { Scan = scan.WithPageRead(pdfPage) } };
+            }
         }
         catch (ArgumentException exception)
         {
@@ -68,7 +73,7 @@ internal static partial class ScanRequest
         PageMap map = PageMap.Of(piece, ScanJoin.Split(with.Source).Count);
         return Answer.Write(json =>
         {
-            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(with)));
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(with)));
             json.WriteString("was", PieceOriginal.Fingerprint(project.Source));
             json.WriteString("fingerprint", PieceOriginal.Fingerprint(with.Source));
             json.WriteNumber("firstBar", inserted.FirstBar);

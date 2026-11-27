@@ -81,6 +81,11 @@ internal sealed partial class OpenPiece
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
         ScanRequest.PageStarts(json, Project, Piece);
+        // Version 18: the PDF's pages no engine read and those the notes have, kept with the notes (empty when none).
+        JsonWrite.Numbers(json, "unreadPages", Project.Scan?.Unread ?? []);
+        JsonWrite.Numbers(json, "readPages", Project.Scan?.ReadPages ?? []);
+        // Version 18: the player's marks «что не так» on a scan's notes (c-14b).
+        ReadingMarkRequest.Write(json, Project, Words);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
         // beside a scan's Check bars on the device is found by it.
         json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));
@@ -95,7 +100,8 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// Saves where the player is: a new resume point, or the one "id" names brought up to date. Fields not sent
     /// keep the point's values; a new point starts at the selection, as written, with both hands. "passage": null
-    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place.
+    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place. Open in phrase
+    /// focus on a phrase, the point is attached to its anchor (#318), so a boundary the player moves carries it.
     /// </summary>
     private string SaveResumePoint(Request request)
     {
@@ -113,7 +119,7 @@ internal sealed partial class OpenPiece
         ResumePoint point;
         try
         {
-            point = id is null ? ResumePoint.Start(Project.NextResumePointId(), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
+            point = id is null ? ResumePoint.Start(Project.NextResumePointId(Ids), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
             if (request.Has("name"))
             {
                 point = point.Rename(request.Text("name"));
@@ -135,6 +141,7 @@ internal sealed partial class OpenPiece
                 hands,
                 request.Bool("loop") ?? point.Loop,
                 now);
+            (Project, point) = Project.Attached(point, Phrases);
             Project = id is null ? Project.AddResumePoint(point) : Project.ChangeResumePoint(id, _ => point);
         }
         catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
@@ -152,7 +159,8 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// Keeps the variation heard now, with the fact that offered it ("factId"), as an idea about the selection (0018,
-    /// section 7); with "note" and no variation, keeps the note alone. The name defaults to the steps' operations.
+    /// section 7), attached to the anchor of its phrase (#318); with "note" and no variation, keeps the note alone. The name
+    /// defaults to the steps' operations.
     /// </summary>
     private string KeepIdea(Request request)
     {
@@ -167,14 +175,20 @@ internal sealed partial class OpenPiece
         string name = request.Text("name")
             ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : MarksSession.BarsTitle(State, selection.Span));
         string? factId = request.Text("factId");
-        return Ideas(project => project.Keep(Observation.Create(
-            project.NextObservationId(),
-            SavedPassage.Of(selection),
-            chain is null ? null : KeptVariation.Create(chain, selection.Filter),
-            name,
-            note,
-            request.Now()) with
-        { FactId = factId }));
+        return Ideas(project =>
+        {
+            (Project attached, Observation idea) = project.Attached(
+                Observation.Create(
+                    project.NextObservationId(Ids),
+                    SavedPassage.Of(selection),
+                    chain is null ? null : KeptVariation.Create(chain, selection.Filter),
+                    name,
+                    note,
+                    request.Now()) with
+                { FactId = factId },
+                Phrases);
+            return attached.Keep(idea);
+        });
     }
 
     /// <summary>Brings an idea back: its phrase as the selection and its variation, when it keeps one, as the chain.</summary>

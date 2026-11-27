@@ -1207,7 +1207,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -1294,7 +1296,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -1341,7 +1344,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -1380,7 +1384,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -1451,7 +1456,8 @@
         "bar": 22,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -1490,7 +1496,8 @@
         "bar": 23,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -1537,7 +1544,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -1576,7 +1584,8 @@
         "bar": 31,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -1647,7 +1656,8 @@
         "bar": 44,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -1686,7 +1696,8 @@
         "bar": 45,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -1733,7 +1744,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -1772,7 +1784,8 @@
         "bar": 53,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -1843,7 +1856,8 @@
         "bar": 66,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -1882,7 +1896,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -1929,7 +1944,8 @@
         "bar": 72,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -1968,7 +1984,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -2039,7 +2056,8 @@
         "bar": 88,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -2078,7 +2096,8 @@
         "bar": 89,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -2125,7 +2144,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -2333,7 +2353,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -2605,7 +2627,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -8455,7 +8479,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -8542,7 +8568,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -8589,7 +8616,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -8628,7 +8656,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -8699,7 +8728,8 @@
         "bar": 22,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -8738,7 +8768,8 @@
         "bar": 23,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -8785,7 +8816,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -8824,7 +8856,8 @@
         "bar": 31,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -8895,7 +8928,8 @@
         "bar": 44,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -8934,7 +8968,8 @@
         "bar": 45,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -8981,7 +9016,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -9020,7 +9056,8 @@
         "bar": 53,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -9091,7 +9128,8 @@
         "bar": 66,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -9130,7 +9168,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -9177,7 +9216,8 @@
         "bar": 72,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -9216,7 +9256,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -9287,7 +9328,8 @@
         "bar": 88,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -9326,7 +9368,8 @@
         "bar": 89,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -9373,7 +9416,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -9581,7 +9625,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -9853,7 +9899,9 @@
       "bar": 89,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {

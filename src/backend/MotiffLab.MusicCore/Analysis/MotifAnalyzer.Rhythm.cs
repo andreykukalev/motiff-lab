@@ -113,7 +113,7 @@ internal static partial class MotifAnalyzer
             ? w.T(
                 "No syncopation: no onset off the beat is held into the next beat, and no note is held across the bar line from a weak beat.",
                 "Синкоп нет: ни одна атака не на долю не тянется в следующую долю, и ни одна нота со слабой доли не тянется через тактовую черту.")
-            : $"{w.Count(found.Count, "syncopation", "syncopations", "синкопа", "синкопы", "синкоп")}: {Listed([.. found.Select(place => place.Label)], w)}.";
+            : $"{w.Count(found.Count, "syncopation", "syncopations", "синкопа", "синкопы", "синкоп")}: {w.Listed([.. found.Select(place => place.Label)], MaxListed, "; ", "; ")}.";
         MotifFact fact = offGrid
             ? new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Uncertain, text, SyncopationBasis(w) + PerformanceBasis(w))
             : new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Detected, text, SyncopationBasis(w));
@@ -181,8 +181,8 @@ internal static partial class MotifAnalyzer
         string text = accented.Count == 0
             ? w.T("No accents are marked on the motif's notes.", "На нотах мотива акценты не отмечены.")
             : w.IsRussian
-                ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}: " + Listed([.. places.Select(place => place.Label)], w) + "."
-                : $"Accents marked on {accented.Count} of {Count(notes.Length, "note", "notes")}: " + Listed([.. places.Select(place => place.Label)], w) + ".";
+                ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}: " + w.Listed([.. places.Select(place => place.Label)], MaxListed, "; ", "; ") + "."
+                : $"Accents marked on {accented.Count} of {Words.EnglishCount(notes.Length, "note", "notes")}: " + w.Listed([.. places.Select(place => place.Label)], MaxListed, "; ", "; ") + ".";
         return new MotifFact("rhythm.accents", FactLens.Rhythm, FactCertainty.Detected, text, w.T(
             "Read from the accent marks written in the file (> accent, ^ strong accent); loudness in the notes is not counted.",
             "Прочитано по знакам акцента в файле (> акцент, ^ сильный акцент); громкость нот не учитывается."))
@@ -192,7 +192,7 @@ internal static partial class MotifAnalyzer
                 ? null
                 : w.IsRussian
                     ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}."
-                    : $"Accents marked on {accented.Count} of {Count(notes.Length, "note", "notes")}.",
+                    : $"Accents marked on {accented.Count} of {Words.EnglishCount(notes.Length, "note", "notes")}.",
         };
     }
 
@@ -300,10 +300,4 @@ internal static partial class MotifAnalyzer
     private static string Place(MetricPosition position, Words w) => w.IsRussian
         ? position.BeatOffset == 0 ? $"такт {position.Bar} доля {position.Beat}" : $"такт {position.Bar} после доли {position.Beat}"
         : position.BeatOffset == 0 ? $"bar {position.Bar} beat {position.Beat}" : $"bar {position.Bar} after beat {position.Beat}";
-
-    /// <summary>Items joined with semicolons, the list cut after <see cref="MaxListed"/>.</summary>
-    private static string Listed(IReadOnlyList<string> items, Words w) =>
-        items.Count <= MaxListed
-            ? string.Join("; ", items)
-            : w.T($"{string.Join("; ", items.Take(MaxListed))}; and {items.Count - MaxListed} more", $"{string.Join("; ", items.Take(MaxListed))}; и ещё {items.Count - MaxListed}");
 }

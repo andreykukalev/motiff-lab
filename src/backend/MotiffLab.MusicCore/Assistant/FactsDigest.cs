@@ -175,10 +175,6 @@ public sealed partial class FactsDigest
     private static string Meters(MeterMap meter, int from, int to) =>
         string.Join(", ", Enumerable.Range(from, to - from + 1).Select(bar => meter.GetBar(bar).Signature.ToString()).Distinct(StringComparer.Ordinal));
 
-    private static string Bars(int from, int to, Words w) => from == to
-        ? w.T($"bar {from}", $"такт {from}")
-        : w.T($"bars {from}–{to}", $"такты {from}–{to}");
-
     /// <summary>The id, or the id with "~2", "~3"… when the digest already lists it, so every id is listed once.</summary>
     private static string Unique(string id, HashSet<string> ids)
     {

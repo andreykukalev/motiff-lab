@@ -9,11 +9,12 @@ namespace MotiffLab.NativeCore;
 /// The C functions of the native music-core (include/motifflab_core.h): the facade of decision record 0020 and nothing
 /// else. Every function takes bytes and returns a UTF-8 JSON string the caller frees with ml_free; no exception crosses
 /// the boundary, so a failure comes back as {"error": …, "message": …}. The iPad app calls them from one thread at a
-/// time (0019), as the facade's open pieces are not shared between threads.
+/// time (0019), as the facade's open pieces are not shared between threads. Every new id is random (0026 S3, #317), so two
+/// devices working offline never make the same one.
 /// </summary>
 public static unsafe class Exports
 {
-    private static readonly MusicCoreFacade s_facade = new();
+    private static readonly MusicCoreFacade s_facade = new(MotiffLab.MusicCore.Projects.IdSource.Random);
 
     [UnmanagedCallersOnly(EntryPoint = "ml_version")]
     public static byte* Version() => Guard(MusicCoreFacade.Version);

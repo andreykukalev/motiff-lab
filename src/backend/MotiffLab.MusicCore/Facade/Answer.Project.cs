@@ -17,10 +17,22 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal static partial class Answer
 {
+    /// <summary>The ids of a list's entities kept unknown for a variation operation this build does not have; left out when none.</summary>
+    private static void NewerIds(Utf8JsonWriter json, string name, Project project, string list)
+    {
+        string[] ids = [.. project.Unknown.Where(entity => entity.List == list && entity.Enum == UnknownEntity.NewerOperation && entity.Id is not null).Select(static entity => entity.Id!)];
+        if (ids.Length > 0)
+        {
+            JsonWrite.Texts(json, name, ids);
+        }
+    }
+
     public static void Project(Utf8JsonWriter json, string name, Project project)
     {
         json.WriteStartObject(name);
         json.WriteString("id", project.Id);
+        // Version 18 (#317): the ids the piece was known by before it was re-keyed; left out when none.
+        JsonWrite.TextsIfAny(json, "formerIds", project.FormerIds);
         json.WriteString("fileName", project.FileName);
         json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
         json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
@@ -44,6 +56,15 @@ internal static partial class Answer
         // Within contract 12 (version 0.4): where a piece made with «Пьесы в файле» is in its collection.
         PartOf(json, project.PartOf);
         PieceKeys(json, project);
+        // Version 18 (0026 S6): a project a later version wrote opens read-only and is never saved here; a variation or an
+        // idea of an operation this build does not have is kept as it was and named here, made by a later build (#314).
+        if (project.IsReadOnly)
+        {
+            json.WriteBoolean("readOnly", true);
+        }
+
+        NewerIds(json, "newerVariations", project, "variations");
+        NewerIds(json, "newerIdeas", project, "observations");
         // Within contract 4 (2026-11-05): notes read from a PDF piece name it, and where each of its pages starts in the
         // notes, in ticks, for PDF | Notes.
         if (project.ReadFrom is { } readFrom)
@@ -186,6 +207,7 @@ internal static partial class Answer
             json.WriteNull("passage");
         }
 
+        json.WriteString("anchor", point.Anchor);
         json.WriteBoolean("focused", point.Focused);
         JsonWrite.Texts(json, "overlays", point.Overlays.Select(JsonWrite.Name));
         json.WriteNumber("tempoPercent", point.TempoPercent);
@@ -209,6 +231,7 @@ internal static partial class Answer
             Place(json, idea.Phrase.Span, meter);
             Filter(json, "filter", idea.Phrase.Filter);
             json.WriteEndObject();
+            json.WriteString("anchor", idea.Anchor);
             if (idea is { ExperimentId: { } experiment, Alternative: { } alternative })
             {
                 json.WriteStartObject("experiment");

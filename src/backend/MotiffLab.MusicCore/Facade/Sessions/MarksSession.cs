@@ -46,7 +46,7 @@ internal static class MarksSession
 
     /// <summary>The project with a margin note of <paramref name="text"/> over <paramref name="span"/>, written <paramref name="now"/>; refused when the text is blank.</summary>
     public static Project WithNote(SessionPiece piece, TickSpan span, string text, DateTimeOffset now) =>
-        Marked(piece, marks => marks.AddNote(new MarginNote(marks.NextNoteId(), span, text, now)));
+        Marked(piece, marks => marks.AddNote(new MarginNote(marks.NextNoteId(piece.Ids), span, text, now)));
 
     /// <summary>The project with the margin note <paramref name="id"/> saying <paramref name="text"/>; refused when there is no such note or the text is blank.</summary>
     public static Project WithNoteChanged(SessionPiece piece, string id, string text) => Marked(piece, marks => marks.ChangeNote(id, text));
@@ -56,7 +56,7 @@ internal static class MarksSession
 
     /// <summary>The project with the <paramref name="notes"/> over <paramref name="span"/> highlighted in <paramref name="colour"/>, amber (what the player marked) unless given.</summary>
     public static Project WithHighlight(SessionPiece piece, TickSpan span, IReadOnlyList<string> notes, InkColour? colour) =>
-        Marked(piece, marks => marks.AddHighlight(new Highlight(marks.NextHighlightId(), span, notes, colour ?? InkColour.Amber)));
+        Marked(piece, marks => marks.AddHighlight(new Highlight(marks.NextHighlightId(piece.Ids), span, notes, colour ?? InkColour.Amber)));
 
     /// <summary>The project without the highlight <paramref name="id"/>; refused when there is none.</summary>
     public static Project WithoutHighlight(SessionPiece piece, string id) => Marked(piece, marks => marks.RemoveHighlight(id));
@@ -73,7 +73,7 @@ internal static class MarksSession
     /// Practise; from a phrase when the player named one (<paramref name="phraseNamed"/>) or a phrase spans the same bars.
     /// </summary>
     public static Project WithBookmark(SessionPiece piece, TickSpan span, bool phraseNamed, string? title, string? category, DateTimeOffset now) =>
-        Changed(() => piece.Project.AddBookmark(new Bookmark(piece.Project.NextBookmarkId(), title ?? BarsTitle(piece, span), category ?? BookmarkCategory.PractiseId, span, FromPhrase(piece, span, phraseNamed), now)));
+        Changed(() => piece.Project.AddBookmark(new Bookmark(piece.Project.NextBookmarkId(piece.Ids), title ?? BarsTitle(piece, span), category ?? BookmarkCategory.PractiseId, span, FromPhrase(piece, span, phraseNamed), now)));
 
     /// <summary>
     /// The project with the bookmark <paramref name="id"/> retitled, put in another category or moved to another
@@ -102,11 +102,11 @@ internal static class MarksSession
 
     /// <summary>The project with a Structure bookmark for every section of the form not bookmarked there yet, made <paramref name="now"/>.</summary>
     public static Project WithFormBookmarks(SessionPiece piece, DateTimeOffset now) =>
-        Changed(() => piece.Project.AddFormBookmarks(piece.Structure.Sections, piece.Words, now));
+        Changed(() => piece.Project.AddFormBookmarks(piece.Structure.Sections, piece.Words, now, piece.Ids));
 
     /// <summary>The project with a category of the player's own called <paramref name="name"/>, in <paramref name="ink"/> (graphite unless given).</summary>
     public static Project WithCategory(SessionPiece piece, string name, InkColour? ink) =>
-        Changed(() => piece.Project.AddCategory(new BookmarkCategory(piece.Project.NextCategoryId(), name, ink ?? InkColour.Graphite)));
+        Changed(() => piece.Project.AddCategory(new BookmarkCategory(piece.Project.NextCategoryId(piece.Ids), name, ink ?? InkColour.Graphite)));
 
     /// <summary>The project with the category <paramref name="id"/> renamed; blank gives a built-in one its own name back.</summary>
     public static Project WithCategoryRenamed(SessionPiece piece, string id, string? name) => Changed(() => piece.Project.RenameCategory(id, name));

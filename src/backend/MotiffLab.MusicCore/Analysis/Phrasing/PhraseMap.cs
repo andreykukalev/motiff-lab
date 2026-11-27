@@ -90,6 +90,9 @@ public sealed class PhraseMap
     public Phrase At(Tick position) =>
         Phrases.LastOrDefault(phrase => phrase.Span.Onset <= position) ?? Phrases[0];
 
+    /// <summary>The phrase whose span is exactly <paramref name="span"/>, or null: the one rule a phrase anchor is matched by (#318).</summary>
+    internal Phrase? WithSpan(TickSpan span) => Phrases.FirstOrDefault(phrase => phrase.Span == span);
+
     /// <summary>The phrase a selection of <paramref name="span"/> stands for: one whose span, or whose first bars a selection can hold, is exactly that span; or null.</summary>
     public Phrase? Matching(TickSpan span) => Phrases.FirstOrDefault(phrase => phrase.Span == span || Selectable(phrase) == span);
 
@@ -101,6 +104,34 @@ public sealed class PhraseMap
         .ThenBy(entry => entry.Phrase.Number)
         .Select(entry => entry.Phrase)
         .FirstOrDefault() ?? At(span.Onset);
+
+    /// <summary>
+    /// The phrase <paramref name="span"/> belongs to among <paramref name="phrases"/> (0018, section 3; V16): the one it
+    /// starts in; failing that, the one it overlaps most, the earliest of equals; null when it overlaps none. An idea's home
+    /// (<c>Observation.Home</c>) and the phrase an anchor that no longer matches is attached to again.
+    /// </summary>
+    internal static TickSpan? HomeOf(TickSpan span, IEnumerable<TickSpan> phrases)
+    {
+        ArgumentNullException.ThrowIfNull(phrases);
+        TickSpan? best = null;
+        long bestOverlap = 0;
+        foreach (TickSpan phrase in phrases)
+        {
+            if (phrase.Contains(span.Onset))
+            {
+                return phrase;
+            }
+
+            long overlap = Math.Min(phrase.End.Value, span.End.Value) - Math.Max(phrase.Onset.Value, span.Onset.Value);
+            if (overlap > bestOverlap)
+            {
+                best = phrase;
+                bestOverlap = overlap;
+            }
+        }
+
+        return best;
+    }
 
     /// <summary>
     /// The edits that make <paramref name="span"/> one phrase: boundaries at its start and end

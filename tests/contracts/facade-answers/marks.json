@@ -416,6 +416,7 @@
      "at": 0,
      "bar": 0,
      "passage": null,
+     "anchor": null,
      "focused": false,
      "overlays": [],
      "tempoPercent": 100,
@@ -431,6 +432,7 @@
       "at": 0,
       "bar": 0,
       "passage": null,
+      "anchor": null,
       "focused": false,
       "overlays": [],
       "tempoPercent": 100,
@@ -484,6 +486,7 @@
        "hand": "left"
       }
      },
+     "anchor": null,
      "focused": true,
      "overlays": [
       "pianoRoll",
@@ -514,6 +517,7 @@
         "hand": "left"
        }
       },
+      "anchor": null,
       "focused": true,
       "overlays": [
        "pianoRoll",
@@ -551,6 +555,7 @@
         "hand": "left"
        }
       },
+      "anchor": null,
       "focused": true,
       "overlays": [
        "pianoRoll",
@@ -3051,6 +3056,7 @@
        },
        "filter": {}
       },
+      "anchor": "ph_0ae79b0f91d37a91f2a1cafe6635740d",
       "experiment": null,
       "factId": null,
       "hasVariation": true,
@@ -3082,6 +3088,7 @@
        },
        "filter": {}
       },
+      "anchor": "ph_0ae79b0f91d37a91f2a1cafe6635740d",
       "experiment": null,
       "factId": null,
       "hasVariation": true,
@@ -3104,6 +3111,9 @@
     "origin": "imported",
     "engine": null,
     "pageStarts": [],
+    "unreadPages": [],
+    "readPages": [],
+    "marks": [],
     "fingerprint": "f7d871c5bfe65977a28d8c493b4854f907ca7d5c14635219fda1cd8168752ae5"
    }
   },
@@ -3252,23 +3262,6 @@
        "clean": "off"
       },
       "scope": "account"
-     },
-     {
-      "id": "phrases.granularity",
-      "section": "score",
-      "kind": "choice",
-      "choices": [
-       "short",
-       "phrases",
-       "sentences"
-      ],
-      "default": "phrases",
-      "presets": {
-       "learning": "short",
-       "practising": "phrases",
-       "clean": "phrases"
-      },
-      "scope": "piece"
      },
      {
       "id": "score.layout",

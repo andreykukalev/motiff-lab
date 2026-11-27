@@ -30,7 +30,7 @@ public class FollowedWorkTests
             .AddNotes(new OtherNotes("n_2", "b.musicxml", ReadingXml(other), new NotesProvenance(NotesProvenance.Import)));
 
     private static Project Bookmarked(Project project, params TickSpan[] spans) => spans.Aggregate(project, static (marked, span) =>
-        marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), "Mine", BookmarkCategory.PractiseId, span, FromPhrase: false, s_now)));
+        marked.AddBookmark(new Bookmark(marked.NextBookmarkId(IdSource.Numbered), "Mine", BookmarkCategory.PractiseId, span, FromPhrase: false, s_now)));
 
     [Fact]
     public void Bookmarks_phrase_boundaries_resume_points_and_ideas_move_with_their_bars_and_back()
@@ -59,6 +59,44 @@ public class FollowedWorkTests
         Assert.Equal(project.Bookmarks, back.Bookmarks);
         Assert.Equal((project.Phrases, project.ShortPhrases), (back.Phrases, back.ShortPhrases));
         Assert.Equal(project.ResumePoints, back.ResumePoints);
+    }
+
+    [Fact]
+    public void A_phrase_anchor_moves_with_its_bars_and_keeps_its_id_when_nothing_else_would_follow()
+    {
+        PhraseAnchor anchor = PhraseAnchor.Mint(Bars(2, 2), []);
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5") with
+        {
+            MintedAnchors = [anchor],
+            ResumePoints = [ResumePoint.Start("r_0001", s_now) with { Anchor = anchor.Id }],
+        };
+
+        Project swapped = project.MakeWorking("n_2", out FollowedWork? followed);
+
+        Assert.NotNull(followed);
+        Assert.Equal([anchor with { Span = Bars(3, 3) }], swapped.Anchors);
+        Assert.Equal([anchor], swapped.MakeWorking("n_1", out _).Anchors);
+    }
+
+    [Fact]
+    public void Two_phrase_anchors_placed_on_one_span_become_one_the_smaller_id_with_what_was_on_both()
+    {
+        PhraseAnchor second = PhraseAnchor.Mint(Bars(2, 2), []), third = PhraseAnchor.Mint(Bars(3, 3), []);
+        string smaller = string.CompareOrdinal(second.Id, third.Id) < 0 ? second.Id : third.Id;
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5 | F5 G5 A5 B5", "E4 F4 G4 A4 | F5 G5 A5 B5") with
+        {
+            MintedAnchors = [second, third],
+            Observations =
+            [
+                Observation.Create("o_0001", new SavedPassage(Bars(2, 2), SelectionFilter.All), null, "Idea", "Here", s_now) with { Anchor = second.Id },
+                Observation.Create("o_0002", new SavedPassage(Bars(3, 3), SelectionFilter.All), null, "Idea", "There", s_now) with { Anchor = third.Id },
+            ],
+        };
+
+        Project swapped = project.MakeWorking("n_2", out _);
+
+        Assert.Equal([new PhraseAnchor(smaller, Bars(2, 2))], swapped.Anchors);
+        Assert.All(swapped.Observations, observation => Assert.Equal(smaller, observation.Anchor));
     }
 
     [Fact]
@@ -95,7 +133,7 @@ public class FollowedWorkTests
     {
         Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5");
         project = new[] { ("bar 2", Bars(2, 2)), ("такты 1–2", Bars(1, 2)), ("bar 2 tricky", Bars(2, 2)), ("Section A, bars 1–2", Bars(1, 2)), ("Раздел A, такты 1–2", Bars(1, 2)) }.Aggregate(project, static (marked, each) =>
-            marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
+            marked.AddBookmark(new Bookmark(marked.NextBookmarkId(IdSource.Numbered), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
 
         Project swapped = project.MakeWorking("n_2", out _);
 

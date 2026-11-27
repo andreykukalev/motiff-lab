@@ -425,8 +425,8 @@ internal static class VariationFacts
             return semitones == 0
                 ? w.T($"The motif repeats {repeats} at the same pitch, keeping its rhythm.", $"Мотив повторяется {repeats} на той же высоте, сохраняя ритм.")
                 : w.IsRussian
-                    ? Repeats(repeats, $"на {MotifAnalyzer.IntervalBy(semitones, w)} {(semitones > 0 ? "выше" : "ниже")}", w)
-                    : Repeats(repeats, $"{(Math.Abs(semitones) >= 12 ? "an" : "a")} {MotifAnalyzer.IntervalName(semitones)} {(semitones > 0 ? "higher" : "lower")}", w);
+                    ? Repeats(repeats, $"на {w.IntervalBy(semitones)} {(semitones > 0 ? "выше" : "ниже")}", w)
+                    : Repeats(repeats, $"{w.IntervalBy(semitones)} {(semitones > 0 ? "higher" : "lower")}", w);
         }
 
         if (key is not { } scale)

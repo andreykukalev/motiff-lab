@@ -74,7 +74,7 @@ public sealed partial record Project
         {
             Transcription = origin,
             Check = [],
-            ResumePoints = [.. ResumePoints.Select(point => point with { At = Tick.Zero, Passage = null, Focused = false, Loop = false })],
+            ResumePoints = [.. ResumePoints.Select(point => point with { At = Tick.Zero, Passage = null, Focused = false, Loop = false, Anchor = null })],
         };
         ImportedPiece piece = OpenedProject.Open(changed).Piece;
         return changed with { Check = CheckFlag.FromTranscription(origin, Source, piece) };

@@ -40,7 +40,7 @@ public class PdfMarksOnlineTests
     [Fact]
     public void The_online_copy_carries_the_page_marks_and_never_the_pdf()
     {
-        Project ipad = OnIpad() with { DocumentMarks = DocumentMarks.Empty.WithInk([Stroke("k1", 1)]).AddBookmark(1, "Coda", s_now) };
+        Project ipad = OnIpad() with { DocumentMarks = DocumentMarks.Empty.WithInk([Stroke("k1", 1)]).AddBookmark(1, "Coda", s_now, IdSource.Numbered) };
         Project online = RoundTrip(ipad.ForOnline()!);
 
         Assert.Null(online.Document);

@@ -52,16 +52,6 @@ internal static partial class MotifAnalyzer
     /// <summary>A key inferred from the notes is uncertain when the next key scores within this margin.</summary>
     public const double ClearKeyMargin = 0.05;
 
-    private static readonly string[] s_intervalNames =
-        ["unison", "minor 2nd", "major 2nd", "minor 3rd", "major 3rd", "perfect 4th", "tritone", "perfect 5th", "minor 6th", "major 6th", "minor 7th", "major 7th"];
-
-    // The same intervals in Russian, as named (nominative) and after "на" (accusative): "на малую терцию выше".
-    private static readonly string[] s_russianIntervalNames =
-        ["чистая прима", "малая секунда", "большая секунда", "малая терция", "большая терция", "чистая кварта", "тритон", "чистая квинта", "малая секста", "большая секста", "малая септима", "большая септима"];
-
-    private static readonly string[] s_russianIntervalAccusative =
-        ["чистую приму", "малую секунду", "большую секунду", "малую терцию", "большую терцию", "чистую кварту", "тритон", "чистую квинту", "малую сексту", "большую сексту", "малую септиму", "большую септиму"];
-
     private static readonly string[] s_majorDegrees = ["1", "♯1", "2", "♯2", "3", "4", "♯4", "5", "♯5", "6", "♭7", "7"];
 
     private static readonly string[] s_minorDegrees = ["1", "♭2", "2", "3", "♯3", "4", "♯4", "5", "6", "♯6", "7", "♯7"];
@@ -167,13 +157,13 @@ internal static partial class MotifAnalyzer
                 lineCertainty,
                 w.IsRussian
                     ? $"{w.Count(line.Length, "", "", "нота", "ноты", "нот")} в {lineName}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}."
-                    : $"{Count(line.Length, "note", "notes")} in the {lineName}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}.",
+                    : $"{Words.EnglishCount(line.Length, "note", "notes")} in the {lineName}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}.",
                 w.IsRussian ? $"{lineBasis} Ноты названы для тональности {keyName}." : $"{lineBasis} Spelled for {keyName}.")
             {
                 Places = [FactPlace.Of(topNotes ? w.T("the top line", "верхний голос") : w.T("the melody", "мелодия"), line)],
                 Brief = w.IsRussian
                     ? $"{w.Count(line.Length, "", "", "нота", "ноты", "нот")} в {lineName}."
-                    : $"{Count(line.Length, "note", "notes")} in the {lineName}.",
+                    : $"{Words.EnglishCount(line.Length, "note", "notes")} in the {lineName}.",
             },
         };
 
@@ -242,58 +232,6 @@ internal static partial class MotifAnalyzer
         return new MotifAnalysis(line, topNotes, intervals, contour, key, WithHand(facts, selection, w));
     }
 
-    /// <summary>"minor 3rd", "octave", "octave and a major 2nd", "2 octaves".</summary>
-    public static string IntervalName(int semitones) => IntervalName(semitones, Words.English);
-
-    /// <summary>
-    /// The interval's name in a language: "minor 3rd", "octave and a major 2nd"; "малая терция",
-    /// "октава и большая секунда", "2 октавы".
-    /// </summary>
-    public static string IntervalName(int semitones, Words words)
-    {
-        int size = Math.Abs(semitones);
-        int octaves = size / 12;
-        int rest = size % 12;
-        if (words.IsRussian)
-        {
-            return RussianInterval(octaves, rest, s_russianIntervalNames, "октава");
-        }
-
-        if (octaves == 0)
-        {
-            return s_intervalNames[rest];
-        }
-
-        string octaveText = octaves == 1 ? "octave" : $"{octaves} octaves";
-        return rest == 0 ? octaveText : $"{octaveText} and {WithArticle(s_intervalNames[rest])}";
-    }
-
-    /// <summary>
-    /// The interval as English says it inside a sentence, with its article ("a minor 3rd"), or as
-    /// Russian says it after "на" ("на малую терцию выше"), without the "на".
-    /// </summary>
-    public static string IntervalBy(int semitones, Words words)
-    {
-        if (!words.IsRussian)
-        {
-            return WithArticle(IntervalName(semitones));
-        }
-
-        int size = Math.Abs(semitones);
-        return RussianInterval(size / 12, size % 12, s_russianIntervalAccusative, "октаву");
-    }
-
-    private static string RussianInterval(int octaves, int rest, string[] names, string octave)
-    {
-        if (octaves == 0)
-        {
-            return names[rest];
-        }
-
-        string octaveText = octaves == 1 ? octave : $"{octaves} {Words.RussianForm(octaves, "октава", "октавы", "октав")}";
-        return rest == 0 ? octaveText : $"{octaveText} и {names[rest]}";
-    }
-
     /// <summary>The scale degree of a pitch in a key: "5", or "♯7" for a note outside the scale.</summary>
     public static string Degree(Pitch pitch, MusicalKey key)
     {
@@ -354,20 +292,20 @@ internal static partial class MotifAnalyzer
         string thin = noteCount < MinNotesForKey || pitchClasses < MinPitchClassesForKey
             ? w.IsRussian
                 ? $" При {w.Count(noteCount, "", "", "ноте", "нотах", "нотах")} и {w.Count(pitchClasses, "", "", "звуковысотном классе", "звуковысотных классах", "звуковысотных классах")} это слабая догадка."
-                : $" With {Count(noteCount, "note", "notes")} and {Count(pitchClasses, "pitch class", "pitch classes")}, that is a weak guess."
+                : $" With {Words.EnglishCount(noteCount, "note", "notes")} and {Words.EnglishCount(pitchClasses, "pitch class", "pitch classes")}, that is a weak guess."
             : key.Certainty == FactCertainty.Uncertain ? w.T($" {runnerUp} fits almost as well.", $" {Words.Capitalize(runnerUp ?? "")} подходит почти так же.") : "";
 
         string basis = w.IsRussian
             ? signature switch
             {
-                { Mode: not null } => $"В файле указаны ключевые знаки ({Accidentals(signature.Fifths, w)}) и лад.",
-                not null => $"Ключевые знаки: {Accidentals(signature.Fifths, w)}, но лад не указан; ноты подходят к тональности {name} лучше, чем к тональности {runnerUp}.{thin}",
+                { Mode: not null } => $"В файле указаны ключевые знаки ({w.Accidentals(signature.Fifths)}) и лад.",
+                not null => $"Ключевые знаки: {w.Accidentals(signature.Fifths)}, но лад не указан; ноты подходят к тональности {name} лучше, чем к тональности {runnerUp}.{thin}",
                 null => $"В файле нет ключевых знаков; ноты лучше всего подходят к тональности {name}, затем к тональности {runnerUp}.{thin}",
             }
             : signature switch
             {
-                { Mode: not null } => $"The file states the key signature ({Accidentals(signature.Fifths, w)}) and the mode.",
-                not null => $"The key signature has {Accidentals(signature.Fifths, w)} but no mode; the notes fit {name} better than {runnerUp}.{thin}",
+                { Mode: not null } => $"The file states the key signature ({w.Accidentals(signature.Fifths)}) and the mode.",
+                not null => $"The key signature has {w.Accidentals(signature.Fifths)} but no mode; the notes fit {name} better than {runnerUp}.{thin}",
                 null => $"The file has no key signature; the notes fit {name} best, then {runnerUp}.{thin}",
             };
 
@@ -407,8 +345,8 @@ internal static partial class MotifAnalyzer
         {
             int largest = intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First();
             text += w.IsRussian
-                ? $" Самый большой скачок: {IntervalName(largest, w)} {(largest > 0 ? "вверх" : "вниз")}."
-                : $" Largest leap: {WithArticle(IntervalName(largest))} {(largest > 0 ? "up" : "down")}.";
+                ? $" Самый большой скачок: {w.IntervalName(largest)} {(largest > 0 ? "вверх" : "вниз")}."
+                : $" Largest leap: {w.IntervalBy(largest)} {(largest > 0 ? "up" : "down")}.";
         }
 
         return text;
@@ -422,7 +360,7 @@ internal static partial class MotifAnalyzer
             ? w.T($"Every note of the line is in the scale of {keyName}.", $"Все ноты линии — в звукоряде тональности {keyName}.")
             : w.IsRussian
                 ? $"{Words.Capitalize(w.Count(outside, "", "", "нота", "ноты", "нот"))} вне звукоряда тональности {keyName}."
-                : $"{Count(outside, "note", "notes")} outside the scale of {keyName}.";
+                : $"{Words.EnglishCount(outside, "note", "notes")} outside the scale of {keyName}.";
     }
 
     private static string ContourText(ContourStep[] contour, int netSemitones, Words w)
@@ -452,8 +390,8 @@ internal static partial class MotifAnalyzer
         string end = netSemitones == 0
             ? w.T("ends where it starts", "заканчивается там же, где начинается")
             : w.IsRussian
-                ? $"заканчивается на {IntervalBy(netSemitones, w)} {(netSemitones > 0 ? "выше" : "ниже")}, чем начинается"
-                : $"ends {WithArticle(IntervalName(netSemitones))} {(netSemitones > 0 ? "higher" : "lower")} than it starts";
+                ? $"заканчивается на {w.IntervalBy(netSemitones)} {(netSemitones > 0 ? "выше" : "ниже")}, чем начинается"
+                : $"ends {w.IntervalBy(netSemitones)} {(netSemitones > 0 ? "higher" : "lower")} than it starts";
         return $"{shape}; {end}.";
     }
 
@@ -465,8 +403,8 @@ internal static partial class MotifAnalyzer
         string text = span == 0
             ? w.T($"Range: one pitch, {key.Spell(low.Pitch.MidiNumber)}.", $"Диапазон: одна высота, {key.Spell(low.Pitch.MidiNumber)}.")
             : w.IsRussian
-                ? $"Диапазон: от {key.Spell(low.Pitch.MidiNumber)} до {key.Spell(high.Pitch.MidiNumber)}, {IntervalName(span, w)} ({w.Count(span, "", "", "полутон", "полутона", "полутонов")})."
-                : $"Range: {key.Spell(low.Pitch.MidiNumber)} to {key.Spell(high.Pitch.MidiNumber)}, {WithArticle(IntervalName(span))} ({Count(span, "semitone", "semitones")}).";
+                ? $"Диапазон: от {key.Spell(low.Pitch.MidiNumber)} до {key.Spell(high.Pitch.MidiNumber)}, {w.IntervalName(span)} ({w.Count(span, "", "", "полутон", "полутона", "полутонов")})."
+                : $"Range: {key.Spell(low.Pitch.MidiNumber)} to {key.Spell(high.Pitch.MidiNumber)}, {w.IntervalBy(span)} ({Words.EnglishCount(span, "semitone", "semitones")}).";
         return new MotifFact("melody.range", FactLens.Melody, FactCertainty.Detected, text, w.T("Measured over every note of the motif.", "Измерено по всем нотам мотива."))
         {
             Places = ExtremePlaces(notes, key, w),
@@ -566,7 +504,7 @@ internal static partial class MotifAnalyzer
         {
             parts.Add(w.IsRussian
                 ? $"{other.Count} {Words.RussianForm(other.Count, "длина, не равная одной длительности", "длины, не равные одной длительности", "длин, не равных одной длительности")}"
-                : Count(other.Count, "length that is no single note value", "lengths that are no single note value"));
+                : Words.EnglishCount(other.Count, "length that is no single note value", "lengths that are no single note value"));
             places.Add(FactPlace.Of(w.T("no single note value", "не одна длительность"), other));
         }
 
@@ -615,7 +553,7 @@ internal static partial class MotifAnalyzer
                 : $"It starts after beat {start.Beat} of bar {start.Bar}, off the beat.";
         string beats = w.IsRussian
             ? $"{onBeat} {w.OutOf(onsets.Length, "", "", "атаки", "атак")} {Words.RussianForm(onBeat, "приходится", "приходятся", "приходятся")} на долю."
-            : $"{onBeat} of {Count(onsets.Length, "onset", "onsets")} {(onBeat == 1 ? "falls" : "fall")} on a beat.";
+            : $"{onBeat} of {Words.EnglishCount(onsets.Length, "onset", "onsets")} {(onBeat == 1 ? "falls" : "fall")} on a beat.";
         FactPlace startPlace = FactPlace.Of($"{w.T("start", "начало")}, {Place(start, w)}", notes.Where(note => note.Span.Onset == onsets[0]));
 
         if (offGrid > 0)
@@ -626,7 +564,7 @@ internal static partial class MotifAnalyzer
                 FactCertainty.Uncertain,
                 w.IsRussian
                     ? $"{offGrid} {w.OutOf(onsets.Length, "", "", "атаки", "атак")} {Words.RussianForm(offGrid, "попадает", "попадают", "попадают")} между линиями сетки тридцать вторых и триолей. {beats} {startText}"
-                    : $"{offGrid} of {Count(onsets.Length, "onset", "onsets")} {(offGrid == 1 ? "falls" : "fall")} between thirty-second and triplet grid lines. {beats} {startText}",
+                    : $"{offGrid} of {Words.EnglishCount(onsets.Length, "onset", "onsets")} {(offGrid == 1 ? "falls" : "fall")} between thirty-second and triplet grid lines. {beats} {startText}",
                 w.T(
                     "Measured from the bar lines. Onsets off every grid usually mean a played performance whose timing was not quantised.",
                     "Измерено от тактовых черт. Атаки вне любой сетки обычно означают живое исполнение без квантования."))
@@ -681,7 +619,7 @@ internal static partial class MotifAnalyzer
             ? w.T("No silence between notes", "Между нотами нет пауз")
             : w.IsRussian
                 ? $"{w.Count(gaps.Count, "", "", "пауза", "паузы", "пауз")} между нотами: {string.Join(", ", gaps.Select(gap => LengthName(gap, w)))}"
-                : $"{Count(gaps.Count, "silence", "silences")} between notes: {string.Join(", ", gaps.Select(gap => LengthName(gap, w)))}";
+                : $"{Words.EnglishCount(gaps.Count, "silence", "silences")} between notes: {string.Join(", ", gaps.Select(gap => LengthName(gap, w)))}";
         long before = notes[0].Span.Onset.Value - span.Onset.Value;
         if (before > 0)
         {
@@ -715,26 +653,10 @@ internal static partial class MotifAnalyzer
         int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
         return index < 0
             ? w.T("a length that is no single note value", "длина, не равная одной длительности")
-            : w.IsRussian ? s_values[index].RussianOne : WithArticle(s_values[index].One);
+            : w.IsRussian ? s_values[index].RussianOne : Words.WithArticle(s_values[index].One);
     }
 
     private static int PitchClassCount(Note[] notes) => notes.Select(note => note.Pitch.PitchClass).Distinct().Count();
 
-    private static string Accidentals(int fifths, Words w) => fifths switch
-    {
-        0 => w.T("no sharps or flats", "без диезов и бемолей"),
-        > 0 => w.Count(fifths, "sharp", "sharps", "диез", "диеза", "диезов"),
-        _ => w.Count(-fifths, "flat", "flats", "бемоль", "бемоля", "бемолей"),
-    };
-
     private static FactCertainty Weaker(FactCertainty a, FactCertainty b) => (FactCertainty)Math.Max((int)a, (int)b);
-
-    private static string Count(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
-
-    private static string WithArticle(string noun) => noun[0] switch
-    {
-        >= '0' and <= '9' => noun,
-        'a' or 'e' or 'i' or 'o' or 'u' => "an " + noun,
-        _ => "a " + noun,
-    };
 }

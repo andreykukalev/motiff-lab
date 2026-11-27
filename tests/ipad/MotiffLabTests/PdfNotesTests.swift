@@ -10,6 +10,12 @@ final class PdfNotesTests: XCTestCase {
         try XCTUnwrap(PieceSummary(answer: #"{"project": \#(project)}"#))
     }
 
+    /// A project a newer version saved opens read-only in either view (project file 18): the answer says so, else it saves.
+    func testAProjectOfANewerVersionIsReadOnlyAndOthersAreNot() throws {
+        XCTAssertTrue(try summary(#"{"id": "p_4", "hasNotes": true, "document": true, "readOnly": true}"#).readOnly)
+        XCTAssertFalse(try summary(#"{"id": "p_5", "hasNotes": true, "document": true}"#).readOnly)
+    }
+
     func testAFileWithNotesAndAPdfIsItsOwnOtherViewWhateverTheShelfSays() throws {
         let file = URL(fileURLWithPath: "/shelf/Silent Ocean.motiff.json")
         let own = try summary(#"{"id": "p_1", "hasNotes": true, "document": true, "documentPages": [0, 7680]}"#)

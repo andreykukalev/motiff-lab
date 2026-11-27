@@ -20,8 +20,8 @@ public sealed partial class SentenceMap
                 FactLens.Structure,
                 Certainty(sentence.Found),
                 _words.T(
-                    $"Sentence {sentence.Letter} holds {sentence.PhrasesIn(_words)}, {Bars(sentence.FirstBar, sentence.LastBar, _words)}.",
-                    $"Предложение {sentence.Letter} состоит из {PhrasesGenitive(sentence)}, {Bars(sentence.FirstBar, sentence.LastBar, _words)}."),
+                    $"Sentence {sentence.Letter} holds {sentence.PhrasesIn(_words)}, {_words.Bars(sentence.FirstBar, sentence.LastBar)}.",
+                    $"Предложение {sentence.Letter} состоит из {PhrasesGenitive(sentence)}, {_words.Bars(sentence.FirstBar, sentence.LastBar)}."),
                 sentence.Basis)
             {
                 Places = [.. sentence.Phrases.Select(PlaceOf)],
@@ -49,8 +49,8 @@ public sealed partial class SentenceMap
                 FactLens.Structure,
                 Certainty(sentence.Found),
                 _words.T(
-                    $"Phrase {phrase.Number} belongs to sentence {sentence.Letter} ({sentence.PhrasesIn(_words)}, {Bars(sentence.FirstBar, sentence.LastBar, _words)}).",
-                    $"Фраза {phrase.Number} входит в предложение {sentence.Letter} ({sentence.PhrasesIn(_words)}, {Bars(sentence.FirstBar, sentence.LastBar, _words)})."),
+                    $"Phrase {phrase.Number} belongs to sentence {sentence.Letter} ({sentence.PhrasesIn(_words)}, {_words.Bars(sentence.FirstBar, sentence.LastBar)}).",
+                    $"Фраза {phrase.Number} входит в предложение {sentence.Letter} ({sentence.PhrasesIn(_words)}, {_words.Bars(sentence.FirstBar, sentence.LastBar)})."),
                 sentence.Basis)
             {
                 Places = [.. sentence.Phrases.Select(PlaceOf)],
@@ -208,7 +208,4 @@ public sealed partial class SentenceMap
         6 => words.T("the sixth degree", "шестой ступени"),
         _ => words.T("the leading note", "вводном тоне"),
     };
-
-    private static string Bars(int first, int last, Words words) =>
-        first == last ? $"{words.T("bar", "такт")} {first}" : $"{words.T("bars", "такты")} {first}–{last}";
 }

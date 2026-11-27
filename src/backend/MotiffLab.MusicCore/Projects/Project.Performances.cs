@@ -10,9 +10,12 @@ public sealed partial record Project
 
     public Performance.SavedPerformance? FindPerformance(string id) => Performances.FirstOrDefault(performance => performance.Id == id);
 
-    /// <summary>The next free performance id: "perf_" and one more than the highest number used.</summary>
-    public string NextPerformanceId() =>
-        $"perf_{Performances.Select(performance => int.TryParse(performance.Id.AsSpan(5), out int number) ? number : 0).DefaultIfEmpty(0).Max() + 1}";
+    /// <summary>A new performance id from <paramref name="ids"/>: numbered, "perf_" and one more than the highest number used.</summary>
+    public string NextPerformanceId(IdSource ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        return ids.Next("perf_", Performances.Select(static performance => performance.Id), digits: 1);
+    }
 
     /// <exception cref="ArgumentException">A performance with the same id is already there.</exception>
     public Project AddPerformance(Performance.SavedPerformance performance)
