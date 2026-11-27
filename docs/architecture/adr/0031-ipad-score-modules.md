@@ -362,5 +362,5 @@ each state has one writer, as section 3 asks of a model. The views are `Insights
 `TrialRow`). The sheet composes the stream with the player (`HearingSwitch`), the selection and the assistant, as the
 score's screen composes the features, so it moved to `Workspace/` with `HearingSwitch`, which Expand's bar shares, and
 no longer observes `ScoreController`, which it did not read; `FlowLayout`, used by five folders, moved to Platform. In
-the quality baseline 13 folder edges went and 2 were re-keyed with the code they serve (the controller hands the player
+the quality baseline 13 folder edges went and 2 came with the code they serve, 11 fewer in all (the controller hands the player
 the piece with the variation in place, `PlaybackNote` and `PlaybackScore`).

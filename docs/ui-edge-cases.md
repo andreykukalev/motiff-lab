@@ -110,10 +110,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 ## Insights
 
 - `E-insights-1` · A Try, «Оставить» or «На круге» that music-core refuses while the facts are shown · its words show
-  over the facts, in the stream's danger line, until the next step (another way, Keep, the circle opened, another
-  selection) · the stream already said a refusal so when nothing was understood; a fallible step shows its error state
+  over the facts, in the stream's danger line, until the next step (another way, Keep, Leave, the circle opened,
+  another selection) · the stream already said a refusal so when nothing was understood; a fallible step shows its error state
   (developer's role, step 6) · v1.6 i-12
-- `E-insights-2` · A phrase tapped (or the selection cleared) while a way is being made · the way is left: music-core
+- `E-insights-2` · A phrase tapped (or the selection cleared), with the sheet open or closed, Leave, Sources opened or
+  the screen handed over while a way is being made · the way is left: music-core
   forgets the variation, nothing sounds, no trial and no refusal shows on the new selection's facts · a variation
   belongs to the passage it was tried on, as Insights leaves a trial when the selection changes; a stale answer is never
   shown (as `E-drafts-3`) · v1.6 i-12
