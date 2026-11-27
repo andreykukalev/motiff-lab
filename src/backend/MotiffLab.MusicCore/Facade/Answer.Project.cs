@@ -207,6 +207,7 @@ internal static partial class Answer
             json.WriteNull("passage");
         }
 
+        json.WriteString("anchor", point.Anchor);
         json.WriteBoolean("focused", point.Focused);
         JsonWrite.Texts(json, "overlays", point.Overlays.Select(JsonWrite.Name));
         json.WriteNumber("tempoPercent", point.TempoPercent);
@@ -230,6 +231,7 @@ internal static partial class Answer
             Place(json, idea.Phrase.Span, meter);
             Filter(json, "filter", idea.Phrase.Filter);
             json.WriteEndObject();
+            json.WriteString("anchor", idea.Anchor);
             if (idea is { ExperimentId: { } experiment, Alternative: { } alternative })
             {
                 json.WriteStartObject("experiment");

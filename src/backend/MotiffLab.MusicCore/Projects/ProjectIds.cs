@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -36,6 +35,6 @@ internal static class ProjectIds
             : project.Document is { } pdf ? PieceOriginal.Fingerprint(pdf)
             : project.FindOriginal(PieceOriginal.DocumentId)?.Sha256 ?? PieceOriginal.Fingerprint([]);
         string key = string.Create(CultureInfo.InvariantCulture, $"{project.Id}|{project.CreatedAt:O}|{fingerprint}");
-        return project with { Id = "p_" + PieceOriginal.Fingerprint(Encoding.UTF8.GetBytes(key))[..32], FormerIds = [.. project.FormerIds, project.Id] };
+        return project with { Id = IdSource.Hashed("p_", key, []), FormerIds = [.. project.FormerIds, project.Id] };
     }
 }

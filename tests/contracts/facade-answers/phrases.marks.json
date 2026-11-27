@@ -83,7 +83,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -130,7 +131,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -177,7 +179,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -224,7 +227,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -271,7 +275,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -318,7 +323,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -357,7 +363,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -396,7 +403,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -443,7 +451,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -482,7 +491,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -529,7 +539,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -576,7 +587,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -615,7 +627,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -670,7 +683,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -725,7 +739,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -780,7 +795,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -819,7 +835,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -858,7 +875,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -905,7 +923,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -952,7 +971,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -999,7 +1019,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -1103,7 +1124,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -1196,7 +1219,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -1245,7 +1269,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -1292,7 +1317,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -1339,7 +1365,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -1386,7 +1413,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -1433,7 +1461,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -1472,7 +1501,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -1511,7 +1541,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -1558,7 +1589,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -1597,7 +1629,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -1644,7 +1677,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -1691,7 +1725,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -1730,7 +1765,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -1785,7 +1821,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -1840,7 +1877,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -1895,7 +1933,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -1934,7 +1973,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -1973,7 +2013,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -2020,7 +2061,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -2067,7 +2109,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -2114,7 +2157,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 1,
@@ -2219,6 +2263,8 @@
       "beat": 1
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -2274,7 +2320,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": 1
    }
   },
   {
@@ -2383,7 +2430,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -2430,7 +2478,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -2477,7 +2526,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -2524,7 +2574,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -2571,7 +2622,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -2618,7 +2670,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -2657,7 +2710,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -2696,7 +2750,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -2743,7 +2798,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -2782,7 +2838,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -2829,7 +2886,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -2876,7 +2934,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -2915,7 +2974,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -2970,7 +3030,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -3025,7 +3086,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -3080,7 +3142,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -3119,7 +3182,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -3158,7 +3222,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -3205,7 +3270,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -3252,7 +3318,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -3299,7 +3366,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -3404,6 +3472,8 @@
       "beat": 1
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -3463,7 +3533,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": null
    }
   },
   {
@@ -3551,7 +3622,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -3598,7 +3670,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -3637,7 +3710,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -3682,7 +3756,8 @@
         "bar": 13,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -3729,7 +3804,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -3776,7 +3852,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -3823,7 +3900,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -3862,7 +3940,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -3901,7 +3980,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -3948,7 +4028,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -3987,7 +4068,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -4034,7 +4116,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -4081,7 +4164,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -4120,7 +4204,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -4175,7 +4260,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -4230,7 +4316,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -4285,7 +4372,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -4324,7 +4412,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -4363,7 +4452,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -4410,7 +4500,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -4457,7 +4548,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 22,
@@ -4504,7 +4596,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 1,
@@ -4753,6 +4846,8 @@
       "beat": 3
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -4788,7 +4883,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": 2
    }
   },
   {
@@ -4878,7 +4974,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -4925,7 +5022,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -4964,7 +5062,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -5021,7 +5120,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -5068,7 +5168,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -5115,7 +5216,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -5154,7 +5256,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -5193,7 +5296,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -5240,7 +5344,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -5279,7 +5384,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -5326,7 +5432,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -5373,7 +5480,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -5412,7 +5520,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -5467,7 +5576,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -5522,7 +5632,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -5577,7 +5688,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -5616,7 +5728,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -5655,7 +5768,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -5702,7 +5816,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -5749,7 +5864,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -5796,7 +5912,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 1,
@@ -6045,6 +6162,8 @@
       "beat": 3
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -6102,7 +6221,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": 3
    }
   },
   {
@@ -6189,7 +6309,8 @@
         "bar": 0,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -6238,7 +6359,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -6277,7 +6399,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -6334,7 +6457,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -6381,7 +6505,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -6428,7 +6553,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -6467,7 +6593,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -6506,7 +6633,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -6553,7 +6681,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -6592,7 +6721,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -6639,7 +6769,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -6686,7 +6817,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -6725,7 +6857,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -6780,7 +6913,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -6835,7 +6969,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -6890,7 +7025,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -6929,7 +7065,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -6968,7 +7105,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -7015,7 +7153,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -7062,7 +7201,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -7109,7 +7249,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 2,
@@ -7347,6 +7488,8 @@
       "beat": 3
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -7406,7 +7549,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": 4
    }
   },
   {
@@ -7496,7 +7640,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -7543,7 +7688,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -7582,7 +7728,8 @@
         "bar": 9,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -7639,7 +7786,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -7686,7 +7834,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -7733,7 +7882,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -7772,7 +7922,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -7811,7 +7962,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -7858,7 +8010,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -7897,7 +8050,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -7944,7 +8098,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -7991,7 +8146,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -8030,7 +8186,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -8085,7 +8242,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -8140,7 +8298,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -8195,7 +8354,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -8234,7 +8394,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -8273,7 +8434,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -8320,7 +8482,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -8367,7 +8530,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -8414,7 +8578,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 1,
@@ -8663,6 +8828,8 @@
       "beat": 3
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -8724,7 +8891,8 @@
        }
       }
      }
-    ]
+    ],
+    "step": 5
    }
   },
   {
@@ -8810,7 +8978,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -8857,7 +9026,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -8904,7 +9074,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -8951,7 +9122,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -8998,7 +9170,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -9045,7 +9218,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -9084,7 +9258,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -9123,7 +9298,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -9170,7 +9346,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -9209,7 +9386,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -9256,7 +9434,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -9303,7 +9482,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -9342,7 +9522,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -9397,7 +9578,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -9452,7 +9634,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -9507,7 +9690,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -9546,7 +9730,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -9585,7 +9770,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -9632,7 +9818,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -9679,7 +9866,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -9726,7 +9914,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -9831,6 +10020,8 @@
       "beat": 1
      }
     ],
+    "anchors": [],
+    "unmatched": 0,
     "previous": {
      "short": {
       "added": [],
@@ -9891,6 +10082,7 @@
       }
      }
     ],
+    "step": 6,
     "replaced": 1
    }
   }
