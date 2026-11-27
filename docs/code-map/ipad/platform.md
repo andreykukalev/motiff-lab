@@ -32,7 +32,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
   `tests/shared/i18n.test.mjs`); `UIText.current` in the language picked (`motiff.language`), else the iPad's.
   `InterfaceLanguage.swift`: a new choice saves the open piece, rebuilds the app under `.id(language)` and opens it again.
 - Look and input. `Design.swift` reads `design/kit/tokens.css`. Kit views more than one folder uses: `FlowLayout`
-  (rows that wrap, centred, v1.6 i-12), `SegmentedChoice` (ds.css `.seg`, v1.6 i-13), `FieldLook` (ds.css `.field`, the
+  (rows that wrap, centred or topped, `alignment`; Marks' `FlowRow` merged into it, v1.6 i-16), `SegmentedChoice` (ds.css `.seg`, v1.6 i-13), `FieldLook` (ds.css `.field`, the
   one-line fields of Library, Pdf and Account, v1.6 i-14). `HighlightInk.swift` (a highlight's four inks),
   `Recolouring.swift` (a change of the highlights by value, kept in the Pen's history). `TypingFocus.swift` (`Typing`,
   `TypingShield`: a tap outside a field hides the keyboard). `BundleSchemeHandler` (the app's files to the web views),

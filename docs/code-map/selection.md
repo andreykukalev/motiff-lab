@@ -6,8 +6,9 @@ folder. The score's layers that use them: [`score.md`](score.md); the roll's: [`
 
 ## Who imports it
 
-The score (`score/selection-*-layer.ts`, `selection-press.ts`, `colour-bars.ts`, `menu-drag.ts`, `phrase-drag.ts`,
-`page-contract.ts`, `ipad-page/page-selection.ts`), the roll (`roll-place-gesture.ts`, `roll-strip-gesture.ts`,
+The score (`score/selection-layer.ts`, `selection-*-layer.ts`, `selection-press.ts`, `selection-boxes.ts`, `selection-handles.ts`,
+`selection-place-draw.ts`, `colour-bars.ts`, `menu-drag.ts`, `phrase-drag.ts`, `page-contract.ts`,
+`ipad-page/page-selection.ts`), the roll (`roll-place-gesture.ts`, `roll-strip-gesture.ts`, `roll-place-draw.ts`,
 `roll-input.ts`, `roll-fingers.ts`, `piano-roll.ts`) and the playheads (`playback/hold-place.ts`, `playhead-press.ts`:
 the hold timing). The page replayer reads `HOLD_MS` and `HOLD_SLOP` from the bundled module (`tests/pages/replay.js`).
 The iPad bundles the folder as `selection/` (`src/ipad/App/project.yml`). Which folder may import which:

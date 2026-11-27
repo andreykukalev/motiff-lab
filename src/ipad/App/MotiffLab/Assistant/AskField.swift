@@ -231,7 +231,7 @@ struct AskField: UIViewRepresentable {
 }
 
 /// The chat's field and Send, the same on every surface: the kit's text field (DSFieldLook) with its placeholder, growing
-/// with the question (AskField), the microphone inside it at its last line with «Диктовка» on (Dictation), and under it
+/// with the question (AskField), the microphone inside it at its last line (Dictation), and under it
 /// Send at the trailing edge, enabled once there is something to ask, beside what the dictation says (Andrei,
 /// 2026-11-18: Send beside the field took the narrow panel's width). Presses on the field and its Send keep the keyboard
 /// up (Typing); a press anywhere else puts it away.
@@ -240,7 +240,6 @@ struct AskInputRow: View {
     let text: UIText
     var enabled = true
     let send: (String) -> Void
-    @ObservedObject private var settings = DeviceSettings.shared
     @StateObject private var dictation: Dictation
 
     init(flow: Binding<AskFlow>, text: UIText, enabled: Bool = true, send: @escaping (String) -> Void) {
@@ -250,9 +249,6 @@ struct AskInputRow: View {
         self.send = send
         _dictation = StateObject(wrappedValue: Dictation(language: text.language))
     }
-
-    /// Dictation (v0.6.4): the microphone beside the field, always since v0.6.5.
-    private let dictating = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
@@ -265,15 +261,13 @@ struct AskInputRow: View {
                     submit: submit
                 )
                 .frame(maxWidth: .infinity)
-                if dictating {
-                    DictationButton(dictation: dictation, text: text, draft: flow.draft).disabled(!enabled)
-                }
+                // Dictation (v0.6.4): the microphone beside the field, always since v0.6.5.
+                DictationButton(dictation: dictation, text: text, draft: flow.draft).disabled(!enabled)
             }
             .padding(.leading, CGFloat.ds("s-3"))
-            .padding(.trailing, dictating ? 0 : CGFloat.ds("s-3"))
             .modifier(DSFieldLook(focused: flow.focused || dictation.flow.listening))
             HStack(spacing: CGFloat.ds("s-2")) {
-                if dictating, let line = DictationButton.line(dictation.flow, text) {
+                if let line = DictationButton.line(dictation.flow, text) {
                     Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)

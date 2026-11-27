@@ -225,7 +225,7 @@ extension DnaScreen {
     /// The harmony lane's own controls: the rows to show, kept on the device. The circle is the key lane's alone (Andrei,
     /// v0.8 finding 12: the three rows are the harmony's buttons).
     var harmonyControls: some View {
-        FlowRow(spacing: 4) {
+        FlowLayout(spacing: 4, alignment: .top) {
             rowToggle("dna.chords", "dna.rowChords", fallback: true)
             rowToggle("dna.degrees", "dna.rowDegrees", fallback: false)
             rowToggle("dna.functions", "dna.rowFunctions", fallback: true)
@@ -307,7 +307,7 @@ extension DnaScreen {
                 }
             }
             if map.circles.count > 1 {
-                FlowRow(spacing: CGFloat.ds("s-1")) {
+                FlowLayout(spacing: CGFloat.ds("s-1"), alignment: .top) {
                     ForEach(map.circles) { other in
                         Button {
                             show(other, symbol: nil)
@@ -330,7 +330,7 @@ extension DnaScreen {
                 Text(line).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
             }
             if !shown.circle.chords.isEmpty {
-                FlowRow(spacing: CGFloat.ds("s-1")) {
+                FlowLayout(spacing: CGFloat.ds("s-1"), alignment: .top) {
                     ForEach(shown.circle.chords, id: \.number) { chord in
                         Button {
                             chosenChord = chosenChord == chord.number ? nil : chord.number
@@ -353,7 +353,7 @@ extension DnaScreen {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            FlowRow(spacing: CGFloat.ds("s-2")) {
+            FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                 if let range = shown.circle.scaleRange {
                     Button {
                         hearScale(shown.circle, over: range)
@@ -394,7 +394,7 @@ extension DnaScreen {
                 }
             }
             if let range = explainedRange {
-                FlowRow(spacing: CGFloat.ds("s-2")) {
+                FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                     hearButton(range)
                     Button(text["dna.inScore"]) { leave(range, insights: false) }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
@@ -408,7 +408,7 @@ extension DnaScreen {
 
     /// The circle's zones in words: tonic, subdominant, dominant and the far keys.
     private var legend: some View {
-        FlowRow(spacing: CGFloat.ds("s-2")) {
+        FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
             ForEach(["tonic", "subdominant", "dominant"], id: \.self) { function in
                 let colour = CircleDrawing.functionColour(function)
                 HStack(spacing: 4) {
