@@ -110,6 +110,13 @@ extension ScoreWorkspace {
         Task { await insights.reread() }
     }
 
+    /// The phrase anchors changed (an edit of the boundaries carries them and may join two, whose ideas then name the one
+    /// kept; a Keep mints one; a reattach): the ideas are read again, the sheet open or closed, so Insights shows each on its
+    /// phrase when it opens on the same selection (#318). The reaction on `score.selectionModel.phrases?.anchors`.
+    func phraseAnchorsChanged() {
+        Task { await insights.loadIdeas(of: piece.id) }
+    }
+
     /// Insights opened or closed (the reaction on `panels[.insights]`).
     func insightsChanged(_ open: Bool) {
         apply(.insights(open))

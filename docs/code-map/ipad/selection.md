@@ -10,14 +10,17 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
   player's own) and `FormSection`s (the form's letters, `Platform/FormSection.swift`), from `PhrasesAnswer` (the text of `phrases` and `phrases.edit`
   by `init?(answer:)`); `unit(selected:)`, the one rule of a selection that is a phrase exactly (its selectable span),
   `unit(enclosing:)` («Вся фраза»), `change(selected:)` (the edit's `changed` for that phrase), `own`; and
-  `ScoreSelection`, built from `SelectionAnswer.Selection` only.
+  `ScoreSelection`, built from `SelectionAnswer.Selection` only. Since v1.6 i-18 (#318) also the phrase anchors
+  (`anchors`, `unmatched`, `unit(anchor:)`: the phrase an anchor is now), an edit's `step` and a reattach's `reattached`.
 - `PlaceSelection.swift` (v0.6.2; Select's only way since v0.6.3): the one selection (span, hand, notes picked) and
   `ScoreController.selectNotes`. The page's rule is `Scripts/selection/selection-places.ts` (`../selection.md`).
 - `SelectionHistory.swift`: the selection's Undo and Redo: one step a finished gesture, up to 50 for the piece.
-  Also the phrases' edits' (`SelectionHistory<PhraseLevelEdits>`, v1.2 i-3a); `dropLast` takes a refused step away.
+  Also the phrases' edits' (`SelectionHistory<SelectionModel.PhraseStep>`, v1.2 i-3a: the edits and since i-18 the step's
+  number); `dropLast` takes a refused step away.
 - `SelectionModel.swift` (S1, S3, ADR 0031 section 3): the selection's state and its own rules (the history's steps,
   the toast's and the hold hint's time), selecting and reading the phrases through music-core, and editing them
-  (`editPhrases`, `stepPhrases`: c-2's restore/expected, `phraseSteps`, `phraseToast`; the selection untouched;
+  (`editPhrases`, `stepPhrases`: c-2's restore/expected with c-14d's "step", `phraseSteps`, `phraseToast`;
+  `reattachPhrases`: `phrases.reattach`, its count in the toast, E-insights-4; the selection untouched;
   `phraseOffer`, the card after an edit changed the phrase selected exactly, gone with the next selection). Tests:
   `MotiffLabTests/SelectionModelTests`.
 

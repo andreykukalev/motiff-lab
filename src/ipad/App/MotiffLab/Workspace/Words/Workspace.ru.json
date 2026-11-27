@@ -272,5 +272,8 @@
   "settings.theme": "Тема",
   "settings.thisPiece": "У этой пьесы свои: {0}.",
   "settings.title": "Настройки",
-  "piece.newerReadOnly": "Сохранено более новой версией Motiff Lab: открыто только для чтения, и ничего сделанное здесь не сохраняется. Обновите приложение, чтобы работать с пьесой."
+  "phrases.reattached.one": "Привязано заново: {0} фраза",
+  "phrases.reattached.few": "Привязано заново: {0} фразы",
+  "phrases.reattached.many": "Привязано заново: {0} фраз",
+  "phrases.reattachedNone": "Привязать не к чему: на этих местах фраз больше нет"
 }

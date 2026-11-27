@@ -14,6 +14,14 @@ struct PiecePhrases: Equatable, Sendable {
     var own: Int
     /// The phrases the edit that answered them changed, as they were and the phrase now that covers most of each.
     var changed: [PhrasesAnswer.Change]
+    /// The phrase anchors ideas and resume points are attached to (#318), each with the number of the phrase it is now, and
+    /// how many match no phrase since the notes or their analysis changed (the Insights line «Границы фраз изменились»).
+    var anchors: [PhrasesAnswer.Anchor]
+    var unmatched: Int
+    /// The number of the step of the edit that answered them, which its Undo and Redo send back (nil for none), and how
+    /// many anchors `phrases.reattach` attached again.
+    var step: Int?
+    var reattached: Int?
 
     /// The phrases music-core answers (`PhrasesAnswer`, `Answer.Phrases`).
     init(_ answer: PhrasesAnswer) {
@@ -23,6 +31,10 @@ struct PiecePhrases: Equatable, Sendable {
         previous = answer.previous
         own = answer.own ?? 0
         changed = answer.changed ?? []
+        anchors = answer.anchors
+        unmatched = answer.unmatched
+        step = answer.step
+        reattached = answer.reattached
     }
 
     /// The phrases in a facade answer's text (`phrases`, `phrases.edit`), for the calls not yet made through `PieceCore`; nil
@@ -41,6 +53,11 @@ struct PiecePhrases: Equatable, Sendable {
     func unit(selected selection: ScoreSelection?) -> PhraseUnit? {
         guard let selection else { return nil }
         return units.first { $0.selectableOnset == selection.onset && $0.selectableEnd == selection.end }
+    }
+
+    /// The phrase the anchor `id` is now (#318: its number from "anchors"); nil for no anchor, or one that matches no phrase.
+    func unit(anchor id: String?) -> PhraseUnit? {
+        anchors.first { $0.id == id }?.phrase.flatMap { unit($0) }
     }
 
     /// The phrase that holds this tick.

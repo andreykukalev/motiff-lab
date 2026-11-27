@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14, c-14b3):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-14, c-14b3, i-18):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -203,6 +203,19 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-insights-3` · «Оставить» tapped again before music-core has kept the idea · one idea; the second tap does nothing
   · one step at a time, as a second Try while a way is made (`starting`) and `E-drafts-4`; HIG: prevent a repeated
   submit · v1.6 i-12
+- `E-insights-4` · «Привязать заново» tapped again before music-core has answered · one reattach and one toast; the
+  second tap does nothing · as `E-insights-3`; HIG: prevent a repeated submit · v1.6 i-18
+- `E-insights-5` · Insights on a view only shown (a draft's view, other Notes over the piece) whose anchors match no
+  phrase · no line «Границы фраз изменились» and no «Привязать заново»: the phrases of such a view cannot be changed ·
+  a control is not offered where its action cannot work (developer's role, step 6), as the phrase marks are not drawn
+  there (PHR-01) · v1.6 i-18
+- `E-insights-6` · An idea attached to no phrase now: kept on a passage that overlapped none, or whose anchor matches no
+  phrase since the notes or their analysis changed · it shows in the stream by the bars it was kept on («такты 5–8»),
+  with any selection that overlaps them, until «Привязать заново» attaches it again · nothing kept is hidden; the bars
+  are the one place it still has · v1.6 i-18
+- `E-insights-7` · «Привязать заново» where no phrase is left at the anchors' places (the piece became shorter) ·
+  nothing is attached, the toast says «Привязать не к чему: на этих местах фраз больше нет» and the line stays · a
+  step says what it did, also when it did nothing (the phrases' toast) · v1.6 i-18
 
 ## Drafts and the assistant
 
