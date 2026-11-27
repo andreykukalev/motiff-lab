@@ -1,11 +1,11 @@
-// The one selection's grid on the iPad, the score and the roll alike (v0.6.4, Scripts/score/selection-grid.ts): every
+// The one selection's grid on the iPad, the score and the roll alike (v0.6.4, Scripts/selection/selection-grid.ts): every
 // sixteenth from each bar's start, a tuplet one block that no edge splits.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SIXTEENTH, gridLines, tupletBlocks } from "../../src/shared/wwwroot/js/score/selection-grid.js";
-import { drawnRange, movedEdge } from "../../src/shared/wwwroot/js/score/selection-places.js";
-import { extendedRange } from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+import { SIXTEENTH, gridLines, tupletBlocks } from "../../src/shared/wwwroot/js/selection/selection-grid.js";
+import { drawnRange, movedEdge } from "../../src/shared/wwwroot/js/selection/selection-places.js";
+import { extendedRange } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 
 test("the grid is every sixteenth from each bar's start, the bar's end too", () => {
     assert.equal(SIXTEENTH, 120);

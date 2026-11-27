@@ -5,7 +5,7 @@
 // never kept anywhere else. The rules are pure (keptInside, movedSpot, MenuPin); MenuDragger follows the web menu's pointer,
 // and the iPad's Swift menu, which follows its own drag, hands the page where it was let go (SelectionLayer.moveMenuBy).
 
-import { DRAG_DISTANCE } from "./selection-gesture.js";
+import { DRAG_DISTANCE } from "../selection/selection-gesture.js";
 import { MENU_MARGIN, MENU_TOP, menuClear } from "./selection-menu.js";
 
 /** Where the menu's top left corner is, in window pixels. */

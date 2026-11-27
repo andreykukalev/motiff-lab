@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { HoldToPlace } from "../../src/shared/wwwroot/js/playback/hold-place.js";
-import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 
 /** A clock the test moves by hand. */
 function clock() {

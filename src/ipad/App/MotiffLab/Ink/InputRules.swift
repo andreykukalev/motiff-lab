@@ -152,7 +152,7 @@ struct InputRules: Equatable, Sendable {
         }
         if let colour, Pointer.allCases.contains(where: colours) { rules["colour"] = colour }
         // Selection by the place of the touch (v0.6.2, #601; Select's only way since v0.6.3): the page decides by where a
-        // press lands in Select, never by how long it is held (Scripts/score/selection-places.ts).
+        // press lands in Select, never by how long it is held (Scripts/selection/selection-places.ts).
         rules["places"] = surface == .notes
         return rules
     }

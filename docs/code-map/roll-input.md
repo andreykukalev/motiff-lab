@@ -25,9 +25,9 @@ stays in the painter. Tests: `tests/shared/roll-press.test.mjs` (the table) and 
 - `roll-note-press.ts`: `RollNotePress`, a press on a note or the keys that sounds it, and turns into a range drag.
 - `roll-strip-gesture.ts`: the strips' hold-based selection gesture of 0.6.1 (`RollStripGesture`, `rangeBars`).
 - `roll-place.ts`, `roll-place-gesture.ts`, `roll-place-draw.ts` (#601): selection by place in Select. Hit tests (box,
-  lasso by note centre, `pickedSpan`, move steps), the press (`RollPlaceGesture` over `score/selection-places.ts`: edge,
+  lasso by note centre, `pickedSpan`, move steps), the press (`RollPlaceGesture` over `selection/selection-places.ts`: edge,
   inside = add, outside = new, taps, double tap = Fit, drag of picks = move), its drawing (`HANDLE`, rectangle, lasso).
-  v0.6.4: a drag is a span on the grid (`score/selection-grid.ts`); only the lasso picks notes; a span let go is held
+  v0.6.4: a drag is a span on the grid (`selection/selection-grid.ts`); only the lasso picks notes; a span let go is held
   (`placed`) until Swift's selection comes back; only an edge's handle beats a playhead.
 
 ## Rules not to break

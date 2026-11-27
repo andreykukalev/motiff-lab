@@ -30,7 +30,7 @@ import {
     nextGestureId,
     pressGesture,
     staleGesture,
-} from "./selection-gesture.js";
+} from "../selection/selection-gesture.js";
 
 export { menuClear, menuPlace, dragStartOf, handleTakes, ordered, type DragStart };
 

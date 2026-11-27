@@ -68,7 +68,7 @@ globalThis.window = {
 globalThis.Element = FakeElement;
 
 const { PlaceLayer } = await import("../../src/shared/wwwroot/js/score/selection-place-layer.js");
-const { edgeHandles } = await import("../../src/shared/wwwroot/js/score/selection-places.js");
+const { edgeHandles } = await import("../../src/shared/wwwroot/js/selection/selection-places.js");
 
 const BAR = 1920;
 const staves = [{ n: 1, top: 100, bottom: 180 }, { n: 2, top: 220, bottom: 300 }];

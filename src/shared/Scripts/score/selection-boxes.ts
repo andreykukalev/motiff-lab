@@ -3,7 +3,7 @@
 // the band to (v0.6.2, #601), and whether a point lies on the music or on the page's margin.
 
 import type { Rect, Run, ScoreBar, ScoreGeometry } from "./score-geometry.js";
-import type { PlaceBox } from "./selection-places.js";
+import type { PlaceBox } from "../selection/selection-places.js";
 
 export const BAND_CLASS = "sel-band";
 

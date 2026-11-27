@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { MarkPress, barBeatCaption, nearestOnset, neighbourSpans } from "../../src/shared/wwwroot/js/score/phrase-drag.js";
-import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 
 /** Timers run by hand: `run()` fires every one due. */
 function handTimers() {

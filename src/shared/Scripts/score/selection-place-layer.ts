@@ -14,7 +14,7 @@ import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import type { ScoreBeats } from "./selection-beats.js";
 import { barLines, keyLines } from "./selection-beats.js";
 import { type BandHand, MUSIC_REACH, bandBoxes, handRuns, onMusic, setBox } from "./selection-boxes.js";
-import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "./selection-gesture.js";
+import { HOLD_MS, type SelectionChange, type TickRange, extendedRange, nextGestureId, staleGesture } from "../selection/selection-gesture.js";
 import { barlines, tickAt } from "./selection-handles.js";
 import {
     type EdgeHandle,
@@ -35,8 +35,8 @@ import {
     placePress,
     scrollStep,
     targetLines,
-} from "./selection-places.js";
-import { type RectSystem, rectPassage, traceBox } from "./selection-rect.js";
+} from "../selection/selection-places.js";
+import { type RectSystem, rectPassage, traceBox } from "../selection/selection-rect.js";
 
 /** A passage with the hand it is narrowed to. */
 export interface PlacedRange extends TickRange {

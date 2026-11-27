@@ -5,7 +5,7 @@
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import { type ScoreBeats, keyLines, stepEdge } from "./selection-beats.js";
-import { handleTakes, handlesShown, nextGestureId } from "./selection-gesture.js";
+import { handleTakes, handlesShown, nextGestureId } from "../selection/selection-gesture.js";
 import type { ScoreSelection, SelectionHost } from "./selection-layer.js";
 
 /** What the handles need from the layer. */
