@@ -63,8 +63,6 @@
   "ask.menu": "Ask",
   "ask.thisPhrase": "This phrase · {0}",
   "ask.thisSelection": "This selection · {0}",
-  "performance.markerLabel": "Bar {0} in {1}: {2}",
-  "performance.defaultName": "Version",
   "focus.version": "As in {0}",
   "originals.loading": "Loading the file from Files…",
   "pill.span": "{0} – {1}",

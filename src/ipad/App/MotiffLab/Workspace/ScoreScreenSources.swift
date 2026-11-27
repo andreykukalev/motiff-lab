@@ -30,7 +30,7 @@ extension ScoreScreenContent {
     /// The Sources sheet in Other versions' place.
     var sourcesSheet: some View {
         SourcesSheet(
-            sources: sources, score: score, originals: originals, text: text, current: currentView,
+            sources: sources, versions: sourcesModel, originals: originals, text: text, current: currentView,
             close: { change(.close(.versions)) },
             back: panels.fromMore.contains(.versions) ? (label: text["bar.more"], action: { backToMore(.versions) }) : nil,
             versionStatus: sourcesModel.status, newDraft: { draftSheet = workspace.newDraft() }

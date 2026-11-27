@@ -4,11 +4,10 @@ import SwiftUI
 /// credit wherever it plays), and what went wrong, if anything did. The layout, the PDF and the other tools come with later
 /// steps.
 struct MorePanel: View {
-    @ObservedObject var score: ScoreController
     /// Check, for More's way to it and «Мои правки».
     @ObservedObject var checkModel: CheckModel
-    /// Whether the piece has other versions: the layers list offers their marks (MarksModel.pieceExtra).
-    let hasVersions: Bool
+    /// The list of extra information and the player's layers, made by the screen (`ScoreBar.layers`).
+    let layers: LayersList
     let text: UIText
     let problem: String?
     let openCheck: () -> Void
@@ -66,7 +65,7 @@ struct MorePanel: View {
                 EditsLayerSection(checkModel: checkModel, text: text)
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            LayersList(score: score, marksModel: score.marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions)
+            layers
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {
                 HStack(spacing: CGFloat.ds("s-2")) {

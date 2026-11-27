@@ -15,8 +15,8 @@ import UniformTypeIdentifiers
 /// file is the sheet, its header and add menu, and picking files.
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
-    /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
-    let score: ScoreController?
+    /// The score's versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
+    let versions: SourcesModel?
     @ObservedObject var originals: OriginalsController
     let text: UIText
     /// The view shown now: its row is tinted.
@@ -90,7 +90,7 @@ struct SourcesSheet: View {
         }
         .modifier(SourcesDialogs(
             sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes, renaming: $renaming,
-            rename: { notes, name in Task { await score?.renameVersion(notes.id, to: name); await sources.refresh() } }
+            rename: { notes, name in Task { await versions?.renameVersion(notes.id, to: name); await sources.refresh() } }
         ))
         .modifier(DraftDialogs(sources: sources, text: text, renaming: $renamingDraft, deleting: $deletingDraft))
         .onAppear {
@@ -150,7 +150,7 @@ struct SourcesSheet: View {
                 Label { Text(text["sources.sheet.recording"]); Text(text["sources.sheet.addRecordingHint"]) } icon: { Image("ic-mic") }
             }
             // Notes from a file become a version of the working notes, which only the score holds.
-            if score != nil {
+            if versions != nil {
                 Button { pick(.score) } label: {
                     Label { Text(text["sources.sheet.addScore"]); Text(text["sources.sheet.addScoreHint"]) } icon: { Image("ic-fromFile") }
                 }
@@ -221,7 +221,7 @@ struct SourcesSheet: View {
         SourcesRow(
             text: text, current: current, address: scanAddress, hosted: hosted, jobs: ScanServer.jobs, pick: pick,
             delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
-            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
+            rename: versions == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
             renameDraft: { renamingDraft = $0 }, deleteDraft: { deletingDraft = $0 }
         )
     }
@@ -270,7 +270,7 @@ struct SourcesSheet: View {
             if lent { url.stopAccessingSecurityScopedResource() }
             guard let data else { return }
             if picked == .score {
-                await score?.addVersion(fileName: url.lastPathComponent, data: data)
+                await versions?.addVersion(fileName: url.lastPathComponent, data: data)
                 await sources.refresh()
             } else {
                 let kind: String

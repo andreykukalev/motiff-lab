@@ -57,18 +57,19 @@ struct ModeCapsule: View {
 
 /// The score's modes: the Pen is the bar's Pen being on.
 struct ModeGroup: View {
-    @ObservedObject var score: ScoreController
+    /// The bar's mode other than the Pen (`ScoreController.mode`).
+    @Binding var mode: InteractionMode
     @ObservedObject var penModel: PenModel
     let text: UIText
     var compact = false
 
     var body: some View {
-        ModeCapsule(chosen: penModel.penOn ? .pen : score.mode, text: text, compact: compact) { mode in
-            if mode == .pen {
+        ModeCapsule(chosen: penModel.penOn ? .pen : mode, text: text, compact: compact) { chosen in
+            if chosen == .pen {
                 if !penModel.penOn { penModel.pen.writeOnChoosing() }
                 penModel.penOn = true
             } else {
-                score.mode = mode
+                mode = chosen
                 penModel.penOn = false
             }
         }

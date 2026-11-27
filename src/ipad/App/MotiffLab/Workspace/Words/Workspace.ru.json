@@ -63,8 +63,6 @@
   "ask.menu": "Спросить",
   "ask.thisPhrase": "Эта фраза · {0}",
   "ask.thisSelection": "Выделенное · {0}",
-  "performance.markerLabel": "Такт {0} в версии «{1}»: {2}",
-  "performance.defaultName": "Версия",
   "focus.version": "Как в «{0}»",
   "originals.loading": "Загружаем файл из «Файлов»…",
   "pill.span": "{0} – {1}",
