@@ -16,6 +16,8 @@ protocol FocusScore: AnyObject {
     var penOn: Bool { get }
     /// The other version shown on the score (`VersionShelf.shown`); nil for none.
     var versionShown: VersionEntry? { get }
+    /// The id of the version shown on the score (`VersionShelf.shownId`); nil for none.
+    var versionShownId: String? { get }
     /// The bars the version shown has otherwise and that are still to look at (`VersionShelf.differing`).
     var versionDiffering: [Int] { get }
     /// The page under the veil held still, or let go: it neither scrolls nor takes the Pencil while still.
@@ -231,7 +233,7 @@ final class FocusModel: ObservableObject {
             version = nil
             return
         }
-        guard let notes = await versionNotes(of: shown.id, in: piece), focused, selection.selection == selected, score.versionShown?.id == shown.id else { return }
+        guard let notes = await versionNotes(of: shown.id, in: piece), focused, selection.selection == selected, score.versionShownId == shown.id else { return }
         let bars = selected.firstBar...selected.lastBar
         version = Version(
             id: shown.id, name: shown.name, notes: notes,

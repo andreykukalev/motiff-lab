@@ -8,6 +8,8 @@ import WebKit
 extension ScoreController {
     var versionShown: VersionEntry? { sourcesModel.versions.shown }
 
+    var versionShownId: String? { sourcesModel.versions.shownId }
+
     var versionDiffering: [Int] { sourcesModel.versions.differing.map(\.bar) }
 
     /// In focus the page under the veil stays where it is: it does not scroll and the Pencil does not write on it.
