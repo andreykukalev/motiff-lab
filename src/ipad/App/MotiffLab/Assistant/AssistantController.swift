@@ -90,9 +90,11 @@ final class AssistantController: ObservableObject {
             self.score = score
         }
         guard key != piece else { return }
+        // A place's assistant opened as the visit began, before its first piece was read (a draft's view opened with it,
+        // v1.5 d-11), stays; one of another piece goes.
+        if piece != nil { inDraft = nil }
         piece = key
         here = nil
-        inDraft = nil
         unsentInPanel = ""
         chats = store.chats(of: key)
         currentId = chats.first?.id

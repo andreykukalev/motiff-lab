@@ -74,16 +74,17 @@ public class SettingsTests
     }
 
     [Fact]
-    public void Scan_jobs_are_an_experiment_kept_on_the_device_and_off_until_turned_on()
+    public void Scan_jobs_are_the_default_choice_of_the_scan_engine_kept_on_the_device_and_no_experiment()
     {
-        // Version 1.3 (decision record 0035): the one experiment switch, beside the scan engine it goes with.
-        Setting jobs = SettingsCatalogue.Get("experimental.scanJobs");
+        // The 1.3 hotfix (Andrei, 2026-11-25): no experiment switch; scan jobs by the four engines are a choice of the engine.
+        Setting engine = SettingsCatalogue.Get("scan.engine");
 
-        Assert.Equal(SettingSection.Experimental, jobs.Section);
-        Assert.Equal(SettingScope.Device, jobs.Scope);
-        Assert.Equal(SettingKind.Switch, jobs.Kind);
-        Assert.False(SettingsState.Default.IsOn("experimental.scanJobs"));
-        Assert.DoesNotContain("experimental.scanJobs", s_experimentSwitches);
+        Assert.Equal(SettingSection.Account, engine.Section);
+        Assert.Equal(SettingScope.Device, engine.Scope);
+        Assert.Equal(["all", "auto", "homr", "copisteria"], engine.Choices);
+        Assert.Equal("all", SettingsState.Default["scan.engine"]);
+        Assert.Null(SettingsCatalogue.Find("experimental.scanJobs"));
+        Assert.DoesNotContain("Experimental", Enum.GetNames<SettingSection>());
     }
 
     [Fact]

@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 ## Files
 
-`BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
+`BackgroundReading`, `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
@@ -36,6 +36,10 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
   what the page sends and the app leaves out stays quiet. `RollEvent.broken` is a hook apart from `FacadeAnswer.broken`:
   silencing one does not silence the other.
+- `BackgroundReading.swift` (1.3 hotfix, Andrei 2026-11-25): the library's recognition as one piece's screens see it,
+  in the environment (`backgroundReading`): the piece recognised now (one at a time), whether it is this one, the line
+  under the PDF's bar, and sending the piece or letting its notes in. `Workspace/PieceScreen` builds it from
+  `Import/RecognitionQueue`, so `Pdf/` and `Sources/` name nothing of `Import/` for it.
 - `OpenPiece.swift`: a piece opened in music-core: engraved, or a PDF piece (`isDocument`), or, since v1.1 (finding 29),
   a piece that is only its recording (`recording`, its original's id), neither engraved; a draft opened to be shown
   carries its places (`draft`, v1.1).

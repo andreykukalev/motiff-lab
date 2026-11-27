@@ -39,6 +39,7 @@ public sealed partial class MusicCoreFacade
         new("drafts.movePlace", static (call, fields) => DraftRequest.Move(call.Owner, fields)),
         new("drafts.findOnRecording", static (call, fields) => DraftRecordingRequest.Find(call.Owner, fields)),
         new("drafts.addFromRecording", static (call, fields) => DraftRecordingRequest.Add(call.Owner, fields)),
+        new("drafts.findNewOnRecording", static (call, fields) => DraftRecordingRequest.FindNew(call.Owner, call.Facade.Origin(call.Open), fields)),
         new("drafts.length", static (call, fields) => DraftLengthRequest.Length(call.Owner, fields, call.Facade.Working)),
         new("drafts.resize", static (call, fields) => DraftLengthRequest.Resize(call.Owner, fields, call.Facade.Working)),
         new("drafts.carryPlaces", static (call, fields) => DraftCarryRequest.Places(call.Owner, fields)),

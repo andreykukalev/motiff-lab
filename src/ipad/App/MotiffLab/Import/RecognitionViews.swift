@@ -147,15 +147,16 @@ struct RecognitionTop: View {
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(all ? .isSelected : [])
                 }
-                Text(picked.isEmpty ? text["recognition.chooseHint"] : text.format("recognition.chosenLine", text.count("recognition.pieces", picked.count)) + " · " + text.count("recognition.pages", picked.reduce(0) { $0 + $1.pages }))
+                Text(chosenLine(picked))
                     .dsType(.bodyStrong)
                     .foregroundStyle(Color.ds("ink"))
                 Spacer(minLength: CGFloat.ds("s-2"))
                 Button(text["recognition.clear"]) { self.chosen = nil }
                     .buttonStyle(DSButtonStyle(kind: .quiet))
+                // One recognition at a time (Andrei, 2026-11-25): none starts while the banner's goes on.
                 Button(text["recognition.recognise"], action: recognise)
                     .buttonStyle(DSButtonStyle(kind: .primary))
-                    .disabled(picked.isEmpty)
+                    .disabled(picked.isEmpty || queue.busy != nil)
             }
         }
     }
@@ -205,6 +206,13 @@ struct RecognitionTop: View {
         .dsShadow("shadow-menu")
     }
 
+    /// What the picking row says: what to pick, what is picked, or that a recognition goes on and none starts meanwhile.
+    private func chosenLine(_ picked: [LibraryEntry]) -> String {
+        if let busy = queue.busy { return text.format("recognition.busy", busy.title) }
+        if picked.isEmpty { return text["recognition.chooseHint"] }
+        return text.format("recognition.chosenLine", text.count("recognition.pieces", picked.count)) + " · " + text.count("recognition.pages", picked.reduce(0) { $0 + $1.pages })
+    }
+
     private func headline(_ batch: RecognitionBatch) -> String {
         if batch.finished {
             let read = text.format("recognition.finished", String(batch.read), String(batch.items.count))
@@ -212,6 +220,8 @@ struct RecognitionTop: View {
         }
         if let stopped = batch.stopped { return text["recognition.stopped." + stopped] }
         if batch.paused { return text.format("recognition.pausedAt", String(batch.done), String(batch.items.count)) }
+        // One piece, as «Распознать ноты» on a PDF sends it (Andrei, 2026-11-25): its title, the job open on a tap.
+        if batch.items.count == 1, let only = batch.items.first { return text.format("recognition.runningOne", only.title) }
         // Each key is in one file: the line while reading is Import's own «recognition.running», the pieces done of all.
         return text.format("recognition.running", String(batch.done), String(batch.items.count))
     }
@@ -440,6 +450,66 @@ extension View {
     @MainActor
     func recognition(chosen: Binding<Set<URL>?>, consenting: Binding<Bool>, account: Account, entries: [LibraryEntry], on: Bool, text: UIText, settings: @escaping () -> Void, reload: @escaping () async -> Void) -> some View {
         modifier(RecognitionLayer(chosen: chosen, consenting: consenting, account: account, entries: entries, on: on, text: text, settings: settings, reload: reload))
+    }
+}
+
+/// The line under the PDF's bar while its piece is recognised in the background by the library's recognition (Andrei,
+/// 2026-11-25): how far it is, as the banner says it; «Ноты готовы» with «Открыть ноты» once the job is done, which the
+/// screen answers by letting the piece go to have its notes written; why not, when it did not work.
+struct BackgroundRecognitionLine: View {
+    let item: RecognitionItem
+    @ObservedObject var queue: RecognitionQueue
+    let text: UIText
+    /// The notes are being opened: the button waits.
+    let opening: Bool
+    let open: () -> Void
+
+    var body: some View {
+        if let words = Self.words(item, queue: queue, text: text) {
+            HStack(spacing: CGFloat.ds("s-3")) {
+                if Self.ready(item, queue: queue) {
+                    Text(text["recognition.notesReady"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+                    Spacer(minLength: CGFloat.ds("s-2"))
+                    Button(text["recognition.openNotes"], action: open)
+                        .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
+                        .disabled(opening)
+                } else {
+                    Text(text["recognition.background"]).dsType(.bodyStrong).foregroundStyle(Color.ds("ink"))
+                    Text(words)
+                        .monospacedDigit()
+                        .dsType(.label)
+                        .foregroundStyle(Color.ds(item.state == .failed ? "danger" : "ink-2"))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(.horizontal, CGFloat.ds("s-4"))
+            .frame(minHeight: CGFloat.ds("h-touch"))
+            .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+            .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
+            .dsShadow("shadow-menu")
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// The piece's notes are read (by its scan job or otherwise) and wait for the screen to let the piece go.
+    static func ready(_ item: RecognitionItem, queue: RecognitionQueue) -> Bool {
+        item.state == .reading && queue.awaiting == item.file
+    }
+
+    /// What the line says: why the notes were not read, the batch paused, how far the job is, or that it is being read;
+    /// nil once the notes are in.
+    static func words(_ item: RecognitionItem, queue: RecognitionQueue, text: UIText) -> String? {
+        switch item.state {
+        case .done: return nil
+        case .failed: return text.format("recognition.backgroundFailed", item.reason ?? text["pdf.readNone"])
+        case .queued, .reading:
+            // Stopped by the app, it says why, as the library's banner does, where «Продолжить» goes on.
+            if let stopped = queue.batch?.stopped { return text["recognition.stopped." + stopped] }
+            if let batch = queue.batch, batch.paused { return text.format("recognition.pausedAt", String(batch.done), String(batch.items.count)) }
+            if let current = queue.progress, current.file == item.file { return RecognitionTop.jobLine(current.progress, text) }
+            return text["import.scanBusy"]
+        }
     }
 }
 

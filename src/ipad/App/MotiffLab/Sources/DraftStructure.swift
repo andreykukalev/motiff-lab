@@ -26,15 +26,39 @@ enum DraftRecordingOffer: Equatable, Sendable {
     /// The offer of music-core's answer, from the stretch it found most only (the first); with no answer, `refused`, its
     /// words, if any.
     init(_ answer: DraftRecordingAnswer?, refused: String? = nil) {
-        guard let answer else {
+        self.init(found: answer?.found, refused: refused)
+    }
+
+    /// The offer of what music-core found (`found`, a place's or a new draft's, v1.5 d-11), as `init(_:refused:)`.
+    init(found: [DraftRecordingAnswer.Found]?, refused: String? = nil) {
+        guard let found else {
             self = .failed(refused)
             return
         }
-        guard let best = answer.found.first else {
+        guard let best = found.first else {
             self = .notFound
             return
         }
         self = best.variant == nil ? .add(best) : .already(best)
+    }
+
+    /// The offer of what the card «Новый черновик» found (v1.5 d-11), as `init(found:refused:)`; with no recording searched,
+    /// the one the passage is selected in left out, nothing to say (E-drafts-1).
+    init(new answer: DraftNewRecordingAnswer?, refused: String? = nil) {
+        self = answer?.recordings == 0 ? .noRecording : DraftRecordingOffer(found: answer?.found, refused: refused)
+    }
+
+    /// The card's offer once its search ends, unless the card left it meanwhile (`cancelled`: the sheet closed, another
+    /// part chosen), whose end says nothing (E-drafts-3).
+    mutating func settle(_ found: DraftRecordingOffer, cancelled: Bool) {
+        if !cancelled { self = found }
+    }
+
+    /// The stretch «С ассистентом · Pro» on the card «Новый черновик» puts in (v1.5 d-11): one found, for a new draft
+    /// (`into`), on a screen that can open the draft's view (`opensDraft`: one with the switch, E-drafts-2); else nil, and
+    /// the button is not shown.
+    func assisting(into: DraftChoice.Into?, opensDraft: Bool) -> DraftRecordingAnswer.Found? {
+        into == .new && opensDraft ? adds : nil
     }
 
     /// The stretch to put in; nil where nothing is.
@@ -63,6 +87,20 @@ enum DraftRecordingOffer: Equatable, Sendable {
         case .notFound: text["drafts.recordingNotFound"]
         case .failed(let refused): refused ?? text["drafts.recordingFailed"]
         case .already(let found): text.format("drafts.recordingAlready", found.label)
+        }
+    }
+
+    /// The line of the card «Новый черновик» (v1.5 d-11; spec «Ноты + запись»: «место на записи, % совпадения, число
+    /// приёмов»): where on the recording the passage is, how much of it, and how many приёмы the place would have; that it
+    /// searches, or why nothing was found; nil before the search and on a piece with no recording heard.
+    func newDraftLine(_ text: UIText) -> String? {
+        switch self {
+        case .ready, .noRecording: nil
+        case .searching: text["drafts.recordingSearching"]
+        case .notFound: text["drafts.newNotFound"]
+        case .failed(let refused): refused ?? text["drafts.recordingFailed"]
+        case .add(let found), .already(let found):
+            text.format("drafts.newOnRecording", found.label, String(found.percent), text.count("drafts.techniqueCount", found.techniques ?? 0))
         }
     }
 }

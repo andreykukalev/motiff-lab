@@ -102,6 +102,7 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `drafts.carry` | piece |  |
 | `drafts.carryPlaces` | piece |  |
 | `drafts.context` | piece |  |
+| `drafts.findNewOnRecording` | piece |  |
 | `drafts.findOnRecording` | piece |  |
 | `drafts.leave` | piece |  |
 | `drafts.leaveBridge` | piece |  |
@@ -224,6 +225,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 16 removes bookmark.structure (version 1.5, c-16b, #366), a Structure bookmark for each detected sentence, which no app sends since the Contents files the form's sections with bookmark.form (#347); it answers unknownCall, as the calls 14 and 10 removed do. bookmark.form answers as before, and the project file stays version 17: Structure bookmarks the removed call made open and save as any other bookmark.
 
 Also within 16 (version 1.5, c-11b, the v1.4 plan's answer 5): sources.makeWorking moves the work kept in ticks with the piece (bookmarks, a title still by their bars retitled, phrase boundaries at every level, resume points, ideas kept with a note alone, the versions compared: their anchors, bars dismissed and Check flags) into the new working notes by bars, as the two are matched for the corrections carried (`ReadingMatch`, `FollowedWork`), a place in a bar with no match kept where the music before it went; when there was such work it answers "followed": "moved" (how many bookmarks, phrase boundaries of the level shown and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are now) and "text" (the toast's line, or null); without such work the answer is as before. A field added; the project file stays version 17.
+
+Also within 16 (version 1.5, d-11, DRAFT-11: «С ассистентом · Pro» on the card «Новый черновик»): drafts.findNewOnRecording answers, before a draft is made and nothing changed, the stretch of each of the piece's recordings that is the music of the fragment the «В черновик» sheet reads, as drafts.findOnRecording answers it for a place (the Notes the fragment is taken from left out, "recordings" how many were searched), each with "techniques", the приёмы the new draft's first place would have with it; drafts.add of a new draft takes "recording", those Notes, and makes the draft with that stretch as a variant of its first place in one change, answering "recording", the variant's id, and refuses it ("badRequest") into a draft that is there, this piece's or another file's (`DraftRecordingRequest.FindNew`, `WithStretch`, `OnRecording`); a call and a field added. The project file stays version 17.
 
 Also within 16 (version 1.5, r-2a, #821): project.save never writes over a saved variation but the working chain's own earlier save: the chain shown goes under the id of the variation it was opened from, and a chain that went (try, select, idea.open, variation.clear, a correction) leaves its saved copy as it was, the next one saved beside it; select or idea.open on another passage, while the working motif has variations saved, leaves it in the file as it was and saves the passage beside it under a new id, which passes the motifs this build does not know by. No field changes; the project file stays version 17.
 

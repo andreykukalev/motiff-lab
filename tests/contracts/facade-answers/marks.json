@@ -3665,26 +3665,15 @@
      },
      {
       "id": "scan.engine",
-      "section": "experimental",
+      "section": "account",
       "kind": "choice",
       "choices": [
+       "all",
+       "auto",
        "homr",
-       "copisteria",
-       "auto"
+       "copisteria"
       ],
-      "default": "homr",
-      "presets": null,
-      "scope": "device"
-     },
-     {
-      "id": "experimental.scanJobs",
-      "section": "experimental",
-      "kind": "switch",
-      "choices": [
-       "on",
-       "off"
-      ],
-      "default": "off",
+      "default": "all",
       "presets": null,
       "scope": "device"
      }

@@ -158,3 +158,36 @@ final class BarPdfView: PDFView {
         placed = (page, fraction, bounds.size)
     }
 }
+
+/// A bookmarked page's tab: a carmine strip on the page's right edge at 6% from the top, drawn by PDFKit with the page and
+/// kept only in memory (the PDF is never written back; the bookmarks live in the project).
+final class BookmarkTab: PDFAnnotation {
+    private var fill = UIColor.systemRed.cgColor
+    private var radius: CGFloat = 2
+
+    init(on page: PDFPage) {
+        let box = page.bounds(for: .cropBox)
+        let width = max(6, box.width * 0.016)
+        let height = width * 3.2
+        let bounds = CGRect(x: box.maxX - width, y: box.maxY - box.height * 0.06 - height, width: width, height: height)
+        super.init(bounds: bounds, forType: .square, withProperties: nil)
+        // The page is paper in both appearances, so the tab takes the daylight carmine.
+        fill = DesignTokens.dynamicColor("ink-carmine").resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).cgColor
+        radius = min(width / 2, DesignTokens.length("r-xs"))
+        shouldDisplay = true
+        shouldPrint = false
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override func draw(with box: PDFDisplayBox, in context: CGContext) {
+        context.saveGState()
+        let path = UIBezierPath(roundedRect: bounds, byRoundingCorners: [.topLeft, .bottomLeft], cornerRadii: CGSize(width: radius, height: radius))
+        context.addPath(path.cgPath)
+        context.setFillColor(fill)
+        context.fillPath()
+        context.restoreGState()
+    }
+}

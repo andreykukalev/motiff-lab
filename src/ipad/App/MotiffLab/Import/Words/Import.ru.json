@@ -128,7 +128,7 @@
   "recognition.finished": "Ноты распознаны: {0} из {1}",
   "recognition.left": "ещё около {0} мин.",
   "recognition.failMissing": "Пьесы больше нет в библиотеке",
-  "scan.engineMissing": "На сервере распознавания нет движка {0}. Обновите сервер или выберите homr в Настройках, раздел «Экспериментальное».",
+  "scan.engineMissing": "На сервере распознавания нет движка {0}. Обновите сервер или выберите другой движок в Настройках, раздел «Аккаунт».",
   "folderImport.accessFine": "доступ есть",
   "folderImport.accessLost": "нет доступа: выберите папку заново",
   "folderImport.accessUnreadable": "папка не читается",
@@ -279,5 +279,10 @@
   "scanJob.state.read": "прочитал",
   "scanJob.state.retrying": "повторяет",
   "scanJob.state.not_read": "не прочитал",
-  "scanJob.detailHint": "Показывает каждую страницу и её движки"
+  "scanJob.detailHint": "Показывает каждую страницу и её движки",
+  "recognition.background": "В фоне",
+  "recognition.notesReady": "Ноты готовы",
+  "recognition.openNotes": "Открыть ноты",
+  "recognition.backgroundFailed": "Ноты не распознаны: {0}",
+  "recognition.runningOne": "Распознаю ноты «{0}»"
 }

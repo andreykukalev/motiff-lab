@@ -129,6 +129,8 @@ public class DraftCollageFacadeTests
         Assert.Equal("badRequest", Error(facade, "drafts.add", Into(fileOfA, """ "draft": "d_0009", "drop": "place" """)));
         Assert.Equal("badRequest", Error(facade, "drafts.add", Into(fileOfA, """ "drop": "place" """)));
         Assert.Equal("badRequest", Error(facade, "drafts.add", Into(fileOfA, """ "draft": "d_0001", "drop": "variant", "place": "pl_0009" """)));
+        // v1.5 d-11: "recording" is only for a new draft of this piece, never ignored.
+        Assert.Equal("badRequest", Error(facade, "drafts.add", Into(fileOfA, """ "draft": "d_0001", "drop": "place", "recording": "n_2" """)));
         Assert.Equal("badRequest", Error(facade, "drafts.add", Into("{\"format\": \"motifflab-project\", \"version\": 17", """ "draft": "d_0001", "drop": "place" """)));
         Assert.Equal("badRequest", Error(facade, "drafts.add", Into(before, """ "draft": "d_0001", "drop": "place" """)));
         Assert.Equal("badRequest", Json(facade.Call(0, "project.drafts", """{"file": "not a project"}""")).GetProperty("error").GetString());

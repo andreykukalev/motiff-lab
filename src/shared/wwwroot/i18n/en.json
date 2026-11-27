@@ -8,6 +8,7 @@
   "scan.signInPrompt": "Scanning runs on Motiff Lab's server, with nothing to install, and needs an account.",
 
   "scan.proPrompt": "Scanning runs on Motiff Lab's server and is part of Pro. Opening a MusicXML or MIDI file stays free.",
+  "recognition.busy": "«{0}» is being recognised. A new recognition starts once it is done, or once you stop it in the library.",
 
   "account.title": "Your account",
 
@@ -144,5 +145,8 @@
   "folderImport.recheck": "Check the folder",
   "rollMode.label": "Piano roll mode",
   "padAssistant.accepted": "The draft is accepted. The correction is in My corrections.",
-  "padAssistant.new": "New conversation"
+  "padAssistant.new": "New conversation",
+
+  "drafts.techniqueCount.one": "{0} technique",
+  "drafts.techniqueCount.many": "{0} techniques"
 }

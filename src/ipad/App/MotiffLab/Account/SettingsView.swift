@@ -279,11 +279,10 @@ struct SettingsSheet: View {
                 // Without Motiff Lab's server, the player's own scan server (0011), as in the web app's Settings.
                 ScanPanel(scan: ScanServer.shared, text: text)
             }
-            // The engine that reads scans (v0.5.7; a setting since v0.6.5): homr or copisteria on the scan server, or «Авто»
-            // (0029), which reads a notation program's pages on the iPad; homr until chosen.
-            choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"], hint: text["settings.scanEngineHint"]) { $0 == ScanServer.auto ? text["settings.scanEngineAuto"] : $0 }
-            // Scan jobs (version 1.3, an experiment, off until turned on): four engines on the server, in the background.
-            switchRow(ScanServer.jobsKey, text["settings.scanJobs"], hint: text["settings.scanJobsHint"])
+            // The engine that reads scans (v0.5.7; a setting since v0.6.5): «Четыре движка» in the background (version 1.3, the
+            // default since the 1.3 hotfix), «Авто» (0029), which reads a notation program's pages on the iPad, or homr or
+            // copisteria on the scan server.
+            choiceRow(ScanServer.engineChoice, text["settings.scanEngineChoice"], hint: text["settings.scanEngineHint"]) { engineName($0) }
         case .about:
             // Which build this is and where it works (Andrei, 2026-11-13); in Test, clearing the test library.
             AboutPanel(account: account, text: text)
@@ -309,6 +308,15 @@ struct SettingsSheet: View {
             if let hint {
                 Text(hint).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
             }
+        }
+    }
+
+    /// A choice of «Движок» as the player reads it: Motiff Lab's own two by their words, an engine by its name.
+    private func engineName(_ choice: String) -> String {
+        switch choice {
+        case ScanServer.allEngines: text["settings.scanEngineAll"]
+        case ScanServer.auto: text["settings.scanEngineAuto"]
+        default: choice
         }
     }
 

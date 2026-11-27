@@ -8,6 +8,7 @@
   "scan.signInPrompt": "Распознавание работает на сервере Motiff Lab, ничего не нужно устанавливать, но нужна учётная запись.",
 
   "scan.proPrompt": "Распознавание работает на сервере Motiff Lab и входит в Pro. Открыть файл MusicXML или MIDI можно бесплатно.",
+  "recognition.busy": "Идёт распознавание «{0}». Новое начнётся, когда оно закончится или вы его остановите в библиотеке.",
 
   "account.title": "Ваша учётная запись",
 
@@ -146,5 +147,9 @@
   "folderImport.recheck": "Проверить папку",
   "rollMode.label": "Режим пиано-ролла",
   "padAssistant.accepted": "Черновик принят. Правка в «Моих правках».",
-  "padAssistant.new": "Новый разговор"
+  "padAssistant.new": "Новый разговор",
+
+  "drafts.techniqueCount.one": "{0} приём",
+  "drafts.techniqueCount.few": "{0} приёма",
+  "drafts.techniqueCount.many": "{0} приёмов"
 }

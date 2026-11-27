@@ -63,6 +63,14 @@ struct PieceCore: Sendable {
         return Answer(text, of: "drafts.sheet")
     }
 
+    /// `drafts.findNewOnRecording`: what the card «Новый черновик» finds on the piece's recordings for the passage of the
+    /// sheet's `request` (v1.5 d-11), nothing changed; asked on the piece the passage is selected on, as the sheet is.
+    func draftNewRecording(_ request: String) async -> Answer<DraftNewRecordingAnswer> {
+        let piece = piece
+        let text = await MusicCore.run { MusicCore.call(piece: piece, "drafts.findNewOnRecording", request) }
+        return Answer(text, of: "drafts.findNewOnRecording")
+    }
+
     /// `drafts.techniques`: the приёмы of the place `place` of the draft `draft` (v1.1, ADR 0034 section 4), asked on the
     /// piece the draft belongs to or on its view, which music-core answers for the piece it was opened from.
     func draftTechniques(draft: String, place: String) async -> Answer<DraftTechniquesAnswer> {
