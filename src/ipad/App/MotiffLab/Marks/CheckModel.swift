@@ -47,6 +47,9 @@ final class CheckModel: ObservableObject {
     @Published private(set) var scanCrops: [Int: UIImage] = [:]
     /// The variant the player chose last, which one Undo takes back whole while nothing came after it.
     @Published private(set) var variantChoice = ScanVariantChoice()
+    /// A variant on its way into the notes: a second tap before music-core answers puts nothing in, so a double tap never
+    /// leaves a reading in the bar that «Отменить выбор» does not take back (v1.6 i-8, E-scan-9).
+    private var puttingVariant = false
     /// Fix notes (S1-I7): the bar whose notes the Check drawer lists to correct, as music-core answers `corrections`.
     @Published private(set) var corrections: NoteCorrections?
     /// «Мои правки» (version 0.5, on the iPad since v0.6.5): whether the corrections are laid over the notes, and those that
@@ -179,12 +182,14 @@ final class CheckModel: ObservableObject {
 
     /// Another engine's reading of a scan's bar to check chosen (v1.3 i-2, 0035 section 6): music-core puts it in that bar's
     /// staves to check only, as the player's corrections (`corrections.variant`); the bar's notes are listed to correct, the
-    /// score engraved again and saved.
+    /// score engraved again and saved. A tap while one is being put in does nothing.
     func chooseVariant(_ variant: ScanVariant, bar: Int) {
-        guard let piece = score?.pieceId else { return }
+        guard !puttingVariant, let piece = score?.pieceId else { return }
+        puttingVariant = true
         let body = facadeRequest(variant.fields(bar: bar))
         Task {
             let answer = await PieceCore(piece: piece).variant(body)
+            puttingVariant = false
             guard let read = answer.value else {
                 score?.showProblem(FacadeAnswer.problem(answer.text))
                 return

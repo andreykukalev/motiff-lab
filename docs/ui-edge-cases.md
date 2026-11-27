@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.5 r-2b):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-8):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -78,6 +78,9 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   must still be the project read at the start) and its line says «Пьесы больше нет в библиотеке», its job deleted on the
   server as one that did not work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not
   undone by a background job · v1.5 r-2b
+- `E-scan-9` · An engine's reading of a bar tapped again before music-core has put the first tap's in · the second
+  tap does nothing, so the bar holds one reading, which «Отменить выбор» takes back whole · a button's action runs once
+  per press while it is under way (HIG: prevent a repeated submit); SCAN-06: one tap puts one reading in · v1.6 i-8
 - `E-library-1` · A very long title on a Sessions card · two lines at most, cut with an ellipsis; VoiceOver reads it
   whole · as the list's line, which takes one; HIG: truncate rather than let one card grow the grid · v1.5 r-2b
 - `E-library-2` · «Открыть файл» on a PDF this iPad cannot show (broken, no page, locked with a password) · refused with

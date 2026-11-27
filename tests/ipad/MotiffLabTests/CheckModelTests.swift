@@ -6,7 +6,7 @@ import XCTest
 /// again once per change; with «Мои правки» off, Fix notes, the note editor and the assistant's drafts say why and open
 /// nothing; with no piece nothing is asked of music-core; Check is read for a piece and its flags drawn once; the note
 /// editor's draft opens, changes the notes, and goes on Cancel or is kept on Save. What ScoreController did before the move,
-/// rule for rule.
+/// rule for rule; and one robustness rule of v1.6 i-8: a double tap on a scan's reading puts it in once.
 @MainActor
 final class CheckModelTests: XCTestCase {
     /// The score as Check sees it: what was asked of it, in order.
@@ -124,6 +124,23 @@ final class CheckModelTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(fake.asked, [])
         XCTAssertEqual(fake.problems, [])
+    }
+
+    /// Robustness (v1.6 i-8): two taps on a scan's reading before music-core answers put it in once, as one Undo takes back.
+    func testADoubleTapOnAnEnginesReadingPutsItInOnce() async throws {
+        let fake = FakeScore()
+        fake.pieceId = 9_999
+        let model = made(fake)
+        let json = #"{"engines": ["copisteria"], "staves": [{"part": 1, "staff": 1, "notes": [{"onset": 0, "pitch": 72, "length": 480, "name": "C5"}]}]}"#
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let reading = try XCTUnwrap(ScanVariant(object))
+        model.chooseVariant(reading, bar: 2)
+        model.chooseVariant(reading, bar: 2)
+        await until("music-core answered") { !fake.problems.isEmpty }
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(fake.problems.count, 1, "one call: the second tap put nothing in")
+        model.chooseVariant(reading, bar: 2)
+        await until("a tap after the answer is a call again") { fake.problems.count == 2 }
     }
 
     func testCheckIsReadForAPieceAndItsFlagsDrawnOnce() async throws {
