@@ -153,6 +153,9 @@ struct PieceSummary: Equatable, Sendable {
     /// What the piece is known by on every device (version 0.6.1, #582 item 1; music-core's `SamePiece.Keys`, within
     /// contract 12): the fingerprints of the files it was made from, so a sync pass finds the projects that are one piece.
     var pieceKeys: [String] = []
+    /// A project a newer version of Motiff Lab saved, opened read-only (project file 18, 0026 S6): music-core refuses to
+    /// save it, so nothing here writes it, and the score says so in one line.
+    var readOnly = false
 
     /// The title the player set in the library, if they did.
     var playersTitle: String? { titleFrom == "player" ? title : nil }
@@ -197,6 +200,7 @@ struct PieceSummary: Equatable, Sendable {
         originals = OriginalEntry.list(project["originals"])
         partOf = PartOfEntry(project["partOf"])
         pieceKeys = project["pieceKeys"] as? [String] ?? []
+        readOnly = project["readOnly"] as? Bool ?? false
     }
 
     /// Reads a project file's summary through music-core; nil when the file cannot be read.

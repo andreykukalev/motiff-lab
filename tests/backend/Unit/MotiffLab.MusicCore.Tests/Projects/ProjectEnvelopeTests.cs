@@ -35,6 +35,7 @@ public class ProjectEnvelopeTests
     {
         JsonObject file = JsonNode.Parse(ProjectFile.Write(ProjectFileTests.Worked()))!.AsObject();
         file["version"] = ProjectFile.Version + 1;
+        file["minReader"] = ProjectFile.Version + 1;
         file["workspace"]!["motifs"]![0]!["kind"] = "FutureValue";
 
         Assert.Equal(ProjectFile.Version + 1, ProjectFile.ReadEnvelope(Encoding.UTF8.GetBytes(file.ToJsonString())).Version);

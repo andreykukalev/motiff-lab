@@ -26,6 +26,12 @@ internal static class OriginCodec
             json.WriteStartObject("scan");
             JsonWrite.Numbers(json, "confirmedBars", scan.ConfirmedBars);
             WriteScanPages(json, scan.Pages);
+            if (scan.Unread.Count > 0)
+            {
+                JsonWrite.Numbers(json, "unread", scan.Unread);
+                JsonWrite.Numbers(json, "read", scan.ReadPages);
+            }
+
             json.WriteEndObject();
         }
 
@@ -127,7 +133,25 @@ internal static class OriginCodec
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        return new ScanOrigin(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
+        ScanOrigin read = new(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
+        return scan.TryGetProperty("unread", out JsonElement unread) ? WithUnreadIn(read, unread, Property(scan, "read", JsonValueKind.Array)) : read;
+    }
+
+    /// <summary>"unread" and "read" in "scan" (version 18): the PDF's pages no engine read and those the notes have, each from 1.</summary>
+    private static ScanOrigin WithUnreadIn(ScanOrigin scan, JsonElement unread, JsonElement read)
+    {
+        static int[] Pages(JsonElement pages) => pages.ValueKind == JsonValueKind.Array
+            ? [.. pages.EnumerateArray().Select(page => page.ValueKind == JsonValueKind.Number && page.TryGetInt32(out int value) ? value : throw Damaged("unread pages"))]
+            : throw Damaged("unread pages");
+
+        try
+        {
+            return scan.WithUnread(Pages(unread), Pages(read));
+        }
+        catch (ArgumentException)
+        {
+            throw Damaged("unread pages");
+        }
     }
 
     /// <summary>A transcription's bars, seams and stretch sent, with the engine, original and time its provenance names.</summary>

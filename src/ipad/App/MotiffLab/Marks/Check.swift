@@ -89,6 +89,9 @@ struct CheckShelf: Equatable, Sendable {
     var pages: [CheckPageEntry] = []
     /// Where each page of a scan's notes starts, in order, with or without reports; empty for other notes (v1.5 i-7).
     var pageStarts: [CheckPageStart] = []
+    /// The PDF's pages no engine read and those the notes have, kept with the notes (project file 18); empty when none.
+    var unreadPages: [Int] = []
+    var readPages: [Int] = []
     /// The working notes' music by its SHA-256 (v1.3 i-2), as `scan.join` named the score: what this iPad keeps of a scan's
     /// bars to check is found by it (`ScanReviewStore`).
     var fingerprint: String?
@@ -138,6 +141,8 @@ struct CheckShelf: Equatable, Sendable {
             )
         }
         pageStarts = CheckPageStart.all(object["pageStarts"])
+        unreadPages = (object["unreadPages"] as? [NSNumber] ?? []).map(\.intValue)
+        readPages = (object["readPages"] as? [NSNumber] ?? []).map(\.intValue)
     }
 
     var hasFlags: Bool { !flags.isEmpty }

@@ -178,5 +178,6 @@
   "drafts.lengthChange": "Change the length…",
   "recognition.unreadBefore": "Page {0} not recognised · its place is before bar {1}",
   "recognition.unreadAfter": "Page {0} not recognised · its place is after bar {1}",
-  "recognition.unreadHeading": "Pages not recognised"
+  "recognition.unreadHeading": "Pages not recognised",
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
 }

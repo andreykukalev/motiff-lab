@@ -313,7 +313,7 @@ final class FacadeTests: XCTestCase {
         let settings = DeviceSettings(store: store)
         await settings.load()
         XCTAssertEqual(settings.preset, "practising", "a new device starts from Practising")
-        XCTAssertEqual(settings.catalogue["phrases.granularity"]?.choices, ["short", "phrases", "sentences"])
+        XCTAssertNil(settings.catalogue["phrases.granularity"], "the piece's phrase level is gone (project file 18)")
 
         await settings.update(["preset": "clean"])
         XCTAssertEqual(settings.preset, "clean")

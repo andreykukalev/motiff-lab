@@ -16,8 +16,8 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class LinkedOriginalsFormatTests
 {
-    private const string LinkedGolden = "v17-linked-pdf.motiff.json";
-    private const string FolderGolden = "v17-folder-notes.motiff.json";
+    private const string LinkedGolden = "v18-linked-pdf.motiff.json";
+    private const string FolderGolden = "v18-folder-notes.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 12, 18, 0, 0, TimeSpan.Zero);
 
@@ -57,7 +57,7 @@ public class LinkedOriginalsFormatTests
     [InlineData(FolderGolden)]
     public void The_files_written_are_the_goldens_and_what_the_files_of_version_0_5_become(string golden)
     {
-        GoldenFiles.AssertIs(golden, ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder()), [golden.Replace("v17-", "v15-", StringComparison.Ordinal), golden.Replace("v17-", "v16-", StringComparison.Ordinal)]);
+        GoldenFiles.AssertIs(golden, ProjectFile.Write(golden == LinkedGolden ? Linked() : FromFolder()), [golden.Replace("v18-", "v15-", StringComparison.Ordinal), golden.Replace("v18-", "v16-", StringComparison.Ordinal), golden.Replace("v18-", "v17-", StringComparison.Ordinal)]);
     }
 
     [Fact]

@@ -120,6 +120,13 @@ internal sealed class Request : IDisposable
         _ => throw Wrong(name, "a list of text"),
     };
 
+    public IReadOnlyList<int> Ints(string name) => Element(name) switch
+    {
+        null => [],
+        { ValueKind: JsonValueKind.Array } value => [.. value.EnumerateArray().Select(item => item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out int number) ? number : throw Wrong(name, "a list of whole numbers"))],
+        _ => throw Wrong(name, "a list of whole numbers"),
+    };
+
     /// <summary>An enum named in lower camel case, as answers write it, or in the C# spelling.</summary>
     public T? Enum<T>(string name)
         where T : struct, Enum

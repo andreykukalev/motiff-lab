@@ -27,7 +27,9 @@ project-continuity council, 2026-11-08), with the tolerant reader for enum value
 | `v17-worked.motiff.json`, `v17-edits-meters`, `v17-photos-parts`, `v17-linked-pdf`, `v17-folder-notes`, `v17-originals`, `v17-originals-online`, `v17-pdf-online`, `v17-sources`, `v17-variants` (`.motiff.json`) | 17 | What today's writer makes of the project of the `v16-` file of the same name (and of its `v15-` file, where there is one): the `v16-` file with the version raised to 17 and nothing else. |
 | `v17-recording.motiff.json` | 17 | Written by version 1.1 (`Projects/RecordingPieceFormatTests.cs`, finding 29): a piece that is only a recording added as it is, kept on the iPad, with no notes. Raised to version 16 it is damaged. |
 | `v17-drafts.motiff.json` | 17 | Written by version 1.1 (`Projects/DraftsFormatTests.cs`, ADR 0034): a MIDI piece built in code with two drafts: places of the notes with a variant heard in a recording (its stretch, an anchor), of another piece's melody and a bridge with a pencil note, a left hand on the shelf, and a step of each kind. A draft with an unknown value is kept whole as unknown. |
-| `v18-future.motiff.json` | 18 | The version 17 file with the version raised to 18 and the same unknown fields and values as `v17-future.motiff.json`. A test checks that it is exactly that. |
+| `v18-future.motiff.json` | 18 | Made while version 17 was today's: the version 17 file with the version raised to 18 and the same unknown fields and values as `v17-future.motiff.json`. A test checks that it is exactly that. It has no `minReader`, which every file of version 18 has, so today it is damaged. |
+| `v18-worked.motiff.json`, `v18-edits-meters`, `v18-photos-parts`, `v18-linked-pdf`, `v18-folder-notes`, `v18-originals`, `v18-originals-online`, `v18-pdf-online`, `v18-sources`, `v18-variants`, `v18-recording`, `v18-drafts` (`.motiff.json`) | 18 | What today's writer makes of the `v17-` file of the same name: the version raised to 18, `minReader` 18 and the `phrases.granularity` override dropped (#314, #315). |
+| `v19-future.motiff.json` | 19 | Today's future file: `v18-worked.motiff.json` with version 19 and `minReader` 18, unknown fields at the top level, in the workspace, in the first motif, variation, idea and resume point and in a bookmark category, an unknown setting `future.setting` and the operation `V99` in a step of the second variation. A test checks that it is exactly that; it opens read-only and is written back whole. |
 
 **Missing: versions 13 and 14.** No project files of those versions were supplied (Andrei has only version 12 files),
 so there is no golden for them. A file of either version can be added here with the same test as the version 12 ones.
@@ -58,14 +60,16 @@ kinds of piece; the Einaudi file holds a transcription.
 
 ## What the tests record
 
-- **Version 12**: both files read, open (the motif still matches its notes) and are written as version 17; laid out at
+- **Version 12**: both files read, open (the motif still matches its notes) and are written as version 18; laid out at
   the top level again, only the version, an empty `performances` and the originals' descriptions differ.
-- **Version 15**: the file reads and is written as `v17-worked.motiff.json`, which laid out at the top level again is
-  the version 15 file. **Version 16**: `v16-worked.motiff.json` reads and is written as the version 17 file, with only
-  the version changed. **Version 17**: that file reads, opens (3 motifs, 11 variations) and is written back unchanged.
-- **The future file is refused** today, before any field is read: "This project was saved by a newer version of
-  Motiff Lab." (council fact V3). Read-only opening, a later task, is meant to flip it.
-- **One unknown enum value** in a version 16 or 17 file (#313, flipping council fact V3): for 21 of the 24 enum types the file
+- **Version 15**: the file reads and is written as `v18-worked.motiff.json`, which laid out at the top level again is
+  the version 15 file. **Version 16**: `v16-worked.motiff.json` and `v17-worked.motiff.json` read and are written as the version 18
+  file, with only the version, `minReader` and the phrase level changed. **Version 18**: that file reads, opens (3 motifs, 11
+  variations) and is written back unchanged.
+- **The future file opens read-only** (#315, flipping council fact V3): `v19-future.motiff.json` keeps every unknown field,
+  setting and operation, is written back whole and is never saved. A file whose `minReader` is above 18, or of version 19
+  without one, is refused before any field is read: "This project was saved by a newer version of Motiff Lab."
+- **One unknown enum value** in a version 16, 17 or 18 file (#313, flipping council fact V3): for 21 of the 24 enum types the file
   opens, the entity holding the value is kept as unknown and the file is written back unchanged. For PerformanceSource,
   MergeChoice and Provenance, and for Hand and KeyMode on a note correction, a compared Notes or the assembly, the file
   is still "damaged": those change the notes that sound (Andrei's decision on #313, option A). A version 16 file is
@@ -131,8 +135,8 @@ notes and no PDF.
 ## Changing a golden
 
 The input files (`v12-*.motiff.json` without `.written`, every `v15-*.motiff.json` and `v16-*.motiff.json`,
-`v17-future.motiff.json`, `v18-future.motiff.json`) are never rewritten: they are what the builds of their time wrote, or the future as it was
+every `v17-*.motiff.json`, `v18-future.motiff.json`, `v19-future.motiff.json`) are never rewritten: they are what the builds of their time wrote, or the future as it was
 pictured then. When the format changes on purpose, run the tests with `MOTIFF_UPDATE_SNAPSHOTS=1` to write the
-`*.written.motiff.json` files, the `v17-*` goldens and the analysis goldens again, and review the difference; when the
-writer moves past version 17, the `v17-` files become inputs and the writer's answers get files of their own, as the
-`v16-` files did when it moved to version 17.
+`*.written.motiff.json` files, the `v18-*` goldens and the analysis goldens again, and review the difference; when the
+writer moves past version 18, the `v18-` files become inputs and the writer's answers get files of their own, as the
+`v17-` files did when it moved to version 18.

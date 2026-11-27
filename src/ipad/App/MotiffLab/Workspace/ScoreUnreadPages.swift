@@ -2,9 +2,10 @@ import SwiftUI
 
 /// A page of a scanned PDF no engine read, at its place in the notes (v1.5 i-7; the spec «Распознавание сканов четырьмя
 /// движками в фоне», «Если страница засбоила»: «в пьесе на месте этой страницы стоит пометка»): the bar beside its place,
-/// the first of the notes' page it comes before, or the last bar for a page at the end. Which PDF pages the notes have is
-/// kept only by this iPad's recognition (`RecognitionItem.read`, not the project file); where the notes' pages start is
-/// music-core's (`check`'s "pageStarts"). Nothing here decides what is read or sent.
+/// the first of the notes' page it comes before, or the last bar for a page at the end. Which PDF pages the notes have and
+/// lack is kept with the notes since project file 18 (`check`'s "unreadPages" and "readPages"), and by this iPad's
+/// recognition while it reads them (`RecognitionItem`); where the notes' pages start is music-core's (`check`'s
+/// "pageStarts"). Nothing here decides what is read or sent.
 struct UnreadPage: Equatable, Identifiable {
     /// The page of the PDF, from 1.
     let page: Int
@@ -56,10 +57,14 @@ extension ScoreController {
         return item
     }
 
-    /// The working notes' unread pages at their place; none while they are read again or once they are in.
+    /// The working notes' unread pages at their place: this iPad's recognition's while it has them (none while they are read
+    /// again), else those kept with the notes (project file 18), so another iPad or a relaunch shows them too.
     var unreadPages: [UnreadPage] {
-        guard let item = unreadRecognition, item.state == .done, let unread = item.unread, let read = item.read else { return [] }
-        return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+        if let item = unreadRecognition {
+            guard item.state == .done, let unread = item.unread, let read = item.read else { return [] }
+            return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+        }
+        return UnreadPage.of(unread: check.unreadPages, read: check.readPages, starts: check.pageStarts)
     }
 
     /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
@@ -69,20 +74,23 @@ extension ScoreController {
 }
 
 /// Check's part about the PDF's pages no engine read (v1.5 i-7): each at its place in the notes with «Показать», and the
-/// recognition's «Повторить» for them (`UnreadPagesRetry`, as on the piece's line in the library).
+/// recognition's «Повторить» for them (`UnreadPagesRetry`, as on the piece's line in the library) while this iPad's
+/// recognition has them; pages kept only with the notes (project file 18) are shown without it.
 struct UnreadPagesCheck: View {
     @ObservedObject var score: ScoreController
     let text: UIText
     @ObservedObject private var queue = RecognitionQueue.shared
 
     var body: some View {
-        if let item = score.unreadRecognition, let unread = item.unread {
+        let item = score.unreadRecognition
+        let kept = item?.unread ?? score.check.unreadPages
+        if !kept.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["recognition.unreadHeading"]).overline()
-                if item.state == .done {
+                if item == nil || item?.state == .done {
                     let placed = score.unreadPages
                     if placed.isEmpty {
-                        Text(RecognitionTop.unreadLine(unread, text)).dsType(.caption).foregroundStyle(Color.ds("warning"))
+                        Text(RecognitionTop.unreadLine(kept, text)).dsType(.caption).foregroundStyle(Color.ds("warning"))
                     }
                     ForEach(placed) { page in
                         HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
@@ -93,7 +101,9 @@ struct UnreadPagesCheck: View {
                         }
                     }
                 }
-                UnreadPagesRetry(item: item, text: text) { Task { await score.drawChecks() } }
+                if let item {
+                    UnreadPagesRetry(item: item, text: text) { Task { await score.drawChecks() } }
+                }
             }
             // The queue moves on its own (read again, in, or not): the flags on the score follow it.
             .onChange(of: queue.revision) { _, _ in Task { await score.drawChecks() } }
