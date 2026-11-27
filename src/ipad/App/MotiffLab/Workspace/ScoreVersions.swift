@@ -10,7 +10,7 @@ extension ScoreController {
     }
 
     func versionsDrawn() async {
-        await updateFocusVersion()
+        await focusModel.updateVersion()
         await engraveIfEvenBarsChanged()
     }
 

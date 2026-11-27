@@ -6,7 +6,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 `BackgroundReading`, `BackgroundTime`, `BundleSchemeHandler` (the app's files to the score's and the roll's web views, v1.6 i-10), `CheckPageEntry`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
-`ViewStates`, `WebContentWatch` (`.swift`).
+`VersionEntry` (out of `Sources/Versions.swift` in v1.6 i-10b: the version Expand is handed, `FocusScore.versionShown`), `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
   `facadeRequest` and the answer read by `facadeObject`. `FacadeAnswer.decode` (B5) reads an answer once into its typed

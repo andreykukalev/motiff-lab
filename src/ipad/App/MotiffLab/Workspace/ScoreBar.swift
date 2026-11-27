@@ -28,7 +28,7 @@ struct ScoreBar: View {
     let pdf: (() -> Void)?
     /// Piece DNA from More.
     let openDna: () -> Void
-    /// ⓘ: shows or hides what the app adds over the notes (`ScoreController.toggleExtra`).
+    /// ⓘ: shows or hides what the app adds over the notes (`MarksModel.toggleExtra`).
     let toggleExtra: () -> Void
     /// The Reference's circle of fifths; nil where there is none.
     var openReference: (() -> Void)?

@@ -73,7 +73,7 @@ final class PanelStateTests: XCTestCase {
         mutating func act(_ action: String) throws {
             switch action {
             case "expandFromDrawer":
-                // ScoreScreen.expandFromDrawer: the panels, then ScoreController.expandRoll().
+                // ScoreScreen.expandFromDrawer: the panels, then FocusModel.expandRoll().
                 panels = panels.asked(.expandFromDrawer)
                 focusRoll = true
                 focused = true

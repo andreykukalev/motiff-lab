@@ -305,3 +305,24 @@ two quality entries went. The bar holds no controller: the screen makes Practice
 the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
 (`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
 Expand's calls into `FocusModel` and the marks' calls into `MarksModel`, each through its own protocol.
+
+## Note (S7 part 3, Expand and the marks through their own protocols, v1.6 i-10b)
+
+`FocusModel` opens and leaves Expand on the page (`enter`, `expandRoll`, `leave`), goes to the previous or the next
+phrase (`step`), engraves the card at the page's options with the variation tried as its ossia (`engraveCard`,
+`showOssia`; the root's `ossia` went) and keeps the version in focus (`updateVersion`), through `FocusScore`: the page,
+the piece, whether the pages are drawn and the Pen is on, the version shown and its differing bars (as values, so
+`VersionEntry` moved to Platform), the page held still under the veil (`holdPage`), a passage selected
+(`selectPassage`) and a tick revealed, and the problem line. `MarksModel` draws and changes the marks (`draw`,
+`changeMarks`), draws the bookmarks and goes to one, opens, keeps and deletes a margin note, shows the layers and the
+phrases' marks, follows the device's settings and clears the piece's own, and sends what the page hides
+(`applyLayers`), through `MarksScore`: the page, the piece, the pages drawn, the Pen on, Check's drawer open and the
+slate appearance (Check's and the device's, as values), a passage selected and revealed, Expand opened (`enterFocus`, the
+root connecting the two models), the versions drawn again, and the problem line. The model's former state-only
+methods (`open`, `close`, `takeCardOptions`, `showVersion`, `show`, `keepBookmarks`, `wentTo`) were folded into these
+or made private, so each state has one writer. The views call the models (`FocusBar`, `SelectionMenu`, `NoteCard`,
+`LayersList`, `NotesList`, `ContentsList`, the pill's ‹ ›, the roll's Expand). What stays the root's is its
+composition: its state, the page's events routed to the models, the render order, engraving the score, and one line
+per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
+`PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
+extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.

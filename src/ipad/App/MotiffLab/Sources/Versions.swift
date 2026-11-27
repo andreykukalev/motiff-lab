@@ -24,27 +24,6 @@ struct VersionBar: Identifiable, Equatable, Sendable {
     var differs: Bool { aligned && kind != "none" }
 }
 
-/// Another version as `performances` lists it.
-struct VersionEntry: Identifiable, Equatable, Sendable {
-    var id: String
-    var name: String
-
-    /// A time music-core writes (.NET's round trip, seven digits of fraction).
-    static func date(_ text: String?) -> Date? {
-        guard let text else { return nil }
-        let reader = ISO8601DateFormatter()
-        return reader.date(from: text) ?? reader.date(from: text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression))
-    }
-}
-
-extension VersionEntry {
-    /// A version as music-core writes its head (`VersionHead`); nil without its id.
-    init?(_ head: VersionHead) {
-        guard let id = head.id else { return nil }
-        self.init(id: id, name: head.name ?? "")
-    }
-}
-
 /// The piece's sources as music-core answers `sources` (testing item 16, contract 6): the base, the line on what the
 /// player's version holds beyond it, and the PDF kept inside the piece.
 struct SourcesInfo: Equatable, Sendable {

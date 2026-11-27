@@ -51,9 +51,14 @@ extension ScoreController {
         await showSelection()
         focusModel.updatePlayRange()
         if focusModel.focused {
-            await engraveCard()
-            await updateFocusVersion()
+            await focusModel.engraveCard()
+            await focusModel.updateVersion()
         }
+    }
+
+    /// A passage selected as a tap selects it, for Expand's ‹ › and the marks gone to (`FocusScore`, `MarksScore`).
+    func selectPassage(from start: Double, to end: Double) async {
+        await select(start, end)
     }
 
     /// Takes the selection away: ✕, Escape, or a hold outside it (`gesture`, #511 2.1); `step` false for Undo.
@@ -61,7 +66,7 @@ extension ScoreController {
         guard selectionModel.selection != nil else { return }
         if step { selectionModel.record(from: selectionModel.selection, to: nil, gesture: gesture) }
         // Nothing to lift: focus goes with the selection.
-        leaveFocus()
+        focusModel.leave()
         selectionModel.answered(nil)
         Task {
             await showSelection()

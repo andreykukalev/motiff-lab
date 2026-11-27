@@ -73,7 +73,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   renames versions (`performance.rename`); since v1.6 i-10 draws them on the page and acts on them (show, compare, add,
   rename, a marker's «Как в версии» and «Источники») through `SourcesScore`, which the root adopts. Tests: `SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
-  `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
+  `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
   «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources
   and is compared (`SourcesModel.compareVersion`); files with taken bars read as before (music-core).
 
