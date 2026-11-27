@@ -27,6 +27,8 @@ final class ProfileController: ObservableObject {
 
     /// Keeps the name (nil clears it) and the photo with the account; nil when kept, else why not in the player's words.
     private let keep: @MainActor (String?, String?) async -> String?
+    /// Counts the photos chosen and removed, so only the latest choice is shown (E-settings-3).
+    private var choices = 0
 
     init(profile: PlayerProfile?, keep: @escaping @MainActor (String?, String?) async -> String?) {
         self.keep = keep
@@ -34,9 +36,13 @@ final class ProfileController: ObservableObject {
         photo = profile?.photo
     }
 
-    /// The picture `load` reads, cut to its middle square; a picture that cannot be read says so.
+    /// The picture `load` reads, cut to its middle square; a picture that cannot be read says so. A picture chosen or
+    /// removed while it loads wins over it.
     func choosePhoto(_ load: () async -> Data?) async {
+        choices += 1
+        let choice = choices
         let data = await load()
+        guard choice == choices else { return }
         if let data, let image = UIImage(data: data), let square = PlayerProfile.squarePhoto(image) {
             photo = square
             message = nil
@@ -46,6 +52,7 @@ final class ProfileController: ObservableObject {
     }
 
     func removePhoto() {
+        choices += 1
         photo = nil
     }
 

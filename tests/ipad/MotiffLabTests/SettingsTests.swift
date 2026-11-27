@@ -3,12 +3,27 @@ import XCTest
 @testable import MotiffLab
 
 /// The Settings feature on its model, controller and views (W2.12, v1.6 i-14): the device's settings changed one after
-/// another through music-core, and the profile's controller (the name cut and trimmed, the save); the robustness rules
-/// of v1.6 i-14 (docs/ui-edge-cases.md, E-settings-1 to 3).
+/// another through music-core, and the profile's controller (the name cut and trimmed, the photo, the save); the
+/// robustness rules of v1.6 i-14 (docs/ui-edge-cases.md, E-settings-1 to 3).
 @MainActor
 final class SettingsTests: XCTestCase {
     private func freshStore() throws -> UserDefaults {
         try XCTUnwrap(UserDefaults(suiteName: "SettingsTests-\(UUID().uuidString)"))
+    }
+
+    /// A picture of one colour, as the photo library hands it.
+    private func picture(_ colour: UIColor) throws -> Data {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30), format: format).image { context in
+            colour.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
+        }
+        return try XCTUnwrap(image.pngData())
+    }
+
+    private func square(_ data: Data) throws -> String {
+        try XCTUnwrap(PlayerProfile.squarePhoto(XCTUnwrap(UIImage(data: data))))
     }
 
     /// E-settings-1: switches changed in a row are each kept, and one turned off and on again at once ends on.
@@ -84,5 +99,33 @@ final class SettingsTests: XCTestCase {
         XCTAssertTrue(firstSaved)
         XCTAssertFalse(profile.saving)
         XCTAssertEqual(kept, ["Андрей"], "kept once")
+    }
+
+    /// E-settings-3: a photo chosen, or the photo removed, while another still loads wins over it; a picture that cannot
+    /// be read says so and keeps the photo.
+    func testThePhotoChosenLastIsShown() async throws {
+        let profile = ProfileController(profile: nil) { _, _ in nil }
+        let red = try picture(.red)
+        let blue = try picture(.blue)
+
+        await profile.choosePhoto {
+            await profile.choosePhoto { blue }
+            return red
+        }
+        XCTAssertEqual(profile.photo, try square(blue), "the later choice shows, the earlier one coming after it is left")
+        XCTAssertNotEqual(profile.photo, try square(red))
+
+        await profile.choosePhoto {
+            profile.removePhoto()
+            return red
+        }
+        XCTAssertNil(profile.photo, "removed while it loaded: no photo")
+
+        await profile.choosePhoto { red }
+        XCTAssertEqual(profile.photo, try square(red))
+        XCTAssertNil(profile.message)
+        await profile.choosePhoto { Data("not a picture".utf8) }
+        XCTAssertEqual(profile.message, .photoUnreadable)
+        XCTAssertEqual(profile.photo, try square(red), "the photo before stays")
     }
 }

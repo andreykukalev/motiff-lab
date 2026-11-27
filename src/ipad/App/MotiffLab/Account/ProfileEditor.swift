@@ -54,6 +54,8 @@ struct ProfileEditor: View {
         }
         .onChange(of: picked) { _, item in
             guard let item else { return }
+            // Picked again, the same photo is a new choice (E-settings-3): the picker keeps no selection.
+            picked = nil
             Task { await profile.choosePhoto { try? await item.loadTransferable(type: Data.self) } }
         }
     }

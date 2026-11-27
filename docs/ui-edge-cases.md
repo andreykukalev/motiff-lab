@@ -49,6 +49,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-settings-2` · «Сохранить» of the profile tapped again while the first save is on its way (before the button
   shows as off) · one save; the second tap does nothing · as Keep tapped twice keeps one idea (`E-insights-3`) and the
   button is off while it saves (`ProfileController.save`) · v1.6 i-14
+- `E-settings-3` · The profile's photo chosen again, or removed, while one picked before still loads; the same photo
+  picked again after «Удалить фото» · the latest choice shows: a photo that loads after a later choice or a removal is
+  left, and a photo picked again is read again; before, the slower one won, and the same photo picked again did nothing
+  (the picker kept it selected) · a control shows what was last chosen (HIG), as the plan's latest ask wins
+  (`Account.refreshPlan`) · v1.6 i-14
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over
