@@ -95,6 +95,7 @@ struct ScoreScreenContent: View {
     @ObservedObject private var focusModel: FocusModel
     @ObservedObject private var penModel: PenModel
     @ObservedObject private var marksModel: MarksModel
+    @ObservedObject private var checkModel: CheckModel
     /// A view of the switch shown over the score: another PDF or photos as they are, other Notes, or a draft; nil while
     /// none is.
     @State private var shownView: ShownView?
@@ -127,6 +128,7 @@ struct ScoreScreenContent: View {
         _focusModel = ObservedObject(wrappedValue: workspace.score.focusModel)
         _penModel = ObservedObject(wrappedValue: workspace.score.penModel)
         _marksModel = ObservedObject(wrappedValue: workspace.score.marksModel)
+        _checkModel = ObservedObject(wrappedValue: workspace.score.checkModel)
     }
 
     /// Which panels are open (ScoreWorkspace.panels), as this body reads them.
@@ -212,7 +214,7 @@ struct ScoreScreenContent: View {
         if panels[.versions] && sourcesOn {
             sourcesSheet
         } else if panels[.check] {
-            CheckDrawer(score: score, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
+            CheckDrawer(score: score, checkModel: checkModel, selectionModel: selectionModel, text: text, close: { change(.close(.check)) }, back: panels.fromMore.contains(.check) ? (label: text["bar.more"], action: { backToMore(.check) }) : nil)
         } else if !panels.sheetOpen, let owner = mapOwner, let draft = piece.draft {
             DraftMap(score: score, seams: score.seamsModel, techniques: score.draftModel, draft: draft, owner: owner, text: text, reopen: reopen)
         } else {
@@ -435,7 +437,7 @@ struct ScoreScreenContent: View {
                         resizeDrawer(by: dy, ended: ended, screen: screen)
                     }, step: { direction in
                         stepDrawer(direction, screen: screen)
-                    }, penOn: penModel.penOn) { change(.close(.roll)) }
+                    }, penOn: penModel.penOn, noteEditor: checkModel.noteEditor) { change(.close(.roll)) }
                         .frame(height: drawer)
                         .padding(.horizontal, CGFloat.ds("s-3"))
                         .transition(.move(edge: .bottom))
@@ -512,7 +514,7 @@ struct ScoreScreenContent: View {
             .onChange(of: score.selectionControlsShown) { _, shown in workspace.selectionControlsChanged(shown) }
             .onChange(of: focusModel.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
             .onChange(of: panels[.roll]) { _, open in workspace.rollDrawerChanged(open, dark: colorScheme == .dark) }
-            .onChange(of: score.check) { _, _ in workspace.checkChanged() }
+            .onChange(of: checkModel.check) { _, _ in workspace.checkChanged() }
             .onChange(of: panels[.insights]) { _, open in workspace.insightsChanged(open) }
     }
 
@@ -583,7 +585,7 @@ struct ScoreScreenContent: View {
             .onChange(of: player.state) { old, state in workspace.playerStateChanged(from: old, to: state) }
             .onChange(of: selectionModel.selection) { _, selection in workspace.selectionChanged(selection) }
             .onChange(of: player.loop) { _, loop in workspace.loopChanged(loop) }
-            .onChange(of: score.noteEditor) { _, editor in workspace.noteEditorChanged(editor) }
+            .onChange(of: checkModel.noteEditor) { _, editor in workspace.noteEditorChanged(editor) }
             .onChange(of: focusModel.playRange) { old, new in workspace.whatPlaysChanged(from: old, to: new) }
     }
 }
@@ -942,7 +944,7 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: extraOpen))
             .accessibilityLabel(text["extra.list"])
             .popover(isPresented: $extraOpen) {
-                LayersList(score: score, marksModel: marksModel, text: text, hasVersions: hasVersions)
+                LayersList(score: score, marksModel: marksModel, checkModel: score.checkModel, text: text, hasVersions: hasVersions)
                     .padding(CGFloat.ds("s-4"))
                     .frame(width: 300, alignment: .leading)
                     .presentationCompactAdaptation(.popover)
@@ -960,7 +962,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.more]))
         .accessibilityLabel(text["bar.more"])
         .popover(isPresented: panels.binding(.more, change: change)) {
-            MorePanel(score: score, hasVersions: hasVersions, text: text, problem: player.problem ?? score.problem, openCheck: {
+            MorePanel(score: score, checkModel: score.checkModel, hasVersions: hasVersions, text: text, problem: player.problem ?? score.problem, openCheck: {
                 change(.openFromMore(.check))
             }, openVersions: viewing == nil ? openSources : nil, openSettings: {
                 change(.openFromMore(.settings))
@@ -1540,6 +1542,8 @@ extension PanelState {
 /// steps.
 struct MorePanel: View {
     @ObservedObject var score: ScoreController
+    /// Check, for More's way to it and «Мои правки».
+    @ObservedObject var checkModel: CheckModel
     /// Whether the piece has other versions: the layers list offers their marks (MarksModel.pieceExtra).
     let hasVersions: Bool
     let text: UIText
@@ -1558,11 +1562,11 @@ struct MorePanel: View {
                     .dsType(.label)
                     .foregroundStyle(Color.ds("danger"))
             }
-            if score.check.hasEntries {
+            if checkModel.check.hasEntries {
                 Button(action: openCheck) {
                     HStack(spacing: CGFloat.ds("s-2")) {
                         Icon(name: "check")
-                        Text(score.check.open > 0 ? text.count("check.toReview", score.check.openBars.count) : text["check.title"])
+                        Text(checkModel.check.open > 0 ? text.count("check.toReview", checkModel.check.openBars.count) : text["check.title"])
                     }
                 }
                 .buttonStyle(DSButtonStyle(kind: .quiet))
@@ -1595,11 +1599,11 @@ struct MorePanel: View {
             .buttonStyle(DSButtonStyle(kind: .quiet))
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             // «Мои правки» (version 0.5): the player's corrections laid over the notes or left out, once there are some.
-            if score.editsLayer?.shows == true {
-                EditsLayerSection(score: score, text: text)
+            if checkModel.editsLayer?.shows == true {
+                EditsLayerSection(checkModel: checkModel, text: text)
                 Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             }
-            LayersList(score: score, marksModel: score.marksModel, text: text, hasVersions: hasVersions)
+            LayersList(score: score, marksModel: score.marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions)
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Button(action: openSettings) {
                 HStack(spacing: CGFloat.ds("s-2")) {

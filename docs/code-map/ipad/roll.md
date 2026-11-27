@@ -19,7 +19,9 @@ roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
 - `RollTools.swift`: `RollPick` (bars or beats from a `RollRange`, by `byBeats`), the zoom's words on `RollZoom`, the
   drawer's height, `RollPlace`, the mode switch, the zoom controls, the note editor's tools.
 - `RollPlace.swift`: `RollPickShape`, `RollPlaceInput` (`place`, `stylus` added to `RollInput.page`), `RollPickSwitch`.
-- `RollDrawer.swift`: the drawer's head, ending with «Свернуть» (`close`); the pill's roll button opens the drawer.
+- `RollDrawer.swift`: the drawer's head, ending with «Свернуть» (`close`); the pill's roll button opens the drawer. The
+  note editor comes to it as a plain value (`noteEditor`) from the screen that observes `CheckModel`, which the head's
+  tools call through `score.checkModel` (v1.6 i-8; Roll may not name Marks' model).
 
 ## The contract others may rely on
 
@@ -37,4 +39,5 @@ highlight, editor, input and position sent, which a load again (a new web conten
 
 ## Baseline entries that protect it
 
-UX baseline: `ROLL-01`. Quality ratchet: the folder edges of `RollController`, `RollDrawer`, `RollPlace`, `RollTools`.
+UX baseline: `ROLL-01`. Quality ratchet: the folder edges of `RollController`, `RollDrawer`, `RollPlace`, `RollTools` (their edges to
+`Workspace: NoteEditorState` went in v1.6 i-8).

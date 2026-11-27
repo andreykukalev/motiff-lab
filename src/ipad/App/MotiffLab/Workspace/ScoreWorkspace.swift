@@ -94,7 +94,7 @@ final class ScoreWorkspace: ObservableObject {
         roll.notesMoveBegan = { [weak self] in self?.notesMoveBegan() }
         roll.notesMoved = { [weak self] edits in self?.notesMoved(edits) }
         // The file is written whether or not the screen is still there: the callback holds the piece, not the workspace.
-        score.editsKept = { [piece] in ScoreWorkspace.editsKept(of: piece) }
+        score.checkModel.editsKept = { [piece] in ScoreWorkspace.editsKept(of: piece) }
         contents.changed = { [weak self] shelf in self?.bookmarksChanged(shelf) }
     }
 
@@ -203,17 +203,17 @@ final class ScoreWorkspace: ObservableObject {
     // MARK: - The roll's notes
 
     func noteEdited(_ edit: RollNoteEdit) {
-        score.editNote(edit)
+        score.checkModel.editNote(edit)
     }
 
     /// Picked notes dragged in Select (#601): the first step opens the note editor's draft, and the notes let go are its
     /// edits, kept until Cancel or Save in the roll's head.
     func notesMoveBegan() {
-        if score.noteEditor == nil { score.beginNoteEdit() }
+        if score.checkModel.noteEditor == nil { score.checkModel.beginNoteEdit() }
     }
 
     func notesMoved(_ edits: [RollNoteEdit]) {
-        edits.forEach { score.editNote($0) }
+        edits.forEach { score.checkModel.editNote($0) }
     }
 }
 

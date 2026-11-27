@@ -7,7 +7,7 @@ import SwiftUI
 struct ScanReviewBlock: View {
     /// What this iPad kept of the bar; nil when it kept nothing of it.
     let entry: ScanReview.Bar?
-    /// The bar's crop of its page, read once with the review (`ScoreController.scanCrops`).
+    /// The bar's crop of its page, read once with the review (`CheckModel.scanCrops`).
     let crop: UIImage?
     let bar: Int
     /// The engines of the variant chosen last in this bar, while one Undo takes it back whole; nil otherwise.

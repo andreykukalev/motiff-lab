@@ -19,6 +19,8 @@ struct RollDrawer: View {
     let step: (_ direction: CGFloat) -> Void
     /// Whether the bar's Pen is on, from the screen that observes the pen (Roll may not read Ink's model).
     let penOn: Bool
+    /// The note editor while it is open, from the screen that observes Check's model (Roll may not read Marks' model).
+    let noteEditor: NoteEditorState?
     let close: () -> Void
     /// Whether the press on the handle has moved past a tap, so it resizes rather than puts the drawer away.
     @State private var handleMoved = false
@@ -96,7 +98,7 @@ struct RollDrawer: View {
             .hidden()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            head(compact: compact, mode: roll.shownMode, editor: score.noteEditor, live: true, pick: pickShown)
+            head(compact: compact, mode: roll.shownMode, editor: noteEditor, live: true, pick: pickShown)
         }
     }
 

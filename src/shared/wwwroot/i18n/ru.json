@@ -134,7 +134,6 @@
   "originals.changed": "Оригинал изменился",
   "originals.offline": "Файл не загрузился: «Файлы» сейчас не достают до iCloud Drive или Google Drive. Попробуйте ещё раз, когда будет связь.",
   "originals.unreadable": "Файл не прочитался.",
-  "edits.off": "Правки выключены: ноты такие, как их распознали. Включите правки, чтобы исправлять ноты.",
 
 
   "folderImport.awayTitle": "PDF не на этом iPad",

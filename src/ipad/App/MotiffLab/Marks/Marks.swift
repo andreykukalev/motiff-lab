@@ -149,9 +149,11 @@ struct NoteCard: View {
 /// with its own switch; then the layers of the player's own marks, each hidden for a clean page or all at once; those
 /// kept with the piece.
 struct LayersList: View {
-    /// Shows and hides the layers, and whether Check has flags.
+    /// Shows and hides the layers.
     @ObservedObject var score: ScoreController
     @ObservedObject var marksModel: MarksModel
+    /// Whether Check has flags.
+    @ObservedObject var checkModel: CheckModel
     let text: UIText
     /// Whether the piece has other versions, a plain value from the screen that observes them (Marks may not read Sources).
     let hasVersions: Bool
@@ -179,7 +181,7 @@ struct LayersList: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: score.check.hasFlags)
+            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: checkModel.check.hasFlags)
             if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)

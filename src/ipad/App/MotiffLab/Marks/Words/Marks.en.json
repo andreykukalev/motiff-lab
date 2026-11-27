@@ -125,5 +125,9 @@
   "scanReview.missing": "The page's crop and the engines' readings of this bar are kept only on the iPad that read the scan.",
   "scanReview.chosen": "In the bar now: {0}",
   "scanReview.undo": "Undo the choice",
-  "scanReview.rest": "rest"
+  "scanReview.rest": "rest",
+  "edits.off": "Corrections are off: the notes are as they were recognised. Turn them on to correct notes.",
+  "check.flagLabel": "Check bar {0}: {1}",
+  "padAssistant.undone": "The draft is taken back. The notes are as they were before it.",
+  "padEdits.offNotice": "My corrections are off: turn them on in More to correct notes."
 }

@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 ## Files
 
-`BackgroundReading`, `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
+`BackgroundReading`, `BackgroundTime`, `CheckPageEntry`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
@@ -13,6 +13,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
+- `CheckPageEntry.swift` (v1.6 i-8, out of `Marks/Check.swift`): a scan's page as `check` counts it, which Check
+  (Marks) and its part about a scan's pages (`Import/PhotoPagesCheck`) read.
 - `ScanReview.swift` (v1.3 i-2): a scan's Check bars kept only on this iPad (`ScanReviewStore`, Application Support/ScanReview/<fingerprint>/: review.json, bar-<n>.png, newest 40), found by `check`'s "fingerprint"; `ScanVariant` as `scan.join` gave it.
 - `PieceCore.swift`: the port to music-core (0031 step 1b, #654), the one way to a call by name. Typed: `select`,
   `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, raw value the name), `variant`, the drafts'
@@ -32,7 +34,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
 - `RollPage.swift`: the one port to the roll page (0031 step 12, B7): `RollCommand` names `window.roll`'s functions,
   `RollPage` calls each by a typed method and reads its answer (`RollShown`, the colouring, the frame), `RollEvent`
-  decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`). A
+  decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`;
+  `NoteEditorState`, the note editor as `Marks/CheckModel` holds it and the roll shows it, v1.6 i-8). A
   message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
   what the page sends and the app leaves out stays quiet. `RollEvent.broken` is a hook apart from `FacadeAnswer.broken`:
   silencing one does not silence the other.
