@@ -165,7 +165,7 @@ final class ScoreWorkspace: ObservableObject {
 
     /// The bookmarks are drawn as brackets on the score, and again whenever they change.
     func bookmarksChanged(_ shelf: BookmarkShelf?) {
-        score.showBookmarks(shelf)
+        score.marksModel.showBookmarks(shelf)
     }
 
     // MARK: - Insights
@@ -186,7 +186,7 @@ final class ScoreWorkspace: ObservableObject {
     /// ossia (0018 section 6).
     func variationReady(_ notes: [PlaybackNote], end: Double) {
         player.setVariation(notes)
-        score.ossia = insights.trial?.way.label
+        score.focusModel.showOssia(insights.trial?.way.label)
         if let range = score.focusModel.playRange?.range {
             player.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
         }
@@ -195,7 +195,7 @@ final class ScoreWorkspace: ObservableObject {
     /// Left, the original sounds again.
     func variationLeft() {
         player.setVariation(nil)
-        score.ossia = nil
+        score.focusModel.showOssia(nil)
         // In focus, another version takes the variation's place again.
         if let version = score.focusModel.version, version.sounds { player.setVariation(version.notes, version: true) }
     }

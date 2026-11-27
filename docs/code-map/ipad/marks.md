@@ -14,9 +14,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   selection menu's «Выделить цветом» (`HighlightRow`) is gone with it.
 
 - `MarksModel.swift` (S6, ADR 0031 section 3, v0.10 d-4): `MarksModel`, the marks' state and their own rules; it reads
-  `SelectionModel` and is given the device's settings resolved for a piece (`DeviceSettings.resolved`). The lists of
-  layers and of the kinds of extra information (`layers`, `extra`) are here, which `tests/shared/i18n.test.mjs` reads.
-  Tests: `MotiffLabTests/MarksModelTests`.
+  `SelectionModel` and is given the device's settings resolved for a piece (`DeviceSettings.resolved`). Since v1.6
+  i-10b it draws and changes the marks (`draw`, `changeMarks`), the bookmarks and margin notes, the layers and the
+  settings followed, and what the page hides (`applyLayers`), through `MarksScore` (what Marks may not name: Check's
+  drawer, slate, Expand, the versions). The lists of layers and of the kinds of extra information (`layers`,
+  `extra`) are here, which `tests/shared/i18n.test.mjs` reads. Tests: `MotiffLabTests/MarksModelTests` (fake score);
+  the baseline's old name through `MotiffLabTests/MarksBaselineNames`.
 
 - `CheckModel.swift` (S6, ADR 0031 section 3, v1.6 i-8): `CheckModel`, Check's state and calls out of `ScoreController`:
   the shelf (`check`), the drawer open (`drawerOpen`), the scan's variants and crops, the variant chosen, Fix notes
@@ -49,11 +52,10 @@ too). The note editor's calls send the selection's first bar, else none, and mus
 (0 for a pickup; `EditsLayerState.correctionsRequest`), never a guessed bar 1. `NoteCorrections` and
 `EditsLayerState` hold only what music-core answered (`tests/contracts/facade-answers/corrections*.json`, decoded by `FacadeAnswerFixturesTests`). The rest: not recorded yet.
 
-`MarksModel`: `show` takes what a mark call answered, `keepBookmarks` the bookmarks the page draws; `showLayers`,
-`clearOverrides` change the piece's own settings at once (only `layers.*` are read as the piece's), `showPhraseMarks` the
-device's choice of the phrases' marks, and `keepLayers`, `forgetOverrides` and
-`loadSettings` keep or read them through music-core (`settings.override`, `settings`). Changing a note or a highlight
-(drawn on the page), going to a bookmark or a note and what the page hides are `ScoreController`'s, which calls these.
+`MarksModel`: `draw` keeps and draws what a mark call answered (a refusal goes to the problem line); `showLayers`,
+`clearOverrides` change the piece's own settings at once and keep them through music-core (`settings.override`; only
+`layers.*` are read as the piece's), `showPhraseMarks` the device's choice of the phrases' marks; a bookmark gone to
+again with the selection it gave lifts into focus, but with the Pen on.
 
 ## The state it owns
 

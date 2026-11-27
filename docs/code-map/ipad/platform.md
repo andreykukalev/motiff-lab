@@ -6,7 +6,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 `BackgroundReading`, `BackgroundTime`, `BundleSchemeHandler` (the app's files to the score's and the roll's web views, v1.6 i-10), `CheckPageEntry`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
-`ViewStates`, `WebContentWatch` (`.swift`).
+`VersionEntry` (out of `Sources/Versions.swift` in v1.6 i-10b: the version Expand is handed, `FocusScore.versionShown`), `ViewStates`, `WebContentWatch` (`.swift`).
 
 - `MusicCore.swift`: `MusicCore.run` runs every call on the core's one thread (`CoreThread`, 8 MB stack, a FIFO queue,
   v1.6 i-17) in the order issued: a call is queued in the caller's isolation (`isolation: isolated (any Actor)? =

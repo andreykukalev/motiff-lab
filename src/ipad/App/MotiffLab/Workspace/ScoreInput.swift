@@ -3,7 +3,7 @@ import WebKit
 
 /// ScoreController's part of the pen and the input on the page (#479 items 7 and 18, BUG-05; PenModel owns the pen): a
 /// stroke finished or the eraser moved, in the page's pixels; who writes, selects and scrolls (InputRules) and the mode
-/// as the page has it; the Pen turned; where the handles are on screen; how the stroke being written looks.
+/// as the page has it; the Pen on and turned; where the handles are on screen; how the stroke being written looks.
 extension ScoreController {
     /// A stroke the pen finished (InkInput), its points in the web view's coordinates: in the page's pixels, then kept as
     /// a mark. The pen covers the whole page, so the Pencil writes in the margins too: a stroke begun left or right of a
@@ -46,6 +46,10 @@ extension ScoreController {
         guard shown else { return }
         Task { await scorePage.send(.input, rules.page) }
     }
+
+    /// Whether the bar's Pen is on (PenModel.penOn), for Expand and the marks (`FocusScore`, `MarksScore`), which may not
+    /// name the pen.
+    var penOn: Bool { penModel.penOn }
 
     /// The bar's Pen turned on or off (PenModel.penOn): who writes and scrolls, the roll's rules and the page follow.
     func penTurned(_ on: Bool) {

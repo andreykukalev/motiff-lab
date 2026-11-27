@@ -20,7 +20,7 @@ struct FocusBar: View {
             // The way back by the way in (#521 17): «К странице» from the score, «Свернуть» from the roll; Escape too.
             let entry = focusModel.entry
             Button {
-                score.leaveFocus()
+                focusModel.leave()
             } label: {
                 HStack(spacing: CGFloat.ds("s-1")) {
                     Icon(name: entry.backIcon, size: CGFloat.ds("icon-l"))
