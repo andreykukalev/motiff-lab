@@ -20,9 +20,10 @@ extension SourcesController {
         Self.readingOther(reading, than: original, in: layers, text: text)
     }
 
-    /// The words of `readingOther` for the original `reading` (nil: none is being recognised).
-    static func readingOther(_ reading: String?, than original: SourceLayers.Original, in layers: SourceLayers, text: UIText) -> String? {
-        guard let reading, reading != original.id else { return nil }
+    /// The words of `readingOther` for the original `reading` (nil: none is being recognised); with no `original`, also
+    /// when it is the one being read (`setReading`, Check's «Распознать заново с отметками»).
+    static func readingOther(_ reading: String?, than original: SourceLayers.Original?, in layers: SourceLayers, text: UIText) -> String? {
+        guard let reading, reading != original?.id else { return nil }
         return text.format("sources.sheet.readingOther", layers.original(reading)?.shown ?? "")
     }
 

@@ -42,6 +42,8 @@ struct CheckShelf: Equatable, Sendable {
         var flags: [CheckFlagEntry]
         var id: Int { bar }
         var span: Range<Double>? { flags.lazy.compactMap(\.span).first }
+        /// The bar shows its crop and the engines' readings when selected (`CheckShelf.reviewed`).
+        var reviewed: Bool { flags.contains { CheckShelf.reviewed.contains($0.reason) } }
     }
 
     /// A piece of the pieces layer with its flagged bars, open and in all (version 0.5, `check` "pieces"): Check by piece.
@@ -139,6 +141,11 @@ struct CheckShelf: Equatable, Sendable {
 
     /// The reason of a scan's bar no two engines agree on some staff of (v1.3), as `check` writes music-core's CheckReason.
     static let enginesDisagree = "enginesDisagree"
+    /// The reason of a scan's bar read again by another engine (v1.6 c-14b3: one the player marked as read badly).
+    static let readAgain = "readAgain"
+    /// The reasons whose bar shows its crop and the engines' readings (`ScanReviewBlock`), so the player can take another
+    /// reading, the earlier one included (`corrections.variant`).
+    static let reviewed: Set<String> = [enginesDisagree, readAgain]
 
     /// The bars still to check, each with its open flags, in bar order.
     var openBars: [BarFlags] { group(flags.filter { !$0.resolved }) }
@@ -409,8 +416,8 @@ struct CheckDrawer<MarksReading: View>: View {
                     .foregroundStyle(Color.ds("ink-2"))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            // The bar tapped where the scan's engines disagree (v1.3 i-2): its crop and the engines' readings.
-            if selected, let review = checkModel.scanReview, bar.flags.contains(where: { $0.reason == CheckShelf.enginesDisagree }) {
+            // The bar tapped where the scan's engines disagree (v1.3 i-2) or one read it again (v1.6 c-14b3): its crop and readings.
+            if selected, let review = checkModel.scanReview, bar.reviewed {
                 ScanReviewBlock(
                     entry: review.bar(bar.bar), crop: checkModel.scanCrops[bar.bar], bar: bar.bar, chosen: checkModel.variantChoice.engines(in: bar.bar),
                     editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }

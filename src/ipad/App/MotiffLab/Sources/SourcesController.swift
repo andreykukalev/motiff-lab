@@ -248,24 +248,33 @@ final class SourcesController: ObservableObject {
     /// working notes and opens again on them (v1.1, finding 29). Answers why not, or nil once done; while another original
     /// is being recognised, which one (`readingOther`), and nothing is sent.
     func recognise(_ original: SourceLayers.Original, address: URL?, account: Account) async -> String? {
-        // E-sources-1: one original at a time; the one on its way keeps its reading and its progress.
-        if let other = readingOther(than: original) { return other }
+        await setReading(original) {
+            if original.isRecording {
+                switch await hearRecording(original, account: account, progress: { self.progress = $0 }) {
+                case .failure(let refusal): return refusal.words
+                case .success(let heard): return await keepRecognised(.sourcesNotesHear, heard)
+                }
+            }
+            guard let address else { return Self.noScanServer(text) }
+            switch await readPages(original, address: address, account: account) {
+            case .failure(let refusal): return refusal.words
+            case .success(let read): return await keepRecognised(.sourcesNotesRecognise, read)
+            }
+        }
+    }
+
+    /// Sets `reading`, the one owner of which original is with the scan server now, to `original` while `run` goes, and
+    /// clears it and `progress` after; Sources' «Распознать» and Check's «Распознать заново с отметками»
+    /// (`Workspace/ScoreMarkedReading`) both go through it. E-sources-1: one recognition at a time; while one goes on, the
+    /// words of which (`readingOther`), and `run` is not run.
+    func setReading(_ original: SourceLayers.Original, during run: () async -> String?) async -> String? {
+        if reading != nil { return Self.readingOther(reading, than: nil, in: layers, text: text) }
         reading = original.id
         defer {
             reading = nil
             progress = nil
         }
-        if original.isRecording {
-            switch await hearRecording(original, account: account, progress: { self.progress = $0 }) {
-            case .failure(let refusal): return refusal.words
-            case .success(let heard): return await keepRecognised(.sourcesNotesHear, heard)
-            }
-        }
-        guard let address else { return Self.noScanServer(text) }
-        switch await readPages(original, address: address, account: account) {
-        case .failure(let refusal): return refusal.words
-        case .success(let read): return await keepRecognised(.sourcesNotesRecognise, read)
-        }
+        return await run()
     }
 
     /// The original's pages as kept in the piece, and its file's name; music-core's words when it has none. Read to be

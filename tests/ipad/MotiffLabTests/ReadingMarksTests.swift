@@ -6,7 +6,9 @@ import XCTest
 /// offers and sends, in both languages; Check's marks as music-core answers them; a mark flagged at its first bar like a
 /// Check flag, joined with the flag a bar has (E-scan-12); a mark kept, flagged, shown and taken away on notes read from a
 /// PDF; and «Распознать заново с отметками» reading only the marked pages, a bar read badly on the server, and failing whole
-/// when an engine reads a marked page no more (E-scan-18, E-scan-19).
+/// when an engine reads a marked page no more (E-scan-18, E-scan-19); a PDF of other pages than the notes refused; one
+/// recognition at a time with Sources (E-sources-1, E-scan-17); a bar read again reviewed as one the engines disagree on;
+/// and the whole reading, from a job-read piece with a mark to its new Notes and the toast's line of the marks.
 @MainActor
 final class ReadingMarksTests: XCTestCase {
     private let english = UIText(language: "en")
@@ -20,23 +22,6 @@ final class ReadingMarksTests: XCTestCase {
         opened = []
     }
 
-    /// The score as Check sees it: what it was asked to show and to say.
-    @MainActor
-    private final class FakeScore: CheckScore {
-        var pieceId: Int32?
-        private(set) var shown: [Range<Double>] = []
-        private(set) var notices: [String] = []
-        private(set) var problems: [String?] = []
-        private(set) var drawn = 0
-
-        func showSpan(_ span: Range<Double>) { shown.append(span) }
-        func drawChecks() async { drawn += 1 }
-        func applyLayers() async {}
-        func notesDidChange() async {}
-        func showNotice(_ key: String) { notices.append(key) }
-        func showProblem(_ message: String?) { problems.append(message) }
-    }
-
     private func job() -> RecognitionJob {
         RecognitionJob(kept: nil, keep: { _ in }, hear: { _ in }, wanted: { true }, ready: { true })
     }
@@ -48,6 +33,15 @@ final class ReadingMarksTests: XCTestCase {
     }
 
     private var done: StubAPI.Answer { ScanSupport.answer(200, #"{"id": "j1", "state": "done", "etaSeconds": 0, "pages": []}"#) }
+
+    /// The scan server's answers to a job `id` that reads `pages`, and to its deletion.
+    private func jobAnswers(_ id: String, _ pages: [(page: Int, step: String?)]) -> [String: StubAPI.Answer] {
+        [
+            "http://scan.test/health": jobServer, "POST http://scan.test/jobs": ScanSupport.answer(202, #"{"id": "\#(id)"}"#),
+            "http://scan.test/jobs/\(id)": ScanSupport.answer(200, #"{"id": "\#(id)", "state": "done", "etaSeconds": 0, "pages": []}"#),
+            "http://scan.test/jobs/\(id)/result": ScanSupport.result(id, pages), "DELETE http://scan.test/jobs/\(id)": ScanSupport.answer(204, ""),
+        ]
+    }
 
     func testTheMenuOffersEachKindWithTheValuesMusicCoreTakesInBothLanguages() {
         XCTAssertEqual(ReadingMarkChoice.kinds, ["meter", "key", "clef", "octave", "triplets", "hands", "badlyRead"])
@@ -66,7 +60,7 @@ final class ReadingMarksTests: XCTestCase {
         XCTAssertEqual(ReadingMarkChoice.choices("triplets").map { $0.label(english) }, ["Triplets here", "No triplets here"])
         XCTAssertEqual(ReadingMarkChoice.choices("hands").map { $0.label(russian) }, ["Руки перепутаны"], "one item, nothing more to say")
         XCTAssertEqual(ReadingMarkChoice.choices("badlyRead").map { $0.label(english) }, ["Bar read badly"])
-        for key in ["whatsWrong.menu", "whatsWrong.title", "whatsWrong.markedNotice", "markedReading.readAgain", "markedReading.needsJobs", "scanMarked.notRead"] {
+        for key in ["whatsWrong.menu", "whatsWrong.title", "whatsWrong.markedNotice", "markedReading.readAgain", "markedReading.needsJobs", "markedReading.pagesDiffer", "scanMarked.notRead"] {
             XCTAssertNotEqual(english[key], key)
             XCTAssertNotEqual(russian[key], key)
         }
@@ -127,13 +121,16 @@ final class ReadingMarksTests: XCTestCase {
             ReadingMarkEntry(kind: "meter", bar: 2, last: 2, value: "5/4", text: ""), ReadingMarkEntry(kind: "badlyRead", bar: 8, last: 10, text: ""),
         ]
 
-        let pages = MarkedPages.of(marks, starts: starts, read: [1, 3, 4])
+        let pages = MarkedPages.of(marks, starts: starts, read: [1, 3, 4], pdfPages: 4)
 
         XCTAssertEqual(pages, [
             ScanMarkedPages.Page(place: 1, pdf: 1), ScanMarkedPages.Page(place: 2, pdf: 3, bad: [8]), ScanMarkedPages.Page(place: 3, pdf: 4, bad: [9, 10]),
         ], "a mark across two pages reads both; each PDF page as the notes have it")
-        XCTAssertEqual(MarkedPages.of(Array(marks.prefix(1)), starts: starts, read: []).map(\.pdf), [1], "without the pages kept, the same numbers")
-        XCTAssertEqual(MarkedPages.of(marks, starts: starts, read: [1, 2]), [], "the notes' pages and the PDF's disagree: none")
+        XCTAssertEqual(MarkedPages.of(Array(marks.prefix(1)), starts: starts, read: [], pdfPages: 3)?.map(\.pdf), [1], "without the pages kept, the same numbers")
+        XCTAssertNil(MarkedPages.of(marks, starts: starts, read: [1, 2], pdfPages: 4), "the notes' pages and the PDF's disagree: none")
+        // A second reading names no pages read: a PDF of another number of pages than the notes could be read on the wrong page.
+        XCTAssertNil(MarkedPages.of(marks, starts: starts, read: [], pdfPages: 4))
+        XCTAssertEqual(MarkedPages.of([], starts: starts, read: [], pdfPages: 3), [], "no mark, no page")
         // E-scan-19: a page the vector reader reads stays here unless one of its bars is marked as read badly.
         let split = ScanMarkedPages.split(pages, device: [1: "<a/>", 3: "<b/>"])
         XCTAssertEqual(split.device.map(\.place), [1])
@@ -153,7 +150,9 @@ final class ReadingMarksTests: XCTestCase {
         var kept: [ScanJobRecord] = []
         let follow = RecognitionJob(kept: nil, keep: { kept.append($0) }, hear: { _ in }, wanted: { true }, ready: { true })
 
-        let outcome = await ScanMarkedPages.read([ScanMarkedPages.Page(place: 2, pdf: 3, bad: [5])], pdf: notAPdf, to: .success(target), job: follow, text: english)
+        let plan = await ScanMarkedPages.plan([ScanMarkedPages.Page(place: 2, pdf: 3, bad: [5])], pdf: notAPdf, pdfPages: 3)
+        XCTAssertEqual(plan.server.map(\.pdf), [3], "a PDF the vector reader cannot open goes to the server")
+        let outcome = await ScanMarkedPages.read(plan, pdf: notAPdf, to: .success(target), job: follow, text: english)
 
         guard case .success(let read) = outcome else { return XCTFail("read: \(outcome)") }
         let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
@@ -171,14 +170,15 @@ final class ReadingMarksTests: XCTestCase {
                        "http://scan.test/jobs/j1/result": ScanSupport.result("j1", [(1, "C"), (2, nil)])])
         let pages = [ScanMarkedPages.Page(place: 1, pdf: 1), ScanMarkedPages.Page(place: 2, pdf: 2)]
 
-        let outcome = await ScanMarkedPages.read(pages, pdf: notAPdf, to: .success(target), job: job(), text: russian)
+        let plan = await ScanMarkedPages.plan(pages, pdf: notAPdf, pdfPages: 2)
+        let outcome = await ScanMarkedPages.read(plan, pdf: notAPdf, to: .success(target), job: job(), text: russian)
 
         // E-scan-18: page 1 read alone would keep page 2's old reading beside it; nothing goes in.
         guard case .failure(let problem) = outcome else { return XCTFail("read: \(outcome)") }
         XCTAssertEqual(problem, .server(russian.format("scanMarked.notRead", "2")))
         // E-scan-19: a page that has to go to the server, and no server that may read it: why, and nothing sent.
         StubAPI.reset()
-        let refused = await ScanMarkedPages.read(pages, pdf: notAPdf, to: .failure(.server("no server")), job: job(), text: english)
+        let refused = await ScanMarkedPages.read(plan, pdf: notAPdf, to: .failure(.server("no server")), job: job(), text: english)
         guard case .failure(let why) = refused else { return XCTFail("read: \(refused)") }
         XCTAssertEqual(why, .server("no server"))
         XCTAssertEqual(StubAPI.requests.count, 0)
@@ -188,7 +188,11 @@ final class ReadingMarksTests: XCTestCase {
         StubAPI.reset()
         let engraved = try Data(contentsOf: ScanSupport.promenade)
 
-        let outcome = await ScanMarkedPages.read([ScanMarkedPages.Page(place: 2, pdf: 2)], pdf: engraved, to: .failure(.needsPro), job: job(), text: english)
+        let plan = await ScanMarkedPages.plan([ScanMarkedPages.Page(place: 2, pdf: 2)], pdf: engraved, pdfPages: 2)
+        XCTAssertEqual(plan.server, [], "no page leaves the iPad, so no server is named before the press")
+        XCTAssertEqual(plan.hereLine(english), english.count("scanJob.readHere", 1))
+        XCTAssertEqual(plan.hereLine(russian), russian.count("scanJob.readHere", 1))
+        let outcome = await ScanMarkedPages.read(plan, pdf: engraved, to: .failure(.needsPro), job: job(), text: english)
 
         guard case .success(let read) = outcome else { return XCTFail("read: \(outcome)") }
         XCTAssertEqual(StubAPI.requests.count, 0, "nothing leaves the iPad, and no Pro is needed")
@@ -210,7 +214,7 @@ final class ReadingMarksTests: XCTestCase {
         }
         let piece = try await OpenPiece.open(fileName: url.lastPathComponent, data: Data(contentsOf: url), language: "en", title: "Pages").get()
         opened.append(piece.id)
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         fake.pieceId = piece.id
         let model = CheckModel(selection: SelectionModel()) { false }
         model.score = fake
@@ -228,12 +232,105 @@ final class ReadingMarksTests: XCTestCase {
         let words = model.check.marks[0].text
         XCTAssertTrue((flag["label"] as? String)?.hasSuffix(words) == true, "in music-core's words: \(flag)")
         model.showMark(model.check.marks[0])
-        XCTAssertEqual(fake.shown.first?.lowerBound, second.tick, "its bar selected")
-        XCTAssertEqual(MarkedPages.of(model.check.marks, starts: model.check.pageStarts, read: model.check.readPages), [ScanMarkedPages.Page(place: 2, pdf: 2, bad: [second.bar])], "only the marked page")
+        XCTAssertEqual(fake.selected, [second.bar...second.bar], "its bar selected, as the roll selects bars")
+        if model.check.flags.allSatisfy({ $0.bar != second.bar }) && model.check.lengths.allSatisfy({ $0.bar != second.bar }) {
+            model.showCheckBar(second.bar)
+            XCTAssertEqual(fake.selected.count, 2, "its flag tapped, with no other flag there, selects it the same way")
+        }
+        XCTAssertEqual(MarkedPages.of(model.check.marks, starts: model.check.pageStarts, read: model.check.readPages, pdfPages: 2), [ScanMarkedPages.Page(place: 2, pdf: 2, bad: [second.bar])], "only the marked page")
 
         model.unmark(model.check.marks[0])
         try await ScanSupport.wait("the mark taken away") { model.check.marks.isEmpty }
         XCTAssertFalse(model.flags(english).contains { ($0["label"] as? String)?.contains(words) == true }, "its flag goes")
         XCTAssertEqual(fake.problems, [])
+    }
+
+    func testABarReadAgainShowsItsCropAndReadingsAsOneTheEnginesDisagreeOn() throws {
+        let answer = #"{"flags": [{"bar": 2, "reason": "readAgain", "name": "Read by another engine", "text": "", "resolved": false, "span": {"onset": 1920, "end": 3840}}, {"bar": 3, "reason": "barTooLong", "name": "Bar too long", "text": "", "resolved": false, "span": {"onset": 3840, "end": 5760}}], "open": 2}"#
+        let shelf = try XCTUnwrap(CheckShelf(answer: answer))
+
+        XCTAssertEqual(shelf.openBars.first?.flags.first?.reason, CheckShelf.readAgain)
+        XCTAssertEqual(shelf.openBars.map(\.reviewed), [true, false], "a bar read again, so the earlier reading can be taken back; not a bar too long")
+        XCTAssertTrue(CheckShelf.reviewed.contains(CheckShelf.enginesDisagree), "as before")
+    }
+
+    func testOneRecognitionAtATimeSourcesAndTheMarkedReadingWaitForEachOther() async {
+        let henle = SourceLayers.Original(
+            id: "src_a", kind: "pdf", shown: "Henle", fileName: "Henle.pdf", state: "here", removedAt: nil, kept: "file",
+            pages: 1, durationMs: nil, hidden: false, notes: [], pageMarks: 0
+        )
+        var layers = SourceLayers()
+        layers.originals = [henle]
+        let sources = SourcesController(layers: layers)
+        let waits = UIText.current.format("sources.sheet.readingOther", "Henle")
+        StubAPI.reset()
+        var during: String?
+        var sent: String?
+
+        let why = await sources.setReading(henle) {
+            during = sources.reading
+            sent = await sources.recognise(henle, address: server, account: Account(options: nil))
+            return nil
+        }
+
+        XCTAssertNil(why)
+        XCTAssertEqual(during, "src_a", "the one owner of which original is with the scan server")
+        XCTAssertEqual(sent, waits, "Sources' «Распознать» waits, of the same PDF too")
+        XCTAssertNil(sources.reading, "given back after the run")
+        // A recognition in Sources goes on: the marked reading waits for it and sends nothing.
+        let reading = MarkedReading()
+        let pages = ScanMarkedPages.Plan(device: [], server: [ScanMarkedPages.Page(place: 1, pdf: 1, bad: [1])], vector: ScanJobPlan(), pdfPages: 1)
+        _ = await sources.setReading(henle) {
+            reading.start(MarkedPlan(original: henle, pdf: notAPdf, pages: pages), check: CheckShelf(), sources: sources, target: .success(target), text: english)
+            await until { !reading.busy }
+            return nil
+        }
+        XCTAssertEqual(reading.problem, waits)
+        XCTAssertEqual(StubAPI.requests.count, 0, "nothing was sent, no quota charged twice")
+    }
+
+    func testReadingAgainWithTheMarksKeepsNewNotesBesideTheWorkingOnesAndToldWhatBecameOfTheMarks() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("marked-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = try ScanSupport.pdfPiece(in: folder, pdf: ScanSupport.scannedPdf(pages: 2))
+        StubAPI.reset(jobAnswers("j1", [(1, "C"), (2, "E")]))
+        guard case .success = await RecognitionQueue.recognise(url, address: server, account: Account(options: nil), links: folder, folders: folder, job: job(), session: StubAPI.session(), isOpen: { false }) else {
+            return XCTFail("the notes read from the PDF by a job")
+        }
+        let piece = try await OpenPiece.open(fileName: url.lastPathComponent, data: Data(contentsOf: url), language: "en", title: "Pages").get()
+        opened.append(piece.id)
+        let sources = SourcesController()
+        await sources.load(piece: piece.id, file: url)
+        let working = try XCTUnwrap(sources.layers.working, "the notes read")
+        let fake = FakeCheckScore()
+        fake.pieceId = piece.id
+        let model = CheckModel(selection: SelectionModel()) { false }
+        model.score = fake
+        await model.load(in: piece.id)
+        let second = try XCTUnwrap(model.check.pageStarts.last, "two pages")
+        model.mark(ReadingMarkChoice(kind: "badlyRead"), first: second.bar, last: second.bar)
+        try await ScanSupport.wait("the mark kept") { !model.check.marks.isEmpty }
+        let reading = MarkedReading()
+        let planned = await reading.plan(model.check, sources: sources, text: english)
+        guard case .success(let plan) = planned else { return XCTFail("the plan: \(planned)") }
+        XCTAssertEqual(plan.pages.server.map(\.place), [2], "only the marked page, its bar read badly by the server's engines")
+        StubAPI.reset(jobAnswers("j2", [(2, "G")]))
+
+        reading.start(plan, check: model.check, sources: sources, target: .success(target), text: english)
+        try await ScanSupport.wait("read again") { !reading.busy }
+
+        XCTAssertNil(reading.problem)
+        XCTAssertNil(sources.reading, "given back")
+        let form = String(decoding: StubAPI.bodies[StubAPI.requests.firstIndex { $0.httpMethod == "POST" } ?? 0], as: UTF8.self)
+        XCTAssertTrue(form.contains("name=\"pages\"\r\n\r\n2\r\n"), "the whole file, with only the marked page to read")
+        let fresh = try XCTUnwrap(sources.fresh, "new Notes, by the id music-core gave them")
+        XCTAssertNotEqual(fresh, working)
+        XCTAssertEqual(sources.layers.working, working, "the working notes stay as they are")
+        XCTAssertEqual(sources.layers.original(plan.original.id)?.notes.contains(fresh), true, "under the PDF")
+        let toast = try XCTUnwrap(sources.toast?.text)
+        XCTAssertTrue(toast.hasPrefix(english.count("markedReading.toast", 1) + " · "), "music-core's line of the marks follows: \(toast)")
+        XCTAssertTrue(toast.contains("used"), "what became of the mark: \(toast)")
+        try await ScanSupport.wait("the job deleted on the server") { ScanSupport.sent("DELETE", "jobs/j2") == 1 }
     }
 }

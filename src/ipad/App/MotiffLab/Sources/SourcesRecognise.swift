@@ -40,7 +40,7 @@ struct SourcesRecognisePanel: View {
     private var text: UIText { row.text }
 
     /// What the panel says before Send: what recognising needs first (nil when it can go), where it goes, and Send's word.
-    private struct Offer {
+    struct Offer {
         var blocker: String?
         var line = ""
         var send = ""
@@ -52,13 +52,20 @@ struct SourcesRecognisePanel: View {
         if original.isRecording {
             return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: Self.hearLine(sources.layers, text: text), send: text["sources.sheet.sendRecording"])
         }
-        let pages = max(1, original.pages ?? 1)
-        if let busy = background.busy { return Offer(blocker: text.format("recognition.busy", busy)) }
-        guard let address = row.address else { return Offer(blocker: SourcesController.noScanServer(text)) }
-        if row.hosted && account.player == nil { return Offer(blocker: text["scan.signInPrompt"]) }
-        if row.hosted && !account.allows(.scan) { return Offer(blocker: text["scan.proPrompt"]) }
-        let line = row.hosted
-            ? SourceLayers.counted(row.jobs ? "sources.sheet.readHostedJob" : "sources.sheet.readHosted", pages, text: text)
+        return Self.pagesOffer(max(1, original.pages ?? 1), busy: background.busy, address: row.address, hosted: row.hosted, jobs: row.jobs, account: account, text: text)
+    }
+
+    /// What sending `pages` pages of a PDF to the scan server at `address` says before the player's yes (ADR 0011
+    /// section 2): what it needs first, the library's recognition (`busy`), a server, and on Motiff Lab's (`hosted`) sign-in
+    /// and Pro; else where the pages go and Send's word. Also Check's «Распознать заново с отметками» for its pages that
+    /// leave the iPad (`Workspace/ScoreMarkedReading`).
+    static func pagesOffer(_ pages: Int, busy: String?, address: URL?, hosted: Bool, jobs: Bool, account: Account, text: UIText) -> Offer {
+        if let busy { return Offer(blocker: text.format("recognition.busy", busy)) }
+        guard let address else { return Offer(blocker: SourcesController.noScanServer(text)) }
+        if hosted && account.player == nil { return Offer(blocker: text["scan.signInPrompt"]) }
+        if hosted && !account.allows(.scan) { return Offer(blocker: text["scan.proPrompt"]) }
+        let line = hosted
+            ? SourceLayers.counted(jobs ? "sources.sheet.readHostedJob" : "sources.sheet.readHosted", pages, text: text)
             : SourceLayers.counted("sources.sheet.readOwn", pages, address.absoluteString, text: text)
         return Offer(line: line, send: SourceLayers.counted("sources.sheet.send", pages, text: text))
     }

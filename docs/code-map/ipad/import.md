@@ -39,8 +39,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   (`RecognitionQueue.recognise(again:)`), then the job deleted; a page again unread keeps the line with «Повторить» and the reason (`RecognitionItem.reason`, «Не вставлено: …»).
 - `ScanMarkedPages.swift` (v1.6 c-14b3): the pages of a PDF's notes with marks «что не так», and only those, read again
   for `scan.join`'s "replace": a page the vector reader reads stays on this iPad unless a bar of it is marked as read
-  badly (`split`, E-scan-19); the others go as one job (`ScanServer.readJob`, the target asked only then) with their
-  "bad" bars; a marked page no engine read fails the whole reading (E-scan-18). Run by `Workspace/ScoreMarkedReading`.
+  badly (`split`, E-scan-19), known before the player's yes (`plan`, `Plan.hereLine`); the others go as one job of the
+  whole file with its "pages" (`ScanServer.readJob`, the target asked only then) with their "bad" bars; a marked page no engine read fails the whole reading (E-scan-18). Run by `Workspace/ScoreMarkedReading`.
 
 - v1.5 i-7 (the v1.4 plan's answer 9): a page no engine read is marked in the notes (`Workspace/ScoreUnreadPages.swift`:
   `UnreadPage`, from `RecognitionItem.read` and `check`'s "pageStarts", drawn with the Check flags) and listed in Check

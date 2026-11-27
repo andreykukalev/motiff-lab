@@ -9,42 +9,6 @@ import XCTest
 /// rule for rule; and one robustness rule of v1.6 i-8: a double tap on a scan's reading puts it in once.
 @MainActor
 final class CheckModelTests: XCTestCase {
-    /// The score as Check sees it: what was asked of it, in order.
-    @MainActor
-    private final class FakeScore: CheckScore {
-        var pieceId: Int32?
-        private(set) var asked: [String] = []
-        private(set) var shown: [Range<Double>] = []
-        private(set) var notices: [String] = []
-        private(set) var problems: [String?] = []
-
-        func showSpan(_ span: Range<Double>) {
-            shown.append(span)
-        }
-
-        func drawChecks() async {
-            asked.append("drawChecks")
-        }
-
-        func applyLayers() async {
-            asked.append("applyLayers")
-        }
-
-        func notesDidChange() async {
-            asked.append("notesDidChange")
-        }
-
-        func showNotice(_ key: String) {
-            notices.append(key)
-        }
-
-        func showProblem(_ message: String?) {
-            problems.append(message)
-        }
-
-        func count(_ what: String) -> Int { asked.filter { $0 == what }.count }
-    }
-
     private var opened: [Int32] = []
 
     override func tearDown() async throws {
@@ -53,7 +17,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     /// A model over a score `fake`, scan jobs off.
-    private func made(_ fake: FakeScore) -> CheckModel {
+    private func made(_ fake: FakeCheckScore) -> CheckModel {
         let model = CheckModel(selection: SelectionModel()) { false }
         model.score = fake
         return model
@@ -83,7 +47,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     func testTheDrawerOpenedOrClosedAsksThePageToHideAgainOncePerChange() async {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         let model = made(fake)
         model.drawerOpen = true
         await until("the page hides again") { fake.count("applyLayers") == 1 }
@@ -95,7 +59,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     func testWithMyCorrectionsOffFixNotesTheNoteEditorAndTheAssistantsDraftsSayWhyAndOpenNothing() async {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         fake.pieceId = 7
         let model = made(fake)
         model.open(edits: editsOff)
@@ -113,7 +77,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     func testWithNoPieceNothingIsAskedOfMusicCore() async {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         let model = made(fake)
         XCTAssertTrue(model.editsOn, "on until a piece says otherwise")
         let accepted = await model.acceptAssistantDraft("{}")
@@ -129,7 +93,7 @@ final class CheckModelTests: XCTestCase {
     /// Robustness (v1.6 i-8, E-scan-9): while a scan's reading goes in, the readings wait (`puttingVariant`, which disables
     /// their buttons) and a second tap puts nothing in, so the bar holds one reading, as one Undo takes back.
     func testADoubleTapOnAnEnginesReadingPutsItInOnce() async throws {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         fake.pieceId = 9_999
         let model = made(fake)
         let json = #"{"engines": ["copisteria"], "staves": [{"part": 1, "staff": 1, "notes": [{"onset": 0, "pitch": 72, "length": 480, "name": "C5"}]}]}"#
@@ -148,7 +112,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     func testCheckIsReadForAPieceAndItsFlagsDrawnOnce() async throws {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         let model = made(fake)
         let piece = try await kitPiece()
         fake.pieceId = piece
@@ -162,7 +126,7 @@ final class CheckModelTests: XCTestCase {
     }
 
     func testTheNoteEditorsDraftChangesTheNotesAndGoesOnCancelOrIsKeptOnSave() async throws {
-        let fake = FakeScore()
+        let fake = FakeCheckScore()
         let model = made(fake)
         var kept = 0
         model.editsKept = { kept += 1 }
@@ -185,7 +149,7 @@ final class CheckModelTests: XCTestCase {
         XCTAssertEqual(kept, 0, "nothing written on Cancel")
 
         // Save on a model of its own, so its draft's answer is seen as the first one was.
-        let saving = FakeScore()
+        let saving = FakeCheckScore()
         saving.pieceId = piece
         let saver = made(saving)
         saver.editsKept = { kept += 1 }

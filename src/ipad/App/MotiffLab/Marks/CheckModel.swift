@@ -10,6 +10,8 @@ protocol CheckScore: AnyObject {
     var pieceId: Int32? { get }
     /// A passage selected, and brought into view.
     func showSpan(_ span: Range<Double>)
+    /// Whole bars selected through music-core, as the roll picks them (a mark «что не так» names its bars only).
+    func selectBars(_ first: Int, _ last: Int, extend: Bool, gesture: String?)
     /// The open bars drawn on the score as amber flags (`CheckModel.flags`).
     func drawChecks() async
     /// The page hides what it should now: Check's flags show while its drawer is open (`CheckModel.drawerOpen`).
@@ -68,10 +70,9 @@ final class CheckModel: ObservableObject {
     /// Whether scans go as jobs to the server's engines on this iPad (`ScanServer.jobs`, Import's).
     private let scanJobs: @MainActor () -> Bool
     private let text = UIText.current
-    /// Where each bar starts and where the notes end, by the playback score, read while the notes have marks «что не так»:
-    /// a mark names its bars only, and its flag and «Показать» need where they lie (`readBars`).
+    /// Where each bar starts, by the playback score, read while the notes have marks «что не так»: a mark names its bars
+    /// only, and its flag needs where it lies (`readBars`).
     private var barStarts: [Int: Double] = [:]
-    private var notesEnd = 0.0
 
     /// `scanJobs`: whether this iPad sends scans as jobs, so it keeps their bars' variants and crops (`ScanServer.jobs`).
     init(selection: SelectionModel, scanJobs: @escaping @MainActor () -> Bool) {
@@ -99,13 +100,6 @@ final class CheckModel: ObservableObject {
     private func readBars(of piece: Int32, marks: [ReadingMarkEntry]) async {
         guard !marks.isEmpty, let playback = await PieceCore(piece: piece).playback().value else { return }
         barStarts = Dictionary(playback.bars.map { ($0.number, $0.onset) }, uniquingKeysWith: { first, _ in first })
-        notesEnd = playback.end
-    }
-
-    /// The span of the bars `first` to `last`, to the notes' end after the last bar; nil for a bar the notes lack.
-    private func barSpan(_ first: Int, _ last: Int) -> Range<Double>? {
-        guard let onset = barStarts[first] else { return nil }
-        return onset..<max(barStarts[last + 1] ?? notesEnd, onset + 1)
     }
 
     /// What this iPad kept of the working notes' scan and its crops, read from the device off the main thread (v1.3 i-2).
@@ -154,10 +148,11 @@ final class CheckModel: ObservableObject {
     /// Show: the bar is selected, so it can be looped and compared with the page or the recording, and comes into view.
     func showCheckBar(_ bar: Int) {
         // A bar of a flag, of notes whose length is uncertain (#352), or of a mark «что не так» (v1.6 c-14b3).
-        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span
-            ?? check.lengths.first(where: { $0.bar == bar })?.span
-            ?? check.marks.first(where: { $0.bar == bar }).flatMap({ barSpan($0.bar, $0.last) }) else { return }
-        score?.showSpan(span)
+        if let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span ?? check.lengths.first(where: { $0.bar == bar })?.span {
+            score?.showSpan(span)
+        } else if let mark = check.marks.first(where: { $0.bar == bar }) {
+            showMark(mark)
+        }
     }
 
     /// Looks right, or Check again: every flag on the bar resolved or open again, kept with the piece.
@@ -187,10 +182,9 @@ final class CheckModel: ObservableObject {
         changeCheck(.checkUnmark, mark.unmarkFields)
     }
 
-    /// «Показать» on a mark: its bars are selected and come into view.
+    /// «Показать» on a mark: its bars are selected, as Check selects a photo's or an unread page's bars.
     func showMark(_ mark: ReadingMarkEntry) {
-        guard let span = barSpan(mark.bar, mark.last) else { return }
-        score?.showSpan(span)
+        score?.selectBars(mark.bar, mark.last, extend: false, gesture: nil)
     }
 
     /// A call that changes what Check asks about and answers as `check` does (`check.resolve`, `check.mark`,

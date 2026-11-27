@@ -39,7 +39,10 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   2026-11-25) and the panel already waits for it; before, both went to the server, and the first, coming back, cleared
   the second's progress and gave its Send back (`SourcesController.reading` holds one original). The time line before
   Send (E-scan-5) is asked again when what blocks the panel changes (another recognition, the library's), so it comes
-  back once that ends · v1.6 i-13
+  back once that ends · v1.6 i-13; since c-14b3 Check's «Распознать заново с отметками» holds the same `reading` for its
+  PDF (`setReading`): while it reads, Sources' Send of that PDF shows its progress and others wait, and while Sources
+  recognises, the button in Check is off and says which original is being recognised; no second job, no quota charged
+  twice
 - `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
   original) · read as a file picked for «Привязать оригинал» is (`LinkedFile.read`: coordinated, off the main thread, so
   a file only in iCloud is downloaded first), and when it cannot be read the sheet's danger line says why in the same
@@ -145,23 +148,33 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-scan-16` · Notes not read from a PDF or photos, or notes only shown over the piece · no «Что не так?» in Check or the
   selection menu (music-core refuses the marks there); on notes only shown, Check lists the marks without «Убрать» and
   without «Распознать заново с отметками» · a control is offered only where it works (robustness rule) · v1.6 c-14b3
-- `E-scan-17` · «Распознать заново с отметками» tapped again while the marked pages are read, or while the library
-  recognises a piece · the button is disabled and the progress or «Идёт распознавание «…»» shows; a tap that comes before
-  it does nothing · as E-scan-9; one recognition at a time (Andrei, 2026-11-25) · v1.6 c-14b3
+- `E-scan-17` · «Распознать заново с отметками» tapped again while the marked pages are read, while the library
+  recognises a piece, or while Sources recognises an original (E-sources-1) · the button is disabled and the progress,
+  «Идёт распознавание «…»» or «Сейчас распознаётся «…»» shows; a tap that comes before it does nothing · as E-scan-9; one
+  recognition at a time (Andrei, 2026-11-25) · v1.6 c-14b3
 - `E-scan-18` · A marked page no engine reads again · the whole reading fails with «Ни один движок не прочитал заново
   страницы: N»; no new Notes, the working notes as they were, the marks kept · a page kept with its old reading beside
   pages read again would take the marks twice or not at all (hands, octave); nothing half done (robustness rule) · v1.6
   c-14b3
-- `E-scan-19` · Which marked pages leave the iPad · a page the vector reader reads stays on the iPad (free, no server), unless a
-  bar on it is marked as read badly, which only the server's other engines read otherwise; a page that has to go needs a
-  server that takes jobs («Четыре движка»), else Check says why and nothing is sent; pages with no mark are not read again
-  and keep their reading · on the device = free, cloud = Pro (0025); only what the player asked is sent · v1.6 c-14b3
+- `E-scan-19` · Which marked pages leave the iPad, and what goes · a page the vector reader reads stays on the iPad (free,
+  no server), unless a bar on it is marked as read badly, which only the server's other engines read otherwise; when a
+  page has to go, the whole PDF goes, as a scan job of Sources' «Распознать» does, to the scan server set in Settings,
+  with only the marked pages to be read; before the press Check says how many pages are read on the iPad and where the
+  others go, in Sources' words («2 страницы уйдут на сервер распознавания Motiff Lab…» or «… на ваш сервер распознавания
+  http://…»), Pro only then on Motiff Lab's; that needs a server that takes jobs («Четыре движка») and, on Motiff Lab's,
+  sign-in and Pro, else Check says why and nothing is sent; pages with no mark are not read again and keep their reading.
+  When the notes name no pages read and the PDF has another number of pages than they have, nothing is read («У этих нот
+  и PDF … разное число страниц…»), so a second reading never reads the wrong page; with the PDF not kept in the piece the
+  button says so and is off · ADR 0011 section 2: where the pages go is named before they go; on the device = free,
+  cloud = Pro (0025); only what the player asked is read; a control is offered only where it works · v1.6 c-14b3
 - `E-scan-20` · The screen left while the marked pages are read · the reading stops, its job is deleted on the server, and
   nothing changes in the piece · as the PDF's own panel closed mid-reading (`ScanProblem.stopped`); a job no screen
   waits for is not left on the server · v1.6 c-14b3
 - `E-scan-21` · What the new Notes of a reading with marks keep · the readings and crops of the bars to check of the pages
   read again, under the new notes' fingerprint; no page reports, as only some pages were read, so Check does not tell a
-  page's print quality for them · as E-scan-6 (one report per page or none) · v1.6 c-14b3
+  page's print quality for them; a bar read again (its flag «Прочитан другим движком») shows its crop and readings when
+  selected, as a bar the engines disagree on, so the earlier reading can be taken back · as E-scan-6 (one report per page
+  or none) · v1.6 c-14b3
 
 ## Insights
 

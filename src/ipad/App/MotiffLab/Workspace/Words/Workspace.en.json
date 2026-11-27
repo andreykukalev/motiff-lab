@@ -219,5 +219,6 @@
   "markedReading.toast.many": "Read again with the marks · {0} pages",
   "markedReading.noPdf": "The PDF these notes were read from is not kept in the piece on this iPad, so its pages cannot be read again.",
   "markedReading.noPages": "The marked bars could not be found on the pages of these notes.",
-  "markedReading.needsJobs": "A marked page has to go to the scan server, which reads it again with all its engines: choose «Four engines» for scanning in Settings."
+  "markedReading.needsJobs": "A marked page has to go to the scan server, which reads it again with all its engines: choose «Four engines» for scanning in Settings.",
+  "markedReading.pagesDiffer": "These notes and the PDF they were read from have different numbers of pages, so the marked pages cannot be found in it to be read again."
 }

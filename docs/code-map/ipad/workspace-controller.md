@@ -43,10 +43,13 @@ parts by concern are extensions in their own files.
 - `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags
   (`CheckModel.adding`, E-scan-1); v1.6 c-14a: from the project file's `unreadPages` when the queue has no item.
 - `ScoreMarkedReading.swift` (v1.6 c-14b3, the 1.6 plan's decision 15): «Распознать заново с отметками». `MarkedPages`
-  (the notes' pages a mark «что не так» lies on, with their PDF page and bars read badly; the working notes' music from
-  the project file `project.save` answers), `MarkedReading` (owned by `ScoreWorkspace.markedReading`: the marked pages
+  (the notes' pages a mark «что не так» lies on, with their PDF page and bars read badly, none when the notes' pages and
+  the PDF's disagree; the working notes' music from the project file `project.save` answers), `MarkedPlan` (what a
+  reading reads, found before the press: `MarkedReading.plan`), `MarkedReading` (owned by `ScoreWorkspace.markedReading`;
+  its run holds `SourcesController.reading` through `setReading`, one recognition at a time: the marked pages
   read by `Import/ScanMarkedPages`, put into the working notes' music with the marks by `scan.join` with the project
   file, their bars to check kept (`ScanCrops.keepReview`) and kept as new Notes by `SourcesController.keepRecognised`
   (`sources.notes.recognise`, whose "marked" the toast tells); the job deleted after; stopped with the screen) and
-  `MarkedReadingCheck` (the button in Check, Pro on the hosted server, the scan target or why none). Tests:
+  `MarkedReadingCheck` (the button in Check; before the press where the pages go, Sources' words for those that leave
+  the iPad, `SourcesRecognisePanel.pagesOffer`, Pro only then on the hosted server, or why it waits or cannot). Tests:
   `MotiffLabTests/ReadingMarksTests`.

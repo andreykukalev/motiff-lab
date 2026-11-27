@@ -1,4 +1,4 @@
-import PDFKit
+import Foundation
 
 /// «Распознать заново с отметками» (v1.6 c-14b3, the 1.6 plan's decision 15, «Как напечатано» step 3): the pages of a PDF's
 /// notes that carry the player's marks «что не так», and only those, read again for `scan.join`'s "replace". A page the
@@ -13,6 +13,22 @@ enum ScanMarkedPages {
         var place: Int
         var pdf: Int
         var bad: [Int] = []
+    }
+
+    /// How the marked pages of a PDF are read, known before the player's yes (E-scan-19): those the vector reader reads on
+    /// this iPad (`device`, its readings by PDF page in `vector`), those that go to the scan server, and the PDF's pages.
+    struct Plan: Sendable {
+        var device: [Page]
+        var server: [Page]
+        var vector: ScanJobPlan
+        var pdfPages: Int
+
+        var pages: [Page] { device + server }
+
+        /// «2 страницы прочитаны на iPad.»: the pages read here, as a scan job's line says them; empty when none is.
+        func hereLine(_ text: UIText) -> String {
+            ScanJobPlan(device: vector.device.filter { number, _ in device.contains { $0.pdf == number } }).line(text, minutes: nil)
+        }
     }
 
     /// What the pages read again give: `scan.join`'s "replace", in the pages' order, the engines that read them, and how
@@ -30,22 +46,27 @@ enum ScanMarkedPages {
         return (here, pages.filter { page in !here.contains(page) })
     }
 
-    /// `pages` of the PDF `data` read again: those the vector reader reads here, the others by a scan job to `target`
-    /// (asked only when one goes; its problem refuses the reading), whose id `job.keep` hears for the caller to delete it.
-    /// A page no engine read again fails the whole reading, so no page keeps a reading its marks were put into already
-    /// (E-scan-18).
-    static func read(_ pages: [Page], pdf data: Data, to target: Result<ScanTarget, ScanProblem>, job: RecognitionJob, text: UIText) async -> Result<Reading, ScanProblem> {
-        let count = PDFDocument(data: data)?.pageCount ?? (pages.map(\.pdf).max() ?? 1)
-        let plan = await ScanJobPlan.of(data, pages: count)
-        let (device, server) = split(pages, device: plan.device)
+    /// How `pages` of the PDF `data`, of `pdfPages` pages, are read (`split` of what the vector reader reads), before
+    /// anything is sent.
+    static func plan(_ pages: [Page], pdf data: Data, pdfPages: Int) async -> Plan {
+        let vector = await ScanJobPlan.of(data, pages: pdfPages)
+        let (device, server) = split(pages, device: vector.device)
+        return Plan(device: device, server: server, vector: vector, pdfPages: pdfPages)
+    }
+
+    /// The pages of `plan` read again: those the vector reader read here, the others by a scan job of the whole PDF `data`
+    /// with its "pages" to `target` (asked only when one goes; its problem refuses the reading), whose id `job.keep` hears
+    /// for the caller to delete it. A page no engine read again fails the whole reading, so no page keeps a reading its
+    /// marks were put into already (E-scan-18).
+    static func read(_ plan: Plan, pdf data: Data, to target: Result<ScanTarget, ScanProblem>, job: RecognitionJob, text: UIText) async -> Result<Reading, ScanProblem> {
         var read: [[String: Any]] = []
-        if !server.isEmpty {
+        if !plan.server.isEmpty {
             let sent: ScanTarget
             switch target {
             case .failure(let problem): return .failure(problem)
             case .success(let chosen): sent = chosen
             }
-            let numbers = server.map(\.pdf)
+            let numbers = plan.server.map(\.pdf)
             switch await ScanServer.takesJobs(sent, pages: numbers, hear: job.hear) {
             case .failure(let problem): return .failure(problem)
             case .success(false): return .failure(.server(text["scanMarked.noJobs"]))
@@ -56,8 +77,9 @@ enum ScanMarkedPages {
             case .success(let done): read = done.pages
             }
         }
-        let here = plan.device.filter { number, _ in device.contains { $0.pdf == number } }
+        let here = plan.vector.device.filter { number, _ in plan.device.contains { $0.pdf == number } }
         let joined = ScanJobs.joined(device: here, server: read)
+        let pages = plan.pages
         let missing = pages.map(\.pdf).filter { !joined.numbers.contains($0) }
         guard missing.isEmpty else { return .failure(.server(text.format("scanMarked.notRead", missing.map(String.init).joined(separator: ", ")))) }
         let replace: [[String: Any]] = zip(joined.numbers, joined.pages).compactMap { number, page -> [String: Any]? in
@@ -67,7 +89,7 @@ enum ScanMarkedPages {
             if !marked.bad.isEmpty { entry["bad"] = marked.bad }
             return entry
         }
-        let engines = (device.isEmpty ? [] : [plan.engine].compactMap { $0 }) + joined.engines
-        return .success(Reading(replace: replace, engines: engines, pdfPages: count))
+        let engines = (plan.device.isEmpty ? [] : [plan.vector.engine].compactMap { $0 }) + joined.engines
+        return .success(Reading(replace: replace, engines: engines, pdfPages: plan.pdfPages))
     }
 }
