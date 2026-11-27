@@ -37,10 +37,14 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   the panel says which one is («Сейчас распознаётся «Henle.pdf»…») instead of Send, and a Send that still comes sends
   nothing; once it is done, the panel offers Send again · as the library recognises one piece at a time (Andrei,
   2026-11-25) and the panel already waits for it; before, both went to the server, and the first, coming back, cleared
-  the second's progress and gave its Send back (`SourcesController.reading` holds one original) · v1.6 i-13
+  the second's progress and gave its Send back (`SourcesController.reading` holds one original). The time line before
+  Send (E-scan-5) is asked again when what blocks the panel changes (another recognition, the library's), so it comes
+  back once that ends · v1.6 i-13
 - `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
-  original) that cannot be read · the sheet's danger line says «Файл не прочитался.» · as a file picked for «Привязать
-  оригинал» says it (`OriginalsController`); before, nothing happened and nothing was said · v1.6 i-13
+  original) · read as a file picked for «Привязать оригинал» is (`LinkedFile.read`: coordinated, off the main thread, so
+  a file only in iCloud is downloaded first), and when it cannot be read the sheet's danger line says why in the same
+  words («Файл не прочитался.», no connection, the file gone) · as `OriginalsController` does (lead's decision); before,
+  it was read on the main thread, a file only in iCloud failed, and nothing was said · v1.6 i-13
 - `E-settings-1` · Two settings changed in a row in the Settings sheet (or a switch turned off and on again) before
   music-core has answered the first · each change waits for the one before it and starts from the values it kept, so
   every change is kept and a switch ends as last set; before, the second answer dropped the first change, and a switch

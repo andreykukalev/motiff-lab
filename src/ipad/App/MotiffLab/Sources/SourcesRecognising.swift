@@ -11,7 +11,8 @@ extension SourcesController {
         text["import.scanSetUp"] + " " + text["import.scanSetUpLink"] + "."
     }
 
-    /// E-sources-1: the original being recognised now when it is not `original`, in the player's words; nil when none is,
+    /// E-sources-1: the original being recognised now when it is not `original`, by the name its row shows, in the
+    /// player's words; nil when none is,
     /// or it is this one. One original is recognised at a time, as the library recognises one piece at a time: a second
     /// Send while the first is on its way would go to the server too, and the first, coming back, would clear the second's
     /// progress and give its Send back (`reading` holds one original).
@@ -22,7 +23,7 @@ extension SourcesController {
     /// The words of `readingOther` for the original `reading` (nil: none is being recognised).
     static func readingOther(_ reading: String?, than original: SourceLayers.Original, in layers: SourceLayers, text: UIText) -> String? {
         guard let reading, reading != original.id else { return nil }
-        return text.format("sources.sheet.readingOther", layers.originals.first { $0.id == reading }?.fileName ?? "")
+        return text.format("sources.sheet.readingOther", layers.original(reading)?.shown ?? "")
     }
 
     /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again

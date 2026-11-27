@@ -375,4 +375,5 @@ write no state (the scan server's pages, the recording heard, `SourcesRecognisin
 the recording's sound (`RecordingListening`) left the capsules' view file. The sheet composes the controller with the
 versions, the originals, the account, the scan server and Import's camera, as the screens compose the features, so it
 moved to `Workspace/` and makes the photos' PDF there; `SegmentedChoice`, used by eight folders, moved to Platform. In
-the quality baseline 21 folder edges went and 5 were re-keyed with the readers of recognising, 16 fewer in all.
+the quality baseline 21 folder edges went, 4 were re-keyed with the readers of recognising and 1 is new
+(`SourcesRecognising`: `Account`, which the scan server and the hearing take): 16 fewer in all.

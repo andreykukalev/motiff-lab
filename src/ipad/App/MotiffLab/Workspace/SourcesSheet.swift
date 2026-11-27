@@ -266,7 +266,7 @@ struct SourcesSheet: View {
         case .same(let original) where original.isRecording:
             await sources.addRecording(url)
         case .pdf, .score, .same:
-            guard let data = sources.read(picked: url) else { return }
+            guard let data = await sources.read(picked: url) else { return }
             if picked == .score {
                 await versions?.addVersion(fileName: url.lastPathComponent, data: data)
                 await sources.refresh()
