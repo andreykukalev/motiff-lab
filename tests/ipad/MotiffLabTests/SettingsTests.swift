@@ -7,6 +7,12 @@ import XCTest
 /// robustness rules of v1.6 i-14 (docs/ui-edge-cases.md, E-settings-1 to 3).
 @MainActor
 final class SettingsTests: XCTestCase {
+    /// What the account was asked to keep and what it answers.
+    private final class Saves {
+        var names: [String?] = []
+        var problem: String?
+    }
+
     private func freshStore() throws -> UserDefaults {
         try XCTUnwrap(UserDefaults(suiteName: "SettingsTests-\(UUID().uuidString)"))
     }
@@ -54,11 +60,10 @@ final class SettingsTests: XCTestCase {
 
     /// The name is cut at the longest kept; only spaces clear it; a profile not kept says why and stays open.
     func testTheNameIsCutAndOnlySpacesClearIt() async {
-        var kept: [String?] = []
-        var problem: String?
+        let saves = Saves()
         let profile = ProfileController(profile: PlayerProfile(name: "Андрей", photo: nil)) { name, _ in
-            kept.append(name)
-            return problem
+            saves.names.append(name)
+            return saves.problem
         }
         XCTAssertEqual(profile.name, "Андрей", "the editor starts from the account's profile")
         profile.name = String(repeating: "я", count: ProfileController.longestName + 10)
@@ -67,24 +72,25 @@ final class SettingsTests: XCTestCase {
         profile.name = "   "
         let cleared = await profile.save()
         XCTAssertTrue(cleared)
-        XCTAssertEqual(kept, [nil], "only spaces: no name")
+        XCTAssertEqual(saves.names, [nil], "only spaces: no name")
 
-        problem = "Не сохранилось."
+        saves.problem = "Не сохранилось."
         profile.name = "  Андрей "
         let saved = await profile.save()
         XCTAssertFalse(saved)
-        XCTAssertEqual(kept, [nil, "Андрей"])
+        XCTAssertEqual(saves.names, [nil, "Андрей"])
         XCTAssertEqual(profile.message, .notSaved("Не сохранилось."))
         XCTAssertFalse(profile.saving)
     }
 
     /// E-settings-2: Save tapped again while the profile is on its way saves it once.
     func testSaveTappedTwiceSavesOnce() async throws {
-        var kept: [String?] = []
-        var release: CheckedContinuation<Void, Never>?
+        let saves = Saves()
+        // The first save is held on its way until the test lets it go; a let-go given early is kept.
+        let (held, letGo) = AsyncStream<Void>.makeStream()
         let profile = ProfileController(profile: PlayerProfile(name: "Андрей", photo: nil)) { name, _ in
-            kept.append(name)
-            await withCheckedContinuation { release = $0 }
+            saves.names.append(name)
+            for await _ in held { break }
             return nil
         }
 
@@ -92,13 +98,13 @@ final class SettingsTests: XCTestCase {
         _ = await profile.$saving.values.first { $0 }
         let second = await profile.save()
         XCTAssertFalse(second, "the second tap saves nothing")
-        XCTAssertEqual(kept, ["Андрей"])
+        XCTAssertEqual(saves.names, ["Андрей"])
 
-        try XCTUnwrap(release, "the first save is with the account").resume()
+        letGo.yield()
         let firstSaved = await first.value
         XCTAssertTrue(firstSaved)
         XCTAssertFalse(profile.saving)
-        XCTAssertEqual(kept, ["Андрей"], "kept once")
+        XCTAssertEqual(saves.names, ["Андрей"], "kept once")
     }
 
     /// E-settings-3: a photo chosen, or the photo removed, while another still loads wins over it; a picture that cannot

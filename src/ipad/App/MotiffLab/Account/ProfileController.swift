@@ -38,7 +38,7 @@ final class ProfileController: ObservableObject {
 
     /// The picture `load` reads, cut to its middle square; a picture that cannot be read says so. A picture chosen or
     /// removed while it loads wins over it.
-    func choosePhoto(_ load: () async -> Data?) async {
+    func choosePhoto(_ load: @MainActor () async -> Data?) async {
         choices += 1
         let choice = choices
         let data = await load()
