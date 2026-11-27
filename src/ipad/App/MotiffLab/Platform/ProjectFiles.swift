@@ -89,18 +89,20 @@ enum ProjectFiles {
 
     /// Asks music-core for the piece's project file and writes it, whole, to the url. The ask is queued in the caller's
     /// isolation, so it keeps its order with the caller's other calls (a change, then the save; the save, then the
-    /// piece closed); the file is written off the caller's actor (`write`).
+    /// piece closed); the answer is read and the file written off the caller's actor (`write`).
     static func save(piece: Int32, to url: URL, now: Date = Date(), isolation: isolated (any Actor)? = #isolation) async throws {
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
         let text = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
-        if let failure = facadeObject(text), failure["error"] != nil {
-            throw ProjectError(message: failure["message"] as? String ?? UIText.current["opening.notSaved"])
-        }
         try await write(text, to: url)
     }
 
-    /// The project file written to the url, on the generic executor (a nonisolated async function), never the main actor.
+    /// music-core's answer to `project.save` written to the url, or its refusal thrown. Off the main actor: a nonisolated
+    /// async function runs on the generic executor in the app's Swift 5 mode, so neither the reading of a project file of
+    /// several MB nor its writing holds the screen.
     private static func write(_ text: String, to url: URL) async throws {
+        if let failure = facadeObject(text), failure["error"] != nil {
+            throw ProjectError(message: failure["message"] as? String ?? UIText.current["opening.notSaved"])
+        }
         try Data(text.utf8).write(to: url, options: .atomic)
     }
 
