@@ -29,8 +29,6 @@ internal static class OperationRules
     /// </summary>
     private static readonly long[] s_grids = [CanonicalTime.TicksPerQuarter / 8, CanonicalTime.TicksPerQuarter / 6];
 
-    public static RuleReport Check(IReadOnlyList<Note> before, IReadOnlyList<Note> after) => Check(before, after, Words.English);
-
     /// <summary>The rules, with the violation and the flags in the player's language (#134).</summary>
     public static RuleReport Check(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Words words)
     {

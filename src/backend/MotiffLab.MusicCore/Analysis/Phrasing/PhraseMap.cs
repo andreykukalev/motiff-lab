@@ -315,15 +315,11 @@ public sealed class PhraseMap
     }
 
     /// <summary>
-    /// "after a rest of a beat or more", "at a slur and at a repeat sign", "set by you", "at a slur,
-    /// confirmed by you", or for the first phrase "the start of the piece": how a phrase's start was found.
-    /// </summary>
-    public static string Describe(PhraseBoundary? start) => Describe(start, Words.English);
-
-    /// <summary>
-    /// How a phrase's start was found, in the player's language (#134); the Russian completes "начинается …". With
-    /// <paramref name="after"/>, how the phrase before it closes («Почему здесь», the phrases spec): a full or a half close
-    /// comes first for a boundary the player did not set ("after a full close and after a rest of a beat or more").
+    /// How a phrase's start was found, in the player's language (#134): "after a rest of a beat or more", "at a slur and at
+    /// a repeat sign", "set by you", "at a slur, confirmed by you", or for the first phrase "the start of the piece"; the
+    /// Russian completes "начинается …". With <paramref name="after"/>, how the phrase before it closes («Почему здесь», the
+    /// phrases spec): a full or a half close comes first for a boundary the player did not set ("after a full close and
+    /// after a rest of a beat or more").
     /// </summary>
     public static string Describe(PhraseBoundary? start, Words words, CloseKind after = CloseKind.None)
     {

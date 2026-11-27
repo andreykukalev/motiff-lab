@@ -256,59 +256,6 @@ public static class ProjectFile
     private static int Count(JsonElement parent, string name) =>
         parent.TryGetProperty(name, out JsonElement list) && list.ValueKind == JsonValueKind.Array ? list.GetArrayLength() : 0;
 
-    /// <summary>
-    /// The ink strokes as the pencil layer saves and reads them: {"version": 2, "marks": [stroke, …]}, each stroke in the
-    /// shape <see cref="InkStroke"/> describes, with the tool and the colour in lower case. The same shape the project
-    /// file holds under "marks": "ink", so the layer and the file never translate.
-    /// </summary>
-    internal static string WriteInk(IReadOnlyList<InkStroke> ink)
-    {
-        ArgumentNullException.ThrowIfNull(ink);
-        using var buffer = new MemoryStream();
-        using (var json = new Utf8JsonWriter(buffer))
-        {
-            json.WriteStartObject();
-            json.WriteNumber("version", 2);
-            json.WriteStartArray("marks");
-            foreach (InkStroke stroke in ink)
-            {
-                MarksCodec.WriteStroke(json, stroke);
-            }
-
-            json.WriteEndArray();
-            json.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
-    }
-
-    /// <summary>The strokes in a document <see cref="WriteInk"/> wrote; nothing, or an unreadable document, gives none.</summary>
-    /// <exception cref="ProjectFileException">A stroke is not whole.</exception>
-    internal static IReadOnlyList<InkStroke> ReadInk(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return [];
-        }
-
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(text);
-        }
-        catch (JsonException)
-        {
-            throw Damaged("ink");
-        }
-
-        using (document)
-        {
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                ? Property(document.RootElement, "marks", JsonValueKind.Array).EnumerateArray().Select(ReadStroke).ToList()
-                : throw Damaged("ink");
-        }
-    }
-
     /// <summary>One stroke in the pencil layer's shape (<see cref="MarksCodec.ReadStroke"/>): the facade (0020) reads a request's strokes with it.</summary>
     internal static InkStroke ReadStroke(JsonElement stroke) => MarksCodec.ReadStroke(stroke);
 

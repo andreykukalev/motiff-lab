@@ -35,10 +35,17 @@ public class RhythmReshapeTests
     private static MotifSelection FirstBar(Note[] notes) =>
         MotifSelector.Select(notes, MeterMap.Default, new TickSpan(Tick.Zero, 4 * Quarter), SelectionFilter.All);
 
+    /// <summary>The reshape of the first bar's notes, through the context the selection gives.</summary>
+    private static Variation Reshape(Note[] notes, IReadOnlySet<KeepProperty> keep, RhythmReshapeParameters parameters)
+    {
+        MotifSelection selection = FirstBar(notes);
+        return RhythmReshape.Instance.Apply(VariationFacts.MotifNotes(notes, selection), VariationContext.For(selection, keep), parameters);
+    }
+
     private static Variation Apply(RhythmReshapeKind kind, int eighths = 1, IReadOnlySet<KeepProperty>? keep = null)
     {
         Note[] notes = Piece();
-        return RhythmReshape.Instance.Apply(notes, FirstBar(notes), keep ?? s_keepPitchOrder, new RhythmReshapeParameters(kind, eighths));
+        return Reshape(notes, keep ?? s_keepPitchOrder, new RhythmReshapeParameters(kind, eighths));
     }
 
     [Fact]
@@ -153,7 +160,7 @@ public class RhythmReshapeTests
 
         Assert.NotNull(RhythmReshape.Instance.UnavailableReason(notes, VariationContext.For(selection, s_keepPitchOrder), new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
         Assert.Throws<InvalidOperationException>(() =>
-            RhythmReshape.Instance.Apply(notes, selection, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
+            Reshape(notes, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.DoubleTime)));
     }
 
     [Fact]
@@ -245,7 +252,7 @@ public class RhythmReshapeTests
     {
         // A dotted quarter and an eighth already, then two eighths on beat 3, then a quarter.
         Note[] notes = [Note("n1", 60, 0, 720), Note("n2", 62, 720, Eighth), Note("n3", 64, 960, Eighth), Note("n4", 65, 1200, Eighth), Note("n5", 67, 1440, Quarter)];
-        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+        Variation variation = Reshape(notes, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
 
         Assert.Equal([0L, 720, 960, 1320, 1440], variation.Notes.Select(note => note.Span.Onset.Value));
         Assert.Equal(["n3", "n4"], variation.Changes.Where(change => change.OnsetChanged || change.DurationChanged).Select(change => change.Before.Id));
@@ -259,7 +266,7 @@ public class RhythmReshapeTests
     {
         // Four 16ths on beat 1, played detached (100 of 120 ticks), then a quarter.
         Note[] notes = [Note("n1", 60, 0, 100), Note("n2", 62, 120, 100), Note("n3", 64, 240, 100), Note("n4", 65, 360, 100), Note("n5", 67, 480, Quarter)];
-        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+        Variation variation = Reshape(notes, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
 
         Assert.Equal([0L, 180, 240, 420, 480], variation.Notes.Select(note => note.Span.Onset.Value));
         Assert.Equal([160L, 60, 160, 60, Quarter], variation.Notes.Select(note => note.Span.Duration));
@@ -271,7 +278,7 @@ public class RhythmReshapeTests
     {
         // Two right-hand quarters over a left-hand half note, then two more quarters.
         Note[] notes = [Note("b", 48, 0, 2 * Quarter), Note("n1", 72, 0, Quarter), Note("n2", 74, Quarter, Quarter), Note("n3", 76, 2 * Quarter, Quarter), Note("n4", 77, 3 * Quarter, Quarter)];
-        Variation variation = RhythmReshape.Instance.Apply(notes, FirstBar(notes), s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
+        Variation variation = Reshape(notes, s_keepPitchOrder, new RhythmReshapeParameters(RhythmReshapeKind.Dotted));
 
         Assert.Equal(new TickSpan(Tick.Zero, 2 * Quarter), variation.Notes.Single(note => note.Id == "b").Span);
         Assert.Equal([0L, 720, 960, 1680], variation.Notes.Where(note => note.Id != "b").Select(note => note.Span.Onset.Value));

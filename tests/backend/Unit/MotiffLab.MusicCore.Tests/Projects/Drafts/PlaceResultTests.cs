@@ -41,7 +41,7 @@ public class PlaceResultTests
     {
         PlaceResult result = PlaceResult.Build(Place(), [Octave()]);
 
-        Assert.True(result.OutcomeOf(1)!.Applied);
+        Assert.True(result.Steps.Single(step => step.Number == 1).Applied);
         Assert.DoesNotContain(result.Music.Notes, note => note.Id == "v_1.n1r0");
         Note taken = Assert.Single(result.Music.Notes, note => note.Id == "v_2.h1r0");
         Assert.Equal((84, new Tick(BarLength)), (taken.Pitch.MidiNumber, taken.Span.Onset));
@@ -56,7 +56,7 @@ public class PlaceResultTests
 
         PlaceResult result = PlaceResult.Build(Place(), [Octave(), again]);
 
-        DraftStepOutcome outcome = result.OutcomeOf(2)!;
+        DraftStepOutcome outcome = result.Steps.Single(step => step.Number == 2);
         Assert.False(outcome.Applied);
         Assert.Equal("v_1.n1r0", outcome.Lost);
         Assert.Equal(PlaceResult.Build(Place(), [Octave()]).Music.Notes, result.Music.Notes);
@@ -82,7 +82,7 @@ public class PlaceResultTests
 
         PlaceResult result = PlaceResult.Build(Place(), [insert, Octave(2)]);
 
-        Assert.True(result.OutcomeOf(2)!.Applied);
+        Assert.True(result.Steps.Single(step => step.Number == 2).Applied);
         Assert.Equal(new Tick(2 * BarLength), result.Music.Notes.Single(note => note.Id == "v_2.h1r0").Span.Onset);
         Assert.Equal(new Tick(BarLength), result.Music.Notes.Single(note => note.Id == "v_2.h0r0").Span.Onset);
         Assert.Equal(new Tick(2 * BarLength), result.Music.Notes.Single(note => note.Id == "v_1.n1l").Span.Onset);
