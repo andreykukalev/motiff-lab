@@ -38,7 +38,12 @@ struct ScanHealth: Equatable, Sendable {
 
     /// About how many minutes `pages` pages take there, at least one; nil for no page or no timed engine.
     func minutes(pages: Int) -> Int? {
-        seconds(pieces: [pages]).map { max(1, Int(($0 / 60).rounded(.up))) }
+        seconds(pieces: [pages]).map(Self.minutes(seconds:))
+    }
+
+    /// Seconds as whole minutes, rounded up, one at least: the most an estimate says.
+    static func minutes(seconds: Double) -> Int {
+        max(1, Int((seconds / 60).rounded(.up)))
     }
 
     /// About how many seconds pieces of these pages take there, read one after another as the library's recognition reads

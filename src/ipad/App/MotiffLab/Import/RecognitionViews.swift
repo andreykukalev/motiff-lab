@@ -329,9 +329,9 @@ struct RecogniseConsentSheet: View {
     /// Each piece's pages, for the server's own estimate with «Четыре движка» (v1.5 i-7).
     var piecePages: [Int] = []
     @Environment(\.dismiss) private var dismiss
-    /// How long, as the scan server times its engines and its queue (`/health`, v1.5 i-7, the 1.4 plan's answer 9: the
-    /// estimate before sending in the batch too); nil before it answers, or when it takes no jobs.
-    @State private var timed: String?
+    /// How many minutes at most, as the scan server times its engines and its queue (`/health`, v1.5 i-7, the 1.4 plan's
+    /// answer 9: the estimate before sending in the batch too); nil before it answers, or when it takes no jobs.
+    @State private var timed: Int?
     @State private var asking = false
 
     var body: some View {
@@ -375,12 +375,13 @@ struct RecogniseConsentSheet: View {
         asking = true
         defer { asking = false }
         guard case .success(let server) = await ScanServer.health(offer.address), let seconds = server.seconds(pieces: piecePages.isEmpty ? [pages] : piecePages) else { return }
-        timed = text.format("recognition.howLongJob", ScanProgress.about(seconds: Int(seconds.rounded(.up)), text))
+        timed = ScanHealth.minutes(seconds: seconds)
     }
 
-    /// «Сколько ждать»: the server's estimate once it answers; meanwhile that it is asked; else half a minute a page (E-scan-4).
-    private var howLong: String {
-        if let timed { return timed }
+    /// «Сколько ждать» for `pages`: «Не дольше 6 минут» once the server answers with `timed` minutes; meanwhile, while
+    /// `asking`, that it is asked; else half a minute a page (E-scan-4).
+    static func howLong(timed: Int?, asking: Bool, pages: Int, _ text: UIText) -> String {
+        if let timed { return text.format("recognition.howLongJob", text.count("scanJob.minutes", timed)) }
         if asking { return text["recognition.howLongAsking"] }
         return text.format("recognition.howLongLine", String(DailyPages.minutes(pages)))
     }
@@ -391,7 +392,7 @@ struct RecogniseConsentSheet: View {
         // As a scan job (version 1.3), Motiff Lab's server keeps them until the iPad has fetched what was read, at most 24 hours.
         let hosted = ScanServer.jobs ? "recognition.whereHostedJob" : "recognition.whereHosted"
         line(text["recognition.where"], offer.hosted ? text[hosted] : text.format(local ? "recognition.whereHere" : "recognition.whereOwn", offer.address.host ?? offer.address.absoluteString))
-        line(text["recognition.howLong"], howLong)
+        line(text["recognition.howLong"], Self.howLong(timed: timed, asking: asking, pages: pages, text))
         if offer.hosted {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 line(text["recognition.today"], text.format("recognition.todayLine", String(min(DailyPages.limit, offer.usedToday + pages)), String(DailyPages.limit)))

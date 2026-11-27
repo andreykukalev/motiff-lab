@@ -68,10 +68,10 @@ final class ScanJobsBaselineTests: XCTestCase {
     }
 
     /// The piece of two pictures of pages read by a first job from the library: page 1 read by homr as C4, page 2 by no engine.
-    private func readFirst(_ url: URL) async throws -> RecognitionQueue {
-        StubAPI.reset(newJob("j1", [(1, "C"), (2, nil)]))
+    private func readFirst(_ url: URL, pages: [(page: Int, step: String?)] = [(1, "C"), (2, nil)]) async throws -> RecognitionQueue {
+        StubAPI.reset(newJob("j1", pages))
         let queue = self.queue(in: url.deletingLastPathComponent())
-        queue.start([RecognitionItem(file: url.lastPathComponent, title: "Etude", pages: 2)], address: ScanSupport.server, hosted: false)
+        queue.start([RecognitionItem(file: url.lastPathComponent, title: "Etude", pages: pages.count)], address: ScanSupport.server, hosted: false)
         try await ScanSupport.wait("the first job read and its notes written") { queue.batch?.finished == true && !queue.running }
         return queue
     }
@@ -311,6 +311,34 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 1), [61], "the player's correction stays")
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [64], "page 2's bar goes in after page 1's, in the same notes")
         XCTAssertEqual(ScanSupport.sent("DELETE", "jobs/j2"), 1)
+    }
+
+    /// SCAN-05 (v1.5 i-7): the page's place is marked in the notes with a Check flag, and a bookmark after it moves on by
+    /// the page once it goes in.
+    func testSCAN05TheUnreadPageIsMarkedAtItsPlaceAndABookmarkAfterItMovesOnWithIt() async throws {
+        jobsBefore = await ScanSupport.jobsOn()
+        let url = try piece(pages: 3)
+        let queue = try await readFirst(url, pages: [(1, "C"), (2, nil), (3, "D")])
+        let first = try XCTUnwrap(queue.batch?.items.first)
+        XCTAssertEqual(first.unread, [2])
+        XCTAssertEqual(first.read, [1, 3])
+
+        let starts = try XCTUnwrap(CheckShelf(answer: ScanSupport.called(url, "check"))).pageStarts
+        let placed = UnreadPage.of(unread: [2], read: [1, 3], starts: starts)
+        XCTAssertEqual(placed.map { $0.line(russian) }, ["Стр. 2 не распознана · её место перед тактом 2"])
+        let flags = UnreadPage.marked([], placed, russian)
+        XCTAssertEqual(flags.map { $0["bar"] as? Int }, [2], "an amber Check flag at the bar of its place")
+        try ScanSupport.change(url, "bookmark.add", #"{"bars": {"first": 2, "last": 2}, "title": "Тема", "category": "teacher", "now": "2026-11-27T10:00:00Z"}"#)
+
+        StubAPI.reset(newJob("j2", [(2, "E")]))
+        queue.retryUnread(url.lastPathComponent)
+
+        try await ScanSupport.wait("page 2 read again and put in before page 3") { queue.batch?.finished == true && !queue.running }
+        XCTAssertNil(queue.batch?.items.first?.unread, "the bookmark does not stop the page")
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [64], "page 2 at its place")
+        XCTAssertEqual(try ScanSupport.pitches(url, bar: 3), [62], "page 3 after it")
+        let bookmark = try XCTUnwrap(BookmarkShelf(answer: ScanSupport.called(url, "bookmarks"))?.bookmarks.first)
+        XCTAssertEqual([bookmark.firstBar, bookmark.lastBar], [3, 3], "the bookmark on page 3's bar moves on with it")
     }
 
     /// SCAN-05: a page read again that music-core does not put in (here a margin note stands on the notes, which would move;

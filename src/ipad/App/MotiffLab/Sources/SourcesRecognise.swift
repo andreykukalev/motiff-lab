@@ -102,9 +102,15 @@ struct SourcesRecognisePanel: View {
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
         // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5).
         .task(id: original.id) {
-            guard row.jobs, !original.isRecording, self.offer.blocker == nil, let address = row.address else { return }
+            guard let address = Self.timedBy(jobs: row.jobs, recording: original.isRecording, blocked: self.offer.blocker != nil, address: row.address) else { return }
             planned = await sources.jobPlanLine(original, address: address)
         }
+    }
+
+    /// The scan server to ask how long an original takes before Send: only with «Четыре движка», for pages rather than a
+    /// recording, with nothing blocking them and an address set; nil asks nothing (E-scan-5).
+    static func timedBy(jobs: Bool, recording: Bool, blocked: Bool, address: URL?) -> URL? {
+        jobs && !recording && !blocked ? address : nil
     }
 
     /// Send: the panel closes once the notes are in, else says why under the row.

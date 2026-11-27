@@ -381,6 +381,18 @@ final class OriginalsTests: XCTestCase {
         XCTAssertTrue(UIText(language: "ru")["sources.sheet.hearHostedFirst"].contains("станут нотами этой пьесы"))
     }
 
+    /// The panel before Send says how long only when it can ask (v1.5 i-7, E-scan-5).
+    @MainActor
+    func testSourcesAsksHowLongOnlyForPagesWithNothingBlockingAndAnAddress() throws {
+        // E-scan-5: no estimate for a recording, a blocked original, without «Четыре движка» or without an address.
+        let address = try XCTUnwrap(URL(string: "https://scan.test/"))
+        XCTAssertEqual(SourcesRecognisePanel.timedBy(jobs: true, recording: false, blocked: false, address: address), address)
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: true, recording: true, blocked: false, address: address))
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: true, recording: false, blocked: true, address: address))
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: false, recording: false, blocked: false, address: address))
+        XCTAssertNil(SourcesRecognisePanel.timedBy(jobs: true, recording: false, blocked: false, address: nil))
+    }
+
     private func json(_ object: [String: Any]) -> String {
         String(decoding: (try? JSONSerialization.data(withJSONObject: object)) ?? Data("{}".utf8), as: UTF8.self)
     }

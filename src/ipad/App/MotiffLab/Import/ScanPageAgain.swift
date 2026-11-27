@@ -75,17 +75,24 @@ struct UnreadPagesRetry: View {
     @ObservedObject private var queue = RecognitionQueue.shared
 
     var body: some View {
-        if item.state == .done {
-            if let reason = item.reason, !reason.isEmpty { caption(text.format("recognition.againWhy", reason)) }
+        let shown = Self.shown(item, text)
+        ForEach(shown.captions, id: \.self) { caption($0) }
+        if shown.retry {
             Button(text["recognition.retry"]) {
                 queue.retryUnread(item.file)
                 retried()
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             .accessibilityHint(text["recognition.retryPagesHint"])
-        } else {
-            ForEach(item.unread ?? [], id: \.self) { page in caption(text.format("recognition.unreadAgain", String(page))) }
         }
+    }
+
+    /// What is shown for `item`: once its reading is done, why the pages did not go in last time and «Повторить»; while
+    /// they are read again, no second «Повторить», only that each goes in once the piece is closed (E-scan-3).
+    static func shown(_ item: RecognitionItem, _ text: UIText) -> (captions: [String], retry: Bool) {
+        guard item.state == .done else { return ((item.unread ?? []).map { text.format("recognition.unreadAgain", String($0)) }, false) }
+        guard let reason = item.reason, !reason.isEmpty else { return ([], true) }
+        return ([text.format("recognition.againWhy", reason)], true)
     }
 
     private func caption(_ words: String) -> some View {

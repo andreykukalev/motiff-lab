@@ -290,16 +290,20 @@ public class PageInsertTests
     }
 
     [Fact]
-    public void The_page_s_report_goes_in_at_its_place_and_notes_that_keep_reports_need_it()
+    public void The_page_s_report_goes_in_at_its_place_and_a_page_without_one_leaves_the_notes_keeping_none()
     {
+        // v1.5 i-7, review 1: a page read again with no report (by a job that sent none) goes in rather than being refused.
         string file = Read(3, [Report(0.7), Report(0.8)], Page("C"), Page("E"));
 
         using JsonDocument inserted = Insert(file, 2, Page("G"), reports: [Report(0.9)]);
-        using JsonDocument refused = Insert(file, 2, Page("G"));
+        using JsonDocument without = Insert(file, 2, Page("G"));
 
         Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!));
         Assert.Equal([(1, 0.7), (2, 0.9), (3, 0.8)], project.Scan!.Pages.Select(report => (report.Page, report.Sharpness)));
-        Assert.Equal("badRequest", refused.RootElement.GetProperty("error").GetString());
+        Assert.False(without.RootElement.TryGetProperty("error", out _));
+        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(without.RootElement.GetProperty("file").GetString()!));
+        Assert.Empty(kept.Scan!.Pages);
+        Assert.Equal(3, ScanJoin.Split(kept.Source).Count);
     }
 
     [Fact]

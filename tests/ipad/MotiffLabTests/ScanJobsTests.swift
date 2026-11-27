@@ -65,6 +65,39 @@ final class ScanJobsTests: XCTestCase {
         XCTAssertEqual(placed.map { $0.line(russian) }, ["Стр. 2 не распознана · её место перед тактом 3", "Стр. 5 не распознана · её место после такта 6"])
         XCTAssertEqual(placed[0].line(english), "Page 2 not recognised · its place is before bar 3")
         XCTAssertEqual(UnreadPage.of(unread: [2], read: [1, 3], starts: starts), [], "other notes than those read: no place is said")
+
+        // E-scan-1: on a bar that has a Check flag already, the page's words join its label; elsewhere a flag of its own.
+        let flags = UnreadPage.marked([["bar": 3, "tick": 3840, "label": "Проверить такт 3: ноты"]], placed, russian)
+        XCTAssertEqual(flags.count, 2, "one flag on bar 3, one of its own at bar 6")
+        XCTAssertEqual(flags[0]["label"] as? String, "Проверить такт 3: ноты · Стр. 2 не распознана · её место перед тактом 3")
+        XCTAssertEqual(flags[1]["bar"] as? Int, 6)
+        XCTAssertEqual(flags[1]["tick"] as? Double, 9600)
+        XCTAssertEqual(flags[1]["label"] as? String, "Стр. 5 не распознана · её место после такта 6")
+    }
+
+    func testRetryIsOfferedOnceTheReadingIsDoneAndNotAgainWhileThePagesAreReadAgain() {
+        // E-scan-3: while the pages are read again, no second «Повторить», only that each goes in once the piece is closed.
+        var item = RecognitionItem(file: "a.motiff.json", title: "A", pages: 5, state: .reading, unread: [2, 4], read: [1, 3, 5])
+        let reading = UnreadPagesRetry.shown(item, russian)
+        XCTAssertFalse(reading.retry)
+        XCTAssertEqual(reading.captions, ["Стр. 2 читается заново: она встанет в ноты, когда пьеса закроется", "Стр. 4 читается заново: она встанет в ноты, когда пьеса закроется"])
+
+        item.state = .done
+        XCTAssertTrue(UnreadPagesRetry.shown(item, russian).retry)
+        XCTAssertEqual(UnreadPagesRetry.shown(item, russian).captions, [], "nothing was refused: no reason")
+        item.reason = "правка перестала бы относиться к тем же нотам"
+        XCTAssertEqual(UnreadPagesRetry.shown(item, russian).captions, ["Не вставлено: правка перестала бы относиться к тем же нотам"])
+    }
+
+    func testTheBatchSaysAtMostTheServersWholeMinutesWhileAskingThatItAsksAndElseTheOldEstimate() {
+        // E-scan-4, review 1: an amount with no «около» after «Не дольше», minutes rounded up.
+        XCTAssertEqual(ScanHealth.minutes(seconds: 305), 6)
+        XCTAssertEqual(ScanHealth.minutes(seconds: 1), 1)
+        XCTAssertTrue(RecogniseConsentSheet.howLong(timed: 6, asking: false, pages: 5, russian).hasPrefix("Не дольше 6 минут, по замерам сервера распознавания"))
+        XCTAssertTrue(RecogniseConsentSheet.howLong(timed: 1, asking: false, pages: 5, english).hasPrefix("At most 1 minute, as the scan server times it"))
+        XCTAssertEqual(RecogniseConsentSheet.howLong(timed: nil, asking: true, pages: 5, russian), "Спрашиваю сервер распознавания, сколько это займёт…")
+        XCTAssertEqual(RecogniseConsentSheet.howLong(timed: nil, asking: false, pages: 5, russian), russian.format("recognition.howLongLine", String(DailyPages.minutes(5))), "no answer: the old estimate")
+        XCTAssertEqual(RecogniseConsentSheet.howLong(timed: 6, asking: true, pages: 5, russian), RecogniseConsentSheet.howLong(timed: 6, asking: false, pages: 5, russian), "the answer wins over asking")
     }
 
     func testTheTimeLeftIsSaidInMinutesAndSecondsRoundedUpToTen() {

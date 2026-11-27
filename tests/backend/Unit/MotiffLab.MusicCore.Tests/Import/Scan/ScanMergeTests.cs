@@ -77,6 +77,28 @@ public class ScanMergeTests
         Assert.All(page.Bars, bar => Assert.Equal(ScanLevel.Sure, bar.Level));
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void Homr_s_meter_stays_when_the_other_engines_wrote_no_time_signature(int beats)
+    {
+        // Review 1 of #647: a continuation page prints no signature, and an engine that wrote none is read in 4/4 by
+        // default; two such readings are no vote against homr's right 3/4 or 5/4.
+        string[] bars = [Quarters(beats, First), Quarters(beats, Second)];
+        ScanReading homr = new("homr", Score(2, beats.ToString(System.Globalization.CultureInfo.InvariantCulture), bars));
+
+        ScanMergedPage page = ScanMerge.Merge([homr, new("copisteria", Score(2, null, bars)), new("audiveris", Score(2, null, bars))]);
+
+        ImportedPiece merged = Import(page.MusicXml);
+        Assert.Equal(beats, merged.Meter.SignatureAt(MotiffLab.MusicCore.Time.Tick.Zero).Numerator);
+        Assert.All(merged.MusicXml!.Measures, measure => Assert.Equal(beats * 480, measure.Span.Duration));
+    }
+
+    /// <summary>A bar of <paramref name="beats"/> quarters: the right hand's quarters on <paramref name="steps"/>, from the first again when they run out, over the left hand's C3 held through it.</summary>
+    private static string Quarters(int beats, string[] steps) =>
+        string.Concat(Enumerable.Range(0, beats).Select(index => Note(steps[index % steps.Length], 5, 2, 1)))
+        + Backup(2 * beats) + Note("C", 3, 2 * beats, 2);
+
     [Fact]
     public void A_staff_from_a_reading_in_other_divisions_is_written_in_divisions_both_share()
     {

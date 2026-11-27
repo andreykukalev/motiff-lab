@@ -31,6 +31,22 @@ struct UnreadPage: Equatable, Identifiable {
     func line(_ text: UIText) -> String {
         text.format(after ? "recognition.unreadAfter" : "recognition.unreadBefore", String(page), String(bar))
     }
+
+    /// The Check flags with each of `pages` marked, the amber flag a bar to check has (spec part 6: «тем же знаком»): its
+    /// own at the bar beside its place, or its words added to the label of the flag that bar has already, so two never lie
+    /// on one another. A tap opens Check, which offers «Повторить» (`UnreadPagesCheck`).
+    static func marked(_ flags: [[String: Any]], _ pages: [UnreadPage], _ text: UIText) -> [[String: Any]] {
+        var all = flags
+        for page in pages {
+            // E-scan-1: one flag on a bar, its label telling both.
+            if let index = all.firstIndex(where: { $0["bar"] as? Int == page.bar }) {
+                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(page.line(text))"
+            } else {
+                all.append(["bar": page.bar, "tick": page.tick, "label": page.line(text)])
+            }
+        }
+        return all
+    }
 }
 
 extension ScoreController {
@@ -49,22 +65,6 @@ extension ScoreController {
     /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
     func unreadPagesCheck(_ text: UIText) -> some View {
         UnreadPagesCheck(score: self, text: text)
-    }
-
-    /// The Check flags with each unread page's mark, the amber flag a bar to check has (spec part 6: «тем же знаком»): its
-    /// own at the bar beside its place, or its words added to the label of the flag that bar has already, so two never lie
-    /// on one another. A tap opens Check, which offers «Повторить» (`UnreadPagesCheck`).
-    func withUnreadPages(_ flags: [[String: Any]]) -> [[String: Any]] {
-        var all = flags
-        for page in unreadPages {
-            // E-scan-1: one flag on a bar, its label telling both.
-            if let index = all.firstIndex(where: { $0["bar"] as? Int == page.bar }) {
-                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(page.line(text))"
-            } else {
-                all.append(["bar": page.bar, "tick": page.tick, "label": page.line(text)])
-            }
-        }
-        return all
     }
 }
 

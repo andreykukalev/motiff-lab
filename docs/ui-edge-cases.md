@@ -62,6 +62,10 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   state is shown, never a number not known yet (robustness rule) · v1.5 i-7
 - `E-scan-5` · Sources' recognise panel for a recording, or for pages while something blocks them (sign-in, Pro, a
   recognition already going) · no estimate line: only pages sent as a job have one, as the PDF's own panel · v1.5 i-7
+- `E-scan-6` · A page read again comes without its report into notes that keep each page's report · the page goes in and
+  the notes keep no reports from then on (one per page or none), so Check no longer tells a page's print quality; never
+  a refusal in words the player cannot act on · robustness rule (a page read is not lost for a missing number) · v1.5
+  i-7 (review 1)
 
 ## Drafts and the assistant
 

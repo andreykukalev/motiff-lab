@@ -40,7 +40,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
 
 - v1.5 i-7 (the v1.4 plan's answer 9): a page no engine read is marked in the notes (`Workspace/ScoreUnreadPages.swift`:
   `UnreadPage`, from `RecognitionItem.read` and `check`'s "pageStarts", drawn with the Check flags) and listed in Check
-  with «Показать» and «Повторить» (`ScanUnreadPagesCheck`, `ScanPageAgain.swift`); the server's estimate before sending
+  with «Показать» and «Повторить» (`UnreadPagesCheck`, `UnreadPagesRetry` in `ScanPageAgain.swift`); the server's estimate before sending
   in the batch's consent (`ScanHealth.seconds(pieces:)`) and in Sources (`SourcesController.jobPlanLine`); photos of
   pages with «Четыре движка» go to the background recognition as a PDF does (`Pdf.swift`), the job's page reports kept
   with the notes; the progress «страница 3 из 5 · около 1 мин 40 с» (`ScanProgress.secondsLeft`, `about(seconds:)`,

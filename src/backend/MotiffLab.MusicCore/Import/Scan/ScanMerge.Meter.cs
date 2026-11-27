@@ -13,7 +13,9 @@ internal static partial class ScanMerge
     /// writes the median length of its bars, and on a page of fewer bars than <see cref="ScanRepair.FewestBarsForMeter"/>
     /// the repair keeps it, 5/4 over bars of four quarters, issue #647), each signature it wrote takes the one that two or
     /// more of the engines that read the printed signature have in force at the bar paired with it; with no such agreement
-    /// it stays as written. Only the signatures change: the bars keep the notes the merge took.
+    /// it stays as written. Only an engine that wrote a signature at or before that bar counts: one that wrote none (a
+    /// continuation page prints none) is read in 4/4 by default, which is no vote. Only the signatures change: the bars keep
+    /// the notes the merge took.
     /// </summary>
     private static void PrintedMeters(Reading backbone, List<(Reading Reading, int?[] Pairs)> compared)
     {
@@ -32,7 +34,7 @@ internal static partial class ScanMerge
             }
 
             IGrouping<TimeSignature, TimeSignature>? printed = compared
-                .Where(pair => pair.Reading.Rank != 0 && pair.Pairs[at] is not null)
+                .Where(pair => pair.Reading.Rank != 0 && pair.Pairs[at] is not null && WroteTime(pair.Reading, pair.Pairs[at]!.Value))
                 .Select(pair => pair.Reading.Import.Meter.SignatureAt(pair.Reading.Import.Measures[pair.Pairs[at]!.Value].Span.Onset))
                 .GroupBy(static signature => signature)
                 .OrderByDescending(static group => group.Count())
@@ -49,4 +51,8 @@ internal static partial class ScanMerge
             }
         }
     }
+
+    /// <summary>Whether the reading wrote a time signature in its bar <paramref name="measure"/> or a bar before it.</summary>
+    private static bool WroteTime(Reading reading, int measure) =>
+        reading.Parts.Any(part => part.Take(measure + 1).Any(static bar => bar.Time is not null));
 }
