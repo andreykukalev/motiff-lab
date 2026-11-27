@@ -12,8 +12,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
   S7c). Since v1.6 i-10b it opens and leaves Expand on the page (`enter`, `expandRoll`, `leave`), steps (`step`), engraves
   the card (`engraveCard`, `showOssia`) and keeps the version in focus (`updateVersion`) through `FocusScore` (the page,
   the piece, the Pen on, the version shown as a `VersionEntry`, the page held still, a passage selected and revealed,
-  the problem line). Tests: `MotiffLabTests/FocusModelTests` (fake score); the protected baseline drives it by its old
-  names through `MotiffLabTests/FocusBaselineNames`.
+  the problem line). Tests: `MotiffLabTests/FocusModelTests` (fake score); the protected baseline drives it as
+  `score.focusModel`.
 - `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes,
   `ScoreController.mode` never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and
   Цикл only out of it (`holdsSelection`). The card's black playhead: `ipad-page/page-card.ts` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8);

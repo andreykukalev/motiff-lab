@@ -12,7 +12,7 @@ Decision records: `docs/architecture/adr/`, listed with what each decides in `do
 
 - `src/backend/MotiffLab.MusicCore`: C# music-core: shared event model, parsing, analysis, variation operations. Pure and deterministic; no UI, I/O or browser dependencies. Tests: `tests/backend/Unit/MotiffLab.MusicCore.Tests`.
 - `src/backend/MotiffLab.Api`: ASP.NET Core API saving a signed-in player's projects in Cosmos DB (0014); tests in `tests/backend/Integration/MotiffLab.Api.Tests`. Deployed by the `API` workflow, not CI.
-- `src/shared`: what the iPad bundles from the former web project: the TypeScript modules `Scripts/score`, `roll`, `layout`, `storage`, `playback` (compiled to `wwwroot/js/`, not committed, by `dotnet build src/shared`), `wwwroot/i18n`, `wwwroot/audio/piano`, `wwwroot/lib/verovio`, `Playback/FurElise.musicxml`; `tests/shared` node tests run on the compiled output.
+- `src/shared`: what the iPad bundles from the former web project: the TypeScript modules `Scripts/score`, `roll`, `selection`, `layout`, `storage`, `playback` (compiled to `wwwroot/js/`, not committed, by `dotnet build src/shared`), `wwwroot/i18n`, `wwwroot/audio/piano`, `wwwroot/lib/verovio`, `Playback/FurElise.musicxml`; `tests/shared` node tests run on the compiled output.
 - `src/backend/omr`: the scan server: homr (AGPL-3.0, unmodified) and Basic Pitch (Apache-2.0) behind a Python HTTP service, run by the player in Docker (0011) or hosted in Azure Container Apps (0014, `Scan server` workflow, not CI). Tests: `python -m pytest` there.
 - `src/ipad`: native iPad app (0019, `src/ipad/README.md`): SwiftUI in `src/ipad/App` (XcodeGen, Mac); music-core as a NativeAOT framework with the facade's C functions in `src/ipad/Core` (in the solution, so CI compiles it); Verovio from source in `src/ipad/Verovio`; Swift tests in `tests/ipad`. Swift is built and tested by the `iPad` workflow, not CI.
 - `design/kit`: the redesign kit (0018); the iPad reads `tokens.css` and the fonts from it; icons as `docs/ui-conventions.md` says.
@@ -43,9 +43,10 @@ behind them and the pull request reviewer (`governance/roles/pr-reviewer.md`) ch
 3. **One model per concept, one owner per state.** Selection, time, structure and playback state each have one model; a
    piece of state is written in one place, the rest read it or get an event, no second copy kept in sync by hand.
 4. **The right layer and module.** Analysis, notes and rules in music-core; the apps display and route input; shared score
-   and roll behaviour once, in `Scripts/score` and `Scripts/roll`. One responsibility per type and file: a change that
-   adds one to a big file moves it to its own file, and the code map names it. Which module may use which: the
-   `dependencies` check (`governance/quality/README.md`).
+   and roll behaviour once, in `Scripts/score` and `Scripts/roll`, and the selection's rules both use once, in
+   `Scripts/selection`. One responsibility per type and file: a change that adds one to a big file moves it to its own
+   file, and the code map names it. Which module may use which: the `dependencies` check
+   (`governance/quality/README.md`).
 5. **A duplicate** is the same logic in two places, copied or reworded: 10 or more copied lines (jscpd), a second
    implementation of an existing rule (a tick conversion, a hit test, a selection rule, a text format), a helper that
    does what another does. Call the existing one, or move it where both can.

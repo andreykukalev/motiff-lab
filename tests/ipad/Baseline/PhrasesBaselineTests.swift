@@ -184,10 +184,10 @@ final class PhrasesBaselineTests: XCTestCase {
     /// the toast's «Отменить» takes back whole.
     func testPHR06ThePhrasesRowHidesTheMarksAndPutsBackTheFoundBoundaries() async throws {
         let score = try await score()
-        score.showPhraseMarks(false)
+        score.marksModel.showPhraseMarks(false)
         XCTAssertTrue(score.marksModel.phraseMarksHidden, "the marks hidden")
         XCTAssertNotNil(score.selectionModel.phrases, "the phrases still named")
-        score.showPhraseMarks(true)
+        score.marksModel.showPhraseMarks(true)
         XCTAssertFalse(score.marksModel.phraseMarksHidden, "and shown again")
 
         let second = try phrase(2, score)

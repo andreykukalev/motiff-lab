@@ -146,6 +146,14 @@ test('no two folders of the shared scripts may import each other, directly or ro
   }
 });
 
+test("governance/quality/README.md shows the shared scripts' folders as SCRIPT_FOLDER_USES has them", () => {
+  const readme = readFileSync(new URL('../../governance/quality/README.md', import.meta.url), 'utf8');
+  const rows = [...readme.matchAll(/^\| `Scripts\/(\w+)` \| (.+?) \|$/gm)].map((m) => [m[1], m[2]]);
+  const want = Object.entries(SCRIPT_FOLDER_USES).map(([folder, uses]) =>
+    [folder, uses.length ? uses.map((u) => `\`${u}\``).join(', ') : 'nothing']);
+  assert.deepEqual(rows, want);
+});
+
 const app = (files) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`src/ipad/App/MotiffLab/${path}`, text]));
 const folderEdges = (files) => ipadFolderViolations(Object.keys(files), reader(files)).map((v) => `${v.file.slice(23)} ${v.symbol}`);
 const declarations = {

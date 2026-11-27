@@ -6,7 +6,7 @@ import XCTest
 
 /// VIEW-02 over many switches (#681): a piece with notes and a PDF kept inside it goes from its notes to its PDF and back
 /// again and again, in one window as the app has one, each view opened in the other's place as the library opens it
-/// (LibraryView.switchView, openFile, show). Two ways:
+/// (LibraryModel.switchView, openFile, show). Two ways:
 /// - the screens' objects: the score's workspace with its controllers and its two web views, drawn, watching the Pencil
 ///   over the window and appearing as the score's view makes them, handed to the PDF by the bar's switch
 ///   (ScoreWorkspaceLife.swift); and the PDF's controllers with its pages' view, made, watched and attached as PdfPages
@@ -295,7 +295,7 @@ final class SwitchReleaseTests: XCTestCase {
     }
 }
 
-/// The piece the library shows (LibraryView's `piece`): set, its screen is pushed; another, its screen is made again in
+/// The piece the library shows (LibraryModel's `piece`): set, its screen is pushed; another, its screen is made again in
 /// the place of the one before; nil, it is popped.
 @MainActor
 private final class ShownPiece: ObservableObject {

@@ -34,8 +34,25 @@ The thresholds are kept in one place, [`settings.json`](settings.json): function
 | `swiftlint` | SwiftLint in Docker on Linux, `src/ipad/App` and `tests/ipad` | `cyclomatic_complexity` (15), `function_body_length` (80), `file_length` (600), `type_body_length` (600), `nesting` (4) |
 | `jscpd` | jscpd, C#, Razor, TypeScript, Swift and Python (`.jscpd.json`) | duplicated blocks from 10 lines |
 | `suppressions` | `tools/quality/quality.mjs` (a scan of the tracked sources and build files) | each way to hide a violation from the checks above is a violation itself: `eslint-disable` and other ESLint directives (ignored anyway: `noInlineConfig`), `swiftlint:disable`, `jscpd:ignore`, `#pragma warning disable` (bare or naming CA1502/CA1505/CA1506), `SuppressMessage` for them, `dotnet_diagnostic.CA150x` or a Maintainability-wide severity in an `.editorconfig` or `.globalconfig`, `NoWarn` naming them, analyzers turned off |
-| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device); each folder of the iPad app uses only the folders it may (below); each namespace of music-core uses only the layers below its own (below) |
+| `dependencies` | `tools/quality/dependencies.mjs` | music-core references no project of the solution and no web, cloud or AI package or namespace (`Microsoft.AspNetCore`, `Microsoft.JSInterop`, `Microsoft.Extensions.AI`, `Microsoft.Identity`, `Azure`, `OpenAI`, `System.Net.Http`); every module the iPad's pages (`src/ipad/App/Web/*.js`) load, followed through their imports, exists and lies in a folder `src/ipad/App/project.yml` bundles (CI does not build the iPad app, so such a break would show only on the device); each folder of the shared scripts (`src/shared/Scripts/<folder>`) imports only the folders it may, and every folder there is listed (below); each folder of the iPad app uses only the folders it may (below); each namespace of music-core uses only the layers below its own (below) |
 | `config` | `tools/quality/quality.mjs` | the generated configuration matches `settings.json` |
+
+The shared scripts' folders are bundled one by one into the iPad's pages, and TypeScript lets them import each other
+in a loop. `dependencies` keeps them apart (v1.6 i-15, audit W3.11): an import (a type import too) of a module in
+another folder that the file's folder may not import is a finding `script-folder`, and a file in a folder the table does
+not list is `script-folder-unlisted`. The table is `SCRIPT_FOLDER_USES` in `tools/quality/dependencies.mjs`, its test
+keeps this copy equal and keeps it free of loops, and a folder always imports its own modules:
+
+| Scripts folder | May import |
+| --- | --- |
+| `Scripts/storage` | nothing |
+| `Scripts/selection` | nothing |
+| `Scripts/layout` | `storage` |
+| `Scripts/playback` | `selection` |
+| `Scripts/score` | `selection`, `playback`, `layout` |
+| `Scripts/roll` | `score`, `selection`, `playback`, `layout` |
+
+A new folder, or a folder given another, is a change of this table, which Andrei merges like the rest of this file.
 
 The iPad app is one Swift module, so the compiler does not keep its folders (`src/ipad/App/MotiffLab/<Folder>`,
 blueprint v0.7, 5.2) apart: `dependencies` indexes the types each folder declares and reports a file that names a type
