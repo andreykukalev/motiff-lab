@@ -17,8 +17,7 @@ internal static class ProjectAnchors
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(phrases);
-        HashSet<TickSpan> spans = [.. phrases.Phrases.Select(static phrase => phrase.Span)];
-        return [.. project.Anchors.Where(anchor => !spans.Contains(anchor.Span))];
+        return [.. project.Anchors.Where(anchor => phrases.WithSpan(anchor.Span) is null)];
     }
 
     /// <summary>
@@ -75,7 +74,7 @@ internal static class ProjectAnchors
         var spans = new Dictionary<string, TickSpan>(StringComparer.Ordinal);
         foreach (PhraseAnchor anchor in project.Anchors)
         {
-            if (before.Phrases.FirstOrDefault(phrase => phrase.Span == anchor.Span) is not { } phrase)
+            if (before.WithSpan(anchor.Span) is not { } phrase)
             {
                 continue;
             }
@@ -93,6 +92,7 @@ internal static class ProjectAnchors
     /// </summary>
     internal static (Project Project, int Reattached) Reattached(this Project project, PhraseMap phrases)
     {
+        ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(phrases);
         TickSpan[] all = [.. phrases.Phrases.Select(static phrase => phrase.Span)];
         var spans = new Dictionary<string, TickSpan>(StringComparer.Ordinal);
@@ -148,8 +148,10 @@ internal static class ProjectAnchors
 
     /// <summary>
     /// The project with the anchors as <paramref name="state"/> holds them (an Undo or Redo of a phrases step): its anchors
-    /// back at their spans and each idea and resume point it names on its anchor again; an anchor minted since, and what
-    /// was kept since, as they are. A resume point in phrase focus goes with its anchor (<see cref="Settled"/>).
+    /// back at their spans, each idea it names on its anchor again and each resume point it names too while the point is
+    /// open in phrase focus; an anchor minted since as it is, and an idea kept since attached to its phrase now
+    /// (<see cref="Attached(Project, Observation, PhraseMap)"/>). A resume point in phrase focus goes with its anchor
+    /// (<see cref="Settled"/>).
     /// </summary>
     internal static Project WithAnchorState(this Project project, AnchorState state, PhraseMap phrases)
     {
@@ -157,11 +159,28 @@ internal static class ProjectAnchors
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(phrases);
         HashSet<string> back = [.. state.Anchors.Select(static anchor => anchor.Id)];
-        return project.Settled(
+        Project restored = project.Settled(
             [.. state.Anchors, .. project.Anchors.Where(anchor => !back.Contains(anchor.Id))],
             [.. project.Observations.Select(observation => state.Ideas.TryGetValue(observation.Id, out string? anchor) ? observation with { Anchor = anchor } : observation)],
-            [.. project.ResumePoints.Select(point => state.Points.TryGetValue(point.Id, out string? anchor) ? point with { Anchor = anchor } : point)],
+            [.. project.ResumePoints.Select(point => point.Focused && state.Points.TryGetValue(point.Id, out string? anchor) ? point with { Anchor = anchor } : point)],
             phrases);
+        foreach (Observation kept in restored.Observations.Where(observation => !state.Ideas.ContainsKey(observation.Id)))
+        {
+            (restored, Observation attached) = restored.Attached(kept, phrases);
+            restored = restored with { Observations = [.. restored.Observations.Select(observation => observation.Id == kept.Id ? attached : observation)] };
+        }
+
+        return restored;
+    }
+
+    /// <summary>
+    /// The project with two anchors on one span made one, the smaller id kept, and what was attached to the other attached to
+    /// it (<see cref="Settled"/>): after the anchors were placed by bars in other notes, or read from a file.
+    /// </summary>
+    internal static Project WithAnchorsMerged(this Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return project.Settled(project.Anchors, project.Observations, project.ResumePoints, null);
     }
 
     /// <summary>The project with the anchors of <paramref name="spans"/> at those spans of <paramref name="phrases"/> (<see cref="Settled"/>).</summary>
@@ -178,7 +197,7 @@ internal static class ProjectAnchors
     /// what was attached to the other attached to it; and a resume point open in phrase focus whose anchor is at another
     /// span than its anchor had in <paramref name="project"/> at its phrase now, as it is selected.
     /// </summary>
-    private static Project Settled(this Project project, IReadOnlyList<PhraseAnchor> anchors, IReadOnlyList<Observation> ideas, IReadOnlyList<ResumePoint> points, PhraseMap phrases)
+    private static Project Settled(this Project project, IReadOnlyList<PhraseAnchor> anchors, IReadOnlyList<Observation> ideas, IReadOnlyList<ResumePoint> points, PhraseMap? phrases)
     {
         Dictionary<string, string> into = anchors
             .GroupBy(static anchor => anchor.Span)
@@ -197,10 +216,10 @@ internal static class ProjectAnchors
     }
 
     /// <summary>A resume point open in phrase focus whose anchor went from <paramref name="was"/> to the phrase <paramref name="now"/>, at that phrase as it is selected; its place with it when it was at the passage.</summary>
-    private static ResumePoint Carried(ResumePoint point, TickSpan? was, TickSpan? now, PhraseMap phrases)
+    private static ResumePoint Carried(ResumePoint point, TickSpan? was, TickSpan? now, PhraseMap? phrases)
     {
         if (!point.Focused || point.Passage is not { } passage || now is not { } span || span == was
-            || phrases.Phrases.FirstOrDefault(phrase => phrase.Span == span) is not { } phrase)
+            || phrases?.WithSpan(span) is not { } phrase)
         {
             return point;
         }

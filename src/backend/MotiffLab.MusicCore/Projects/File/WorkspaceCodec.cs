@@ -228,11 +228,11 @@ internal static class WorkspaceCodec
     }
 
     /// <summary>
-    /// The project with the phrase anchors of a file of version 18, and an idea or a resume point naming one the file does
-    /// not keep attached to none (<see cref="Project.WithKnownAnchors"/>).
+    /// The project with the phrase anchors of a file of version 18, an idea or a resume point naming one the file does not
+    /// keep attached to none (<see cref="Project.WithKnownAnchors"/>), and two on one span made one, the smaller id kept.
     /// </summary>
     private static Project WithAnchorsIn(this Project project, JsonElement work, int version) =>
-        (version >= 18 ? project with { MintedAnchors = ReadAnchors(Property(work, "phrases", JsonValueKind.Object)) } : project).WithKnownAnchors();
+        (version >= 18 ? project with { MintedAnchors = ReadAnchors(Property(work, "phrases", JsonValueKind.Object)) } : project).WithKnownAnchors().WithAnchorsMerged();
 
     /// <summary>The phrase anchors (version 18); none when "anchors" is absent. Two with one id, or a span that is no span, is damage.</summary>
     private static List<PhraseAnchor> ReadAnchors(JsonElement phrases)

@@ -90,6 +90,9 @@ public sealed class PhraseMap
     public Phrase At(Tick position) =>
         Phrases.LastOrDefault(phrase => phrase.Span.Onset <= position) ?? Phrases[0];
 
+    /// <summary>The phrase whose span is exactly <paramref name="span"/>, or null: the one rule a phrase anchor is matched by (#318).</summary>
+    internal Phrase? WithSpan(TickSpan span) => Phrases.FirstOrDefault(phrase => phrase.Span == span);
+
     /// <summary>The phrase a selection of <paramref name="span"/> stands for: one whose span, or whose first bars a selection can hold, is exactly that span; or null.</summary>
     public Phrase? Matching(TickSpan span) => Phrases.FirstOrDefault(phrase => phrase.Span == span || Selectable(phrase) == span);
 
