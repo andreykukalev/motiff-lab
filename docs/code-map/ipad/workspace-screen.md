@@ -7,7 +7,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
 - `LibraryView.swift`, `LibraryOnline.swift` (v1.6 i-11b): the library's screen ([`library.md`](library.md)): `LibraryModel`
-  with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
+  with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online, shows the pieces a pass resolved with a conflict
+  (`conflictLines`, E-sync-4) and deletes a piece here and online (`deleteHereAndOnline`).
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
   It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix), and

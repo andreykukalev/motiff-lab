@@ -34,8 +34,9 @@ v1.6 i-11b); the screen that composes it is `Workspace/LibraryView` ([`workspace
   (`ProjectFiles.newURL`; v1.5 r-2b), not by the file it came from; existing files keep their names. A PDF this iPad
   cannot show is refused by `OpenPiece.open` before it becomes a piece (E-library-2). What Files offers is
   `OpenPiece.openable`.
-- `delete(_:)` is the one way a piece is deleted (c-17 adds its copy online there): a file that cannot be removed keeps
-  its line and the library says why (E-library-5).
+- `delete(_:)` is the one way a piece is deleted: a file that cannot be removed keeps its line and the library says why
+  (E-library-5). The screen calls it through `Workspace/LibraryOnline.deleteHereAndOnline`, which marks the piece's
+  online copy to go (`CloudSync.markDeletedHere`, v1.6 c-17b) and starts a pass.
 
 ## PDF | Notes (lifecycle, `../ui-review-2026-11.md`)
 

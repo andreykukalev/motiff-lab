@@ -145,4 +145,17 @@ final class ScanPartsTests: XCTestCase {
         )
         XCTAssertEqual(english["settings.scanElsewhere"], "This address is another computer, so pages and recordings you send leave this device. Each send asks first.")
     }
+
+    /// The 1.6 plan's decision 14: a file goes to the scan server under a neutral name, as a recording does, never under the
+    /// player's own (often the piece's title); only its extension is kept.
+    func testAFileGoesToTheScanServerUnderANeutralName() {
+        let body = ScanServer.form([("pages", "1,2")], fileName: "Шопен — Баллада №1 \"черновик\".pdf", data: Data("%PDF".utf8), boundary: "b")
+        let sent = String(decoding: body, as: UTF8.self)
+        XCTAssertTrue(sent.contains(#"name="file"; filename="score.pdf""#), sent)
+        XCTAssertFalse(sent.contains("Шопен"))
+        XCTAssertTrue(sent.contains("1,2"), "the fields still go")
+        XCTAssertEqual(ScanServer.neutralName("page-3.JPG"), "score.jpg")
+        XCTAssertEqual(ScanServer.neutralName("Ballade"), "score.pdf")
+        XCTAssertEqual(ScanServer.neutralName("odd.p\"df"), "score.pdf")
+    }
 }
