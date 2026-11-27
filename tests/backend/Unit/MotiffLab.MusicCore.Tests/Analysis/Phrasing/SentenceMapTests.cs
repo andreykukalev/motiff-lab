@@ -52,7 +52,7 @@ public class SentenceMapTests
         (Note[] notes, PhraseMap phrases) = QuestionAndAnswer();
         Assert.Equal(2, phrases.Phrases.Count);
 
-        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor);
+        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor, null);
 
         Sentence only = Assert.Single(map.Sentences);
         Assert.Equal("A", only.Letter);
@@ -86,7 +86,7 @@ public class SentenceMapTests
     public void The_player_ends_a_sentence_at_a_phrase_boundary_or_joins_across_one()
     {
         (Note[] notes, PhraseMap phrases) = QuestionAndAnswer();
-        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor);
+        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor, null);
         Tick boundary = phrases.Phrases[1].Span.Onset;
 
         SentenceMap split = map.With(map.SplitAt(boundary));
@@ -112,7 +112,7 @@ public class SentenceMapTests
     public void The_facts_about_a_phrase_name_its_sentence_and_its_close()
     {
         (Note[] notes, PhraseMap phrases) = QuestionAndAnswer();
-        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor);
+        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor, null);
 
         IReadOnlyList<MotifFact> first = map.Facts(phrases.Phrases[0]);
         IReadOnlyList<MotifFact> second = map.Facts(phrases.Phrases[1]);
@@ -136,7 +136,7 @@ public class SentenceMapTests
         ];
         PhraseMap phrases = PhraseMap.Suggest(notes, MeterMap.Default, PhraseMarks.None, new Tick(4 * Bar));
 
-        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor);
+        SentenceMap map = SentenceMap.Suggest(phrases, notes, s_cMajor, null);
 
         Assert.Equal(2, map.Sentences.Count);
         Assert.Equal(["A", "B"], map.Sentences.Select(sentence => sentence.Letter));
@@ -152,7 +152,7 @@ public class SentenceMapTests
         PhraseMap phrases = PhraseMap.Suggest(score.Notes, score.Meter, score.PhraseMarks, new Tick(5 * Bar));
         Assert.Equal(3, phrases.Phrases.Count);
 
-        SentenceMap map = SentenceMap.Suggest(phrases, score.Notes, null);
+        SentenceMap map = SentenceMap.Suggest(phrases, score.Notes, null, null);
 
         Sentence last = map.Sentences[^1];
         Assert.Same(phrases.Phrases[2], last.Phrases[0]);
@@ -170,7 +170,7 @@ public class SentenceMapTests
         Note[] thin = [.. notes.Take(3), .. notes.Skip(7).Take(3)];
         PhraseMap few = PhraseMap.Suggest(thin, MeterMap.Default, PhraseMarks.None, new Tick(4 * Bar));
 
-        SentenceMap map = SentenceMap.Suggest(few, thin, null);
+        SentenceMap map = SentenceMap.Suggest(few, thin, null, null);
 
         Assert.Equal(FactCertainty.Uncertain, map.Key.Certainty);
         Assert.All(map.Closes, close => Assert.Equal(SentenceMap.CloseConfidence / 2, close.Attribution.Confidence));

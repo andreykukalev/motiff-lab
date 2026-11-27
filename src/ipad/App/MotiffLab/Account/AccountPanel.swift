@@ -6,6 +6,10 @@ struct AccountPanel: View {
     @ObservedObject var account: Account
     let text: UIText
     @State private var editing = false
+    /// «Удалить аккаунт и данные онлайн» asks once more (an alert, as «Очистить всё»), then says what it came to.
+    @State private var confirmingDelete = false
+    @State private var deleteProblem: String?
+    @State private var deletedOnline = false
     /// Saving online and sync with the player's other devices (version 0.2): on once signed in, until turned off here.
     @AppStorage(CloudSync.onKey) private var syncOn = true
 
@@ -21,6 +25,14 @@ struct AccountPanel: View {
         }
         .disabled(account.busy)
         .overlay { if account.busy { ProgressView() } }
+        .alert(text["account.deleteTitle"], isPresented: $confirmingDelete) {
+            Button(text["account.deleteConfirm"], role: .destructive) { deleteOnline() }
+            Button(text["common.cancel"], role: .cancel) {}
+        } message: {
+            Text(text["account.deleteMessage"])
+        }
+        // Signed in again: what the last delete came to is no longer the news.
+        .onChange(of: account.player) { _, now in if now != nil { deletedOnline = false } }
     }
 
     /// Signed in: who, the profile, what can be done with the account, the plan and saving online.
@@ -47,11 +59,36 @@ struct AccountPanel: View {
         saveOnline
     }
 
-    /// What the player does with the account itself, one button each, under the profile: signing out. An action of the
-    /// account added later (deleting it with its data online) takes its place here.
+    /// What the player does with the account itself, one button each, under the profile: signing out, and deleting what
+    /// the account keeps online (App Store 5.1.1(v)), which asks once more. Where the app may not write online (Main in a
+    /// version build) the delete is offered disabled, with why (E-settings-4).
     @ViewBuilder private var accountActions: some View {
-        Button(text["settings.signOut"]) { account.signOut() }
+        // Wrapped, so the long «Удалить аккаунт и данные онлайн» goes under «Выйти» in a narrow sheet.
+        FlowLayout(spacing: CGFloat.ds("s-2")) {
+            Button(text["settings.signOut"]) { account.signOut() }
+                .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
+            Button(text["account.delete"]) {
+                deleteProblem = nil
+                confirmingDelete = true
+            }
             .buttonStyle(DSButtonStyle(kind: .danger, compact: true))
+            .disabled(!account.writes)
+        }
+        if !account.writes {
+            Text(text["account.deleteReadOnly"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+        }
+        if let deleteProblem {
+            Text(deleteProblem).dsType(.caption).foregroundStyle(Color.ds("danger"))
+        }
+    }
+
+    /// The delete, once confirmed: signed out when it is done, and the signed-out section says the data online went.
+    private func deleteOnline() {
+        Task {
+            let deleted = await account.deleteOnlineData()
+            deleteProblem = deleted.problemKey.map { text[$0] }
+            deletedOnline = deleted == .done
+        }
     }
 
     /// Saving online and sync, with what it does now.
@@ -78,6 +115,9 @@ struct AccountPanel: View {
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
         }
         Text(text["settings.signInHow"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+        if deletedOnline {
+            Text(text["account.deleted"]).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+        }
         if let problem = account.problem {
             Text(problem).dsType(.caption).foregroundStyle(Color.ds("danger"))
         }

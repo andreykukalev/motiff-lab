@@ -24,6 +24,7 @@ final class TestLibraryTests: XCTestCase {
             "/container/Documents/Test/Für Elise.motiff.json",
             "/container/Documents/Test/Sonata 2.MOTIFF.JSON",
             "/container/Library/Application Support/sync-test.json",
+            "/container/Library/Application Support/sync-test-bases",
             "/container/Library/Application Support/LibraryImport/test",
         ])
     }
@@ -35,6 +36,8 @@ final class TestLibraryTests: XCTestCase {
             "/container/Documents/Piece.motiff.json",
             "/container/Library/Application Support",
             "/container/Library/Application Support/sync.json",
+            "/container/Library/Application Support/sync-bases",
+            "/container/Library/Application Support/sync-bases/p_1.json",
             "/container/Library/Application Support/LibraryImport",
             "/container/Library/Application Support/LibraryImport/main",
             "/container/Library/Application Support/LibraryImport/main/folders.json",
@@ -54,13 +57,16 @@ final class TestLibraryTests: XCTestCase {
         let test = documents.appendingPathComponent("Test", isDirectory: true)
         let kept = support.appendingPathComponent("LibraryImport/test/Kept", isDirectory: true)
         let mainImport = support.appendingPathComponent("LibraryImport/main", isDirectory: true)
-        for folder in [test, kept, mainImport] {
+        let testBases = support.appendingPathComponent("sync-test-bases", isDirectory: true)
+        let mainBases = support.appendingPathComponent("sync-bases", isDirectory: true)
+        for folder in [test, kept, mainImport, testBases, mainBases] {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         }
         let files = [
             test.appendingPathComponent("A.motiff.json"), test.appendingPathComponent("B.motiff.json"), test.appendingPathComponent("player.pdf"),
             documents.appendingPathComponent("Main.motiff.json"), support.appendingPathComponent("sync.json"),
             support.appendingPathComponent("sync-test.json"), kept.appendingPathComponent("p_1.pdf"), mainImport.appendingPathComponent("folders.json"),
+            testBases.appendingPathComponent("p_1.json"), mainBases.appendingPathComponent("p_2.json"),
         ]
         for file in files { try Data("{}".utf8).write(to: file) }
 
@@ -69,7 +75,7 @@ final class TestLibraryTests: XCTestCase {
         XCTAssertEqual(done.pieces, 2)
         XCTAssertEqual(done.failed, 0)
         let left = files.filter { FileManager.default.fileExists(atPath: $0.path) }.map(\.lastPathComponent)
-        XCTAssertEqual(left, ["player.pdf", "Main.motiff.json", "sync.json", "folders.json"])
+        XCTAssertEqual(left, ["player.pdf", "Main.motiff.json", "sync.json", "folders.json", "p_2.json"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: support.appendingPathComponent("LibraryImport/test").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: test.path), "the folder itself stays, empty of pieces")
     }

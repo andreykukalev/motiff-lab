@@ -71,13 +71,6 @@ internal static class PieceLayer
         return new FoundSections(sections, meter, lastBar, pieces: true);
     }
 
-    /// <summary>Whether the project has a pieces layer.</summary>
-    public static bool Has(Project project)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-        return Bookmarks(project).Any();
-    }
-
     /// <summary>
     /// The project with the pieces layer replaced by <paramref name="pieces"/>: one bookmark each, from its first bar to the
     /// first bar of the next, the last to <paramref name="end"/>. The layer's bookmarks keep their ids in score order, so

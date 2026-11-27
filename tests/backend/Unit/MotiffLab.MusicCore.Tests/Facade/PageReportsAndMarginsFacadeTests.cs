@@ -113,10 +113,6 @@ public sealed class PageReportsAndMarginsFacadeTests
         Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
         Assert.Equal([StrokeMargin.Left, null], saved.Marks.Ink.Select(static stroke => stroke.Margin));
         Assert.Equal("badRequest", Error(facade.Call(1, "ink.add", $$"""{"strokes": [{{Stroke.Replace("\"left\"", "\"middle\"", StringComparison.Ordinal)}}]}""")));
-
-        // The web's pencil layer saves through ProjectFile.ReadInk and Marks.WithInk, which keep it too.
-        IReadOnlyList<InkStroke> layer = ProjectFile.ReadInk(ProjectFile.WriteInk(saved.Marks.Ink));
-        Assert.Equal(StrokeMargin.Left, saved.Marks.WithInk(layer).Ink[0].Margin);
     }
 
     [Fact]

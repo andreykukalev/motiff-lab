@@ -43,9 +43,9 @@ public class ScanCheckTests
 
         Assert.Equal(32, check.Bars.Count);
         Assert.Equal([8, 16, 21, 27, 29, 32, 36], check.Flagged.Select(bar => bar.Bar));
-        Assert.Equal([ScanFlag.BarTooLong, ScanFlag.StavesDiffer], check.Find(16)!.Flags);
-        Assert.Equal([ScanFlag.BarTooLong, ScanFlag.StavesDiffer, ScanFlag.GraceNotes], check.Find(27)!.Flags);
-        Assert.Equal([ScanFlag.BarTooShort], check.Find(8)!.Flags);
+        Assert.Equal([ScanFlag.BarTooLong, ScanFlag.StavesDiffer], check.Bars.Single(scanned => scanned.Bar == 16).Flags);
+        Assert.Equal([ScanFlag.BarTooLong, ScanFlag.StavesDiffer, ScanFlag.GraceNotes], check.Bars.Single(scanned => scanned.Bar == 27).Flags);
+        Assert.Equal([ScanFlag.BarTooShort], check.Bars.Single(scanned => scanned.Bar == 8).Flags);
         // Bars 1-7 of the opening came back exactly right.
         Assert.All(check.Bars.Where(bar => bar.Bar < 8), bar => Assert.False(bar.IsFlagged));
     }
@@ -130,7 +130,7 @@ public class ScanCheckTests
 
         ImportedPiece marked = check.Mark(piece, confirmedBars: [16, 3]);
 
-        Note Of(int bar) => marked.Notes.First(note => note.Id == check.Find(bar)!.NoteIds[0]);
+        Note Of(int bar) => marked.Notes.First(note => note.Id == check.Bars.Single(scanned => scanned.Bar == bar).NoteIds[0]);
         Assert.Equal(Attribution.Detected(ScanCheck.CleanConfidence), Of(2).Attribution);
         Assert.Equal(Attribution.Detected(ScanCheck.FlaggedConfidence), Of(21).Attribution);
         Assert.Equal(Attribution.UserConfirmed, Of(16).Attribution);
@@ -166,8 +166,8 @@ public class ScanCheckTests
 
         Assert.Equal(new ScanOrigin("homr 0.7.0", [8, 16]), reread.Scan);
         ScanCheck check = ScanCheck.Of(opened.Piece);
-        Assert.Equal(Attribution.UserConfirmed, opened.Notes.First(note => note.Id == check.Find(16)!.NoteIds[0]).Attribution);
-        Assert.Equal(Provenance.Detected, opened.Notes.First(note => note.Id == check.Find(21)!.NoteIds[0]).Attribution.Provenance);
+        Assert.Equal(Attribution.UserConfirmed, opened.Notes.First(note => note.Id == check.Bars.Single(scanned => scanned.Bar == 16).NoteIds[0]).Attribution);
+        Assert.Equal(Provenance.Detected, opened.Notes.First(note => note.Id == check.Bars.Single(scanned => scanned.Bar == 21).NoteIds[0]).Attribution.Provenance);
         Assert.Equal(opened.Notes, opened.Piece.Notes);
     }
 
@@ -189,7 +189,7 @@ public class ScanCheckTests
         ScanOrigin scan = ScanOrigin.Read("homr 0.7.0").Confirm([21, 8, 21]);
 
         Assert.Equal([8, 21], scan.ConfirmedBars);
-        Assert.True(scan.IsConfirmed(21));
+        Assert.Contains(21, scan.ConfirmedBars);
         Assert.Equal([8], scan.Unconfirm(21).ConfirmedBars);
     }
 }
