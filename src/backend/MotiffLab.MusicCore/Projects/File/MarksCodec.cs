@@ -262,7 +262,7 @@ internal static class MarksCodec
 
     internal static readonly HashSet<string> s_resumePointFields = new(StringComparer.Ordinal)
     {
-        "id", "name", "at", "passage", "focused", "overlays", "tempoPercent", "hands", "loop", "createdAt", "lastActive",
+        "id", "name", "at", "passage", "anchor", "focused", "overlays", "tempoPercent", "hands", "loop", "createdAt", "lastActive",
     };
 
     internal static void WriteBookmarks(Utf8JsonWriter json, Project project)
@@ -396,6 +396,11 @@ internal static class MarksCodec
                 json.WriteEndObject();
             }
 
+            if (point.Anchor is { } anchor)
+            {
+                json.WriteString("anchor", anchor);
+            }
+
             json.WriteBoolean("focused", point.Focused);
             JsonWrite.Texts(json, "overlays", point.Overlays.Select(static overlay => overlay.ToString()));
             json.WriteNumber("tempoPercent", point.TempoPercent);
@@ -439,7 +444,10 @@ internal static class MarksCodec
                 point.TryGetProperty("hands", out _) ? Name<Hand>(point, "hands") : null,
                 Boolean(point, "loop"),
                 JsonRead.Time(point, "createdAt"),
-                JsonRead.Time(point, "lastActive"));
+                JsonRead.Time(point, "lastActive"))
+            {
+                Anchor = point.TryGetProperty("anchor", out _) ? Text(point, "anchor") : null,
+            };
         }
         catch (ArgumentException)
         {
