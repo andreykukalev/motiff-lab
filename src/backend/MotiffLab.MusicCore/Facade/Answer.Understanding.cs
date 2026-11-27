@@ -167,7 +167,7 @@ internal static partial class Answer
             json.WriteNumber("end", phrase.Span.End.Value);
             json.WriteNumber("firstBar", phrase.FirstBar);
             json.WriteNumber("lastBar", phrase.LastBar);
-            if (phrase.Start is { } start)
+            if (phrase.StartAttribution is { } start)
             {
                 Attribution(json, start);
             }

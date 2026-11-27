@@ -376,19 +376,24 @@ internal static partial class MotifAnalyzer
             : new FactPlace(label, TickSpan.FromBounds(at, notes.Where(note => note.Span.Onset > at).Min(note => note.Span.Onset)), []);
     }
 
+    /// <summary>
+    /// What supports a phrase boundary, after "from" or "по": "a slur", "a rest of a beat or more"; Russian in the dative
+    /// ("лиге", "паузе в долю и больше"). Also the structure facts' basis says it so.
+    /// </summary>
+    internal static string EvidenceName(PhraseEvidence mark, Words w) => mark switch
+    {
+        PhraseEvidence.Slur => w.T("a slur", "лиге"),
+        PhraseEvidence.Rest => w.T("a rest of a beat or more", "паузе в долю и больше"),
+        PhraseEvidence.RepeatSign => w.T("a repeat sign", "знаку повторения"),
+        PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "отрывку, который возвращается нота в ноту"),
+        PhraseEvidence.Restatement => w.T("a passage that starts again at once", "отрывку, который сразу начинается снова"),
+        _ => mark.ToString(),
+    };
+
     /// <summary>"from a slur and a rest of a beat or more", "set by the player", or "from a slur, confirmed by the player".</summary>
     private static string EvidenceText(PhraseBoundary boundary, Words w)
     {
-        // Russian names the evidence after "по" ("по лиге и паузе"), in the dative.
-        string[] evidence = [.. boundary.Evidence.Select(mark => mark switch
-        {
-            PhraseEvidence.Slur => w.T("a slur", "лиге"),
-            PhraseEvidence.Rest => w.T("a rest of a beat or more", "паузе в долю и больше"),
-            PhraseEvidence.RepeatSign => w.T("a repeat sign", "знаку повторения"),
-            PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "отрывку, который возвращается нота в ноту"),
-            PhraseEvidence.Restatement => w.T("a passage that starts again at once", "отрывку, который сразу начинается снова"),
-            _ => mark.ToString(),
-        })];
+        string[] evidence = [.. boundary.Evidence.Select(mark => EvidenceName(mark, w))];
         string source = evidence.Length switch
         {
             0 => "",

@@ -180,6 +180,31 @@ public class StructureAnalyzerTests
     }
 
     [Fact]
+    public void The_phrases_basis_names_what_each_inferred_boundary_rests_on()
+    {
+        PhraseBoundary[] rest = [new(new Tick(2 * Bar), [PhraseEvidence.Rest], Attribution.Inferred(PhraseBoundaryFinder.RestConfidence))];
+        PhraseBoundary[] returns =
+        [
+            new(new Tick(Bar), [PhraseEvidence.Repetition], Attribution.Inferred(PhraseBoundaryFinder.RepetitionConfidence)),
+            new(new Tick(2 * Bar), [PhraseEvidence.Slur, PhraseEvidence.Rest], Attribution.Imported),
+            new(new Tick(4 * Bar), [PhraseEvidence.Restatement], Attribution.Inferred(PhraseBoundaryFinder.RestatementConfidence)),
+        ];
+
+        string fromRest = Fact(Analyze(Song(), 1, 1, rest), "structure.phrases").Basis;
+        MotifFact fromReturns = Fact(Analyze(Song(), 1, 1, returns), "structure.phrases");
+        MotifFact russian = Fact(StructureAnalyzer.Analyze(Song(), s_meter, MotifSelector.Select(Song(), s_meter, new TickSpan(new Tick(0), Bar), SelectionFilter.All), returns, Words.Russian), "structure.phrases");
+
+        Assert.EndsWith(" Some boundaries are a reading of the notes, not a mark in the score: they rest only on a rest of a beat or more.", fromRest);
+        Assert.EndsWith(
+            " Some boundaries are a reading of the notes, not a mark in the score: they rest only on a passage that comes back note for note and a passage that starts again at once.",
+            fromReturns.Basis);
+        Assert.Equal(FactCertainty.Inferred, fromReturns.Certainty);
+        Assert.EndsWith(
+            " Некоторые границы — прочтение нот, а не знак в нотах: они стоят только по отрывку, который возвращается нота в ноту и отрывку, который сразу начинается снова.",
+            russian.Basis);
+    }
+
+    [Fact]
     public void Chords_make_the_line_an_inference()
     {
         Note[] notes = [.. Song(), Note("low", 48, 0, Quarter)];
