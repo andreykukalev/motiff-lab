@@ -175,13 +175,14 @@ public static class ProjectFile
                 throw Damaged("version");
             }
 
-            // Version 16 and 17 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an
-            // unknown value in either is read as in a file of today's version (0026 S6).
+            // Every file of version 18 or later carries "minReader" (#315); one above this build's was refused above as newer.
             if (version >= MinReader && minReader is not (>= 1 and <= Version))
             {
                 throw Damaged("minReader");
             }
 
+            // Versions 16 to 18 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an unknown
+            // value, setting or operation in any of them is read as in a file of today's version (0026 S6).
             var unknowns = new Unknowns(version >= LayersVersion);
             Project project = version >= LayersVersion ? ReadLayers(root, version, unknowns) : ReadEarlier(root, version, unknowns);
             project = unknowns.KeptIn(project).WithProvenanceKept().Described(Math.Min(version, Version));

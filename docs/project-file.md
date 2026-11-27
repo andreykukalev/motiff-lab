@@ -30,7 +30,7 @@ Each layer is an object or array of objects; a reader that meets a field it does
 
 ### Files of a later version (`minReader`)
 
-A file of version 18 or later carries `minReader`, a whole number from 1 to its version; one without it, or with another value, is damaged. A file whose `minReader` is above this build's version, or of a later version without `minReader`, is refused with "This project was saved by a newer version of Motiff Lab" before any other field is read (#315, criterion 4). A file of a later version whose `minReader` this build meets is read as this layout, every unknown field, setting and operation kept, and opens **read-only** (`Project.Newer`, `Project.IsReadOnly`): it is shown and played, and written again as it came, its `version` and `minReader` the larger of its own and this build's, but never saved (`ProjectFile.Save` refuses it, and so does every facade call that answers the file, with the error `readOnly`). The iPad says so in one line under the bar of every view of the piece. #315 criterion 3 (a later version alone opens read-only) conflicts with criterion 4; this build follows 4.
+A file of version 18 or later carries `minReader`, a whole number from 1. A file whose `minReader` is above this build's version (even one of version 18), or of a later version without `minReader`, is refused with "This project was saved by a newer version of Motiff Lab" before any other field is read (#315, criterion 4). A file of version 18 or later without `minReader`, or with one that is not a whole number of 1 or more, is damaged. A file of a later version whose `minReader` this build meets is read as this layout, every unknown field, setting and operation kept, and opens **read-only** (`Project.Newer`, `Project.IsReadOnly`): it is shown and played, and written again as it came, its `version` and `minReader` the larger of its own and this build's, but never saved (`ProjectFile.Save` refuses it, and so does every facade call that answers the file, with the error `readOnly`). The iPad says so in one line under the bar of every view of the piece. #315 criterion 3 (a later version alone opens read-only) conflicts with criterion 4; this build follows 4.
 
 ## Originals (`originals`)
 
@@ -504,7 +504,7 @@ Every version since 1 opens (`ProjectFile.Read`) and is converted to the current
 
 ### From version 17 (and 16) to 18
 
-One thing is converted: a `phrases.granularity` override is dropped (the piece's phrase level is gone; the score shows every level), and an unknown setting or variation operation stays damage, as the builds that wrote the file knew none. Written again, it is the same file with version 18 and `minReader` 18 (`Golden/v18-*`).
+One thing is converted: a `phrases.granularity` override is dropped (the piece's phrase level is gone; the score shows every level), and an unknown setting or variation operation is kept as in a file of version 18, since versions 16 and 17 share its layout ("Unknown values"); in a file of version 15 or earlier it stays damage. Written again, it is the same file with version 18 and `minReader` 18 (`Golden/v18-*`).
 
 ### From version 16 to 17
 

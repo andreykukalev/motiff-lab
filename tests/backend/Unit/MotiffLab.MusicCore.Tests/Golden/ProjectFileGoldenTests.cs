@@ -536,7 +536,7 @@ public partial class ProjectFileGoldenTests
     /// <summary>
     /// Basis rule S6, flipping council fact V2 in version 16 and, for the entities of the workspace's lists, in version 18
     /// (#315 criterion 1): an unknown field at the top level, in the workspace, in a Notes, an original, a provenance, a
-    /// motif, a variation, an idea, a resume point or a bookmark category is kept and written back after the known ones.
+    /// motif, a variation, an idea, a resume point, a bookmark category or a bookmark is kept and written back after the known ones.
     /// A version 15 file's unknown field is lost as before, since no build that wrote one knew a field this one does not.
     /// Version 16 and 17 files keep them as a version 18 one does, written back with version 18.
     /// </summary>
@@ -558,6 +558,7 @@ public partial class ProjectFileGoldenTests
         file["workspace"]!["observations"]![0]!["future"] = 7;
         file["workspace"]!["resumePoints"]![0]!["future"] = 8;
         file["workspace"]!["bookmarks"]!["categories"]![0]!["future"] = 9;
+        file["workspace"]!["bookmarks"]!["items"]![0]!["future"] = 10;
 
         JsonObject written = Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))));
 
@@ -566,5 +567,15 @@ public partial class ProjectFileGoldenTests
         JsonObject earlier = Node(File(Worked15));
         earlier["future"] = new JsonObject { ["note"] = "A field a later version adds." };
         Assert.Equal(Text(File(Worked)), Text(ProjectFile.Write(ProjectFile.Read(Bytes(earlier)))));
+    }
+
+    /// <summary>An unknown field in a draft (version 18, #315 criterion 1) is kept and written back after the known ones.</summary>
+    [Fact]
+    public void An_unknown_field_in_a_draft_is_kept_and_written_back()
+    {
+        JsonObject file = Node(File("v18-drafts.motiff.json"));
+        file["workspace"]!["drafts"]![1]!["future"] = new JsonObject { ["note"] = "A field a later version adds to a draft." };
+
+        Assert.True(JsonNode.DeepEquals(file, Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))))), "the draft's unknown field is written back");
     }
 }
