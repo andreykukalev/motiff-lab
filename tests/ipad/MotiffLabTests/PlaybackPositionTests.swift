@@ -198,16 +198,6 @@ final class PlaybackPositionTests: XCTestCase {
         XCTAssertTrue(BarBeats.read([.init(at: 0, downbeat: true, bar: nil, beat: nil)]).marks.isEmpty, "an older answer without bar and beat")
     }
 
-    @MainActor
-    func testTheNoteEditorNamesThePiecesFirstBarAsMusicCoreNumbersIt() {
-        // A piece that starts with a pickup is corrected in its bar 0, never a guessed bar 1; before the score is read, none.
-        let score = ScoreController()
-        XCTAssertNil(score.noteEditBar)
-        score.barBeats = BarBeats.read([.init(at: 0, downbeat: false, bar: 0, beat: 4), .init(at: 480, downbeat: true, bar: 1, beat: 1)])
-        XCTAssertEqual(score.noteEditBar, 0)
-        XCTAssertEqual(BarBeats.read([.init(at: 0, downbeat: true, bar: 1, beat: 1)]).firstBar, 1)
-    }
-
     func testThePageIsToldTheHandTheSelectionIsNarrowedTo() {
         // The blue playhead covers the band's staff alone for a selection of one hand (#608 item 3).
         let one = PlayheadsShown.selection(960..<1920, hand: "left")

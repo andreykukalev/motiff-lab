@@ -97,10 +97,9 @@ public class SelectionSessionTests
     }
 
     [Fact]
-    public void With_no_passage_left_to_save_the_working_motif_stays_while_another_variation_of_it_does()
+    public void With_no_passage_left_to_save_the_working_motif_stays_with_every_saved_variation_of_it()
     {
-        // #821: the correction took every note of the passage; the variation shown went with its chain, the other stays, and
-        // so does the motif it cannot open without.
+        // #821: the correction took every note of the passage; the chain shown goes, its saved copy and the motif stay.
         OpenPiece piece = Example();
         SelectionSession session = Tried(piece);
         SessionPiece saved = SavedBy(session, piece.State);
@@ -111,7 +110,29 @@ public class SelectionSessionTests
 
         (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = session.Saved(saved, layerOff: false);
         Assert.Equal(saved.Project.Motifs, motifs);
-        Assert.Equal([other], variations);
+        Assert.Equal(saved.Project.Variations, variations);
+    }
+
+    [Fact]
+    public void The_same_passage_again_or_the_variation_cleared_keeps_its_saved_copy_and_the_next_one_is_saved_beside_it()
+    {
+        // #821, the lead's decision: a save never loses a saved variation; only what was shown and not saved goes.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+
+        session.Select(saved, Bars(piece, 1, 4), MotifSelectionKind.Range);
+        Assert.Equal("m_0001", session.MotifId);
+        Assert.Equal(saved.Project.Variations, session.Saved(saved, layerOff: false).Variations);
+
+        SelectionUnderstanding understood = session.Understand(saved);
+        session.Try(saved, understood.Context.Motif.Facts.SelectMany(understood.Chips).Select(offered => offered.Id).First());
+        SessionPiece again = SavedBy(session, saved);
+        Assert.Equal(["v_0002", "v_0001"], again.Project.Variations.Select(variation => variation.Id));
+        Assert.Same(saved.Project.Variations[0], again.Project.Variations[1]);
+
+        session.Clear(again);
+        Assert.Equal(again.Project.Variations, session.Saved(again, layerOff: false).Variations);
     }
 
     [Fact]

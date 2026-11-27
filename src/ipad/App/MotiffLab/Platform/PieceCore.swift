@@ -127,8 +127,8 @@ struct PieceCore: Sendable {
     }
 
     /// The corrections calls (`CorrectionsSession` in Facade/Sessions, its adapter OpenPiece.Corrections.cs), every one
-    /// answered with a bar's notes as `CorrectionsAnswer`: the request's "bar" (for `layer` and `drop`, the first bar without
-    /// one). The raw value is the call's name.
+    /// answered with a bar's notes as `CorrectionsAnswer`: the request's "bar", the piece's first without one (0 for a pickup,
+    /// within contract 16). The raw value is the call's name.
     enum Correction: String, Sendable {
         /// `corrections`: the bar's notes to correct.
         case bar = "corrections"

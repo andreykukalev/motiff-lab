@@ -175,7 +175,7 @@ internal sealed partial class OpenPiece
         {
             Motif motif = opened.Motifs[0];
             (SavedVariation? saved, VariationChain? chain) = opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id);
-            result.Selection.Start(motif, saved, chain);
+            result.Selection.Start(result.State, motif, saved, chain);
         }
         else
         {

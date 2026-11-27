@@ -36,8 +36,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 ## The contract others may rely on
 
 While «Мои правки» is off, `editsOn` is false: no Fix notes, no note editor, no draft Accept (music-core refuses them
-too). The note editor's calls name `ScoreController.noteEditBar`: the selection's first bar, else the piece's first as
-the playback score numbers it (`BarBeats.firstBar`, 0 for a pickup), never a guessed bar 1. `NoteCorrections` and
+too). The note editor's calls send the selection's first bar, else none, and music-core answers for the piece's first
+(0 for a pickup; `NoteEditorState.request`), never a guessed bar 1. `NoteCorrections` and
 `EditsLayerState` hold only what music-core answered (`tests/contracts/facade-answers/corrections*.json`, decoded by `FacadeAnswerFixturesTests`). The rest: not recorded yet.
 
 `MarksModel`: `show` takes what a mark call answered, `keepBookmarks` the bookmarks the page draws; `showLayers`,

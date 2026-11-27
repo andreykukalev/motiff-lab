@@ -207,7 +207,7 @@ internal sealed partial class OpenPiece
     {
         bool on = request.Bool("on") ?? throw FacadeException.BadRequest("Send \"on\": true or false.");
         Corrections.RefuseWhileEditing(Words);
-        Bar bar = LayerBar(request);
+        Bar bar = CorrectionBar(request);
         if (Corrections.Switch(on))
         {
             SavedVariation? working = Selection.WorkingVariation;
@@ -229,7 +229,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest("Send \"noteIds\", the notes whose corrections no longer fit.");
         }
 
-        Bar bar = LayerBar(request);
+        Bar bar = CorrectionBar(request);
         if (Corrections.DropUnfit(State, ids) is { } edits)
         {
             Project = Project with { Edits = edits };
@@ -260,8 +260,17 @@ internal sealed partial class OpenPiece
     private string CorrectionsAnswer(Bar bar, string? added = null) =>
         Answer.Write(json => Answer.Corrections(json, Corrections.Bar(State, bar), added, Piece.Meter, Words));
 
+    /// <summary>
+    /// The bar a corrections call answers for: "bar" when sent, else the piece's first, bar 0 for a pickup (within contract 16,
+    /// v1.5 r-2a: the note editor with no selection sends none rather than guess a bar the piece may not have).
+    /// </summary>
     private Bar CorrectionBar(Request request)
     {
+        if (!request.Has("bar"))
+        {
+            return Piece.Meter.GetBar(Piece.Meter.FirstBarNumber);
+        }
+
         int number = request.Int("bar") ?? throw FacadeException.BadRequest("Send \"bar\".");
         Bar bar;
         try
@@ -275,7 +284,4 @@ internal sealed partial class OpenPiece
 
         return bar.Span.Onset < Piece.End ? bar : throw FacadeException.BadRequest($"There is no bar {number}.");
     }
-
-    /// <summary>The bar a layer call answers for: "bar" when sent, else the first bar.</summary>
-    private Bar LayerBar(Request request) => request.Has("bar") ? CorrectionBar(request) : Piece.Meter.GetBar(Piece.Meter.FirstBarNumber);
 }

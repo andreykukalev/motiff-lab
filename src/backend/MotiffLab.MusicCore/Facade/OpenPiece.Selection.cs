@@ -104,7 +104,7 @@ internal sealed partial class OpenPiece
 
     private string ClearVariation()
     {
-        Selection.Clear();
+        Selection.Clear(State);
         return Answer.Write(json => json.WriteBoolean("cleared", true));
     }
 

@@ -788,9 +788,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// when it is undone, else why not, in music-core's words.
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
-        guard let piece, let bar = draft.firstBar ?? barBeats.firstBar else { return "" }
+        guard let piece else { return "" }
         variantChoice.edited()
-        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, "{\"bar\": \(bar)}")
+        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, facadeRequest(NoteEditorState.request([:], bar: draft.firstBar)))
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
         readEdits(read)
         await notesDidChange()
@@ -867,16 +867,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             showNotice("padEdits.offNotice")
             return
         }
-        // E-roll-1: until music-core's playback score is read there is no bar to name, so the editor does not open yet.
-        guard noteEditBar != nil else { return }
         noteEditor = NoteEditorState()
         noteEditCall(.begin, [:])
     }
-
-    /// The bar the note editor's calls name, as every corrections answer is a bar's notes: the selection's first, else the
-    /// piece's first as music-core numbers it (0 for a pickup), never a guessed bar 1 the piece may not have; nil until the
-    /// playback score is read.
-    var noteEditBar: Int? { selectionModel.selection?.firstBar ?? barBeats.firstBar }
 
     /// Move, Add or Remove: what a press on the roll's notes does.
     func chooseNoteEditTool(_ tool: String) {
@@ -920,12 +913,10 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     private func noteEditCall(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
-        guard let piece, let bar = noteEditBar else { return }
+        guard let piece else { return }
         if notes { variantChoice.edited() }
-        var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
-        request["bar"] = bar
-        let body = facadeRequest(request)
+        let body = facadeRequest(NoteEditorState.request(fields, bar: selectionModel.selection?.firstBar))
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
             guard let read = answer.value else {
@@ -1645,6 +1636,15 @@ struct NoteEditorState: Equatable, Sendable {
     var changed = false
     var canReset = false
     var picked: String?
+
+    /// A corrections call of the editor (or Undo of the assistant's draft): its fields and the bar whose notes it answers
+    /// with when there is one (the selection's first, the draft's); without it music-core answers for the piece's first bar,
+    /// 0 for a pickup, rather than a bar 1 the app would guess and the piece may not have.
+    static func request(_ fields: [String: Any], bar: Int?) -> [String: Any] {
+        var request = fields
+        if let bar { request["bar"] = bar }
+        return request
+    }
 }
 
 // MARK: - The selection's Undo and Redo (#511 section 11): the steps and the selecting are SelectionModel's, what follows the root's

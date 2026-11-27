@@ -310,9 +310,6 @@ struct BarBeats: Equatable, Sendable {
     /// In time order.
     var marks: [Mark] = []
 
-    /// The piece's first bar as music-core numbers it: 0 for a pickup, else 1; nil before the score is read.
-    var firstBar: Int? { marks.first?.place.bar }
-
     /// The beat a tick lies in: the last beat at or before it, or the first beat before any.
     func at(_ tick: Double) -> BarBeat? {
         var low = 0

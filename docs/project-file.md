@@ -150,7 +150,7 @@ The working notes and everything the player made on them, in their ticks.
 }
 ```
 
-A save never loses a saved variation (#821): the facade writes the selection as the working motif (the first motif, which the piece opens on) and the chain shown under the id of the variation it was opened from, and the working motif's other variations as they were. Once the player chooses another passage or brings back an idea on one, a working motif that has variations saved stays as it was, with all of them, and the passage is saved beside it under a new id; the same passage again stays the working motif.
+A save never loses a saved variation (#821): the facade writes the selection as the working motif (the first motif, which the piece opens on) and the chain shown under the id of the variation it was opened from, written over only its own earlier save; every other variation stays as it was. A chain that goes without another in its place (the same passage chosen again, the variation left, a correction) leaves its saved copy as it was, and the next one is saved beside it. Once the player chooses another passage or brings back an idea on one, a working motif that has variations saved stays as it was, with all of them, and the passage is saved beside it under a new id; the same passage again stays the working motif.
 
 ### Views hidden from the switch (`hiddenViews`)
 
