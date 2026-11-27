@@ -102,4 +102,25 @@ final class InsightsControllerTests: XCTestCase {
         XCTAssertNotNil(insights.circle)
         XCTAssertNil(insights.problem, "the next step takes the last one's words away")
     }
+
+    /// E-insights-2: a way that music-core is still making when the selection moves on is not tried on the next one: no
+    /// trial, nothing handed to the player, and music-core holds no variation.
+    func testAWayStillBeingMadeWhenTheSelectionMovesOnIsLeft() async throws {
+        let (insights, piece) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        let fact = try XCTUnwrap(understanding.facts.first { !$0.tries.isEmpty })
+        let way = try XCTUnwrap(fact.tries.first)
+        var handed = 0
+        insights.variationReady = { _, _ in handed += 1 }
+
+        let trying = Task { await insights.tryWay(way, of: fact) }
+        await Task.yield()
+        XCTAssertEqual(insights.starting, way.id, "the way is under way in music-core")
+        await insights.load(piece: piece, selection: nil)
+        await trying.value
+        XCTAssertNil(insights.trial)
+        XCTAssertNil(insights.problem)
+        XCTAssertEqual(handed, 0, "nothing sounds")
+        XCTAssertNotNil(facadeObject(MusicCore.call(piece: piece, "variation"))?["error"], "music-core forgot the variation")
+    }
 }

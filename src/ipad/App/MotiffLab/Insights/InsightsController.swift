@@ -204,13 +204,15 @@ final class InsightsController: ObservableObject {
     func tryWay(_ way: Fact.Try, of fact: Fact) async {
         guard starting == nil else { return }
         let piece = piece
+        let selection = understood
         starting = way.id
         defer { starting = nil }
         problem = nil
         let request = facadeRequest(["chip": way.id])
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.tryWay, request) }
         guard let state = facadeObject(answer), state["error"] == nil, let result = state["result"] as? [String: Any] else {
-            problem = facadeObject(answer)?["message"] as? String
+            // E-insights-2: a refusal for a passage no longer selected is not said over the next one's facts.
+            if understood == selection { problem = facadeObject(answer)?["message"] as? String }
             return
         }
         let ends = (result["notes"] as? [[String: Any]] ?? []).compactMap { note -> Double? in
@@ -218,6 +220,12 @@ final class InsightsController: ObservableObject {
             return onset + duration
         }
         let heard = await PieceCore(piece: piece).playback(#"{"of": "inPlace"}"#)
+        // E-insights-2: the selection moved on while music-core made the variation, which belongs to the passage it was
+        // tried on (as `load` leaves a trial): it goes, and nothing sounds or shows it.
+        guard understood == selection else {
+            _ = await MusicCore.run { PieceCore(piece: piece).send(.variationClear) }
+            return
+        }
         guard let score = heard.value.map(PlaybackScore.init) else {
             problem = heard.message
             return
