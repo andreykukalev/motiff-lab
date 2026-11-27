@@ -90,19 +90,73 @@ public class LaterFilesFacadeTests
     }
 
     [Fact]
-    public void A_plain_save_keeps_every_variation_of_a_hidden_motif_and_files_the_working_one_apart()
+    public void A_plain_save_keeps_every_variation_of_the_working_motif_and_of_a_hidden_one()
     {
-        // QA finding 1 of PR #362: v_0002 of m_0001 holds the unknown value, so m_0001 is hidden and the facade works on m_0002,
-        // whose variation it names v_0002 too.
+        // QA finding 1 of PR #362 and #821: v_0002 of m_0001 holds the unknown value, so m_0001 is hidden and the facade works
+        // on m_0002, opened on its first variation v_0006; that one keeps its own id and the others of m_0002 stay as they were.
         JsonObject file = With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue);
         JsonObject saved = Saved(Opened(file));
 
-        JsonArray variations = saved["workspace"]!["variations"]!.AsArray();
-        Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005"], variations.Where(variation => variation!["motifId"]!.GetValue<string>() == "m_0001").Select(variation => variation!["id"]!.GetValue<string>()));
-        Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"]![1], variations[1]));
-        string working = variations.Single(variation => variation!["motifId"]!.GetValue<string>() == "m_0002")!["id"]!.GetValue<string>();
-        Assert.Single(variations, variation => variation!["id"]!.GetValue<string>() == working);
+        Assert.Equal(["v_0001", "v_0002", "v_0003", "v_0004", "v_0005"], VariationsOf(saved, "m_0001"));
+        Assert.Equal(["v_0006", "v_0007", "v_0008", "v_0009", "v_0010"], VariationsOf(saved, "m_0002"));
+        Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"], saved["workspace"]!["variations"]));
         Assert.Single(saved["workspace"]!["motifs"]!.AsArray(), motif => motif!["id"]!.GetValue<string>() == "m_0001");
         Assert.Equal(saved.ToJsonString(), Saved(Opened(saved)).ToJsonString());
     }
+
+    [Fact]
+    public void A_variation_tried_on_the_working_motif_replaces_only_the_one_it_was_opened_on()
+    {
+        // #821: the working chain is saved under its own id (v_0006); the motif's other variations are written as they were.
+        JsonObject file = With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue);
+        MusicCoreFacade facade = Opened(file);
+        Call(facade, "try", """{"chip": "v1.halfTime"}""");
+        JsonObject saved = Saved(facade);
+
+        Assert.Equal(["v_0006", "v_0007", "v_0008", "v_0009", "v_0010"], VariationsOf(saved, "m_0002"));
+        JsonArray before = file["workspace"]!["variations"]!.AsArray();
+        JsonArray after = saved["workspace"]!["variations"]!.AsArray();
+        Assert.False(JsonNode.DeepEquals(before[5], after[5]));
+        Assert.All(Enumerable.Range(6, 5), index => Assert.True(JsonNode.DeepEquals(before[index], after[index]), $"variation {index}"));
+        Assert.Equal(saved.ToJsonString(), Saved(Opened(saved)).ToJsonString());
+    }
+
+    [Fact]
+    public void Another_passage_is_saved_beside_the_working_motif_which_keeps_its_variations()
+    {
+        // #821, the lead's decision: m_0002 and v_0006–v_0010 stay as they were; the new passage takes an id no motif has
+        // (m_0001 is the hidden one's).
+        JsonObject file = With(Worked(), "variations/1/steps/0/parameters/kind", UnknownValue);
+        MusicCoreFacade facade = Opened(file);
+        Call(facade, "select", """{"bars": {"first": 3, "last": 3}}""");
+        JsonObject saved = Saved(facade);
+
+        JsonArray motifs = saved["workspace"]!["motifs"]!.AsArray();
+        Assert.Equal(["m_0001", "m_0004", "m_0002", "m_0003"], motifs.Select(motif => motif!["id"]!.GetValue<string>()));
+        Assert.True(JsonNode.DeepEquals(file["workspace"]!["motifs"]![1], motifs[2]));
+        Assert.True(JsonNode.DeepEquals(file["workspace"]!["variations"], saved["workspace"]!["variations"]));
+        Assert.Equal(saved.ToJsonString(), Saved(Opened(saved)).ToJsonString());
+    }
+
+    [Fact]
+    public void A_passage_saved_when_no_motif_opens_never_takes_the_place_of_a_motif_this_build_does_not_know()
+    {
+        // #821: with m_0001 hidden and no other motif, the working motif is m_0002, so m_0001 and its variations stay.
+        JsonObject file = With(Worked(), "motifs/0/mode", UnknownValue);
+        JsonObject workspace = file["workspace"]!.AsObject();
+        workspace["motifs"] = new JsonArray(workspace["motifs"]![0]!.DeepClone());
+        workspace["variations"] = new JsonArray([.. workspace["variations"]!.AsArray().Take(5).Select(variation => variation!.DeepClone())]);
+        MusicCoreFacade facade = Opened(file);
+        Call(facade, "select", """{"bars": {"first": 1, "last": 2}}""");
+        JsonObject saved = Saved(facade);
+
+        JsonArray motifs = saved["workspace"]!["motifs"]!.AsArray();
+        Assert.Equal(["m_0001", "m_0002"], motifs.Select(motif => motif!["id"]!.GetValue<string>()));
+        Assert.True(JsonNode.DeepEquals(workspace["motifs"]![0], motifs[0]));
+        Assert.True(JsonNode.DeepEquals(workspace["variations"], saved["workspace"]!["variations"]));
+        Assert.Equal(saved.ToJsonString(), Saved(Opened(saved)).ToJsonString());
+    }
+
+    private static string[] VariationsOf(JsonObject file, string motif) =>
+        [.. file["workspace"]!["variations"]!.AsArray().Where(variation => variation!["motifId"]!.GetValue<string>() == motif).Select(variation => variation!["id"]!.GetValue<string>())];
 }

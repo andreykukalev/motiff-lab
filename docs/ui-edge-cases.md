@@ -27,6 +27,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 
 ## Roll
 
+- `E-roll-1` · Edit notes in the roll's drawer pressed before music-core's playback score is read (the piece just
+  opened), with no selection · the editor does not open yet, rather than naming a bar it guesses; once the score is read
+  its calls name the piece's first bar as music-core numbers it (bar 0 for a pickup) · a control whose action cannot work
+  yet does nothing rather than act on a guess, as Undo of the assistant's draft with no bar to name · v1.5 r-2a
+
 ## Menus, sheets and popovers
 
 - `E-sheet-1` · Undo on the toast of «Сделать рабочими» in the Sources sheet · writes the project file back as it was

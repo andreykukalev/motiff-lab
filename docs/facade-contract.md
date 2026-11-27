@@ -225,6 +225,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 Also within 16 (version 1.5, c-11b, the v1.4 plan's answer 5): sources.makeWorking moves the work kept in ticks with the piece (bookmarks, a title still by their bars retitled, phrase boundaries at every level, resume points, ideas kept with a note alone, the versions compared: their anchors, bars dismissed and Check flags) into the new working notes by bars, as the two are matched for the corrections carried (`ReadingMatch`, `FollowedWork`), a place in a bar with no match kept where the music before it went; when there was such work it answers "followed": "moved" (how many bookmarks, phrase boundaries of the level shown and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are now) and "text" (the toast's line, or null); without such work the answer is as before. A field added; the project file stays version 17.
 
+Also within 16 (version 1.5, r-2a, #821): project.save keeps every saved variation of the working motif, the chain shown under the id of the variation it was opened from and the others as they were; select or idea.open on another passage, while the working motif has variations saved, leaves it in the file as it was and saves the passage beside it under a new id, which passes the motifs this build does not know by. No field changes; the project file stays version 17.
+
 ### 15
 
 15 renames the chosen tempo of reference.explorer's answer (version 1.4, c-5): it was a second "tempo" beside the playback's "tempo" object, which a strict JSON reader refuses, and is now "chosenTempo"; the playback's "tempo" and "tempos" and "tempoChoices" stay. The iPad reads the playback's object, so it reads the answer as before.

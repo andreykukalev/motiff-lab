@@ -63,18 +63,13 @@ internal sealed partial class OpenPiece
         _ => throw FacadeException.BadRequest("\"edits\" is \"on\", \"off\" or \"piece\"."),
     };
 
-    /// <summary>What a piece opened with a layer starts from: the motif to work on and the variation that could not be shown.</summary>
+    /// <summary>What a piece opened with a layer starts from: the working motif's variation that could not be shown.</summary>
     private void StartLayer(OpenedProject opened)
     {
         Corrections.Start(opened.Layer, opened.Hidden);
         if (opened.Layer == EditsLayer.Strict)
         {
             return;
-        }
-
-        if (opened.Motifs.Count == 0 && Project.Motifs.Count > 0)
-        {
-            Selection.SaveBeside(State);
         }
 
         Selection.HideLeftOut(State, Corrections.Hidden);

@@ -193,7 +193,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        Selection.Open(selection, chain);
+        Selection.Open(State, selection, chain);
         return Answer.Write(json =>
         {
             SelectionAnswer(json, selection);

@@ -75,7 +75,7 @@ internal sealed partial class OpenPiece
             throw SelectionSession.NoNotes();
         }
 
-        Selection.Select(selection, kind);
+        Selection.Select(State, selection, kind);
         return Answer.Write(json => SelectionAnswer(json, selection));
     }
 

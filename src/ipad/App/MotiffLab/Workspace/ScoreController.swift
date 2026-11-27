@@ -788,8 +788,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     /// when it is undone, else why not, in music-core's words.
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
-        guard let piece else { return "" }
-        let bar = draft.firstBar ?? 1
+        guard let piece, let bar = draft.firstBar ?? barBeats.firstBar else { return "" }
         variantChoice.edited()
         let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, "{\"bar\": \(bar)}")
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
@@ -868,9 +867,16 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
             showNotice("padEdits.offNotice")
             return
         }
+        // E-roll-1: until music-core's playback score is read there is no bar to name, so the editor does not open yet.
+        guard noteEditBar != nil else { return }
         noteEditor = NoteEditorState()
         noteEditCall(.begin, [:])
     }
+
+    /// The bar the note editor's calls name, as every corrections answer is a bar's notes: the selection's first, else the
+    /// piece's first as music-core numbers it (0 for a pickup), never a guessed bar 1 the piece may not have; nil until the
+    /// playback score is read.
+    var noteEditBar: Int? { selectionModel.selection?.firstBar ?? barBeats.firstBar }
 
     /// Move, Add or Remove: what a press on the roll's notes does.
     func chooseNoteEditTool(_ tool: String) {
@@ -914,11 +920,11 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     }
 
     private func noteEditCall(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
-        guard let piece else { return }
+        guard let piece, let bar = noteEditBar else { return }
         if notes { variantChoice.edited() }
         var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
-        request["bar"] = selectionModel.selection?.firstBar ?? 1
+        request["bar"] = bar
         let body = facadeRequest(request)
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
