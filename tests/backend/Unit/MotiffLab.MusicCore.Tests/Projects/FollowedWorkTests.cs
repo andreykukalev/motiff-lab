@@ -94,12 +94,12 @@ public class FollowedWorkTests
     public void A_bookmark_still_titled_by_its_bars_is_titled_by_its_bars_now_in_its_language_and_one_the_player_named_stays()
     {
         Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5");
-        project = new[] { ("bar 2", Bars(2, 2)), ("такты 1–2", Bars(1, 2)), ("bar 2 tricky", Bars(2, 2)) }.Aggregate(project, static (marked, each) =>
+        project = new[] { ("bar 2", Bars(2, 2)), ("такты 1–2", Bars(1, 2)), ("bar 2 tricky", Bars(2, 2)), ("Section A, bars 1–2", Bars(1, 2)), ("Раздел A, такты 1–2", Bars(1, 2)) }.Aggregate(project, static (marked, each) =>
             marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
 
         Project swapped = project.MakeWorking("n_2", out _);
 
-        Assert.Equal(["bar 3", "такты 2–3", "bar 2 tricky"], swapped.Bookmarks.Select(static bookmark => bookmark.Title));
+        Assert.Equal(["bar 3", "такты 2–3", "bar 2 tricky", "Section A, bars 2–3", "Раздел A, такты 2–3"], swapped.Bookmarks.Select(static bookmark => bookmark.Title));
     }
 
     [Fact]
@@ -115,6 +115,16 @@ public class FollowedWorkTests
         Assert.Equal([new Anchor(new Tick(Bar), 0), new Anchor(new Tick(2 * Bar), 2_000_000)], compared.Anchors);
         Assert.Equal([3], compared.Dismissed);
         Assert.Equal(new CheckFlag(3, CheckSource.Performance, CheckReason.RecordingOctave, Resolved: true), Assert.Single(swapped.Check!));
+    }
+
+    [Fact]
+    public void Other_notes_opened_to_be_shown_show_the_work_moved_and_a_draft_reads_them_alone()
+    {
+        Project project = Bookmarked(Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5"), Bars(2, 2));
+
+        Assert.Equal(Bars(3, 3), Assert.Single(project.ViewOf("n_2").Bookmarks).Span);
+        Assert.Equal(Bars(2, 2), Assert.Single(project.ViewOf("n_2", followWork: false).Bookmarks).Span);
+        Assert.Equal(Bars(2, 2), Assert.Single(project.Bookmarks).Span);
     }
 
     [Fact]

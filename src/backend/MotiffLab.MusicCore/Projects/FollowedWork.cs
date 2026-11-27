@@ -147,15 +147,23 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             PhraseEdits.None.Removing([.. edits.Removed.Select(tick => At(tick, told))]).Adding([.. edits.Added.Select(tick => At(tick, told))]);
 
         /// <summary>
-        /// The bookmark at its place, and with a title that is still the bars title it started with, in either language
-        /// (<see cref="Bookmark.BarsTitle"/>), titled by its bars now in that language; a title the player gave stays.
+        /// The bookmark at its place, and with a title that is still, or ends with ", " and, the bars title of its place, in
+        /// either language (<see cref="Bookmark.BarsTitle"/>: «bars 1–8», the form's «Section A, bars 1–8», a confirmed
+        /// section's «Part 2, bars 41–80»), that ending titled by its bars now in that language; a title the player gave stays.
         /// </summary>
         public Bookmark Placed(Bookmark bookmark)
         {
             TickSpan span = Span(bookmark.Span, Told.Bookmark);
-            Words[] languages = [Words.English, Words.Russian];
-            int language = Array.FindIndex(languages, words => bookmark.Title == Bookmark.BarsTitle(was, bookmark.Span, words));
-            return bookmark with { Span = span, Title = language < 0 ? bookmark.Title : Bookmark.BarsTitle(meter, span, languages[language]) };
+            foreach (Words words in (Words[])[Words.English, Words.Russian])
+            {
+                string bars = Bookmark.BarsTitle(was, bookmark.Span, words);
+                if (bookmark.Title == bars || bookmark.Title.EndsWith(", " + bars, StringComparison.Ordinal))
+                {
+                    return bookmark with { Span = span, Title = string.Concat(bookmark.Title.AsSpan(0, bookmark.Title.Length - bars.Length), Bookmark.BarsTitle(meter, span, words)) };
+                }
+            }
+
+            return bookmark with { Span = span };
         }
 
         /// <summary>

@@ -46,7 +46,7 @@ internal sealed class VariantRecording
 
         try
         {
-            Project notes = holder.ViewOf(variant.From.Notes);
+            Project notes = holder.ViewOf(variant.From.Notes, followWork: false);
             return notes.Transcription?.From is { } original && HeardClock.Of(notes, OpenedProject.Open(notes, EditsLayer.Lenient).Piece) is { } clock
                 ? new VariantRecording(holder.Id, original, notes, clock, variant.From.Span.Onset.Value)
                 : null;

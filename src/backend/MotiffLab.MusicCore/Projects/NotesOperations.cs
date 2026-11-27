@@ -168,6 +168,17 @@ internal static class NotesOperations
     /// <exception cref="InvalidOperationException">Bars are taken from versions into the working notes or an assembly is applied: undo them first.</exception>
     public static Project MakeWorking(this Project project, string id, out FollowedWork? followed)
     {
+        Project made = Swap(project, id);
+        followed = FollowedWork.Of(project, made);
+        return followed?.Project ?? made;
+    }
+
+    /// <summary>
+    /// <see cref="MakeWorking"/> without the work following the music: the Notes swapped, the work left in its ticks; for
+    /// what reads only the notes, their corrections and their transcription.
+    /// </summary>
+    private static Project Swap(Project project, string id)
+    {
         ArgumentNullException.ThrowIfNull(project);
         OtherNotes notes = project.Sources.Notes.FirstOrDefault(each => each.Id == id) ?? throw new KeyNotFoundException($"There are no other Notes {id}.");
         if (project.TakenBars.Any() || project.Assembly.Applied is not null)
@@ -192,7 +203,7 @@ internal static class NotesOperations
         }
 
         CheckFlag[] compared = [.. (project.Check ?? []).Where(static flag => flag.Source == CheckSource.Performance)];
-        Project made = project with
+        return project with
         {
             NotesId = id,
             FileName = Path.ChangeExtension(project.FileName, Path.GetExtension(notes.FileName)),
@@ -210,17 +221,18 @@ internal static class NotesOperations
             Motifs = [.. project.Motifs.Select(motif => motif with { Notes = Swapped(motif.Notes, was, id) })],
             Observations = [.. project.Observations.Select(observation => observation.Variation is null ? observation : observation with { Notes = Swapped(observation.Notes, was, id) })],
         };
-        followed = FollowedWork.Of(project, made);
-        return followed?.Project ?? made;
     }
 
     /// <summary>
     /// The piece as it reads with the Notes <paramref name="id"/> as its notes, only to show them (sources sheet, «Открыть»
     /// on Notes that are not working): other Notes as made working on a copy without the versions, the assembly and the
-    /// player's motifs, variations and ideas; a version's MIDI as notes of their own. The piece itself does not change.
+    /// player's motifs, variations and ideas; a version's MIDI as notes of their own. The piece itself does not change. With
+    /// <paramref name="followWork"/>, the view shows the work kept in ticks moved onto them as «Сделать рабочими» would move it
+    /// (<see cref="FollowedWork"/>, one rule; lead, 2026-11-26); without, for what reads only the notes, their corrections and
+    /// their transcription (a draft's fragment, its recording), they are swapped in alone and nothing is matched.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The piece has no Notes with the id.</exception>
-    public static Project ViewOf(this Project project, string id)
+    public static Project ViewOf(this Project project, string id, bool followWork = true)
     {
         ArgumentNullException.ThrowIfNull(project);
         if (project.HasNotes && id == project.NotesId)
@@ -234,7 +246,7 @@ internal static class NotesOperations
         }
 
         Project bare = project with { Performances = [], Assembly = PieceAssembly.Empty, Motifs = [], Variations = [], Observations = [] };
-        return bare.MakeWorking(id, out _) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
+        return (followWork ? bare.MakeWorking(id, out _) : Swap(bare, id)) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
     }
 
     /// <summary>The Notes a motif or kept variation names once <paramref name="now"/> are the working notes instead of <paramref name="was"/>.</summary>
