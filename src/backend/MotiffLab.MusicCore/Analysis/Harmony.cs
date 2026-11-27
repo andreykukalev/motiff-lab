@@ -324,7 +324,7 @@ internal static partial class HarmonyAnalyzer
             changes);
     }
 
-    /// <summary>The longest run of three or more bass notes on one pitch that lasts at least a bar, or null.</summary>
+    /// <summary>The longest run of three or more bass notes on one pitch that lasts at least three quarters (<c>TicksPerQuarter * 3</c>), or null.</summary>
     private static Note[]? Pedal(IReadOnlyList<Note> bass)
     {
         Note[]? best = null;
