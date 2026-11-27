@@ -28,6 +28,7 @@ extension PieceCore {
         // Phrases, the piece's own settings and its bookmarks.
         case phrases = "phrases"
         case phrasesEdit = "phrases.edit"
+        case phrasesReattach = "phrases.reattach"
         case settings = "settings"
         case settingsOverride = "settings.override"
         case bookmarks = "bookmarks"

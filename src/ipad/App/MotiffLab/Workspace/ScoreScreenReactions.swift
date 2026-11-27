@@ -35,6 +35,7 @@ extension ScoreScreenContent {
             .onChange(of: focusModel.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
             .onChange(of: panels[.roll]) { _, open in workspace.rollDrawerChanged(open, dark: colorScheme == .dark) }
             .onChange(of: checkModel.check) { _, _ in workspace.checkChanged() }
+            .onChange(of: selectionModel.phrases?.anchors) { _, _ in workspace.phraseAnchorsChanged() }
             .onChange(of: panels[.insights]) { _, open in workspace.insightsChanged(open) }
     }
 

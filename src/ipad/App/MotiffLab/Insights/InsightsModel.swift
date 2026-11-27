@@ -1,7 +1,7 @@
 import Foundation
 
-// The Insights stream's facts as music-core states them (facade `understand`), decoded once: values only, no state and
-// no view (the stream's state is InsightsController's).
+// The Insights stream's facts as music-core states them (facade `understand`) and the ideas kept (`ideas`), decoded once:
+// values only, no state and no view (the stream's state is InsightsController's).
 
 /// A fact about the selection, as music-core states it (facade `understand`): a short claim in the piece's language, its
 /// lens and how certain it is, the evidence it rests on, the places in the score it names, and the Try chips music-core
@@ -101,5 +101,35 @@ struct Understanding: Equatable, Sendable {
             .filter { $0.element.lens == lens && !main.contains($0.element.id) }
             .sorted { (order[$0.element.id] ?? Int.max, $0.offset) < (order[$1.element.id] ?? Int.max, $1.offset) }
             .map(\.element)
+    }
+}
+
+/// An idea kept with the project (facade `ideas`, `idea.keep`): its name, the passage it was kept on, and the phrase anchor
+/// it is attached to (#318), which says on which phrase the stream shows it.
+struct KeptIdea: Identifiable, Equatable, Sendable {
+    var id: String
+    var name: String
+    var onset: Double
+    var end: Double
+    var firstBar: Int
+    var lastBar: Int
+    var anchor: String?
+
+    init(_ idea: IdeasAnswer.Idea) {
+        id = idea.id
+        name = idea.name
+        onset = idea.phrase.span.onset
+        end = idea.phrase.span.end
+        firstBar = idea.phrase.bars.first
+        lastBar = idea.phrase.bars.last
+        anchor = idea.anchor
+    }
+
+    /// An idea as the stream shows it: on the phrase of its anchor, or, attached to no phrase now, by its own bars.
+    struct Shown: Identifiable, Equatable {
+        var idea: KeptIdea
+        var phrase: PhraseUnit?
+
+        var id: String { idea.id }
     }
 }

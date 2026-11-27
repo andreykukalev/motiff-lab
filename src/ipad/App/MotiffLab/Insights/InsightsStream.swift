@@ -1,19 +1,37 @@
 import SwiftUI
 
-// The Insights stream's list, shown from InsightsController: which facts, lenses and folds it shows are the
+// The Insights stream's list, shown from InsightsController: which facts, lenses, folds and ideas it shows are the
 // controller's rules; the sheet around it (its head, what sounds, the assistant's foot) is Workspace/InsightsSheet.swift.
 
-/// The stream itself: filter chips, Main (the harmonic motion, the texture, the strongest of the rest), then Details, the
-/// other facts folded by lens with their count (testing item 14).
+/// The stream itself: «Границы фраз изменились» while phrase anchors match no phrase (#318), the ideas kept on the
+/// selection's phrases, filter chips, Main (the harmonic motion, the texture, the strongest of the rest), then Details,
+/// the other facts folded by lens with their count (testing item 14).
 struct InsightsStream: View {
     @ObservedObject var insights: InsightsController
     let text: UIText
     let hasSelection: Bool
     /// A selection with no notes in it (v0.6.4, a passage of time): the stream says so instead of asking for one.
     var noNotes = false
+    /// The piece's phrases with their anchors, which place the ideas and count the anchors that match no phrase.
+    var phrases: PiecePhrases?
+    /// «Привязать заново»; nil where the phrases cannot be changed (a view only shown, E-insights-5), which has no line.
+    var reattach: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-4")) {
+            if let reattach, let phrases, phrases.unmatched > 0 {
+                PhrasesChangedRow(text: text, reattach: reattach)
+            }
+            let ideas = insights.ideasShown(on: phrases)
+            if !ideas.isEmpty {
+                group(text["insights.ideas"]) {
+                    FlowLayout(spacing: CGFloat.ds("s-2")) {
+                        ForEach(ideas) { shown in
+                            ideaTag(shown)
+                        }
+                    }
+                }
+            }
             if let understanding = insights.understanding {
                 let lenses = understanding.lensesShown
                 if lenses.count > 1 {
@@ -115,6 +133,16 @@ struct InsightsStream: View {
         }
     }
 
+    /// A kept idea, in plum (what the app composed): its name and where it is, the phrase of its anchor or its bars.
+    private func ideaTag(_ shown: KeptIdea.Shown) -> some View {
+        let place = shown.phrase.map { text.format("insights.ideaPhrase", String($0.number)) } ?? barsText(shown.idea.firstBar, shown.idea.lastBar, text)
+        return HStack(spacing: CGFloat.ds("s-1")) {
+            Tag(text: shown.idea.name, kind: .saved)
+            Text(place).dsType(.caption).foregroundStyle(Color.ds("ink-2"))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private func chip(_ label: String, on: Bool, action: @escaping () -> Void) -> some View {
         Button(label, action: action)
             .buttonStyle(DSChipStyle(on: on))
@@ -127,5 +155,24 @@ struct InsightsStream: View {
 
     private func lensLabel(_ lens: String) -> String {
         text["term.lens.\(lens)"]
+    }
+}
+
+/// «Границы фраз изменились» (#318): some ideas or resume points are attached to phrases the notes or their analysis no
+/// longer have, and the one group action «Привязать заново» attaches them to the phrases there now.
+private struct PhrasesChangedRow: View {
+    let text: UIText
+    let reattach: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
+            Text(text["insights.phrasesChanged"]).dsType(.label).foregroundStyle(Color.ds("ink"))
+            Button(text["insights.reattach"], action: reattach)
+                .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
+        }
+        .padding(CGFloat.ds("s-3"))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
+        .accessibilityElement(children: .contain)
     }
 }
