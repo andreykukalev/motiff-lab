@@ -387,7 +387,7 @@ four of the web's rule files these were ported from are archived, so the Swift f
 | `Bookmarks.swift` | 722 | SwiftUI | 4: bookmark types and their decode; `ContentsController`; the card; the drawer with 9 views | `BookmarkModel`, `ContentsController`, `BookmarkCard`, `ContentsDrawer`. Also `FlowRow` (tops each row), a second wrap layout beside Platform's `FlowLayout` (centres each row): one of them, in i-16 (lead decision 21) |
 | `Versions.swift` | 708 | SwiftUI, UTType | 3: four decoded shelves (`VersionShelf`, `MergeInfo`, `SourcesInfo`, …); the version bar; the merge views (18 types) | `VersionModel`, `MergeModel` types, `VersionViews`, `MergeViews` |
 | `LibraryView.swift` | 598 | SwiftUI, UTType | 4: the library screen (31 pieces of view state); file operations; opening and switching views of a piece; online copies | `LibraryModel` (open, switch, delete as one owner: UI review «three guards for one switch»), `LibraryView`. Done (v1.6 i-11b): `Library/LibraryModel` owns the files, the shelf and the piece on screen and opens (one at a time, `openOnce`), switches and deletes; the screen, which composes it with the account, the imports and the Reference, is `Workspace/LibraryView` with `LibraryOnline` (34 folder edges went and 9 came with their code, 25 fewer in all; 3 of them now on `LibraryModel`) |
-| `SourcesSheet.swift` | 596 | SwiftUI, UTType | 2: the sheet; rows, menus and dialogs | Rows and dialogs in their own files |
+| `SourcesSheet.swift` | 596 | SwiftUI, UTType | 2: the sheet; rows, menus and dialogs | Rows and dialogs in their own files. Done (v0.10 s-1); v1.6 i-13: the sheet, which composes the sources with the versions, the account, the scan server and Import, is `Workspace/SourcesSheet` (the photos' PDF made there), its importer's `Picking` on `SourcesRow` |
 | `Player.swift` | 566 | AVFoundation, QuartzCore, SwiftUI | 4: the audio graph; the playback model's state (14 published); loading scores from music-core; polling reports | `PlayerAudio` (engine node), `PlayerModel`, `PlaybackScore` decode |
 | `SettingsView.swift` | 560 | PhotosUI, SwiftUI | 3: `DeviceSettings` (a store); the settings sheet; the account panel and profile editor | `DeviceSettings` to its own file; `AccountPanel` to the account feature |
 | `Check.swift` | 558 | SwiftUI | 3: Check types and decode; corrections; the drawer | `CheckModel`, `CheckDrawer` (v1.6 i-8: `CheckModel` done) |
@@ -407,7 +407,7 @@ four of the web's rule files these were ported from are archived, so the Swift f
 | `Scan.swift` | 383 | PDFKit, SwiftUI | 3: the scan server client (HTTP); the engine choice; two panels | `ScanClient`, `ScanPanel` |
 | `InkInput.swift` | 367 | UIKit | 2: the gesture recogniser; the live ink view | Leave |
 | `PieceParts.swift` | 364 | Foundation | 1: value types and requests of the parts | Leave |
-| `SourcesController.swift` | 352 | PDFKit, SwiftUI | 2: the sheet's operations; the hand-over between screens | Joins `SourcesModel` (0031 step 7) |
+| `SourcesController.swift` | 352 | PDFKit, SwiftUI | 2: the sheet's operations; the hand-over between screens | Joins `SourcesModel` (0031 step 7). v1.6 i-13: not joined, as `SourcesModel` is the score's (its versions) and the controller serves the score, the PDF and the recording screens; the controller (600 lines then) keeps its state and the one path of each operation (466 lines), `SourcesToast` and `SourcesHandover` went to `SourcesHandover`, the readers of recognising (the scan server, the recording heard) to `SourcesRecognising`, `RecordingListening` out of `PerformancePlayer`; `SegmentedChoice` to Platform (21 folder edges went, 4 re-keyed with the readers, 1 new: `SourcesRecognising`: `Account`; 16 fewer) |
 
 ### 3.3 The shared score layer (`src/shared/Scripts`)
 
@@ -673,7 +673,7 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 | W2.3 | C4: the transcript tests of the score screen over fake ports | Green before W2.4 |
 | W2.4 – W2.10 | 0031 steps 3–9, one model a step: Pen, Selection, Marks, Check, Sources, Merge, Focus | C4; `MotiffLabTests`; the device check at the next version |
 | W2.11 | 0031 step 10: `ScoreScreen` wiring by concern; its 12 view types into files | UI walk |
-| W2.12 | Feature files cut into model, controller and views: `Dna`, `Pdf`, `Insights`, `Bookmarks`, `Versions`, `Player`, `Account`, `Metronome`, `Reference`, `SettingsView` (addition 3), one a pull request. `Pdf` done (v1.6 i-11), `Library` (v1.6 i-11b), `Insights` (v1.6 i-12) | Their tests; UI walk |
+| W2.12 | Feature files cut into model, controller and views: `Dna`, `Pdf`, `Insights`, `Bookmarks`, `Versions`, `Player`, `Account`, `Metronome`, `Reference`, `SettingsView` (addition 3), one a pull request. `Pdf` done (v1.6 i-11), `Library` (v1.6 i-11b), `Insights` (v1.6 i-12), `Sources` (v1.6 i-13) | Their tests; UI walk |
 | W2.13 | 0031 step 11: `score.js` to TypeScript behind `page-contract.ts`; `src/ipad/App/Web` enters the type, lint and duplicate checks. Done (v1.2 i-1): the page is 15 modules in `src/shared/Scripts/score/ipad-page` behind `Scripts/score/page-contract.ts`, in `tsc`, ESLint, jscpd and the ratchet; `Web/score.js` is only its entry (`docs/code-map/score-page.md`) | C5 |
 | W2.14 | 0031 step 12: the roll's port (`RollPage`) with its contract file in `tests/contracts` | C6; `iPad` workflow |
 
