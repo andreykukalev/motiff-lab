@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import MotiffLab
 
@@ -252,5 +253,24 @@ final class PiecePartsTests: XCTestCase {
         XCTAssertEqual(check.openBars(in: check.pieces[1]).map(\.bar), [25])
         XCTAssertEqual(check.openBars(in: nil).map(\.bar), [3, 25])
         XCTAssertEqual(CheckShelf(answer: #"{"flags": [], "open": 0}"#)?.pieces, [], "no layer, no pieces")
+    }
+
+    // MARK: - Splitting
+
+    /// «Разделить на пьесы» is under way from the press (E-pdf-1): the split shows it while the collection is saved, before
+    /// a piece is made, so its button is off and a second press cannot split the collection again; a save music-core
+    /// refuses ends it with the words why.
+    @MainActor
+    func testASplitIsUnderWayWhileTheCollectionIsSaved() async {
+        let rows = PartRows(rows: [PartRow(title: "I Giorni", first: 1, last: 2)], pageCount: 2)
+        let splitter = PieceSplitter(rows: rows, family: PieceFamily(), title: "Islands")
+        var making: [Int?] = []
+        let watch = splitter.$making.sink { making.append($0?.total) }
+        // No piece is open under this number: music-core refuses to save it.
+        let made = await splitter.split(piece: 0, original: Data(), text: english)
+        watch.cancel()
+        XCTAssertNil(made)
+        XCTAssertEqual(making, [nil, 1, nil], "under way from the press, over once the save is refused")
+        XCTAssertNotNil(splitter.problem, "the words why")
     }
 }

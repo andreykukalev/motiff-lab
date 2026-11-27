@@ -112,18 +112,21 @@ final class PieceSplitter: ObservableObject {
     func split(piece: Int32, original: Data, text: UIText) async -> SplitLink? {
         guard rows.problem == nil, making == nil else { return nil }
         problem = nil
+        let list = rows.rows
+        // Under way from the press (E-pdf-1): the collection's save can take a while, and a second press meanwhile split
+        // it again.
+        making = (0, list.count)
         let now = Date()
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
         let file = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         // A refusal is a few words; the project file, with its PDF, can run to tens of megabytes and is not parsed here.
         if file.utf8.count < 4096, let failure = facadeObject(file), failure["error"] != nil {
             problem = failure["message"] as? String ?? text["parts.pdf.failedNoWord"]
+            making = nil
             return nil
         }
-        let list = rows.rows
         let name = PartsSplit.playlist(playlist, collection: collection)
         var made: [PartLink] = []
-        making = (0, list.count)
         for (index, row) in list.enumerated() {
             switch await make(row, number: index + 1, file: file, original: original, playlist: name, now: now, text: text) {
             case .success(let part): made.append(part)
