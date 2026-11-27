@@ -148,6 +148,20 @@ final class InsightsControllerTests: XCTestCase {
         XCTAssertEqual(ideas?.count, 1, "one idea for two taps")
     }
 
+    /// E-insights-8: read for another selection (the sheet reopened on it, or the selection moved), the stream shows it
+    /// reads it, never the facts of the passage before, whose Try and places would act on the new one.
+    func testAnotherSelectionShowsItLoadsRatherThanThePassageBefore() async throws {
+        let (insights, piece) = try await loaded()
+        let other = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 1, "last": 2}}"#)))
+
+        let reading = Task { await insights.load(piece: piece, selection: other) }
+        _ = await insights.$loading.values.first { $0 }
+        XCTAssertNil(insights.understanding, "the facts of bars 4–12 are gone while bars 1–2 are read")
+        await reading.value
+        XCTAssertFalse(insights.loading)
+        XCTAssertNotNil(insights.understanding, "bars 1–2 understood")
+    }
+
     /// E-insights-2 with the sheet closed: another selection while a way is being made leaves it through the workspace
     /// (`selectionChanged`), so the way that lands plays nothing and shows nothing.
     func testAWayStillBeingMadeIsLeftByAnotherSelectionWithTheSheetClosed() async throws {

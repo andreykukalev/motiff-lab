@@ -87,7 +87,12 @@ final class InsightsController: ObservableObject {
     func load(piece: Int32, selection: ScoreSelection?, again: Bool = false) async {
         self.piece = piece
         guard again || selection != understood || (selection != nil && understanding == nil && !loading) else { return }
-        if selection != understood { generation += 1 }
+        if selection != understood {
+            generation += 1
+            // E-insights-8: the facts shown are another passage's; they go, so the stream shows it reads the new one rather
+            // than offering Try or places on facts of a passage no longer selected (the sheet reopened on another selection).
+            understanding = nil
+        }
         understood = selection
         chosen = nil
         evidence = []

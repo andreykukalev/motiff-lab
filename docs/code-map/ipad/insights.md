@@ -56,7 +56,8 @@ Each is written only by its methods; the views read the rules (`mainShown`, `det
 `trialFilteredOut`, `shows`, `opensCircle`, `ideasShown`: an idea on the phrase of its anchor, else by its bars, E-insights-6). Rules not to break: a variation belongs to the passage it was tried on
 (`load` and `leave` count a `generation`; a way still being made when it moves on is left, sheet open or not,
 E-insights-2); one Try (`starting`) and one Keep (`keeping`, E-insights-3) at a time; a step's refusal shows over the
-facts until the next step (E-insights-1). `DnaScreen`: its own view state only (`@State`, written
+facts until the next step (E-insights-1); another selection drops the facts shown before it is read (E-insights-8);
+Piece DNA opens once while its map is worked out (`dnaOpening`, E-dna-1). `DnaScreen`: its own view state only (`@State`, written
 by its extensions); the playback state is the `Player`'s, the harmony rows' switches `DeviceSettings`'. The rest: not
 recorded yet.
 
@@ -65,7 +66,7 @@ recorded yet.
 UX baseline: not recorded yet; the protected harness reads `workspace.insights.chosen` and calls
 `factChosen(InsightsController.Choice?)` (`tests/ipad/Baseline/WorkspaceSession.swift`), so both names stay. Quality
 ratchet: `InsightsController.swift`'s two Playback edges (the piece with the variation in place for the player); none for
-size since i-12 nor Piece DNA's since d-1. Tests: `InsightsControllerTests` (the stream's rules, E-insights-1 to 3), `PhraseAnchorsTests` (i-18),
+size since i-12 nor Piece DNA's since d-1. Tests: `InsightsControllerTests` (the stream's rules, E-insights-1 to 3 and 8), `PhraseAnchorsTests` (i-18),
 `FacadeTests.testInsightsListMusicCoresFactsByLens`,
 `FacadeTests.testPieceDnaReadsTheFormKeyHarmonyDensityAndTheIdeasFound` (`DnaMap`), `DnaPlayingTests`,
 `DnaBookmarksTests`, `DnaPlayheadTests` (`fraction`, `tick(at:)`).

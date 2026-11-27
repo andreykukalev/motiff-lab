@@ -89,6 +89,8 @@ struct ScoreScreenContent: View {
     @State var dna: DnaMap?
     /// Whether Piece DNA was opened from More, so it shows "‹ More".
     @State var dnaFromMore = false
+    /// Piece DNA's map is being worked out by music-core (E-dna-1).
+    @State var dnaOpening = false
     @ObservedObject var originals: OriginalsController
     @ObservedObject var sources: SourcesController
     /// The other versions, which the score's marker and Sources show.
