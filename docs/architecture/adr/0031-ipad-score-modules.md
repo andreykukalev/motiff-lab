@@ -259,3 +259,132 @@ drawn and the one gone to, and the lists of layers. The views observe the two mo
 or a highlight, going to a bookmark or a note and what the page hides stay in the root, with its page calls, until step
 9. The risk under Consequences holds: SwiftUI's update timing of the views that now observe these models is checked on
 the device at the next version.
+
+## Note (S6, `CheckModel`, v1.6 i-8)
+
+`CheckModel` (`Marks/CheckModel.swift`, reading `SelectionModel`) owns Check: the shelf as music-core answered the last
+`check` call, whether the drawer is open, what this iPad kept of the working notes' scan (variants and crops) and the
+variant chosen last, the bar listed to correct (Fix notes), «Мои правки» and the roll's note editor, with `editsKept`.
+It calls music-core itself and reaches the root through `CheckScore`, as `PenModel` does through `PenScore`: the bar
+selected and shown (`showSpan`), the flags drawn (`drawChecks`, which stays in the root because the pages of a scan no
+engine read are `Workspace`'s), what the page hides (`applyLayers`), the notes changed (`notesDidChange`) and the
+screen's two lines (`showNotice`, `showProblem`). Whether scans go as jobs (`ScanServer.jobs`, Import's) is handed in;
+the assistant's draft comes as its request and first bar, so the model names no Assistant type. The views observe the
+model (`CheckDrawer`, `EditsLayerSection`, `LayersList`, `MorePanel`, `UnreadPagesCheck`); Roll and Import get what they
+show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `NoteEditorState` and `CheckPageEntry` moved
+to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
+(`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
+(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
+
+## Note (S7 part 1, the score's screen by concern, v1.6 i-9)
+
+`ScoreScreen.swift` keeps `ScoreScreen`, the state only `ScoreScreenContent` keeps, `body`, `page` and `layers` (the
+chain of the layers, each layer's content a function beside it). Section 4's files are extensions of
+`ScoreScreenContent`, by the app's naming without `+`: `ScoreScreenBars` (the bar and what hangs under it, the transport),
+`ScoreScreenPanels` (the sheet over the right, the Contents), `ScoreScreenRoll` (the roll's drawer), `ScoreScreenSources`
+(the switch of views, Sources, the «В черновик» sheet) and `ScoreScreenReactions` (the covers and the reactions, in the
+order the code map pins; Expand and playback have no wiring of their own left in the view since `ScoreWorkspace`). The
+view's state they share is internal, no longer private. The view types are in their own files; the bar (`ScoreBar`) and
+the pill (`Pill`) are handed what they show and the actions they call, so the screen can place them elsewhere without
+touching what they do: the pill names no controller, and the bar holds `ScoreController` only to hand it to the modes,
+Practice, the layers list and More (since i-10 not even that). `ScoreController` itself is step i-10.
+
+## Note (S7 part 2, the score's controller by concern, v1.6 i-10)
+
+`SourcesModel` draws the versions on the page and acts on them: showing and comparing one, adding and renaming one, the
+sources read again, a version's bar shown, a marker's «Как в версии» and «Источники». It reaches the root through
+`SourcesScore`, as `CheckModel` does through `CheckScore`: the page, the piece, whether the pages are drawn, whether
+extra information of a kind shows, a draft's labels drawn with the markers, the bar shown (`showSpan`), and what
+follows (`versionsDrawn`: the version in focus and the page engraved again on even bars; `loadCheck`; `hear(version:)`,
+which needs the focus's version notes; `openSources(atBar:)`, the root's `versionPicked`). The Sources views observe
+the model (`MarkerPopover`, `SourcesSheet.versions`), so two folder edges to Workspace went. What stays the root's is
+split by concern into extension files beside it, each with one responsibility (`ScoreSelecting`, `ScoreMarks`,
+`ScoreFocus`, `ScoreInput`, `ScorePageLayout`, `ScorePlayheads`, `ScoreVersions`, resume in `ScoreScreenViews`), and
+`BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 576 lines and its
+two quality entries went. The bar holds no controller: the screen makes Practice and the layers list, and the modes get
+the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
+(`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
+Expand's calls into `FocusModel` and the marks' calls into `MarksModel`, each through its own protocol.
+
+## Note (S7 part 3, Expand and the marks through their own protocols, v1.6 i-10b)
+
+`FocusModel` opens and leaves Expand on the page (`enter`, `expandRoll`, `leave`), goes to the previous or the next
+phrase (`step`), engraves the card at the page's options with the variation tried as its ossia (`engraveCard`,
+`showOssia`; the root's `ossia` went) and keeps the version in focus (`updateVersion`), through `FocusScore`: the page,
+the piece, whether the pages are drawn and the Pen is on, the version shown and its differing bars (as values, so
+`VersionEntry` moved to Platform), the page held still under the veil (`holdPage`), a passage selected
+(`selectPassage`) and a tick revealed, and the problem line. `MarksModel` draws and changes the marks (`draw`,
+`changeMarks`), draws the bookmarks and goes to one, opens, keeps and deletes a margin note, shows the layers and the
+phrases' marks, follows the device's settings and clears the piece's own, and sends what the page hides
+(`applyLayers`), through `MarksScore`: the page, the piece, the pages drawn, the Pen on, Check's drawer open and the
+slate appearance (Check's and the device's, as values), a passage selected and revealed, Expand opened (`enterFocus`, the
+root connecting the two models), the versions drawn again, and the problem line. The model's former state-only
+methods (`open`, `close`, `takeCardOptions`, `showVersion`, `show`, `keepBookmarks`, `wentTo`) were folded into these
+or made private, so each state has one writer. The views call the models (`FocusBar`, `SelectionMenu`, `NoteCard`,
+`LayersList`, `NotesList`, `ContentsList`, the pill's ‹ ›, the roll's Expand). What stays the root's is its
+composition: its state, the page's events routed to the models, the render order, engraving the score, and one line
+per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
+`PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
+extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.
+
+## Note (W2.12, the PDF on its model and views, v1.6 i-11)
+
+`Pdf.swift` is cut by the pattern of this record: `PdfController` (the PDF piece's model over music-core's `document`
+calls and PDFKit, `Pdf/PdfController.swift`, with `keepView`, which sat in the score's `ScoreScreenViews`), the pages'
+view (`PdfPages` beside `BarPdfView` in `PdfPagesView.swift`), More (`PdfMore.swift`), and the screen. The screen
+composes the PDF's model with the pen, the metronome, the Reference, Sources, the scan server and the account, as
+`ScoreScreen` composes the score's, so it moved to `Workspace/` (`PdfScreen.swift`, with `PdfScreenBar`,
+`PdfScreenReading`, `PdfScreenSources` as section 4's extensions), and the 27 folder edges `Pdf/` had for it went;
+the model keeps the nine edges of the pen's state to `Ink/`. «Пьесы в этом файле»'s model (`PieceSplitter.swift`) is
+made from values and answers the pieces made, so it names no `PdfController`; the sheet writes the PDF's family.
+
+## Note (W2.12, the library on its model and views, v1.6 i-11b)
+
+`LibraryView.swift` is cut by the same pattern. `LibraryModel` (`Library/LibraryModel.swift`) owns the project files and
+their summaries, the shelf made from them (its query, tab and group picked) and the piece on screen, and is the one
+owner of opening a piece, whatever asks, of PDF | Notes and of deleting: one opening at a time (`openOnce`), so the
+library's two guards for a switch (`opening` and the screen shown) are one; the screens' `handingOver` stays, as it only
+keeps their save before they ask. It reads the recognition queue (Import) through a closure it is handed, and names
+three `Pdf/` types of the opening (`Landing`, `OtherView`, `PieceFamily`), as `OpenPiece` does. The screen composes the
+model with the account, the imports, the Reference and `PieceScreen`, so it moved to `Workspace/` (`LibraryView.swift`,
+with `LibraryOnline.swift`: sync and the copies online). In the quality baseline 34 folder edges went and 9 came with the
+code they serve, 25 fewer in all; 3 of the 9 are now on `LibraryModel`. `LibraryTools.swift` is cut by
+view group (`LibraryTabs`, `LibraryList`, `PieceActions` beside `LineSwipe`).
+
+## Note (W2.12, Insights on its model, controller and views, v1.6 i-12)
+
+`Insights.swift` is cut by the audit's row. `InsightsModel.swift` holds the typed `understand` answer (`Fact`,
+`Understanding`), as `DnaModel.swift` holds Piece DNA's. `InsightsController` keeps its name (the protected harness
+reads `workspace.insights.chosen` and `InsightsController.Choice`, so no test-side names are needed) and now holds the
+rules its stream view worked out (`mainShown`, `detailsShown`, `opens`, `trialFilteredOut`); the lens filtered to, the
+lenses opened and whether the scale sounds are written only by its methods (`filter`, `fold`, `hearingAloneChanged`), so
+each state has one writer, as section 3 asks of a model. The views are `InsightsStream` and `FactRow` (with `TryRow`,
+`TrialRow`). The sheet composes the stream with the player (`HearingSwitch`), the selection and the assistant, as the
+score's screen composes the features, so it moved to `Workspace/` with `HearingSwitch`, which Expand's bar shares, and
+no longer observes `ScoreController`, which it did not read; `FlowLayout`, used by five folders, moved to Platform. In
+the quality baseline 13 folder edges went and 2 came with the code they serve, 11 fewer in all (the controller hands the player
+the piece with the variation in place, `PlaybackNote` and `PlaybackScore`).
+
+## Note (W2.12, Sources on its model, controller and views, v1.6 i-13)
+
+Sources keeps its model, `SourceLayers` (music-core's `sources.layers`), beside `SourcesModel` (the score's versions,
+section 3), which it does not join: the controller serves the PDF's and the recording's screens too, which have no
+score. `SourcesController.swift`, at the 600-line limit, keeps the controller's state and the one path of each
+operation; what it handed to the next screen (`SourcesToast`, `SourcesHandover`) and the readers of recognising, which
+write no state (the scan server's pages, the recording heard, `SourcesRecognising.swift`), are in their own files, and
+the recording's sound (`RecordingListening`) left the capsules' view file. The sheet composes the controller with the
+versions, the originals, the account, the scan server and Import's camera, as the screens compose the features, so it
+moved to `Workspace/` and makes the photos' PDF there; `SegmentedChoice`, used by eight folders, moved to Platform. In
+the quality baseline 21 folder edges went, 4 were re-keyed with the readers of recognising and 1 is new
+(`SourcesRecognising`: `Account`, which the scan server and the hearing take): 16 fewer in all.
+
+## Note (W2.12, Settings on its model, controller and views, v1.6 i-14)
+
+`Account/SettingsView.swift` held three things. Its model, the device's settings (`DeviceSettings`), which eight
+folders read, moved to Platform, so ten folder edges to Account went; each change of it now waits for the one before
+(`queueChange`), so it has one writer in order. The sheet composes the settings with the account's panels, the scan
+server's (Import) and the kinds of extra information (Marks), as the screens compose the features, so it moved to
+`Workspace/SettingsSheet.swift` and its four edges went. The account section is `Account/AccountPanel.swift`, its
+signed-in part cut by what it shows, the account's own actions in one place (`accountActions`) for the ones to come;
+the profile being edited and its save, which the editor's view held, is `ProfileController`, shown by `ProfileEditor`.
+`FieldLook`, used by three folders, moved to Platform. In the quality baseline 15 folder edges went, none came.

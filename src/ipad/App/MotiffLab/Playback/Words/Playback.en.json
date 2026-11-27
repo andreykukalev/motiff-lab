@@ -59,5 +59,8 @@
   "pill.cycle": "Loop {0} – {1}",
   "pill.cycleSpan": "{0} – {1}",
   "pill.cycleHint": "Turn it on and the position goes to the selection's start and the selection repeats; off, playback goes on through the piece.",
-  "practice.switchesHint": "Opens the two switches: selection controls and playback controls, each on its own"
+  "practice.switchesHint": "Opens the two switches: selection controls and playback controls, each on its own",
+  "focus.cardLabel": "In focus: {0}",
+  "focus.ossia": "Ossia · {0}",
+  "focus.version": "As in {0}"
 }

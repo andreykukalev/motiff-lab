@@ -1,17 +1,9 @@
 {
-  "home.importProject": "Импортировать файл проекта",
-  "home.emptyWhat": "Здесь будут ваши пьесы.",
   "home.lastOpened": "открыт {0}",
   "home.delete": "Удалить",
   "home.deleteForGood": "Удалить безвозвратно",
   "home.keep": "Оставить",
   "home.open": "Открыть",
-  "account.open": "Ваша учётная запись: {0}",
-  "testLibrary.clearedElsewhere": "Всё очищено с другого устройства для нового цикла тестирования, поэтому тестовая библиотека здесь тоже очищена.",
-  "online.overQuota": "Только на этом устройстве: {0}. Бесплатно онлайн хранится до {1} пьес, остальные остаются здесь.",
-  "sync.previousCopy": "{0} (прежняя копия, {1})",
-  "library.addPiece": "Добавить пьесу",
-  "library.more": "Ещё",
   "library.ideas.one": "{0} идея",
   "library.ideas.few": "{0} идеи",
   "library.ideas.many": "{0} идей",
@@ -38,7 +30,6 @@
   "library.noneMatch": "Ничего не нашлось.",
   "library.clearFilters": "Сбросить поиск и фильтры",
   "library.clearSearch": "Очистить поиск",
-  "library.title": "Библиотека",
   "library.tabAll": "Все пьесы",
   "library.tabComposers": "Композиторы",
   "library.tabRecent": "Недавние",
@@ -70,7 +61,7 @@
   "library.pdfAsIs": "Напечатанные страницы как есть",
   "library.edit": "Изменить",
   "library.tabOnline": "Нет на этом iPad",
-  "recognition.choose": "Распознать ноты в нескольких пьесах",
   "recognition.withoutNotes": "Без нот",
-  "library.recordingAsIs": "Запись как есть"
+  "library.recordingAsIs": "Запись как есть",
+  "library.deleteFailed": "«{0}» не удалось удалить с этого iPad: пьеса осталась в библиотеке."
 }

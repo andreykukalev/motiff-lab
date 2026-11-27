@@ -14,7 +14,7 @@ struct AddPieceSheet: View {
     var folder: ((Result<URL, Error>) -> Void)?
 
     /// What «Открыть файл» takes (ADD-01): what the library opens, and a JPEG or PNG, a piece of one page.
-    static let openable: [UTType] = LibraryView.openable + PhotoPiece.images
+    static let openable: [UTType] = OpenPiece.openable + PhotoPiece.images
     @State private var choosing = false
     @State private var photographing = false
     @State private var choosingFolder = false
