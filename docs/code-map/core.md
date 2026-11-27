@@ -21,7 +21,9 @@ through the facade; the API references it.
   `.Writing`: how each note is written, `WrittenNotes`, `Spaces`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
 - `Analysis`: facts (`MotifFact`, `FactRanking`), harmony, keys, Piece DNA (its form: `FormAnalyzer`, the returns of
-  the opening or the sentences, #365), the circle of fifths; `.Phrasing`: the phrase levels, one edit algebra
+  the opening or the sentences, #365), the circle of fifths; an analyser's measuring apart from its fact sentences
+  (W1.8, c-12b): `StructureAnalyzer` (recurrences, phrase spans, new material, into `Measures`) and
+  `StructureAnalyzer.Facts` (the sentences from `Measures` alone, no notes or meter); `.Phrasing`: the phrase levels, one edit algebra
   (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
