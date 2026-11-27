@@ -362,7 +362,7 @@ public sealed partial class MusicCoreFacade
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", project);
-            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
+            json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Save(project)));
         });
     }
 
@@ -510,6 +510,7 @@ public sealed partial class MusicCoreFacade
         }),
         FacadeException failure => Answer.Error(failure.Code, failure.Message),
         ArgumentException argument => Answer.Error("badRequest", argument.Message),
+        ProjectFileException { ReadOnly: true } file => Answer.Error("readOnly", file.Message),
         ProjectFileException file => Answer.Error("badRequest", file.Message),
         _ => Answer.Error("internal", $"{exception.GetType().Name}: {exception.Message}"),
     };

@@ -154,7 +154,7 @@ final class ProbeCounts: @unchecked Sendable {
         #endif
     }
 
-    /// A music-core call took this long, in milliseconds, inside the core's lock.
+    /// A music-core call took this long, in milliseconds, on the core's thread.
     func called(_ milliseconds: Int) {
         #if DEBUG
         lock.lock()

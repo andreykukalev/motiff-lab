@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Settings;
 
 namespace MotiffLab.MusicCore.Projects;
@@ -30,6 +31,13 @@ public sealed partial record Project
         }
 
         var overrides = new Dictionary<string, string>(SettingOverrides, StringComparer.Ordinal);
+        // A value of it a later build kept in the file goes once the player sets the setting here or clears it (#314).
+        var fields = new Dictionary<string, IReadOnlyList<UnknownField>>(UnknownFields, StringComparer.Ordinal);
+        if (fields.TryGetValue(ProjectFile.SettingsPath, out IReadOnlyList<UnknownField>? kept))
+        {
+            fields[ProjectFile.SettingsPath] = [.. kept.Where(field => field.Name != id)];
+        }
+
         if (value is null)
         {
             overrides.Remove(id);
@@ -39,6 +47,6 @@ public sealed partial record Project
             overrides[id] = value;
         }
 
-        return this with { SettingOverrides = overrides };
+        return this with { SettingOverrides = overrides, UnknownFields = fields };
     }
 }

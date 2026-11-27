@@ -33,7 +33,7 @@ what the code answered. The project runs in `build-test` with the rest of `dotne
 | `scan-result.musicxml` | What a scan server might read from a page: 3 bars in 4/4, bar 2 one beat too long | Written for these scenarios |
 | `v12-paterlini-all-my-joy.motiff.json`, `v12-einaudi-santiago.motiff.json` | Project files of version 12 that Andrei made in the app, with synthetic MIDI | Copies of the #293 golden files (`tests/backend/Unit/MotiffLab.MusicCore.Tests/Golden/README.md`) |
 | `v15-worked.motiff.json` | A project file of version 15 holding every kind of entity a note piece keeps | A copy of the #293 golden file |
-| `v18-future.motiff.json` | The version 15 file raised to version 18, with unknown fields and values: newer than every build, before and after the project file's versions 16 (0.6) and 17 (1.1) | The #293 golden file `v16-future.motiff.json` with its version raised to 18 |
+| `v19-future.motiff.json` | The version 15 file raised to version 19 with `minReader` 19, with unknown fields and values: newer than every build, before and after the project file's versions 16 (0.6), 17 (1.1) and 18 (1.6), and one no build of version 18 may read | The #293 golden file `v16-future.motiff.json` with its version raised to 19 and `minReader` 19 |
 | `transkun-fur-elise.mid` | Für Elise as Transkun heard a synthesised recording of it: 904 notes in 130 s | A copy of `tests/backend/Unit/MotiffLab.MusicCore.Tests/Import/Transcription/Fixtures/` |
 
 ## The scenarios

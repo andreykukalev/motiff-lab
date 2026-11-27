@@ -13,7 +13,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class RecordingPieceFormatTests
 {
-    private const string Golden = "v17-recording.motiff.json";
+    private const string Golden = "v18-recording.motiff.json";
 
     private static readonly DateTimeOffset s_now = new(2026, 11, 19, 23, 30, 0, TimeSpan.Zero);
 
@@ -42,7 +42,7 @@ public class RecordingPieceFormatTests
     [Fact]
     public void The_file_written_is_the_golden_of_version_17_and_reads_back_as_the_same_piece()
     {
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Recording()));
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Recording()), ["v17-recording.motiff.json"]);
 
         Project read = ProjectFile.Read(GoldenFiles.Kept(Golden));
         Assert.True(read.IsOnlyRecording);

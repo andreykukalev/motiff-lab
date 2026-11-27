@@ -35,7 +35,7 @@ public class SourcesFormatTests
             .Recognised(musicXml, "homr 0.7.0", PageMap.Of(PieceImporter.Import("a.musicxml", musicXml).Piece!, 2), s_now.AddMinutes(1));
     }
 
-    private static JsonObject Worked() => JsonNode.Parse(GoldenFiles.Kept("v17-worked.motiff.json"))!.AsObject();
+    private static JsonObject Worked() => JsonNode.Parse(GoldenFiles.Kept("v18-worked.motiff.json"))!.AsObject();
 
     private static JsonObject Node(byte[] bytes) => JsonNode.Parse(bytes)!.AsObject();
 
@@ -55,8 +55,8 @@ public class SourcesFormatTests
         byte[] written = ProjectFile.Write(project);
         JsonObject file = Node(written);
 
-        Assert.Equal(["format", "version", "id", "fileName", "createdAt", "lastOpened", "originals", "notes", "workspace"], file.Select(field => field.Key));
-        Assert.Equal(17, file["version"]!.GetValue<int>());
+        Assert.Equal(["format", "version", "minReader", "id", "fileName", "createdAt", "lastOpened", "originals", "notes", "workspace"], file.Select(field => field.Key));
+        Assert.Equal(18, file["version"]!.GetValue<int>());
         Assert.Equal(PieceOriginal.SourceFileId, file["originals"]![0]!["id"]!.GetValue<string>());
         JsonObject notes = file["notes"]![0]!.AsObject();
         Assert.Equal(Project.FirstNotesId, notes["id"]!.GetValue<string>());
@@ -148,7 +148,7 @@ public class SourcesFormatTests
     [Fact]
     public void Views_hidden_from_the_switch_are_kept_in_the_order_of_their_ids_and_never_the_working_notes()
     {
-        Project project = ProjectFile.Read(GoldenFiles.Kept("v17-worked.motiff.json"));
+        Project project = ProjectFile.Read(GoldenFiles.Kept("v18-worked.motiff.json"));
         Assert.False(Node(ProjectFile.Write(project))["workspace"]!.AsObject().ContainsKey("hiddenViews"));
 
         Project hidden = project.ViewHidden("src_file", hidden: true).ViewHidden("perf_1", hidden: true).ViewHidden("perf_1", hidden: true);

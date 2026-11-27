@@ -33,6 +33,33 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     /// </summary>
     public IReadOnlyList<PageReport> Pages { get; init; } = [];
 
+    /// <summary>
+    /// The pages of the PDF, from 1, that no engine read, so the notes lack them (version 18; v1.5 i-7 kept them only in the
+    /// iPad's recognition queue): the app marks each at its place and offers to read it again. Empty when every page was read.
+    /// </summary>
+    public IReadOnlyList<int> Unread { get; init; } = [];
+
+    /// <summary>The pages of the PDF, from 1, that the notes have, in order (version 18), where a page read again goes among them; empty with <see cref="Unread"/>.</summary>
+    public IReadOnlyList<int> ReadPages { get; init; } = [];
+
+    /// <summary>
+    /// The origin with the PDF's pages no engine read and those the notes have (version 18), each a page from 1, once and in
+    /// order; none unread leaves both empty.
+    /// </summary>
+    /// <exception cref="ArgumentException">A page below 1, or one both unread and read.</exception>
+    public ScanOrigin WithUnread(IEnumerable<int> unread, IEnumerable<int> read)
+    {
+        int[] missing = [.. unread.Distinct().Order()];
+        int[] have = [.. read.Distinct().Order()];
+        return missing.Concat(have).Any(static page => page < 1) || missing.Intersect(have).Any()
+            ? throw new ArgumentException("Pages count from 1, and a page is either read or not.", nameof(unread))
+            : this with { Unread = missing, ReadPages = missing.Length == 0 ? [] : have };
+    }
+
+    /// <summary>The origin once the PDF's page <paramref name="page"/> no engine read is in the notes (scan.insert): read now; as it was when the page was not kept as unread.</summary>
+    public ScanOrigin WithPageRead(int page) =>
+        Unread.Contains(page) ? WithUnread(Unread.Where(unread => unread != page), [.. ReadPages, page]) : this;
+
     /// <summary>A scan just read, with no bar checked yet.</summary>
     public static ScanOrigin Read(string engine) => new(engine, []);
 
@@ -47,14 +74,17 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
 
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
-    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages };
+    public ScanOrigin Confirm(IEnumerable<int> bars) => WithConfirmed([.. ConfirmedBars, .. bars]);
 
     /// <summary>The origin with the bar taken out of the confirmed ones, so its notes are detected again.</summary>
-    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages };
+    public ScanOrigin Unconfirm(int bar) => WithConfirmed(ConfirmedBars.Where(confirmed => confirmed != bar));
+
+    /// <summary>The origin with these confirmed bars and everything else it keeps (the reports, the unread pages, version 18).</summary>
+    public ScanOrigin WithConfirmed(IEnumerable<int> bars) => new(Engine, [.. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages };
 
     public bool Equals(ScanOrigin? other) =>
         other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars) && From == other.From && At == other.At
-        && Pages.SequenceEqual(other.Pages);
+        && Pages.SequenceEqual(other.Pages) && Unread.SequenceEqual(other.Unread) && ReadPages.SequenceEqual(other.ReadPages);
 
     public override int GetHashCode() => ConfirmedBars.Aggregate(Engine.GetHashCode(StringComparison.Ordinal), HashCode.Combine);
 }

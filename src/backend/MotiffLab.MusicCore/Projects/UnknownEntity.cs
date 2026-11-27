@@ -19,4 +19,10 @@ public sealed record UnknownEntity(string List, int Index, string? Id, string? O
     /// it belongs with an unknown one.
     /// </summary>
     public string? Enum { get; init; }
+
+    /// <summary>
+    /// The <see cref="Enum"/> of a variation, or an idea, with a step of an operation this build does not have (version 18,
+    /// #314): made by a later build, kept and written back as it was; the facade names them ("newerVariations", "newerIdeas").
+    /// </summary>
+    public const string NewerOperation = "VariationOperation";
 }
