@@ -442,7 +442,6 @@ struct RecognitionLayer: ViewModifier {
     @Binding var consenting: Bool
     @ObservedObject var account: Account
     let entries: [LibraryEntry]
-    let on: Bool
     let text: UIText
     let settings: () -> Void
     let reload: () async -> Void
@@ -464,8 +463,7 @@ struct RecognitionLayer: ViewModifier {
                 }, piecePages: picked.map { max(1, $0.pages) })
             }
             .onChange(of: queue.revision) { _, _ in Task { await reload() } }
-            .task(id: on) {
-                guard on else { return }
+            .task {
                 RecognitionQueue.shared.account = account
                 RecognitionQueue.shared.restoreAndFollowJobs()
                 ImportRunner.shared.added = { url in
@@ -478,8 +476,8 @@ struct RecognitionLayer: ViewModifier {
 
 extension View {
     @MainActor
-    func recognition(chosen: Binding<Set<URL>?>, consenting: Binding<Bool>, account: Account, entries: [LibraryEntry], on: Bool, text: UIText, settings: @escaping () -> Void, reload: @escaping () async -> Void) -> some View {
-        modifier(RecognitionLayer(chosen: chosen, consenting: consenting, account: account, entries: entries, on: on, text: text, settings: settings, reload: reload))
+    func recognition(chosen: Binding<Set<URL>?>, consenting: Binding<Bool>, account: Account, entries: [LibraryEntry], text: UIText, settings: @escaping () -> Void, reload: @escaping () async -> Void) -> some View {
+        modifier(RecognitionLayer(chosen: chosen, consenting: consenting, account: account, entries: entries, text: text, settings: settings, reload: reload))
     }
 }
 

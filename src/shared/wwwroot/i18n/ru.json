@@ -72,8 +72,6 @@
   "check.toReview.one": "{0} такт на проверку",
   "check.toReview.few": "{0} такта на проверку",
   "check.toReview.many": "{0} тактов на проверку",
-  "reference.open": "Круг",
-  "reference.openHint": "Квартоквинтовый круг и тональности",
   "parts.pdf.failedNoWord": "music-core не ответил.",
 
   "dna.title": "ДНК пьесы",
@@ -134,7 +132,6 @@
   "originals.changed": "Оригинал изменился",
   "originals.offline": "Файл не загрузился: «Файлы» сейчас не достают до iCloud Drive или Google Drive. Попробуйте ещё раз, когда будет связь.",
   "originals.unreadable": "Файл не прочитался.",
-  "edits.off": "Правки выключены: ноты такие, как их распознали. Включите правки, чтобы исправлять ноты.",
 
 
   "folderImport.awayTitle": "PDF не на этом iPad",
@@ -153,5 +150,9 @@
 
   "drafts.techniqueCount.one": "{0} приём",
   "drafts.techniqueCount.few": "{0} приёма",
-  "drafts.techniqueCount.many": "{0} приёмов"
+  "drafts.techniqueCount.many": "{0} приёмов",
+
+  "sources.sheet.photos": "Фото страниц",
+  "sources.sheet.recording": "Запись",
+  "drafts.new": "Новый черновик"
 }

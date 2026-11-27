@@ -12,11 +12,13 @@ import UniformTypeIdentifiers
 /// the sheet (v1.1: its page, the bar-by-bar merge, left the iPad, ADR 0034 section 8). Last, «Черновики» (v1.1, ADR
 /// 0034): each draft with its eye and ⋯ (rename, delete), and «Новый черновик» on the score. The rows are in
 /// `SourcesRows.swift`, «Распознать» in `SourcesRecognise.swift` and the dialogs in `SourcesDialogs.swift` (v0.10); this
-/// file is the sheet, its header and add menu, and picking files.
+/// file is the sheet, its header and add menu, and picking files. It composes the piece's sources (`SourcesController`)
+/// with the versions, the originals, the account, the scan server and Import's camera and recordings, as the screens
+/// compose the features, so it is in Workspace since v1.6 i-13.
 struct SourcesSheet: View {
     @ObservedObject var sources: SourcesController
-    /// The score's controller, for the versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
-    let score: ScoreController?
+    /// The score's versions; nil on the PDF, where the sheet opens over the pages (#582 item 4).
+    let versions: SourcesModel?
     @ObservedObject var originals: OriginalsController
     let text: UIText
     /// The view shown now: its row is tinted.
@@ -31,16 +33,7 @@ struct SourcesSheet: View {
     @EnvironmentObject private var account: Account
     @ObservedObject private var scan = ScanServer.shared
 
-    /// What the one file importer picks.
-    enum Picking: Equatable {
-        case pdf, recording, score
-        /// The same file as a deleted original.
-        case same(SourceLayers.Original)
-        /// «Привязать оригинал»: the PDF where it lies in Files.
-        case relink(String)
-    }
-
-    @State private var picking: Picking?
+    @State private var picking: SourcesRow.Picking?
     /// Files is open for `picking`, kept until the importer answers.
     @State private var importing = false
     @State private var camera = false
@@ -84,13 +77,13 @@ struct SourcesSheet: View {
         .fullScreenCover(isPresented: $camera) {
             DocumentCamera { images in
                 camera = false
-                Task { await sources.addPhotos(images) }
+                Task { await addPhotos(images) }
             }
             .ignoresSafeArea()
         }
         .modifier(SourcesDialogs(
             sources: sources, originals: originals, text: text, deleting: $deleting, deletingNotes: $deletingNotes, renaming: $renaming,
-            rename: { notes, name in Task { await score?.renameVersion(notes.id, to: name); await sources.refresh() } }
+            rename: { notes, name in Task { await versions?.renameVersion(notes.id, to: name); await sources.refresh() } }
         ))
         .modifier(DraftDialogs(sources: sources, text: text, renaming: $renamingDraft, deleting: $deletingDraft))
         .onAppear {
@@ -150,7 +143,7 @@ struct SourcesSheet: View {
                 Label { Text(text["sources.sheet.recording"]); Text(text["sources.sheet.addRecordingHint"]) } icon: { Image("ic-mic") }
             }
             // Notes from a file become a version of the working notes, which only the score holds.
-            if score != nil {
+            if versions != nil {
                 Button { pick(.score) } label: {
                     Label { Text(text["sources.sheet.addScore"]); Text(text["sources.sheet.addScoreHint"]) } icon: { Image("ic-fromFile") }
                 }
@@ -221,7 +214,7 @@ struct SourcesSheet: View {
         SourcesRow(
             text: text, current: current, address: scanAddress, hosted: hosted, jobs: ScanServer.jobs, pick: pick,
             delete: { deleting = $0 }, deleteNotes: { deletingNotes = $0 },
-            rename: score == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
+            rename: versions == nil ? nil : { (notes: SourceLayers.Notes) in renaming = notes },
             renameDraft: { renamingDraft = $0 }, deleteDraft: { deletingDraft = $0 }
         )
     }
@@ -238,7 +231,15 @@ struct SourcesSheet: View {
 
     // MARK: - Picking files
 
-    private func pick(_ what: Picking) {
+    /// Photos of pages from the iPad's document camera, as one PDF of images (v0.4 «Фото страниц»), added as an original
+    /// (from SourcesController in v1.6 i-13: the camera and the photos' PDF are Import's, which the sheet composes).
+    private func addPhotos(_ images: [UIImage]) async {
+        let pages = images.compactMap(PhotoImages.jpeg).map { PhotoPage(photo: $0) }
+        guard !pages.isEmpty else { return }
+        await sources.addPages(PhotoImages.pdf(pages), fileName: text["sources.sheet.photosFile"] + ".pdf", kind: "images")
+    }
+
+    private func pick(_ what: SourcesRow.Picking) {
         picking = what
         importing = true
     }
@@ -253,7 +254,7 @@ struct SourcesSheet: View {
     }
 
     /// A file picked in Files: read once, inside its security scope, and never changed.
-    private func take(_ url: URL, for picked: Picking) async {
+    private func take(_ url: URL, for picked: SourcesRow.Picking) async {
         switch picked {
         case .recording:
             await sources.addRecording(url)
@@ -265,12 +266,9 @@ struct SourcesSheet: View {
         case .same(let original) where original.isRecording:
             await sources.addRecording(url)
         case .pdf, .score, .same:
-            let lent = url.startAccessingSecurityScopedResource()
-            let data = try? Data(contentsOf: url)
-            if lent { url.stopAccessingSecurityScopedResource() }
-            guard let data else { return }
+            guard let data = await sources.read(picked: url) else { return }
             if picked == .score {
-                await score?.addVersion(fileName: url.lastPathComponent, data: data)
+                await versions?.addVersion(fileName: url.lastPathComponent, data: data)
                 await sources.refresh()
             } else {
                 let kind: String

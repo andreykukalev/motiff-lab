@@ -22,7 +22,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | Folder | Map | Holds |
 | --- | --- | --- |
 | `Platform/` | [platform](ipad/platform.md) | music-core's port, the score page's port, design tokens, words, project files, the app |
-| `Workspace/` | [workspace](ipad/workspace.md) | the score's screen and its controller |
+| `Workspace/` | [workspace](ipad/workspace.md) ([screen](ipad/workspace-screen.md), [controller](ipad/workspace-controller.md), [drafts](ipad/workspace-drafts.md)) | the score's screen and its controller |
 | `Selection/` | [selection](ipad/selection.md) | the one selection, its tools and history, phrases |
 | `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill, metronome, tempo, practice, Expand |
 | `Roll/` | [roll](ipad/roll.md) | the piano roll in the drawer |
@@ -30,7 +30,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
 | `Sources/` | [sources](ipad/sources.md) | sources, versions, originals |
 | `Pdf/` | [pdf](ipad/pdf.md) | the PDF view, its notes, its parts |
-| `Library/` | [library](ipad/library.md) | the library screen and its shelf |
+| `Library/` | [library](ipad/library.md) | the library's model (open, switch, delete) and its shelf; its screen is in `Workspace/` |
 | `Import/` | [import](ipad/import.md) | Add piece, folders, scans, photos, recordings, recognition |
 | `Insights/` | [insights](ipad/insights.md) | Insights, the piece's map (DNA), the circle of fifths |
 | `Reference/` | [reference](ipad/reference.md) | the reference sheet |

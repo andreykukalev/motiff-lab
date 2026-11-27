@@ -57,11 +57,11 @@ extension ScoreWorkspace {
         // A bookmark being made belongs to the selection it was started on, and so does a note.
         if let draft = contents.draft, draft.id == nil { contents.cancel() }
         if let note = score.marksModel.noteDraft, note.onset != selection?.onset || note.end != selection?.end { score.marksModel.noteDraft = nil }
-        // The stream follows the selection while it is open; a variation tried belongs to the passage it was
-        // tried on, so it is left either way.
+        // The stream follows the selection while it is open; a variation tried, or still being made, belongs to the
+        // passage it was tried on, so it is left either way (E-insights-2).
         if panels[.insights] {
             Task { await insights.load(piece: piece.id, selection: selection) }
-        } else if insights.trial != nil {
+        } else if insights.trial != nil || insights.starting != nil {
             Task { await insights.leave() }
         }
     }
@@ -74,7 +74,7 @@ extension ScoreWorkspace {
     }
 
     /// The note editor on the roll (testing item 15): a press on its notes edits them while it is open. The reaction on
-    /// `score.noteEditor`.
+    /// `score.checkModel.noteEditor`.
     func noteEditorChanged(_ editor: NoteEditorState?) {
         roll.showEditor(editor)
     }

@@ -54,7 +54,7 @@ struct RecordingScreen: View {
             }
             .overlay(alignment: .bottom) {
                 if sourcesOpen {
-                    SourcesSheet(sources: sources, score: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
+                    SourcesSheet(sources: sources, versions: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
                     .modifier(BottomPanel(height: screen.size.height / 2))
                 }
             }
