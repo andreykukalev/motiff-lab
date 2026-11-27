@@ -227,7 +227,8 @@ struct PdfPages: UIViewRepresentable {
         view.autoScales = true
         controller.view = view
         context.coordinator.watch(view)
-        controller.attach(to: view)
+        // Out of SwiftUI's update (#675): attaching the pen puts away the colour bar's tool, a published value.
+        DispatchQueue.main.async { controller.attach(to: view) }
         // The place the player left the pages at, or the page PDF | Notes landed on: under the bar once the pages are laid out.
         if let state = controller.startState { view.comeBack(to: state) } else if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
         return view
@@ -263,7 +264,13 @@ struct PdfPages: UIViewRepresentable {
             NotificationCenter.default.addObserver(self, selector: #selector(pageChanged), name: .PDFViewVisiblePagesChanged, object: view)
         }
 
+        /// PDFKit says so while SwiftUI updates the view too (a document shown again, the iPad turned: `updateUIView`), so
+        /// the page in view is told on the next turn of the main queue, out of the update (#675).
         @objc func pageChanged(_ notification: Notification) {
+            DispatchQueue.main.async { [weak self] in self?.tellPage() }
+        }
+
+        private func tellPage() {
             guard let view, let document = view.document else { return }
             let visible = view.visiblePages.map { document.index(for: $0) + 1 }.sorted()
             let first = view.currentPage.map { document.index(for: $0) + 1 } ?? visible.first ?? 0

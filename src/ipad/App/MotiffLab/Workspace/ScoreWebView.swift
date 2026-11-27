@@ -22,7 +22,10 @@ struct ScoreWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: WKWebView, context: Context) {
-        score.show(piece, dark: dark)
+        // Out of SwiftUI's update (#675): showing a new piece opens the selection's, the sources' and the focus's models,
+        // whose published values may not change while SwiftUI updates the view; the next turn of the main queue shows it.
+        let score = self.score, piece = self.piece, dark = self.dark
+        DispatchQueue.main.async { score.show(piece, dark: dark) }
         // The stylus menu opens where the Pencil is over any part of the screen, the roll's too (#521 7).
         score.watchStylus(in: view.window)
     }

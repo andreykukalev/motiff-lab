@@ -78,7 +78,8 @@ export interface BarFrame {
 }
 
 /**
- * What a saved set of marks looks like: version 2, the shape the project file keeps under "marks.ink" (ProjectFile.WriteInk).
+ * What a saved set of marks looks like: version 2, the shape the project file keeps under "marks.ink" (read and written
+ * by the project file's `MarksCodec`).
  * Version 1 named the colours ink, red, blue and yellow; readMarks still reads it.
  */
 export interface MarksFile {

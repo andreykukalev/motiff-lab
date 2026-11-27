@@ -4,6 +4,8 @@
 
 **Platform (2026-11-16):** Stage 1 is now built on the iPad app only; the web app this spec describes as the platform is archived ([0032](architecture/adr/0032-ipad-first-web-archived.md), [web-archive.md](web-archive.md)). Requirements stay valid as product intent; "in the browser" reads "on the device".
 
+**Online (2026-11-27):** what leaves the device and how projects sync are as `CLAUDE.md` «Conventions» states them, from decision records [0011](architecture/adr/0011-sheet-music-recognition.md), [0014](architecture/adr/0014-hosted-scan-server.md), [0025](architecture/adr/0025-two-studios.md), [0026](architecture/adr/0026-project-continuity.md), [0028](architecture/adr/0028-ai-bar-edits.md) and [0034](architecture/adr/0034-drafts.md); the lines of this spec on what is sent and on sync below follow them.
+
 ## Stage 1 at a glance
 
 The first release of Motiff Lab works on structured music, not audio. Players import a MIDI or MusicXML file, explore the piece and its motifs, restore the rhythm of a played performance, and transform a motif through controlled, explained variations. A deterministic music engine computes every note, timing, analysis and transformation. Optional AI assistance, hosted on Azure AI Foundry, explains those results in plain words and suggests what to try next. Stage 1 is the first implementation milestone of the full vision, not a replacement for it.
@@ -18,9 +20,9 @@ The first release of Motiff Lab works on structured music, not audio. Players im
 | AI role | Interprets engine results, asks questions, gives hints and suggests goals and parameters. It never produces the notes, the timing or the analysis |
 | Learning | Discovery, Guided and Analysis modes; the player tries first and help comes on request |
 | Platform | Desktop and tablet browser (Blazor WebAssembly PWA), archived since 2026-11-16; now the native iPad app (0019, 0032). The core journey works offline and without AI |
-| Cloud | Static hosting, an anonymous analytics endpoint and a thin AI gateway (Azure Functions). Imported files never leave the device |
+| Cloud | The Motiff Lab API (projects saved online after sign-in and synced between the player's devices, the assistant's relay; 0014, 0028) and the hosted scan server (0014). An imported file leaves the device only as a PDF or photo picked for scanning, or a recording's sound picked for transcription, and only to the scan server |
 | Output | Saved variations in the project; MIDI export |
-| Not in Stage 1 | Audio import or transcription, audio-based rhythm restoration, MIDI keyboard input or MIDI output to instruments, sync with other devices or apps, reconstruction attempts with hints, PDF or image scores, reharmonisation |
+| Not in Stage 1 | Audio import or transcription, audio-based rhythm restoration, MIDI keyboard input or MIDI output to instruments, sync with other apps, reconstruction attempts with hints, PDF or image scores, reharmonisation |
 | Exit gate | Usability, creative-engagement, learning-potential and AI-trust criteria in the validation study below |
 
 The guiding principle for this stage: help musicians move from reproducing existing music to understanding it, transforming it, and eventually creating independently.
@@ -103,10 +105,10 @@ Stage 1 must deliver one complete journey on one motif; everything else is label
 | Free-form questions to the AI about a passage | Could | S1-AI6 |
 | Playback to a connected MIDI instrument; MIDI keyboard input | Later | Stage 2 |
 | Reconstruction attempts, progressive hints and feedback on played attempts | Later | Stage 2 (PRD module C) |
-| Accounts, sync, mobile apps | Later | Stage 2 |
+| Accounts, sync, mobile apps | Started | Pulled forward: sign-in, projects saved online and synced between the player's devices (0014, 0026; free with a quota, 0025 section 8), the native iPad app (0019) |
 | Rhythm restoration of free-tempo performances (no usable tempo map) | Later | Stage 2 or 3, with beat tracking |
 | Audio import, transcription and audio-based rhythm restoration | Later | Stage 3 (PRD module A) |
-| Sync with DAWs, other devices or apps | Later | Stage 4 |
+| Sync with DAWs or other apps | Later | Stage 4 |
 | PDF or photographed scores (optical music recognition) | Started | Pulled forward 2026-10-25: homr on a scan server the player runs on their own computer, with a Check the scan step (decision record 0011). MusicXML exported by any OMR tool still imports like any other MusicXML |
 | Harmonic colour, reharmonisation, counter-melodies | Later | Stage 4 |
 
@@ -319,7 +321,7 @@ AI in Stage 1 is an interpreter and a coach, not a composer. The engine computes
 3. **Proposals are executed, then explained by the engine.** When the player applies an AI suggestion, the engine runs it, checks Keep constraints and writes the factual explanation from the diff (S1-E4). AI commentary can add context next to it, never replace it.
 4. **The player decides.** AI suggests; nothing is applied without a tap. In Discovery mode, suggestions unlock only after the player's own attempt.
 5. **Useful without AI.** Every step works with AI off, offline or unavailable. Templates built from engine facts take the place of AI text.
-6. **Send little, send only with consent.** Only a compact digest of facts about the current motif leaves the device, and only after the player agrees (S1-AI0).
+6. **Send little, send only with consent.** Only the notes of the selected passage and the digest of its facts leave the device, and only after the player agrees (S1-AI0, 0028 section 5).
 
 ### Features
 
@@ -337,13 +339,13 @@ Hints follow progressive disclosure: the first AI hint points at a property ("li
 
 ### What is sent and what is not
 
-| Sent to Azure AI Foundry (after consent) | Never sent |
+| Sent to the Motiff Lab API, which relays it to the model provider (Pro, after a one-time consent that lists it; 0028, 0034) | Never sent |
 | --- | --- |
-| Engine facts about the current motif and its context: intervals, contour, rhythm tokens, scale degrees, chord labels, repeat locations, character figures, timing statistics, and the diff of a variation | The imported file, the full note list of the piece, or audio |
-| Mode, Keep choices, operation history for this motif, and the player's typed answer or question | File name, title or composer, unless the player turns on "include title for context" |
-| A random installation ID used only for rate limiting | Names, emails or account data (Stage 1 has no accounts); IP addresses are not stored by Motiff Lab |
+| The notes of the selected bars and the engine's facts about them with their IDs, the meter and the key; in a draft, the notes of one place's base and of the variant whose techniques it takes, at most 32 bars each, with those techniques and the place's seams (0034) | The imported file or its name, the piece's title, the notes of the rest of the piece or of other places, or a recording's sound |
+| The player's question and the conversation | The player's marks, notes, bookmarks and recordings |
+| The sign-in's account, for Pro and the daily limit; the relay does not pass it to the model | |
 
-Motiff Lab does not store prompts or answers on the server; the gateway logs only the feature, token counts, latency and outcome. The Foundry deployment runs in an EU region, and its data-retention settings are stated in the privacy notice before the study.
+The API stores neither the notes nor the prompts and answers, and logs only counts (0028). The model provider, its region and its retention are stated in the privacy notice.
 
 ### Integration
 
@@ -454,7 +456,7 @@ Each criterion is testable in the browser with the test files and starter librar
 
 ## Architecture and data model
 
-Stage 1 runs in the browser: files are parsed, analysed, restored, transformed and played on the device. The cloud holds static hosting, an anonymous analytics endpoint, and the AI gateway. It uses the same event model and music-core library described in Domain & Architecture, so Stage 3 can plug audio-derived events into the same pipeline. The stack is in decision record 0001.
+Stage 1 runs in the browser: files are parsed, analysed, restored, transformed and played on the device. The cloud holds the Motiff Lab API (projects saved online and synced, the assistant's relay; 0014, 0028) and the hosted scan server (0014); analytics has no endpoint yet. It uses the same event model and music-core library described in Domain & Architecture, so Stage 3 can plug audio-derived events into the same pipeline. The stack is in decision record 0001.
 
 | Component (from the vision) | Stage 1 implementation | Reused later |
 | --- | --- | --- |
@@ -466,8 +468,8 @@ Stage 1 runs in the browser: files are parsed, analysed, restored, transformed a
 | 6. Playback | Web Audio with an AudioWorklet and a sampled piano, called from Blazor through a thin TypeScript layer | Mobile audio engine replaces it in Stage 2 |
 | 7. Visualisation | Canvas piano roll and keyboard in the TypeScript layer; score view engraved by Verovio (LGPL-3.0, loaded on first use) from the MusicXML source or from MEI that music-core generates from the notes (decision record 0008) | Same views |
 | 8. Learning interaction | Mode state machine; guided sequences and comparison tasks stored as JSON content | Extended with hints and attempts |
-| 9. AI assistance | Fact digest built by music-core; gateway in Azure Functions calling Azure AI Foundry through a replaceable adapter; response validation against the digest and the operation catalogue | Same gateway for the Stage 3 AI tutor |
-| 10. Persistence | IndexedDB in the browser, autosave, project export file | Synced accounts from Stage 2 |
+| 9. AI assistance | Fact digest built by music-core; the Motiff Lab API relays the conversation to the model through a replaceable adapter (0028); response validation against the digest and the operation catalogue | Same gateway for the Stage 3 AI tutor |
+| 10. Persistence | Project files on the device, autosave, project export file; after sign-in with saving online on, saved online and synced between the player's devices (0014, 0026) | Same |
 
 **Source reference on every imported event**
 
@@ -493,7 +495,7 @@ Each note keeps where it came from, so "Show in piece", corrections and exports 
 
 | Object | Key fields | Notes |
 | --- | --- | --- |
-| SourceFile | hash, format, name, parts or tracks, import warnings | Stored with the project; never uploaded |
+| SourceFile | hash, format, name, parts or tracks, import warnings | Stored with the project; its bytes never go online with it (the online copy keeps only its name, size and hash); a PDF or photo picked for scanning goes to the scan server |
 | Project | id, source file, created and opened times, mode default, AI enabled | The unit the player saves and exports |
 | TimingLayer | id, grid, strength, scope, excluded notes, per-note restored onset and duration | Derived from the original; can be turned off; the original is never changed |
 | Motif | id, project, note IDs, range, track or voice filter, name, source reference, mode | Same derived views as in Domain & Architecture |
@@ -502,7 +504,7 @@ Each note keeps where it came from, so "Show in piece", corrections and exports 
 | AiSuggestion | feature, prompt version, cited fact IDs, proposed operation and parameters, applied or dismissed | Stored on the device with the learning record |
 | LearningRecord | motif, mode, prompts answered, comparison results, alternatives and AI suggestions opened before or after own attempt | Feeds the validation study through a participant-controlled export |
 
-Accounts, sync and the audio analysis backend arrive with Stages 2 and 3.
+Accounts, saving online and sync between the player's devices (0014, 0026) and a recording's transcription on the scan server (0014) were pulled into Stage 1; the full audio analysis backend stays with Stage 3.
 
 ## Content sources and rights
 
@@ -514,14 +516,14 @@ Stage 1 lives or dies on players having a file of music they care about, so gett
 | Their own recorded MIDI | Export a performance from a DAW or digital piano app, then Restore rhythm | Their own performance |
 | Public-domain score libraries | Download MusicXML or MIDI of older classical pieces | Licences vary per file and per edition; the app links to sources and shows the licence when known |
 | Starter library | Built into the app (S1-C1) | Public-domain compositions encoded by us or under CC0 or CC BY; licence stored per file |
-| Files found online for copyrighted songs | Players import them themselves | The app does not provide, host or share them; projects stay on the device; exports are for personal practice |
+| Files found online for copyrighted songs | Players import them themselves | The app does not provide, host or share them; projects stay on the device, or in the player's own account online, seen only by the player's devices; exports are for personal practice |
 
 **Rules**
 
 - The composition and a particular edition or arrangement can carry separate rights; the starter library uses only editions with a clear open licence.
-- Projects, files and variations are never uploaded in Stage 1. With AI on, only the fact digest described above is sent, for processing, and it is not stored by Motiff Lab.
+- Files are never uploaded, except a PDF or photo picked for scanning and a recording's sound picked for transcription, which go only to the scan server. Projects with their variations go online only after sign-in with saving online on, to the player's own account. With the assistant on, only what is listed above is sent, for processing, and it is not stored by Motiff Lab.
 - The terms of use state that imports must be files the player may use and that exports are for personal practice.
-- The privacy notice explains AI processing, the processor (Microsoft, as provider of Azure AI Foundry), the region and retention, and how to turn AI off.
+- The privacy notice explains AI processing, the model provider as processor, the region and retention, and how to turn AI off; and what saving online, scanning and transcription send, and how to turn saving online off.
 - Licensed catalogues from publishers or score platforms are a later partnership option (Stage 4), not a Stage 1 dependency.
 
 This is product thinking, not legal advice; the legal review planned in the Overview covers Stage 1 too.
