@@ -6,7 +6,7 @@
 // (ipad-page/page-phrase-drag.ts).
 import { type PressPoint, type PressTimers, WINDOW_TIMERS } from "../playback/playhead-press.js";
 import { phraseAt } from "./phrase-marks.js";
-import { HOLD_MS, HOLD_SLOP } from "./selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../selection/selection-gesture.js";
 
 /** A beat as music-core counts it, where it starts: what the drag's caption writes as «такт 5 · доля 1». */
 export interface BarBeatPlace {

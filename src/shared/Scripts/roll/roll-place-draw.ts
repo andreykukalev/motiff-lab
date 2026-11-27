@@ -8,7 +8,7 @@
 import type { RollNote } from "./roll-model.js";
 import type { PlacePreview } from "./roll-place-gesture.js";
 import type { RollPoint, TickSpan } from "./roll-place.js";
-import { onEdgeHandle } from "../score/selection-places.js";
+import { onEdgeHandle } from "../selection/selection-places.js";
 
 /** Where the roll draws: ticks and pitches to pixels, its rows, the bar numbers' height and the notes' left and right. */
 export interface PlaceFrame {

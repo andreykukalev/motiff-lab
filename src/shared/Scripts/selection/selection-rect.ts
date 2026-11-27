@@ -3,7 +3,7 @@
 // it is now, and the passage it covers. What it selects is its geometry: the systems it reaches over, time from its left
 // and right sides on one system, «as text» across several (from the upper corner on the top system to the lower corner on
 // the bottom one), snapped outward to the lines (beats, or barlines), and the staff it stays within (that hand), else both.
-// The iPad only (selection-place-layer.ts). Pure; nothing here touches the DOM.
+// The iPad only (score/selection-place-layer.ts). Pure; nothing here touches the DOM.
 
 import { type Hand, type PlaceBox, type StaffBand, strokeHand } from "./selection-places.js";
 

@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import {
-  CORE_LAYERS, IPAD_FOLDER_USES, bundledFolders, coreNamespaceViolations, coreViolations, csharpCode, ipadFolderViolations,
-  ipadPageViolations, runtimeImports, swiftCode,
+  CORE_LAYERS, IPAD_FOLDER_USES, SCRIPT_FOLDER_USES, bundledFolders, coreNamespaceViolations, coreViolations, csharpCode,
+  ipadFolderViolations, ipadPageViolations, moduleImports, runtimeImports, scriptFolderViolations, swiftCode,
 } from './dependencies.mjs';
 import { compare, updateBaseline } from './ratchet.mjs';
 
@@ -96,6 +96,43 @@ test('the iPad page may reach only the bundled folders, through every module it 
     'ipad-unbundled src/shared/Scripts/playback/p.ts ../import/recording.js',
     'ipad-missing src/shared/Scripts/playback/p.ts ./q.js',
   ]);
+});
+
+test('a module names its runtime imports and its type-only ones', () => {
+  const text = 'import type { A } from "./a.js";\nimport { type B, b } from "../b/b.js";\nexport type { E } from "./e.js";\n';
+  assert.deepEqual(moduleImports(text).map((i) => `${i.spec}:${i.line}`).sort(), ['../b/b.js:2', './a.js:1', './e.js:3']);
+});
+
+const scripts = (files) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`src/shared/Scripts/${path}`, text]));
+
+test('a folder of the shared scripts imports only the folders the table allows, type-only imports included', () => {
+  const files = scripts({
+    'playback/hold.ts': 'import { HOLD_MS } from "../selection/gesture.js";\nimport type { Bar } from "../score/geometry.js";\n',
+    'score/ipad-page/page.ts': 'import { a } from "../a.js";\nimport { b } from "../../playback/hold.js";\nimport { r } from "../../roll/r.js";\n',
+    'selection/gesture.ts': 'import { c } from "./c.js";\n',
+    'import/scan.ts': 'export const s = 1;\n',
+  });
+  assert.deepEqual(scriptFolderViolations(Object.keys(files), reader(files)).map((v) => `${v.rule} ${v.file.slice(19)}:${v.line} ${v.symbol}`), [
+    'script-folder playback/hold.ts:2 playback: score',
+    'script-folder score/ipad-page/page.ts:3 score: roll',
+    'script-folder-unlisted import/scan.ts:1 import',
+  ]);
+});
+
+test('no two folders of the shared scripts may import each other, directly or round a loop', () => {
+  const reaches = (from, seen = new Set()) => {
+    for (const to of SCRIPT_FOLDER_USES[from]) {
+      if (!seen.has(to)) {
+        seen.add(to);
+        reaches(to, seen);
+      }
+    }
+    return seen;
+  };
+  for (const folder of Object.keys(SCRIPT_FOLDER_USES)) {
+    assert.ok(SCRIPT_FOLDER_USES[folder].every((to) => to in SCRIPT_FOLDER_USES), `${folder} names a folder the table lacks`);
+    assert.ok(!reaches(folder).has(folder), `${folder} reaches itself`);
+  }
 });
 
 const app = (files) => Object.fromEntries(Object.entries(files).map(([path, text]) => [`src/ipad/App/MotiffLab/${path}`, text]));

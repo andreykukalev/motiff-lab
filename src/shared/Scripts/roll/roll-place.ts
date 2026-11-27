@@ -1,6 +1,6 @@
 // Selection by where you touch on the roll (#601, once the experiment experimental.placeSelection; selection report E and F):
 // the pure part. In Select a box or a lasso drawn on empty space picks notes, a press is read by its place (an edge of the
-// selected span, inside it, outside it: the score's rule, score/selection-places.ts), picked notes dragged move by
+// selected span, inside it, outside it: the score's rule, selection/selection-places.ts), picked notes dragged move by
 // sixteenths and semitones, and the span of picked notes goes out to the beats round them. Positions are in the roll's
 // own units: ticks across, and down the keys a pitch as a real number, so a note's row centre is its pitch. Nothing here
 // touches the DOM.

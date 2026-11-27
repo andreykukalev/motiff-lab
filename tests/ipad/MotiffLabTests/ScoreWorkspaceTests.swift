@@ -175,9 +175,9 @@ final class ScoreWorkspaceTests: XCTestCase {
     func testThePageAndInsightsFollowWhatTheViewObserves() {
         let workspace = make()
         workspace.checkDrawerChanged(true)
-        XCTAssertTrue(workspace.score.checkDrawerOpen)
+        XCTAssertTrue(workspace.score.checkModel.drawerOpen)
         workspace.checkDrawerChanged(false)
-        XCTAssertFalse(workspace.score.checkDrawerOpen)
+        XCTAssertFalse(workspace.score.checkModel.drawerOpen)
         workspace.hearingAloneChanged(true)
         XCTAssertTrue(workspace.insights.scaleHeard)
         workspace.hearingAloneChanged(false)
@@ -303,7 +303,7 @@ final class ScoreWorkspaceTests: XCTestCase {
         XCTAssertNil(workspace.player.selection, "the sound loaded in Expand")
         workspace.whatPlaysChanged(from: nil, to: plays)
         XCTAssertNil(workspace.player.selection, "what plays changed in Expand")
-        workspace.score.leaveFocus()
+        workspace.score.focusModel.leave()
         workspace.applyModel()
         XCTAssertEqual(workspace.player.selection, plays.range, "the sound loaded on the page")
     }

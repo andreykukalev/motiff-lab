@@ -14,7 +14,7 @@ extension ScoreWorkspace {
 
     /// The piece changed in its originals: the score reads its sources again.
     func originalsChanged() {
-        score.refreshSources()
+        score.sourcesModel.refreshSources()
     }
 
     /// The sources as the screen opens then what the screen before handed over: the toast
@@ -51,7 +51,7 @@ extension ScoreWorkspace {
             guard view.id != sources.layers.working else { return }
             if sources.layers.notes(view.id)?.role == "version", score.sourcesModel.versions.entries.contains(where: { $0.id == view.id }) {
                 change(.open(.versions))
-                score.compareVersion(view.id)
+                score.sourcesModel.compareVersion(view.id)
             } else {
                 Task { await showNotes(view.id, text: text, show: show) }
             }

@@ -268,7 +268,7 @@ struct OnlineShelf: View {
             Text(text["home.onlineOnly"])
                 .overline()
                 .accessibilityAddTraits(.isHeader)
-            LazyVGrid(columns: LibraryView.columns, alignment: .leading, spacing: CGFloat.ds("s-6")) {
+            LazyVGrid(columns: LibraryShelfView.columns, alignment: .leading, spacing: CGFloat.ds("s-6")) {
                 ForEach(projects) { project in
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-3")) {
                         Text(project.title)
