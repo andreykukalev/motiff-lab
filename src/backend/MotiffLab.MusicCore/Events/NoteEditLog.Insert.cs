@@ -18,40 +18,57 @@ public sealed partial record NoteEditLog
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
-        int put = after.Count - before.Count;
-        if (put < 0 || length < 0 || Crosses(at))
+        if (length < 0 || Crosses(at) || IdsMovedOn(before, after, at, length) is not { } ids)
         {
             return null;
         }
 
-        Dictionary<string, string> ids = new(StringComparer.Ordinal);
+        string Id(string id) => ids.GetValueOrDefault(id) ?? id;
+        NoteEditLog carried = new(Edits.Select(edit => edit with
+        {
+            NoteId = Id(edit.NoteId),
+            Before = edit.Before is { } replaced ? MovedOn(replaced, at, length) : null,
+            After = edit.After is { } values ? MovedOn(values, at, length) : null,
+        }));
+        EditsApplied was = ApplyEach(before), now = carried.ApplyEach(after);
+        HashSet<string> touched = [.. was.EditedIds(this).Select(Id)];
+        bool same = was.Applied.SequenceEqual(now.Applied)
+            && was.Moved.Select(static moved => (moved.Index, moved.Shift)).SequenceEqual(now.Moved.Select(static moved => (moved.Index, moved.Shift)))
+            && was.Unfit.Select(static unfit => (unfit.Index, unfit.Reason)).SequenceEqual(now.Unfit.Select(static unfit => (unfit.Index, unfit.Reason)))
+            && touched.SetEquals(now.EditedIds(carried))
+            && Faces(was.Notes.Where(note => touched.Contains(Id(note.Id)))
+                .Select(note => note with { Id = Id(note.Id), Span = MovedOn(NoteValues.Of(note), at, length).Span }))
+                .SequenceEqual(Faces(now.Notes.Where(note => touched.Contains(note.Id))));
+        return same ? carried : null;
+    }
+
+    /// <summary>
+    /// The id each note of <paramref name="before"/> has among <paramref name="after"/>, the same piece's notes once
+    /// <paramref name="length"/> ticks of music are put in at <paramref name="at"/>: notes are numbered in time order, so a note
+    /// is the one at its place among them, moved on from <paramref name="at"/>; null for a note not found there the same (on
+    /// its track, with its values moved so), such as one tied into the music put in. Null when <paramref name="after"/> has
+    /// fewer notes. What else names a note by its id follows it by this map too (<c>FollowedWork.Inserted</c>).
+    /// </summary>
+    internal static Dictionary<string, string?>? IdsMovedOn(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Tick at, long length)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+        int put = after.Count - before.Count;
+        if (put < 0)
+        {
+            return null;
+        }
+
+        Dictionary<string, string?> ids = new(StringComparer.Ordinal);
         int head = before.Count(note => note.Span.Onset < at);
         for (int index = 0; index < before.Count; index++)
         {
             Note note = before[index];
             Note found = after[index < head ? index : index + put];
-            if (found.Track == note.Track && NoteValues.Of(found) == MovedOn(NoteValues.Of(note), at, length))
-            {
-                ids[note.Id] = found.Id;
-            }
+            ids[note.Id] = found.Track == note.Track && NoteValues.Of(found) == MovedOn(NoteValues.Of(note), at, length) ? found.Id : null;
         }
 
-        NoteEditLog carried = new(Edits.Select(edit => edit with
-        {
-            NoteId = ids.GetValueOrDefault(edit.NoteId, edit.NoteId),
-            Before = edit.Before is { } replaced ? MovedOn(replaced, at, length) : null,
-            After = edit.After is { } values ? MovedOn(values, at, length) : null,
-        }));
-        EditsApplied was = ApplyEach(before), now = carried.ApplyEach(after);
-        HashSet<string> touched = [.. was.EditedIds(this).Select(id => ids.GetValueOrDefault(id, id))];
-        bool same = was.Applied.SequenceEqual(now.Applied)
-            && was.Moved.Select(static moved => (moved.Index, moved.Shift)).SequenceEqual(now.Moved.Select(static moved => (moved.Index, moved.Shift)))
-            && was.Unfit.Select(static unfit => (unfit.Index, unfit.Reason)).SequenceEqual(now.Unfit.Select(static unfit => (unfit.Index, unfit.Reason)))
-            && touched.SetEquals(now.EditedIds(carried))
-            && Faces(was.Notes.Where(note => touched.Contains(ids.GetValueOrDefault(note.Id, note.Id)))
-                .Select(note => note with { Id = ids.GetValueOrDefault(note.Id, note.Id), Span = MovedOn(NoteValues.Of(note), at, length).Span }))
-                .SequenceEqual(Faces(now.Notes.Where(note => touched.Contains(note.Id))));
-        return same ? carried : null;
+        return ids;
     }
 
     private static IEnumerable<NoteFace> Faces(IEnumerable<Note> notes) => notes.Select(NoteFace.Of).Order();

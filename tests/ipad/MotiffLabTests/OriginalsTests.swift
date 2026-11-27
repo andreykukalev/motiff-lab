@@ -117,6 +117,23 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNil(sources.progress)
     }
 
+    /// v1.5 r-2b: pages recognised in Sources with no scan server set (scanning off) say how to set one up, as the PDF's own
+    /// panel does, and send nothing; before, they said the server found no notes, which no server had been asked.
+    @MainActor
+    func testPagesWithNoScanServerSaySetItUpNotThatNoNotesWereFound() async {
+        let pages = SourceLayers.Original(
+            id: "src_pdf", kind: "pdf", shown: "Etude.pdf", fileName: "Etude.pdf", state: "here", removedAt: nil, kept: "file",
+            pages: 2, durationMs: nil, hidden: false, notes: [], pageMarks: 0
+        )
+        let why = await SourcesController().recognise(pages, address: nil, account: Account(options: nil))
+        XCTAssertEqual(why, SourcesController.noScanServer(UIText.current))
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            XCTAssertNotEqual(SourcesController.noScanServer(text), text["pdf.readNone"], language)
+        }
+        XCTAssertEqual(SourcesController.noScanServer(UIText(language: "ru")), "Motiff Lab может прочитать ноты из PDF или фото страницы с помощью сервера распознавания. Настройте его в Настройках.")
+    }
+
     /// v0.10 s-3: the fields `sources.notes.hear` gets for a recording kept in the piece, as the facade takes them: the
     /// transcription's with the live tempo, the original, the time, and the working notes' metre and tempo as "hint".
     func testTheRecordingHeardIsSentWithTheFieldsTheFacadeTakes() throws {

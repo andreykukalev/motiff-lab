@@ -15,8 +15,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// flags; lead, 2026-11-26: nothing stays in stale ticks), each placed by bars in the new working notes as the two are
 /// matched (<see cref="ReadingMatch"/>, the match of the corrections carried over). A place in a bar with no match is kept
 /// where the music before it went and told, never dropped: the earlier notes keep none of this work, so dropping it would
-/// lose it. What waits with its own notes (the marks, motifs, variations and ideas with a variation) is not here. Pure: the
-/// same projects give the same work.
+/// lose it. What waits with its own notes (the marks, motifs, variations and ideas with a variation) is not here; a page put
+/// into the same notes moves that too (<see cref="Inserted"/>). Pure: the same projects give the same work.
 /// </summary>
 /// <param name="Project">The project with the work followed.</param>
 /// <param name="Bookmarks">The bookmarks whose place changed with their bars.</param>
@@ -82,23 +82,39 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
         }
 
         var match = new ReadingMatch(before, after);
-        return Followed(made, new Following((at, end) => match.Place(at, end), span => match.Place(span), before.Meter, after.Meter));
+        return Followed(made, new Following((at, end) => match.Place(at, end), span => match.Place(span), before.Meter, after.Meter, null));
     }
 
     /// <summary>
     /// The work of <paramref name="project"/> in its notes' ticks (<paramref name="was"/>'s meter) placed in the same notes with
     /// a page of <paramref name="length"/> ticks put in at <paramref name="at"/> (<paramref name="meter"/> theirs; v1.5 i-7,
     /// the 1.4 plan's answer 9: «закладки и точки продолжения сдвигаются на длину вставленной страницы, а не
-    /// сбрасываются»): a place at or after it moves on by the page, a span's end only when it is after it, so a span across
-    /// it takes the page in; the rest stays. Every place is matched, so nothing is kept near.
+    /// сбрасываются»; the lead, 2026-11-27: phrases, ideas, motifs and marks by the same rule): a place at or after it moves
+    /// on by the page, a span's end only when it is after it, so a span across it takes the page in; the rest stays. What
+    /// names a note by its id (motifs, ideas' variations, highlights, fingering) names it by <paramref name="ids"/>, its id
+    /// among the notes with the page (<see cref="NoteEditLog.IdsMovedOn"/>). Every place is matched, so nothing is kept near.
+    /// Null, and nothing moved, when a motif or an idea's variation of these notes stands across the page's place (it would
+    /// take the page's notes in) or names a note that is not the same once the page is in: nothing is dropped.
     /// </summary>
-    public static FollowedWork Inserted(Project project, MeterMap was, MeterMap meter, Tick at, long length)
+    public static FollowedWork? Inserted(Project project, MeterMap was, MeterMap meter, Tick at, long length, IReadOnlyDictionary<string, string?> ids)
     {
         ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(ids);
+        // E-scan-7 (docs/ui-edge-cases.md): a passage of notes is its notes, so one across the place keeps the page out.
+        bool Across(TickSpan span) => span.Onset < at && span.End > at;
+        if (project.Motifs.Any(motif => motif.Notes is null && Across(motif.Span))
+            || project.Observations.Any(observation => observation.Variation is { } kept && observation.Notes is null && Across(kept.Passage.Span)))
+        {
+            return null;
+        }
+
         Tick Moved(Tick tick, bool end) => (end ? tick > at : tick >= at) ? new Tick(tick.Value + length) : tick;
         // A span that starts at the place moves on whole, its end too, even when it is empty.
         TickSpan Span(TickSpan span) => span.Onset >= at ? new TickSpan(Moved(span.Onset, false), span.Duration) : TickSpan.FromBounds(span.Onset, Moved(span.End, true));
-        return Followed(project, new Following((tick, end) => (Moved(tick, end), true), span => (Span(span), true), was, meter));
+        // A note not among the notes read (one the player added) keeps its id, as its correction does.
+        var follow = new Following((tick, end) => (Moved(tick, end), true), span => (Span(span), true), was, meter, id => ids.TryGetValue(id, out string? to) ? to : id);
+        FollowedWork followed = Followed(project, follow);
+        return follow.Lost ? null : followed;
     }
 
     /// <summary><paramref name="made"/> with its work placed one by one by <paramref name="follow"/>, and what that moved.</summary>
@@ -115,8 +131,9 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
                 At = follow.At(point.At, Told.None),
                 Passage = point.Passage is { } passage ? passage with { Span = follow.Span(passage.Span, Told.None) } : null,
             })],
-            Observations = [.. made.Observations.Select(observation => observation.Variation is not null ? observation
-                : observation with { Phrase = observation.Phrase with { Span = follow.Span(observation.Phrase.Span, Told.Idea) } })],
+            Observations = [.. made.Observations.Select(follow.Idea)],
+            Motifs = [.. made.Motifs.Select(follow.Motif)],
+            Marks = follow.Marked(made.Marks),
             Performances = [.. made.Performances.Select(follow.Compared)],
             Check = made.Check is { } check ? follow.Checks(check) : null,
         };
@@ -157,7 +174,13 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
     /// The places of the work placed one by one, counted as they are told: <paramref name="place"/> places a tick (a span's
     /// end with <c>end</c>) and <paramref name="span"/> a span, each saying whether it was matched.
     /// </summary>
-    private sealed class Following(Func<Tick, bool, (Tick At, bool Matched)> place, Func<TickSpan, (TickSpan Span, bool Matched)> span, MeterMap was, MeterMap meter)
+    /// <remarks>
+    /// <paramref name="ids"/> gives a note's id where the work is placed, null for a note not there the same; with no
+    /// <paramref name="ids"/> (other Notes made working) what is kept with its own notes waits with them as it is: the marks,
+    /// the motifs and the ideas with a variation.
+    /// </remarks>
+    private sealed class Following(
+        Func<Tick, bool, (Tick At, bool Matched)> place, Func<TickSpan, (TickSpan Span, bool Matched)> span, MeterMap was, MeterMap meter, Func<string, string?>? ids)
     {
         private readonly int[] _moved = new int[4];
 
@@ -165,7 +188,38 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
 
         public SortedSet<int> NearBars { get; } = [];
 
+        /// <summary>Whether a note named by the work is not there the same, so the work cannot follow it.</summary>
+        public bool Lost { get; private set; }
+
         public int Moved(Told told) => _moved[(int)told];
+
+        /// <summary>The idea: a note alone at its place; one with a variation of the working notes, its passage and notes, when notes are followed.</summary>
+        public Observation Idea(Observation observation)
+        {
+            if (observation.Variation is not { } kept)
+            {
+                return observation with { Phrase = observation.Phrase with { Span = Span(observation.Phrase.Span, Told.Idea) } };
+            }
+
+            return ids is null || observation.Notes is not null ? observation : observation with
+            {
+                Phrase = observation.Phrase with { Span = Span(observation.Phrase.Span, Told.Idea) },
+                Variation = kept with { Passage = kept.Passage with { Span = Span(kept.Passage.Span, Told.None) }, NoteIds = Notes(kept.NoteIds) },
+            };
+        }
+
+        /// <summary>A motif of the working notes at its place and on its notes, when notes are followed.</summary>
+        public SavedMotif Motif(SavedMotif motif) =>
+            ids is null || motif.Notes is not null ? motif : motif with { Span = Span(motif.Span, Told.None), NoteIds = Notes(motif.NoteIds) };
+
+        /// <summary>The marks, each at its place and on its notes, when notes are followed: a stroke by its bar, a margin note and a highlight by their bars.</summary>
+        public Marks Marked(Marks marks) => ids is null ? marks : marks with
+        {
+            Ink = [.. marks.Ink.Select(stroke => stroke with { Bar = At(stroke.Bar, Told.None) })],
+            Notes = [.. marks.Notes.Select(note => note with { Span = Span(note.Span, Told.None) })],
+            Highlights = [.. marks.Highlights.Select(highlight => new Highlight(highlight.Id, Span(highlight.Span, Told.None), Notes(highlight.NoteIds), highlight.Colour))],
+            Fingering = [.. marks.Fingering.Select(fingering => new Fingering(Note(fingering.NoteId), fingering.Finger))],
+        };
 
         /// <summary>The edits with each boundary placed, set and taken away as before (a tick both set and taken away is set).</summary>
         public PhraseEdits Edits(PhraseEdits edits, Told told) =>
@@ -231,6 +285,21 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             (TickSpan placed, bool matched) = span(given);
             Count(told, placed.Onset, placed != given, matched);
             return placed;
+        }
+
+        /// <summary>The notes' ids where the work is placed (<see cref="Note"/>).</summary>
+        private string[] Notes(IEnumerable<string> noteIds) => [.. noteIds.Select(Note)];
+
+        /// <summary>A note's id where the work is placed; its own, and the work <see cref="Lost"/>, when it is not there the same.</summary>
+        private string Note(string id)
+        {
+            if (ids!(id) is { } placed)
+            {
+                return placed;
+            }
+
+            Lost = true;
+            return id;
         }
 
         private void Count(Told told, Tick at, bool changed, bool matched)

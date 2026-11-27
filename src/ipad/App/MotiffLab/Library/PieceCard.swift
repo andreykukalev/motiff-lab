@@ -27,6 +27,8 @@ struct PieceCard: View {
                     Text(entry.title)
                         .font(DesignTokens.font(display: true, weight: 500, size: 19, relativeTo: .title3))
                         .foregroundStyle(Color.ds("ink"))
+                        // E-library-1: a long title takes two lines at most, as the list's line takes one; VoiceOver reads it whole.
+                        .lineLimit(2)
                         .accessibilityAddTraits(.isHeader)
                     Text(meta)
                         .dsType(.label)

@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 
 /// A piece open in music-core: its number in the facade, its title, its score's pages and its project file.
 struct OpenPiece: Identifiable, Sendable {
@@ -43,6 +44,9 @@ struct OpenPiece: Identifiable, Sendable {
     /// PDF kept inside it opens in its PDF view (testing item 16, facade contract 6). With `pdf`, the PDF of a piece that
     /// is only a PDF and whose PDF is not in its file, read where it lies, `data` being the project file (version 0.5).
     static func open(fileName: String, data: Data, language: String, title given: String? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
+        // E-library-2: a PDF this iPad cannot show is refused before it becomes a piece, as a damaged MusicXML is: its
+        // screen would only say it cannot be read, and the library would keep a piece that never opens.
+        if isUnreadablePdf(data) { return .failure(EngraveError(message: UIText.of(language)["pdf.unreadable"])) }
         let fields = openRequest(language: language, asPdf: asPdf, pdf: pdf)
         let request = facadeRequest(fields)
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
@@ -76,6 +80,14 @@ struct OpenPiece: Identifiable, Sendable {
                 return .failure(error)
             }
         }
+    }
+
+    /// Whether the bytes are a PDF (they start as one, as music-core reads them) that this iPad cannot show: broken, with no
+    /// page, or locked with a password, as a folder import finds one unreadable (`FolderScan.facts`).
+    static func isUnreadablePdf(_ data: Data) -> Bool {
+        guard data.starts(with: Data("%PDF".utf8)) else { return false }
+        guard let document = PDFDocument(data: data), !document.isLocked else { return true }
+        return document.pageCount == 0
     }
 
     /// The open request's fields: the language and "edits": "piece", so a project file lays the player's corrections one

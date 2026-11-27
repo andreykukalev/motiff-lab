@@ -1,3 +1,4 @@
+import PDFKit
 import UniformTypeIdentifiers
 import XCTest
 @testable import MotiffLab
@@ -13,6 +14,57 @@ final class AddPieceTests: XCTestCase {
 
         XCTAssertEqual(blocked.words, text["version.recordingNoServer"])
         XCTAssertFalse(blocked.pro)
+    }
+
+    /// v1.5 r-2b (the lead's a-2/2): a piece opened from Files gets a project file named by the work's title, the one its
+    /// line shows, not by the file it came from; the name is safe in any language and never hidden.
+    func testANewProjectFileIsNamedByTheWorksTitleSafelyInEveryLanguage() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let example = try XCTUnwrap(KitPiece.example)
+        let opened = try await OpenPiece.open(fileName: "score_v3_final.musicxml", data: example.data, language: "ru").get()
+        _ = await MusicCore.run { MusicCore.close(piece: opened.id) }
+        XCTAssertEqual(opened.title, "Für Elise", "the score's work title, not the file's name")
+        XCTAssertEqual(ProjectFiles.newURL(for: opened.title, in: folder).lastPathComponent, "Für Elise.motiff.json")
+
+        // A long Russian title is cut between letters to fit the file system's 255 bytes a name, with room for a number.
+        let russian = String(repeating: "Этюд ля минор ", count: 20)
+        let long = ProjectFiles.fileName(for: russian)
+        XCTAssertLessThanOrEqual(long.utf8.count, ProjectFiles.nameBytes)
+        XCTAssertTrue(russian.hasPrefix(long))
+        let chinese = ProjectFiles.fileName(for: String(repeating: "月光奏鸣曲", count: 30))
+        XCTAssertEqual(chinese.utf8.count, 66 * 3, "whole letters of three bytes each, as many as fit")
+        let flags = ProjectFiles.fileName(for: String(repeating: "🇷🇺", count: 60))
+        XCTAssertTrue(flags.allSatisfy { $0 == "🇷🇺" }, "an emoji is never cut inside")
+        let url = ProjectFiles.newURL(for: russian, in: folder)
+        try Data("{}".utf8).write(to: url)
+        XCTAssertEqual(ProjectFiles.newURL(for: russian, in: folder).lastPathComponent, long + " 2.motiff.json", "a second piece of the title")
+        try Data("{}".utf8).write(to: ProjectFiles.newURL(for: russian, in: folder))
+        XCTAssertEqual(ProjectFiles.list(in: folder).count, 2, "both written and listed")
+
+        // A title starting with a dot would be a hidden file the library never lists.
+        XCTAssertEqual(ProjectFiles.fileName(for: "...Ещё раз"), "Ещё раз")
+        XCTAssertEqual(ProjectFiles.fileName(for: " . "), "Piece")
+        XCTAssertEqual(ProjectFiles.fileName(for: "Прелюдия: до мажор"), "Прелюдия  до мажор")
+    }
+
+    /// v1.5 r-2b: a PDF picked in «Открыть файл» that this iPad cannot show (broken, no page) is refused with why, as a
+    /// damaged MusicXML is, rather than saved as a piece whose screen only says it cannot be read.
+    func testAPdfThisIPadCannotShowIsRefusedBeforeItBecomesAPiece() async throws {
+        let broken = Data("%PDF-1.4 broken".utf8)
+        XCTAssertTrue(OpenPiece.isUnreadablePdf(broken))
+        let document = PDFDocument()
+        let page = PDFPage()
+        page.setBounds(CGRect(x: 0, y: 0, width: 595, height: 842), for: .mediaBox)
+        document.insert(page, at: 0)
+        XCTAssertFalse(OpenPiece.isUnreadablePdf(try XCTUnwrap(document.dataRepresentation())), "a PDF of one page opens")
+        XCTAssertFalse(OpenPiece.isUnreadablePdf(Data("<score-partwise/>".utf8)), "not a PDF: music-core says what it is")
+
+        let refused = await OpenPiece.open(fileName: "Broken.pdf", data: broken, language: "ru")
+        guard case .failure(let why) = refused else { return XCTFail("a broken PDF is no piece") }
+        XCTAssertEqual(why.message, "Этот PDF не удалось прочитать. Попробуйте заново сохранить его из программы, где он сделан.")
     }
 
     func testTheCardSaysTheRecordingStaysOnThisIPadInBothLanguages() {

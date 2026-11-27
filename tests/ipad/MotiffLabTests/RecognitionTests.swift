@@ -173,4 +173,18 @@ final class RecognitionTests: XCTestCase {
         XCTAssertEqual(LibraryMarks.all([a, other], shown: shown), [a, b, other])
         XCTAssertEqual(LibraryMarks.all([a, b, other], shown: shown), [other])
     }
+
+    /// v1.5 r-2b: notes read for a piece the player deleted meanwhile are not written back, which made the piece come back;
+    /// the batch says it is no longer in the library. A piece that is there is written.
+    func testNotesReadForAPieceDeletedMeanwhileAreNotWrittenBack() throws {
+        let russian = UIText(language: "ru")
+        let gone = base.appendingPathComponent("Gone.motiff.json")
+        XCTAssertEqual(RecognitionQueue.write("{}", to: gone, text: russian), RecognitionFailure(reason: "Пьесы больше нет в библиотеке"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: gone.path), "not made again")
+
+        let here = base.appendingPathComponent("Here.motiff.json")
+        try Data("{\"was\": 1}".utf8).write(to: here)
+        XCTAssertNil(RecognitionQueue.write("{}", to: here, text: russian))
+        XCTAssertEqual(try String(contentsOf: here, encoding: .utf8), "{}")
+    }
 }

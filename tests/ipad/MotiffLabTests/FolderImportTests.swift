@@ -133,6 +133,7 @@ final class FolderImportTests: XCTestCase {
         XCTAssertEqual(job.items[1].reason, "folderImport.failUnreadable")
         XCTAssertEqual(job.items[2].reason, "folderImport.failMissing")
         XCTAssertEqual(ImportJobs.load(in: records)?.items, job.items, "kept after each file")
+        XCTAssertEqual(job.items[0].file, "Ballade No. 1.motiff.json", "named by the piece's title (v1.5 r-2b)")
         let url = projects.appendingPathComponent(try XCTUnwrap(job.items[0].file))
         let read = await PieceSummary.read(url)
         let summary = try XCTUnwrap(read)

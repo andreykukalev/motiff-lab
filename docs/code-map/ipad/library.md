@@ -9,6 +9,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Library`.
 
 - `LibraryView.swift` opens a piece on `Workspace/PieceScreen` (it names one screen); `PieceCard.swift` calls a piece
   that is only its recording a recording, resumed «Запись как есть» (`PieceSummary.isRecordingOnly`, v1.1).
+- A piece opened from Files (or the example) is saved as a new project file named by its title, `OpenPiece.title`, the
+  one its line shows (`show(saveNew:)`, `ProjectFiles.newURL`; v1.5 r-2b), not by the file it came from; existing files
+  keep their names. A PDF this iPad cannot show is refused by `OpenPiece.open` before it becomes a piece (E-library-2).
 
 ## PDF | Notes (lifecycle, `../ui-review-2026-11.md`)
 

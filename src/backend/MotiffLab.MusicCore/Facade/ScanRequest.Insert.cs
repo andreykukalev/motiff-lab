@@ -21,8 +21,9 @@ internal static partial class ScanRequest
     /// "language"} → {"file": the project file with the page in, "was" and "fingerprint": the notes' music before and after,
     /// as `check` answers it, "firstBar" and "bars": the page's bars, the bars from "firstBar" on before now that many on,
     /// "pages": [the page as scan.join answers one, numbered by its place]}. The player's corrections, checked bars and Check
-    /// flags are carried over to the same music, the bookmarks and resume points after it move on by its length (v1.5 i-7); refused ("unavailable") when something else the player put on the score
-    /// would move, or a correction cannot be carried exactly. Pure: the app writes the file.
+    /// flags are carried over to the same music, the bookmarks, resume points, phrases, ideas, motifs and marks after it move on by
+    /// its length (v1.5 i-7, r-2b); refused ("unavailable") while the notes are compared with a version, assembled, in a draft
+    /// or keep what a later build wrote, or when a correction or what names a note cannot be carried exactly. Pure: the app writes the file.
     /// </summary>
     public static string Insert(Request fields)
     {
@@ -48,8 +49,11 @@ internal static partial class ScanRequest
             throw FacadeException.Unavailable(inserted.Refused switch
             {
                 PageRefusal.Work => words.T(
-                    "The page can be put into notes read from this PDF only while nothing but corrections and bookmarks is on the score: phrases, marks, motifs and ideas would move.",
-                    "Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок и закладок: фразы, пометки, мотивы и идеи сдвинулись бы."),
+                    "The page can be put into notes read from this PDF only while they are not compared with a version, assembled or in a draft, and keep nothing a newer Motiff Lab wrote.",
+                    "Страницу можно вставить в ноты из этого PDF, только пока их не сравнивают с версией, не собирают и не берут в черновик и в них нет записанного более новым Motiff Lab."),
+                PageRefusal.Notes => words.T(
+                    "The page cannot be put in: a motif, an idea's variation or a mark on a note would no longer be on the same notes.",
+                    "Страницу не вставить: мотив, вариация идеи или пометка на ноте перестали бы относиться к тем же нотам."),
                 PageRefusal.Across => words.T(
                     "The page cannot be put in: a corrected note sounds across the place where it goes.",
                     "Страницу не вставить: исправленная нота звучит через место, куда она встаёт."),

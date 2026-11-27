@@ -77,6 +77,16 @@ public class PageInsertTests
 
     private static int[] Four(int pitch) => [pitch, pitch, pitch, pitch];
 
+    /// <summary>The file of two pages read, bar 2's C4 tied into page 2's first bar: one note across the place of a page put in after page 1.</summary>
+    private static string TiedAcross()
+    {
+        string tied = Encoding.UTF8.GetString(Score(2, "4", Bar("C", 5), string.Concat(Enumerable.Repeat(Note("C", 4, 2, 1), 3))
+            + Note("C", 4, 2, 1).Replace("</note>", "<tie type=\"start\"/></note>", StringComparison.Ordinal) + Backup(8) + Note("C", 3, 8, 2)));
+        string next = Encoding.UTF8.GetString(Score(2, "4", Note("C", 4, 2, 1).Replace("</note>", "<tie type=\"stop\"/></note>", StringComparison.Ordinal)
+            + string.Concat(Enumerable.Repeat(Note("E", 4, 2, 1), 3)) + Backup(8) + Note("C", 3, 8, 2), Bar("E", 4)));
+        return Read(3, tied, next);
+    }
+
     [Theory]
     [InlineData(1, new[] { 79, 67, 72, 60, 76, 64 })]
     [InlineData(2, new[] { 72, 60, 79, 67, 76, 64 })]
@@ -164,11 +174,7 @@ public class PageInsertTests
     public void A_correction_that_cannot_stay_on_the_same_music_refuses_the_page_and_nothing_is_dropped()
     {
         // Bar 2's C4 tied into page 2's first bar: one note across the page's place, which the page put in cuts.
-        string tied = Encoding.UTF8.GetString(Score(2, "4", Bar("C", 5), string.Concat(Enumerable.Repeat(Note("C", 4, 2, 1), 3))
-            + Note("C", 4, 2, 1).Replace("</note>", "<tie type=\"start\"/></note>", StringComparison.Ordinal) + Backup(8) + Note("C", 3, 8, 2)));
-        string next = Encoding.UTF8.GetString(Score(2, "4", Note("C", 4, 2, 1).Replace("</note>", "<tie type=\"stop\"/></note>", StringComparison.Ordinal)
-            + string.Concat(Enumerable.Repeat(Note("E", 4, 2, 1), 3)) + Backup(8) + Note("C", 3, 8, 2), Bar("E", 4)));
-        string read = Read(3, tied, next);
+        string read = TiedAcross();
         Note across = OpenedProject.Open(ProjectFile.Read(Encoding.UTF8.GetBytes(read))).Notes.Single(note => note.Hand?.Value == Hand.Right && note.Span.Duration == 960);
         string file = Corrected(read, (across.Id, 2, 1));
 
@@ -182,14 +188,9 @@ public class PageInsertTests
     }
 
     [Fact]
-    public void Work_that_stands_in_the_bars_refuses_the_page_and_checked_bars_and_flags_move_on()
+    public void Checked_bars_and_flags_move_on_with_the_bars_after_the_page()
     {
         Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
-        Project phrased = read with { Phrases = PhraseEdits.None.Adding([new Tick(1920)]) };
-        Assert.False(phrased.CanInsertPage);
-        using JsonDocument refused = Insert(Encoding.UTF8.GetString(ProjectFile.Write(phrased)), 2, Page("G"));
-        Assert.Equal("unavailable", refused.RootElement.GetProperty("error").GetString());
-
         Project confirmed = read with
         {
             Scan = read.Scan!.Confirm([1, 3]),
@@ -198,6 +199,118 @@ public class PageInsertTests
         PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3);
         Assert.Equal([1, 5], inserted.Project!.Scan!.ConfirmedBars);
         Assert.Equal([(1, true), (6, false)], inserted.Project.Check!.Select(flag => (flag.Bar, flag.Resolved)));
+    }
+
+    /// <summary>
+    /// The file with work on page 2's bars (bars 3 and 4 before the page goes in): the passage selected with a variation tried
+    /// and kept as an idea (the motif and its variation saved), a margin note, a highlight of its first E5, a finger on it and a
+    /// stroke in bar 3; with <paramref name="first"/> 2, the passage starts in page 1's last bar, across the page's place.
+    /// </summary>
+    private static string Worked(string file, int first = 3)
+    {
+        var facade = new MusicCoreFacade();
+        Assert.DoesNotContain("\"error\"", facade.Open("scan.motiff.json", Encoding.UTF8.GetBytes(file), null), StringComparison.Ordinal);
+        foreach ((string call, string request) in (ReadOnlySpan<(string, string)>)[
+            ("select", $$$"""{"bars": {"first": {{{first}}}, "last": 4}}"""),
+            ("try", """{"chip": "v1.halfTime"}"""),
+            ("idea.keep", $$"""{"name": "Half time", "now": "{{Now}}"}"""),
+            ("note.add", $$"""{"bars": {"first": 3, "last": 3}, "text": "Тема", "now": "{{Now}}"}"""),
+            ("highlight.add", """{"bars": {"first": 3, "last": 3}, "notes": ["n_0012"]}"""),
+            ("fingering.set", """{"noteId": "n_0012", "finger": 3}"""),
+            ("ink.add", """{"strokes": [{"id": "s1", "tool": "pen", "colour": "carmine", "size": 2, "bar": 3840, "u": 0.1, "v": 0.2, "points": [0, 0, 0.5], "pressure": 0.5}]}"""),
+        ])
+        {
+            Assert.DoesNotContain("\"error\"", facade.Call(1, call, request), StringComparison.Ordinal);
+        }
+
+        return facade.Call(1, "project.save", "{}");
+    }
+
+    [Fact]
+    public void Phrases_ideas_motifs_and_marks_after_the_page_move_on_by_it_and_stay_on_the_same_notes()
+    {
+        // The lead, 2026-11-27 (v1.5 r-2b): they move with an inserted page like bookmarks and resume points, by one rule.
+        string file = Worked(Read(3, Page("C"), Page("E")));
+        Project worked = ProjectFile.Read(Encoding.UTF8.GetBytes(file)) with { Phrases = PhraseEdits.None.Adding([new Tick(1920), new Tick(5760)]) };
+        Assert.True(worked.CanInsertPage);
+        Assert.Single(worked.Motifs);
+        Assert.NotEmpty(worked.Variations);
+        Assert.Single(worked.Observations);
+
+        Project inserted = ScanPageInsert.Into(worked, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Project!;
+
+        // Page 2 is bars 3 and 4 now, 3840 ticks: what was in bar 3 is in bar 5, its first E5 n_0022 (the page's ten notes before it).
+        Assert.Equal([new Tick(1920), new Tick(5760 + 3840)], inserted.Phrases.Added);
+        SavedMotif motif = Assert.Single(inserted.Motifs);
+        Assert.Equal((7680L, 3840L), (motif.Span.Onset.Value, motif.Span.Duration));
+        Assert.Contains("n_0022", motif.NoteIds);
+        Observation idea = Assert.Single(inserted.Observations);
+        Assert.Equal(7680, idea.Phrase.Span.Onset.Value);
+        Assert.Equal(motif.NoteIds, idea.Variation!.NoteIds);
+        Assert.Equal(7680, Assert.Single(inserted.Marks.Notes).Span.Onset.Value);
+        Highlight highlight = Assert.Single(inserted.Marks.Highlights);
+        Assert.Equal(7680, highlight.Span.Onset.Value);
+        Assert.Equal(["n_0022"], highlight.NoteIds);
+        Assert.Equal("n_0022", Assert.Single(inserted.Marks.Fingering).NoteId);
+        Assert.Equal(new Tick(7680), Assert.Single(inserted.Marks.Ink).Bar);
+        // The strict open makes the motif, its variation and the idea again on the same music: E5 E5 E5 E5 then E4.
+        OpenedProject opened = OpenedProject.Open(inserted);
+        Note e5 = opened.Notes.Single(note => note.Id == "n_0022");
+        Assert.Equal((76, 7680L), (e5.Pitch.MidiNumber, e5.Span.Onset.Value));
+        Assert.Empty(opened.Hidden);
+        Assert.NotNull(Assert.Single(opened.Observations).Chain);
+        Assert.Equal(worked.Variations.Count, ProjectFile.Read(ProjectFile.Write(inserted)).Variations.Count);
+    }
+
+    [Fact]
+    public void A_motif_across_the_page_s_place_refuses_the_page_and_nothing_moves()
+    {
+        string file = Worked(Read(3, Page("C"), Page("E")), first: 2);
+
+        using JsonDocument refused = Insert(file, 2, Page("G"));
+
+        Assert.Equal("unavailable", refused.RootElement.GetProperty("error").GetString());
+        Assert.Contains("motif, an idea's variation or a mark on a note", refused.RootElement.GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.Equal(PageRefusal.Notes, ScanPageInsert.Into(ProjectFile.Read(Encoding.UTF8.GetBytes(file)), 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Refused);
+    }
+
+    [Fact]
+    public void A_finger_on_a_note_the_page_cuts_refuses_the_page()
+    {
+        // As the correction across the place: bar 2's C4 tied into page 2's first bar is not the same note once the page is in.
+        Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(TiedAcross()));
+        Note across = OpenedProject.Open(read).Notes.Single(note => note.Hand?.Value == Hand.Right && note.Span.Duration == 960);
+        Project fingered = read with { Marks = read.Marks.SetFingering(new Fingering(across.Id, 2)) };
+
+        Assert.Equal(PageRefusal.Notes, ScanPageInsert.Into(fingered, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Refused);
+        Assert.NotNull(ScanPageInsert.Into(read, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Project);
+    }
+
+    [Fact]
+    public void A_draft_refuses_the_page_in_words_that_name_what_stops_it()
+    {
+        // As the iPad's SCAN-05 test makes it: drafts.add of bar 1 on the notes read, saved, then the page read again.
+        var facade = new MusicCoreFacade();
+        Assert.DoesNotContain("\"error\"", facade.Open("scan.motiff.json", Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))), null), StringComparison.Ordinal);
+        Assert.DoesNotContain("\"error\"", facade.Call(1, "drafts.add", $$"""{"bars": {"first": 1, "last": 1}, "now": "{{Now}}"}"""), StringComparison.Ordinal);
+        string file = facade.Call(1, "project.save", "{}");
+
+        using JsonDocument refused = Insert(file, 2, Page("G"));
+        using JsonDocument russian = JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", JsonSerializer.Serialize(new { file, page = 2, reading = Page("G"), pages = 3, language = "ru" })));
+
+        Assert.Equal("unavailable", refused.RootElement.GetProperty("error").GetString());
+        Assert.StartsWith("The page can be put into notes read from this PDF only while they are not compared with a version", refused.RootElement.GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.StartsWith("Страницу можно вставить в ноты из этого PDF, только пока их не сравнивают с версией", russian.RootElement.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void What_a_later_build_wrote_on_the_notes_refuses_the_page()
+    {
+        Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        Project later = read with { Marks = read.Marks with { Unknown = [new UnknownEntity("marks.highlights", 0, "h_0009", null, "{}")] } };
+
+        Assert.False(later.CanInsertPage);
+        Assert.Equal(PageRefusal.Work, ScanPageInsert.Into(later, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3).Refused);
     }
 
     public static TheoryData<string> Work => ["performance", "assembly", "draft", "no PDF"];

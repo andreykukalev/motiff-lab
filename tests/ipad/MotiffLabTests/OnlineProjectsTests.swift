@@ -203,10 +203,11 @@ final class OnlineProjectsTests: XCTestCase {
     }
 
     // Criterion 3: a project already here is not listed again, a tap on it never downloads it or replaces its file, and a
-    // different project of the same title is kept beside a file of that name.
+    // different project of the same title is kept beside a file of that name; the title is the work's (v1.5 r-2b), here the
+    // kit piece's «Für Elise», not the name of the file the other was opened from.
     func testAProjectAlreadyHereIsNotListedAgainAndItsFileIsNeverReplaced() async throws {
         let mine = try projectFile(id: "p_online")
-        let here = folder.appendingPathComponent("Mine.motiff.json")
+        let here = folder.appendingPathComponent("Für Elise.motiff.json")
         try mine.write(to: here)
         let ids = Set(await ProjectFiles.list(in: folder).asyncIds())
         XCTAssertEqual(ids, ["p_online"])
@@ -223,7 +224,7 @@ final class OnlineProjectsTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: here), mine, "not replaced")
 
         let other = try await online().keep(listed[1], in: folder).get()
-        XCTAssertEqual(other.lastPathComponent, "Mine 2.motiff.json")
+        XCTAssertEqual(other.lastPathComponent, "Für Elise 2.motiff.json")
         XCTAssertEqual(try Data(contentsOf: here), mine, "a file of the same name is not replaced")
         let otherSummary = await PieceSummary.read(other)
         XCTAssertEqual(otherSummary?.id, "p_other")

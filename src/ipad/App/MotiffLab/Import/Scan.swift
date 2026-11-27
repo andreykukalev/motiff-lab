@@ -239,12 +239,12 @@ final class ScanServer: ObservableObject {
         let problem = try? JSONSerialization.jsonObject(with: answer) as? [String: Any]
         if let engine, problem?["code"] as? String == "engine" { return .server(UIText.current.format("scan.engineMissing", engine)) }
         if let message = problem?["message"] as? String, !message.isEmpty { return .server(message) }
-        return status == 404 ? .notAScanServer : .server("The scan server could not read this file.")
+        return status == 404 ? .notAScanServer : .server(UIText.current["scan.unreadable"])
     }
 
     /// Why a request did not reach the server or was not answered in time.
     nonisolated static func problem(_ error: Error, address: URL) -> ScanProblem {
-        (error as? URLError)?.code == .timedOut ? .server("The scan server took too long to answer.") : .unreachable(address)
+        (error as? URLError)?.code == .timedOut ? .slow : .unreachable(address)
     }
 }
 
@@ -275,13 +275,17 @@ enum ScanProblem: Error, Equatable {
     /// A PDF of more pages than a score may have (`ScanParts.mostPages`); nothing was sent.
     case tooManyPages(Int)
     case server(String)
+    /// The server did not answer in time.
+    case slow
     /// A scan job no longer waited for: its batch was paused or stopped, or its panel closed; it is kept on the server.
     case stopped
 
     func text(_ text: UIText) -> String {
         switch self {
-        case .notAScanServer: "Something answers at this address, but it is not a Motiff Lab scan server."
-        case .unreachable(let address): "The scan server at \(address.absoluteString) does not answer. Check that it is running (see Settings), and that this iPad may reach it."
+        // In the interface's language, as every problem here (v1.5 r-2b: these three were in English only).
+        case .notAScanServer: text["scan.notAServer"]
+        case .unreachable(let address): text.format("scan.unreachable", address.absoluteString)
+        case .slow: text["transcribe.tooLong"]
         case .signIn: text["scan.signIn"]
         case .needsPro: text["scan.needsPro"]
         case .tooLarge: text["import.scanTooLarge"] + " " + text["import.scanTooLargeTip"]
@@ -293,8 +297,11 @@ enum ScanProblem: Error, Equatable {
 
     /// The problem as one page of a PDF read a page a request met it: the server's own words say which page.
     func onPage(_ page: Int, _ text: UIText) -> ScanProblem {
-        guard case .server(let message) = self else { return self }
-        return .server(text.format("scan.pageFailed", String(page), message))
+        switch self {
+        case .server(let message): .server(text.format("scan.pageFailed", String(page), message))
+        case .slow: .server(text.format("scan.pageFailed", String(page), self.text(text)))
+        default: self
+        }
     }
 }
 

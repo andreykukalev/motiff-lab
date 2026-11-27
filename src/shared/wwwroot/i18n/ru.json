@@ -13,6 +13,8 @@
   "account.title": "Ваша учётная запись",
 
   "import.scanBusy": "Читаем ноты… каждая страница занимает время",
+  "import.scanSetUp": "Motiff Lab может прочитать ноты из PDF или фото страницы с помощью сервера распознавания.",
+  "import.scanSetUpLink": "Настройте его в Настройках",
 
   "selection.undo": "Отменить",
   "selection.redo": "Повторить",

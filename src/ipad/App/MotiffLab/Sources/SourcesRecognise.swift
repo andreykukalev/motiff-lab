@@ -52,7 +52,7 @@ struct SourcesRecognisePanel: View {
         }
         let pages = max(1, original.pages ?? 1)
         if let busy = background.busy { return Offer(blocker: text.format("recognition.busy", busy)) }
-        guard let address = row.address else { return Offer(blocker: text["pdf.readNone"]) }
+        guard let address = row.address else { return Offer(blocker: SourcesController.noScanServer(text)) }
         if row.hosted && account.player == nil { return Offer(blocker: text["scan.signInPrompt"]) }
         if row.hosted && !account.allows(.scan) { return Offer(blocker: text["scan.proPrompt"]) }
         let line = row.hosted
@@ -125,6 +125,12 @@ struct SourcesRecognisePanel: View {
 }
 
 extension SourcesController {
+    /// What recognising pages says with no scan server set (scanning off in Settings, or a build without Motiff Lab's): what
+    /// the PDF's own panel says (`ReadNotesPanel`), never that a server found no notes, which none was asked (v1.5 r-2b).
+    static func noScanServer(_ text: UIText) -> String {
+        text["import.scanSetUp"] + " " + text["import.scanSetUpLink"] + "."
+    }
+
     /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
     /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
     struct Recognised {

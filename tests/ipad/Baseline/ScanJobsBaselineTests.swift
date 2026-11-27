@@ -341,14 +341,14 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual([bookmark.firstBar, bookmark.lastBar], [3, 3], "the bookmark on page 3's bar moves on with it")
     }
 
-    /// SCAN-05: a page read again that music-core does not put in (here a margin note stands on the notes, which would move;
-    /// a bookmark moves on with the page since v1.5 i-7)
+    /// SCAN-05: a page read again that music-core does not put in (here a draft is made from the notes; bookmarks, resume
+    /// points, phrases, ideas, motifs and marks move on with the page since v1.5 i-7 and r-2b)
     /// leaves the notes as they were and the line with «Повторить» and the reason, «Не вставлено: …».
     func testSCAN05APageReadAgainThatCannotGoInLeavesTheNotesAndSaysWhyBesideRetry() async throws {
         jobsBefore = await ScanSupport.jobsOn()
         let url = try piece(pages: 2)
         let queue = try await readFirst(url)
-        try ScanSupport.change(url, "note.add", #"{"bars": {"first": 1, "last": 1}, "text": "Тема", "now": "2026-11-24T19:05:00Z"}"#)
+        try ScanSupport.change(url, "drafts.add", #"{"bars": {"first": 1, "last": 1}, "now": "2026-11-24T19:05:00Z"}"#)
 
         StubAPI.reset(newJob("j3", [(2, "E")]))
         queue.retryUnread(url.lastPathComponent)
@@ -358,7 +358,7 @@ final class ScanJobsBaselineTests: XCTestCase {
         XCTAssertEqual(after.state, .done, "the piece keeps its notes, not «не вышло»")
         XCTAssertEqual(after.unread, [2], "the line keeps «Повторить»")
         let why = try XCTUnwrap(after.reason, "and says why")
-        XCTAssertTrue(why.hasPrefix("Страницу можно вставить в ноты из этого PDF, только пока на нотах нет ничего, кроме правок") || why.hasPrefix("The page can be put into notes"), why)
+        XCTAssertTrue(why.hasPrefix("Страницу можно вставить в ноты из этого PDF, только пока их не сравнивают с версией") || why.hasPrefix("The page can be put into notes"), why)
         XCTAssertEqual(russian.format("recognition.againWhy", why), "Не вставлено: " + why)
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 1), [60])
         XCTAssertEqual(try ScanSupport.pitches(url, bar: 2), [], "the notes as they were")

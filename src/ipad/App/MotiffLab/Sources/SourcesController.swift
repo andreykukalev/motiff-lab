@@ -317,7 +317,7 @@ final class SourcesController: ObservableObject {
             case .success(let heard): return await keepRecognised(.sourcesNotesHear, heard)
             }
         }
-        guard let address else { return text["pdf.readNone"] }
+        guard let address else { return Self.noScanServer(text) }
         switch await readPages(original, address: address, account: account) {
         case .failure(let refusal): return refusal.words
         case .success(let read): return await keepRecognised(.sourcesNotesRecognise, read)

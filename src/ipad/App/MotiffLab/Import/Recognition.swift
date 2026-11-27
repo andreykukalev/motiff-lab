@@ -500,11 +500,7 @@ final class RecognitionQueue: ObservableObject {
                 return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
             }
             if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
-            do {
-                try Data(file.utf8).write(to: url, options: .atomic)
-            } catch {
-                return .failure(RecognitionFailure(reason: error.localizedDescription))
-            }
+            if let failed = write(file, to: url, text: text) { return .failure(failed) }
             // Saved: the job goes from the server now, not after its 10 minutes' grace (lead's decision, version 1.3).
             if let sent { await ScanServer.deleteJob(sent.id, to: target) }
             return .success(RecognitionRead(pages: pages, unread: scanned.unread, read: scanned.read))
@@ -531,13 +527,23 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let outcome):
             if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
-            do {
-                try Data(outcome.file.utf8).write(to: url, options: .atomic)
-            } catch {
-                return .failure(RecognitionFailure(reason: error.localizedDescription))
-            }
+            if let failed = write(outcome.file, to: url, text: text) { return .failure(failed) }
             await ScanServer.deleteJob(outcome.job.id, to: target)
             return .success(RecognitionRead(pages: unread.count, unread: outcome.unread, read: outcome.read, why: outcome.why))
+        }
+    }
+
+    /// The piece's project file written with the notes read; why not, or nil. A piece deleted from the library while it was
+    /// read is not written back (v1.5 r-2b: it came back with its notes): the batch says it is no longer in the library, and
+    /// its job goes from the server as a job that did not work does.
+    static func write(_ file: String, to url: URL, text: UIText) -> RecognitionFailure? {
+        // E-scan-8: a piece the player deleted is never made again behind their back.
+        guard FileManager.default.fileExists(atPath: url.path) else { return RecognitionFailure(reason: text["recognition.failMissing"]) }
+        do {
+            try Data(file.utf8).write(to: url, options: .atomic)
+            return nil
+        } catch {
+            return RecognitionFailure(reason: error.localizedDescription)
         }
     }
 
@@ -547,7 +553,7 @@ final class RecognitionQueue: ObservableObject {
         case .signIn: "signIn"
         case .needsPro: "needsPro"
         case .unreachable, .notAScanServer: "unreachable"
-        case .tooLarge, .tooManyPages, .server, .stopped: nil
+        case .tooLarge, .tooManyPages, .server, .slow, .stopped: nil
         }
     }
 }

@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.5 i-7):** current. New; replaces nothing.
+**Status (2026-11-27, v1.5 r-2b):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -66,6 +66,26 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   the notes keep no reports from then on (one per page or none), so Check no longer tells a page's print quality; never
   a refusal in words the player cannot act on · robustness rule (a page read is not lost for a missing number) · v1.5
   i-7 (review 1)
+
+- `E-scan-7` · A page read again («Повторить») whose place a motif or an idea's variation of the notes spans (it starts
+  before the page's place and ends after it), or whose notes a motif, variation, highlight or finger names but the page
+  changes · the page is not put in and the line keeps «Повторить» with why («Не вставлено: мотив, вариация идеи или
+  пометка на ноте перестали бы относиться к тем же нотам»); the rest of the work, also a bookmark or margin note across the
+  place, moves on by the page · as a correction across the place refuses the page, nothing dropped (robustness rule); a
+  passage of notes is its notes, so it cannot take the page's in as a bookmark's bars do · v1.5 r-2b
+- `E-scan-8` · A piece deleted from the library while the batch reads it · its notes are not written back (the piece
+  stays deleted) and its line says «Пьесы больше нет в библиотеке», its job deleted on the server as one that did not
+  work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not undone by a background
+  job · v1.5 r-2b
+- `E-library-1` · A very long title on a Sessions card · two lines at most, cut with an ellipsis; VoiceOver reads it
+  whole · as the list's line, which takes one; HIG: truncate rather than let one card grow the grid · v1.5 r-2b
+- `E-library-2` · «Открыть файл» on a PDF this iPad cannot show (broken, no page, locked with a password) · refused with
+  «Этот PDF не удалось прочитать…» over the library and no piece made · as a damaged MusicXML is refused, and as a folder
+  import finds such a PDF unreadable (`FolderScan.facts`) · v1.5 r-2b
+- `E-library-3` · A new piece's project file whose title is long, starts with a dot or holds characters a file name
+  cannot · named by the title with those characters as spaces, no dot first (a hidden file is never listed), cut between
+  letters to at most 200 bytes, numbered when the name is taken (a title the player or the score gives is shown as it
+  is; one only the file's name gives shows that name) · the Files app's rules for a name · v1.5 r-2b
 
 ## Drafts and the assistant
 
