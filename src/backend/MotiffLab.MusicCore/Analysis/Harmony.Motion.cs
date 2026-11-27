@@ -44,9 +44,6 @@ internal enum Cadence
 /// </summary>
 internal static partial class HarmonyAnalyzer
 {
-    /// <summary>The steps of a progression a fact names, then "…".</summary>
-    private const int MaxNamedSteps = 8;
-
     /// <summary>One chord of a progression, consecutive equal chords joined.</summary>
     private sealed record Step(ChordLabel Chord, TickSpan Span, IReadOnlyList<string> NoteIds, bool Uncertain);
 
@@ -158,19 +155,8 @@ internal static partial class HarmonyAnalyzer
         return chord.PitchClasses.All(pitchClass => scale.Contains(((pitchClass - key.TonicPitchClass) % 12 + 12) % 12));
     }
 
-    internal static string FunctionName(HarmonicFunction function, Words w) => function switch
-    {
-        HarmonicFunction.Tonic => w.T("tonic", "тоника"),
-        HarmonicFunction.Subdominant => w.T("subdominant", "субдоминанта"),
-        HarmonicFunction.Dominant => w.T("dominant", "доминанта"),
-        _ => "",
-    };
-
-    /// <summary>
-    /// "Harmonic motion: Am → E → Am, i → V → i (tonic → dominant → tonic). It comes to rest: the dominant resolves to
-    /// the tonic, an authentic cadence." The places are the chords, consecutive equal chords joined.
-    /// </summary>
-    private static MotifFact MotionFact(IReadOnlyList<ChordSpan> chords, MeterMap meter, MusicalKey key, Words w)
+    /// <summary>The chords as steps of a progression: consecutive equal chords joined, uncertain when any of them is.</summary>
+    private static List<Step> Steps(IReadOnlyList<ChordSpan> chords)
     {
         var steps = new List<Step>();
         foreach (ChordSpan chord in chords)
@@ -190,59 +176,6 @@ internal static partial class HarmonyAnalyzer
             steps.Add(new Step(chord.Chord, chord.Span, chord.NoteIds, chord.Confidence < ClearConfidence));
         }
 
-        Cadence cadence = CadenceOf([.. steps.Select(static step => step.Chord)], key);
-        string more = steps.Count > MaxNamedSteps ? " → …" : "";
-        Step[] named = [.. steps.Take(MaxNamedSteps)];
-        string symbols = string.Join(" → ", named.Select(step => step.Chord.Symbol(key))) + more;
-        string numerals = string.Join(" → ", named.Select(step => Numeral(step.Chord, key))) + more;
-        bool anyFunction = named.Any(step => FunctionOf(step.Chord, key) != HarmonicFunction.None);
-        string functions = string.Join(" → ", named.Select(step =>
-            FunctionOf(step.Chord, key) is var function and not HarmonicFunction.None ? FunctionName(function, w) : Numeral(step.Chord, key))) + more;
-
-        Step last = steps[^1];
-        string lastNumeral = Numeral(last.Chord, key);
-        string gives = cadence switch
-        {
-            Cadence.Static => w.T(
-                "The harmony stands still: the line and the rhythm carry the motion.",
-                "Гармония стоит на месте: движение несут линия и ритм."),
-            Cadence.Authentic => w.T(
-                "It comes to rest: the dominant pulls to the tonic and resolves into it, an authentic cadence.",
-                "Отрывок приходит к устою: доминанта тяготеет к тонике и разрешается в неё — автентический каданс."),
-            Cadence.Plagal => w.T(
-                "It closes softly: the subdominant goes to the tonic without the dominant's pull, a plagal cadence.",
-                "Отрывок закрывается мягко: субдоминанта переходит в тонику без тяготения доминанты — плагальный каданс."),
-            Cadence.Half => w.T(
-                "It stops on the dominant and stays open, a half cadence: the music asks for an answer.",
-                "Отрывок останавливается на доминанте и остаётся открытым — половинный каданс: музыка ждёт ответа."),
-            Cadence.Deceptive => w.T(
-                $"The dominant promises the tonic, but {lastNumeral} comes instead, a deceptive cadence: the music goes on.",
-                $"Доминанта обещает тонику, но приходит {lastNumeral} — прерванный каданс: музыка продолжается."),
-            Cadence.Home => w.T(
-                "It returns to the tonic, the key's point of rest.",
-                "Гармония возвращается к тонике, устою тональности."),
-            _ => w.T(
-                $"It ends away from the tonic, on {lastNumeral}: the motion leads on to what follows.",
-                $"Гармония заканчивается вне тоники, на {lastNumeral}: движение ведёт дальше."),
-        };
-
-        string progression = cadence == Cadence.Static
-            ? w.T($"one chord throughout, {symbols} ({numerals})", $"один аккорд на всём протяжении, {symbols} ({numerals})")
-            : anyFunction ? $"{symbols}, {numerals} ({functions})" : $"{symbols}, {numerals}";
-        string text = w.T($"Harmonic motion: {progression}. {gives}", $"Гармоническое движение: {progression}. {gives}");
-        string brief = w.T($"Harmonic motion: {numerals}. ", $"Гармоническое движение: {numerals}. ") + gives;
-        string basis = w.T(
-            $"Inferred from the chords read from the notes, as steps of {key.NameIn(w)}: the first step is the tonic, the fourth and second the subdominant, the fifth and the leading note's chord the dominant; a chord with a note outside the key has no function. The last two chords name the cadence.",
-            $"Предположено по аккордам, прочитанным из нот, как ступеням тональности {key.NameIn(w)}: первая ступень — тоника, четвёртая и вторая — субдоминанта, пятая и аккорд вводного тона — доминанта; у аккорда с нотой вне тональности функции нет. Последние два аккорда называют каданс.");
-        return new MotifFact("harmony.motion", FactLens.Harmony, steps.Any(static step => step.Uncertain) ? FactCertainty.Uncertain : FactCertainty.Inferred, text, basis)
-        {
-            Brief = cadence == Cadence.Static ? null : brief,
-            Places = [.. steps.Select(step =>
-            {
-                string function = FunctionName(FunctionOf(step.Chord, key), w);
-                string label = $"{step.Chord.Symbol(key)} ({Numeral(step.Chord, key)}{(function.Length > 0 ? $", {function}" : "")}), {From(step.Span.Onset, meter, w)}";
-                return new FactPlace(label, step.Span, step.NoteIds);
-            })],
-        };
+        return steps;
     }
 }
