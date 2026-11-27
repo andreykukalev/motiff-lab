@@ -148,18 +148,18 @@ test("a finger held on a bar outside the selection selects that bar in its place
 });
 
 test("while the place rule is on, or on a handle, the press is not taken", () => {
-    const off = page({ places: true });
-    off.root.listeners.pointerdown(off.event(150, 140));
-    off.root.listeners.pointermove(off.event(550, 140));
-    off.root.listeners.pointerup(off.event(550, 140));
-    assert.deepEqual(off.said, []);
-    const on = page();
+    const placing = page({ places: true });
+    placing.root.listeners.pointerdown(placing.event(150, 140));
+    placing.root.listeners.pointermove(placing.event(550, 140));
+    placing.root.listeners.pointerup(placing.event(550, 140));
+    assert.deepEqual(placing.said, []);
+    const onHandle = page();
     const handle = new FakeElement();
     handle.own = true;
-    on.root.listeners.pointerdown(on.event(150, 140, "mouse", handle));
-    on.root.listeners.pointermove(on.event(550, 140));
-    on.root.listeners.pointerup(on.event(550, 140));
-    assert.deepEqual(on.said, []);
-    on.layer.dispose();
-    assert.deepEqual(Object.keys(on.root.listeners), [], "dispose stops listening");
+    onHandle.root.listeners.pointerdown(onHandle.event(150, 140, "mouse", handle));
+    onHandle.root.listeners.pointermove(onHandle.event(550, 140));
+    onHandle.root.listeners.pointerup(onHandle.event(550, 140));
+    assert.deepEqual(onHandle.said, []);
+    onHandle.layer.dispose();
+    assert.deepEqual(Object.keys(onHandle.root.listeners), [], "dispose stops listening");
 });
