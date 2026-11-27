@@ -11,7 +11,8 @@ struct SyncConflict: Equatable, Sendable {
     /// Where music-core found the conflicts: "workspace.observations", "notes.edits", "originals.marks.ink", ….
     let places: [String]
 
-    /// What the player is told: «„Für Elise“ изменили на двух устройствах (идеи, пометки). Другая версия — рядом: …».
+    /// What the player is told (`sync.conflict`): "«Für Elise» изменили на двух устройствах по-разному (идеи, пометки).
+    /// Версия, сохранённая раньше, лежит рядом: «Für Elise (прежняя копия, …)»."
     func line(_ text: UIText) -> String {
         let found = Set(places.map { Self.kind($0) })
         let kinds = Self.kinds.map { $0.key }.filter { found.contains($0) }.map { text[$0] }

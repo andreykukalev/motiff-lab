@@ -48,6 +48,10 @@ enum SyncBases {
         records.deletingLastPathComponent().appendingPathComponent(records.deletingPathExtension().lastPathComponent + "-bases", isDirectory: true)
     }
 
+    static func has(_ id: String, records: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url(id, records: records).path)
+    }
+
     static func load(_ id: String, records: URL) -> String? {
         try? String(contentsOf: url(id, records: records), encoding: .utf8)
     }
@@ -71,19 +75,20 @@ enum SyncBases {
     }
 }
 
-/// Sync between the player's iPads through the Motiff Lab API (version 0.2; Andrei, 2026-11-11; the web app, which synced
-/// the same way, is archived, 0032): new pieces and their changes go between the devices by themselves, and when both
-/// changed one, music-core merges the two copies entity by entity, and what of the other the merge does not hold is kept
-/// beside as a piece of its own. One pass compares each project file here with the API's list by music-core's rules
-/// (`project.sync`, `ProjectSync`): it sends what changed here (the copy without the PDF and without a recording's sound,
-/// `project.online`), a piece new here only as a new one online (no `If-Match`), fetches what changed online or is new
-/// there (keeping this iPad's PDF, `project.pulled`), and resolves a change on both (`project.resolve` against the copy
-/// both last agreed on, `SyncBases`; v1.6 c-17b). A piece the player deletes here goes online too, unless it changed
-/// online since (`markDeletedHere`, the 1.6 plan's decisions 14 and 26). A later build's copy (project file 18) is kept
-/// here read-only and never sent. The library runs it when it opens, comes back to the screen, after a piece closes and on
-/// sign-in, never inside a piece. Where the app may not write (Main in a version build, `OnlineProjects.writable`) a pass
-/// only fetches: it sends nothing and leaves a piece changed on both sides as it is here, to be resolved once writing is
-/// allowed.
+/// Sync between the player's iPads through the Motiff Lab API (version 0.2; Andrei, 2026-11-11; the web app, which
+/// synced the same way, is archived, 0032): new pieces and their changes go between the devices by themselves, and when
+/// both changed one, music-core merges the two copies entity by entity, and what of the other the merge does not hold
+/// is kept beside as a piece of its own. One pass compares each project file here with the API's list by music-core's
+/// rules (`project.sync`, `ProjectSync`): it sends what changed here (the copy without the PDF and without a
+/// recording's sound, `project.online`), a piece new here only as a new one online (no `If-Match`), fetches what
+/// changed online or is new there (keeping this iPad's PDF, `project.pulled`), and resolves a change on both
+/// (`project.resolve` against the copy both last agreed on, `SyncBases`; v1.6 c-17b). A piece the player deletes here
+/// goes online too, unless it changed online since (`markDeletedHere`, the 1.6 plan's decisions 14 and 26). A later
+/// build's copy (project file 18) is kept read-only and never sent: one online stays the piece and this iPad's goes
+/// beside as a new piece (decision 39), one here goes beside and the online copy takes the piece (decision 36). The
+/// library runs it when it opens, comes back to the screen, after a piece closes and on sign-in, never inside a piece.
+/// Where the app may not write (Main in a version build, `OnlineProjects.writable`) a pass only fetches: it sends
+/// nothing and leaves a piece changed on both sides as it is here, to be resolved once writing is allowed.
 struct CloudSync {
     /// The Settings switch (`account.saveOnline`), on until the player turns it off (0014 item 13 as 0.2 amends it).
     static let onKey = "account.saveOnline"
@@ -142,7 +147,8 @@ struct CloudSync {
             here[id] = nil
             outcome.changed = true
         }
-        // A piece the library deleted while this pass ran keeps its mark for the next one (`markDeletedHere`, E-sync-1).
+        // A piece the library deleted while this pass ran keeps its mark for the next one (`markDeletedHere`, E-sync-1;
+        // one marked between this read and the write below is not, a known limit there).
         for (id, mark) in SyncRecords.load(from: recordsURL) where mark.deletedHere == true && here[id] != nil {
             records[id]?.deletedHere = true
         }
@@ -186,8 +192,17 @@ struct CloudSync {
         case "forget":
             records[id] = local == nil ? nil : SyncRecord(hash: hash, deletedOnline: true)
         default:
-            return
+            await seedBase(id, local, row, record)
         }
+    }
+
+    /// A piece synced by a build before c-17b has no base (`SyncBases`): while neither side changed it since, its copy here
+    /// as it goes online is the one both hold, so the next merge has a base too.
+    private func seedBase(_ id: String, _ local: Local?, _ row: OnlineProject?, _ record: SyncRecord) async {
+        guard let local, !local.readOnly, let row, record.etag != nil, local.hash == record.hash, row.savedAt == record.savedAt,
+              !SyncBases.has(id, records: recordsURL), let sent = await Self.sent(local)
+        else { return }
+        SyncBases.save(sent.copy, for: id, records: recordsURL)
     }
 
     /// The online copy of a piece the player deleted here, only as this iPad last saw it (`If-Match`): once it is gone (or
@@ -198,34 +213,43 @@ struct CloudSync {
         if await online.delete(id, ifMatch: etag) == .gone { records[id] = nil }
     }
 
-    /// Marks a piece the player deleted here (the library's Delete) for the next pass to delete online; nothing for a piece
-    /// this iPad never synced. It writes the environment's records: a pass under way keeps the mark (`run`).
+    /// Marks a piece the player deleted here (the library's Delete) for the next pass to delete online. It writes the
+    /// environment's records: a pass under way keeps the mark (`run`), also for a piece it sends for the first time; on a
+    /// piece this iPad never synced the next pass forgets it ("forget").
     static func markDeletedHere(_ id: String, recordsURL: URL = SyncRecords.url) {
         var records = SyncRecords.load(from: recordsURL)
-        guard records[id] != nil else { return }
-        records[id]?.deletedHere = true
+        records[id, default: SyncRecord()].deletedHere = true
         SyncRecords.save(records, to: recordsURL)
     }
 
-    /// The pieces deleted here whose online copy is still to go: the library does not offer them as «Нет на этом iPad».
-    static func deletingHere(recordsURL: URL = SyncRecords.url) -> Set<String> {
-        Set(SyncRecords.load(from: recordsURL).filter { $0.value.deletedHere == true }.keys)
+    /// The projects listed online to offer as «Нет на этом iPad»: in no project file here, and not deleted here with their
+    /// online copy still to go (E-sync-2).
+    static func offered(_ listed: [OnlineProject], here: Set<String>, recordsURL: URL = SyncRecords.url) -> [OnlineProject] {
+        let deleting = SyncRecords.load(from: recordsURL).filter { $0.value.deletedHere == true }.keys
+        return OnlineProjects.notHere(listed, here: here.union(deleting))
+    }
+
+    /// The hash of the project file here and the copy of it that goes online (`project.online`: without the PDF); nil for a
+    /// piece that is only a PDF, or a later build's.
+    private static func sent(_ local: Local) async -> (hash: String, copy: String)? {
+        guard let data = local.data, let file = String(data: data, encoding: .utf8),
+              let copy = await core(.projectOnline, ["file": file])?["file"] as? String
+        else { return nil }
+        return (hash(data), copy)
     }
 
     /// Sends the copy without the PDF; a piece that is only a PDF is not sent.
     private func upload(_ id: String, _ local: Local, ifMatch: String?, _ record: SyncRecord) async -> SyncRecord {
-        guard let data = local.data, let file = String(data: data, encoding: .utf8),
-              let copy = await Self.core(.projectOnline, ["file": file])?["file"] as? String
-        else { return record }
+        guard let sent = await Self.sent(local) else { return record }
         var noted = record
-        switch await online.upload(id, file: copy, ifMatch: ifMatch) {
+        switch await online.upload(id, file: sent.copy, ifMatch: ifMatch) {
         case .saved(let etag):
             // What went online is what both sides now agree on: the next merge's base.
-            SyncBases.save(copy, for: id, records: recordsURL)
-            return SyncRecord(etag: etag, savedAt: nil, hash: Self.hash(data))
+            SyncBases.save(sent.copy, for: id, records: recordsURL)
+            return SyncRecord(etag: etag, savedAt: nil, hash: sent.hash)
         case .overQuota:
             noted.overQuota = true
-            noted.hash = Self.hash(data)
+            noted.hash = sent.hash
         case .changedOnline:
             // Saved on another device since this one saw it, or a first upload of an id the API keeps (#321): the next pass
             // fetches it and merges the two.
@@ -258,9 +282,10 @@ struct CloudSync {
     }
 
     /// Both copies changed: music-core merges them (`project.resolve`) and this iPad follows its answer (c-17a's note, "For
-    /// c-17b"): the previous copy, when there is one, first, as a piece of its own (a writable one goes online as a new piece
-    /// next pass, a later build's stays here, never sent), then "file" in place; "file" goes online over the copy fetched
-    /// when "upload" says so, else the copy fetched is what both agree on, and "file" is sent only once it changes here.
+    /// c-17b"): the previous copy, when there is one, as a piece of its own (a writable one goes online as a new piece next
+    /// pass, a later build's stays here, never sent), and "file" in place (`keep`). "file" goes online over the copy fetched
+    /// when "upload" says so, and on the next pass when the merge failed its self-check (`ProjectSync.Resolve`); else the
+    /// copy fetched is what both agree on, and "file" is sent only once it changes here.
     private func resolve(_ id: String, _ local: Local, _ row: OnlineProject, _ records: inout [String: SyncRecord], _ conflicts: inout [SyncConflict]) async -> Bool {
         guard case .success(let fetched) = await online.fetch(id), let remote = String(data: fetched.data, encoding: .utf8),
               let data = local.data, let here = String(data: data, encoding: .utf8)
@@ -279,41 +304,52 @@ struct CloudSync {
             "sendsFile": true,
         ]
         if records[id] != nil, let base = SyncBases.load(id, records: recordsURL) { fields["base"] = base }
-        guard let answer = await Self.core(.projectResolve, fields), let kept = answer["file"] as? String else { return false }
-        var changed = false
-        if let copy = answer["copy"] as? String {
-            // Written before "file", so a failure here leaves both copies as they were and the next pass merges again (E-sync-3).
-            let copied = await PieceSummary.read(Data(copy.utf8))?.title ?? row.title
-            guard write(copy, to: nil, title: copied) != nil else { return false }
-            changed = true
-            let places = (answer["conflicts"] as? [[String: Any]] ?? []).compactMap { $0["in"] as? String }
-            if !places.isEmpty {
-                let title = await PieceSummary.read(Data(kept.utf8))?.title ?? row.title
-                conflicts.append(SyncConflict(title: title, copyTitle: copied, places: places))
-            }
-        }
-        if kept != here {
-            guard write(kept, to: local.url, title: row.title) != nil else { return changed }
-            changed = true
-        }
+        guard let answer = await Self.core(.projectResolve, fields), let kept = answer["file"] as? String,
+              let changed = await keep(answer, kept, over: here, at: local.url, row, &conflicts)
+        else { return false }
         // The copy fetched is what both sides agree on now. "file" goes over it when "upload" says so (a failed send leaves
-        // it changed here, to go with the ETag fetched next pass, E-sync-6); else (the merge failed its self-check, either
-        // copy is a later build's, or "file" is the online copy) it goes only once it changes here.
+        // it changed here, to go with the ETag fetched next pass, E-sync-6), and on the next pass, with that ETag, when the
+        // merge failed its self-check; when either copy is a later build's ("file" is then the online one, decisions 36 and
+        // 39) or both were the same, it goes only once it changes here.
         SyncBases.save(remote, for: id, records: recordsURL)
         let written = Local(url: local.url, hash: Self.hash(Data(kept.utf8)), modified: local.modified)
         let sends = answer["upload"] as? Bool == true
-        let agreed = SyncRecord(etag: fetched.etag, savedAt: row.savedAt, hash: sends ? nil : written.hash)
+        let sendsNext = answer["merged"] as? Bool == false && answer["readOnly"] as? Bool != true && !local.readOnly
+        let agreed = SyncRecord(etag: fetched.etag, savedAt: row.savedAt, hash: sends || sendsNext ? nil : written.hash)
         records[id] = agreed
         if sends { records[id] = await upload(id, written, ifMatch: fetched.etag, agreed) }
         return changed
     }
 
+    /// Writes what `project.resolve` answered: "copy" as a piece of its own, then "file" in place, and the conflict line once
+    /// both are (E-sync-3). When "file" cannot be written the copy just written goes again, so both copies stay as they were
+    /// and the next pass merges again. Nil when nothing was kept, else whether a project file here changed.
+    private func keep(_ answer: [String: Any], _ kept: String, over here: String, at url: URL, _ row: OnlineProject, _ conflicts: inout [SyncConflict]) async -> Bool? {
+        var copied: (url: URL, title: String)?
+        if let copy = answer["copy"] as? String {
+            let title = await PieceSummary.read(Data(copy.utf8))?.title ?? row.title
+            guard let written = write(copy, to: nil, title: title) else { return nil }
+            copied = (written, title)
+        }
+        if kept != here, write(kept, to: url, title: row.title) == nil {
+            if let copied { try? FileManager.default.removeItem(at: copied.url) }
+            return nil
+        }
+        let places = (answer["conflicts"] as? [[String: Any]] ?? []).compactMap { $0["in"] as? String }
+        if let copied, !places.isEmpty {
+            let title = await PieceSummary.read(Data(kept.utf8))?.title ?? row.title
+            conflicts.append(SyncConflict(title: title, copyTitle: copied.title, places: places))
+        }
+        return copied != nil || kept != here
+    }
+
     /// One piece, one entry (version 0.6.1, #582 item 1): the project files here that are the same piece by the files they
     /// were made from (`pieceKeys`, grouped by `project.same`), such as the same PDF added on another iPad and on this one,
     /// become one when one of them carries nothing of the player's own (`project.join`, music-core's `SamePiece`). The
-    /// other is written in place with its PDF and details, and the copy that joined it is deleted here and online, so no
-    /// device fetches it again; where the app may not write online, what this iPad knows of that online copy stays, so this
-    /// iPad does not fetch it again either. A copy whose bytes are kept beside
+    /// other is written in place with its PDF and details, and the copy that joined it is deleted here and marked to go
+    /// online with the next pass as one the player deleted (`deleteOnline`: with its ETag, again after a failure), so no
+    /// device fetches it again; until then what this iPad knows of that online copy stays, so this iPad does not fetch it
+    /// again either. A copy whose bytes are kept beside
     /// its file on this iPad (a linked PDF, a copy for playing offline, a recording's sound) stays, though another may join
     /// it. Answers the ids of the projects that went.
     private func join(_ records: inout [String: SyncRecord]) async -> [String] {
@@ -344,8 +380,7 @@ struct CloudSync {
                         continue
                     }
                     gone.append(id)
-                    // Only the copy this iPad last saw: one saved elsewhere since comes back with the next pass.
-                    if online.writable, await online.delete(id, ifMatch: records[id]?.etag) == .gone { records[id] = nil }
+                    records[id]?.deletedHere = true
                 }
             }
         }

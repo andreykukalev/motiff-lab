@@ -6,9 +6,10 @@ import XCTest
 /// own. music-core decides each step (project.sync, project.online, project.pulled, project.resolve).
 @MainActor
 final class CloudSyncTests: XCTestCase {
-    private var folder: URL!
-    private var records: URL!
-    private var account: Account!
+    // Not private: the passes of v1.6 c-17b's review are tested in CloudSyncPassTests.swift, an extension of this class.
+    var folder: URL!
+    var records: URL!
+    var account: Account!
 
     override func setUp() async throws {
         StubAPI.reset()
@@ -25,20 +26,20 @@ final class CloudSyncTests: XCTestCase {
         StubAPI.reset()
     }
 
-    /// Not writable: Main in a version build (`EnvironmentSetup.writes`).
-    private func sync(writable: Bool = true) -> CloudSync {
+    /// Not writable: Main in a version build (`EnvironmentSetup.writes`). `copyTitle` is asked while a pass resolves a piece.
+    func sync(writable: Bool = true, copyTitle: @escaping (Date) -> String = { _ in "{0} (previous copy)" }) -> CloudSync {
         let account = account!
         let online = OnlineProjects(session: StubAPI.session(), request: { path in await account.request(path: path, token: "t") }, writable: writable)
-        return CloudSync(online: online, folder: folder, recordsURL: records) { _ in "{0} (previous copy)" }
+        return CloudSync(online: online, folder: folder, recordsURL: records, copyTitle: copyTitle)
     }
 
-    private func url(_ path: String) throws -> String {
+    func url(_ path: String) throws -> String {
         try XCTUnwrap(account.request(path: path, token: "t")?.url?.absoluteString)
     }
 
     /// A project file of the kit's piece under the id, with the tags given (and a resume point, a change that is not the
     /// tags'), as music-core writes it.
-    private func projectFile(id: String, tags: [String] = [], now: String = "2026-11-11T09:00:00Z", resume: Bool = false) throws -> String {
+    func projectFile(id: String, tags: [String] = [], now: String = "2026-11-11T09:00:00Z", resume: Bool = false) throws -> String {
         let example = try XCTUnwrap(KitPiece.example)
         let opened = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en", "id": "\#(id)", "now": "\#(now)"}"#)))
         let piece = Int32(opened["piece"] as? Int ?? 0)
@@ -57,26 +58,33 @@ final class CloudSyncTests: XCTestCase {
 
     /// The file as a later build writes it (version 19, readable from 18, with a field this build does not know): kept
     /// here read-only (project file 18).
-    private func laterBuild(_ file: String) throws -> String {
+    func laterBuild(_ file: String) throws -> String {
+        try edited(file) { object in
+            object["version"] = 19
+            object["future"] = 1
+        }
+    }
+
+    /// The project file with its JSON changed as given.
+    func edited(_ file: String, _ change: (inout [String: Any]) -> Void) throws -> String {
         var object = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(file.utf8)) as? [String: Any])
-        object["version"] = 19
-        object["future"] = 1
+        change(&object)
         return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
     }
 
     /// This iPad last synced the piece as `base`: the online copy's ETag e1, saved online on 2020-01-01; the base kept for
     /// the merge (`SyncBases`) unless `keepsBase` is false.
-    private func known(_ id: String, base: String, keepsBase: Bool = true) {
+    func known(_ id: String, base: String, keepsBase: Bool = true) {
         SyncRecords.save([id: SyncRecord(etag: "\"e1\"", savedAt: "2020-01-01T09:00:00+00:00", hash: CloudSync.hash(Data(base.utf8)))], to: records)
         if keepsBase { SyncBases.save(base, for: id, records: records) }
     }
 
     /// The API's list with the one piece saved online at the time given.
-    private func listing(_ id: String, savedAt: String) throws -> [String: StubAPI.Answer] {
+    func listing(_ id: String, savedAt: String) throws -> [String: StubAPI.Answer] {
         [try url("projects"): .init(status: 200, body: Data("[\(row(id, savedAt: savedAt))]".utf8))]
     }
 
-    private func row(_ id: String, savedAt: String) -> String {
+    func row(_ id: String, savedAt: String) -> String {
         #"{"id":"\#(id)","fileName":"Elise.musicxml","motifCount":0,"variationCount":0,"lastOpened":"2026-11-11T09:00:00+00:00","resumeCount":0,"ideaCount":0,"savedAt":"\#(savedAt)"}"#
     }
 
@@ -198,7 +206,6 @@ final class CloudSyncTests: XCTestCase {
         known(id, base: try projectFile(id: id))
         CloudSync.markDeletedHere(id, recordsURL: records)
         CloudSync.markDeletedHere("p_never", recordsURL: records)
-        XCTAssertEqual(CloudSync.deletingHere(recordsURL: records), [id], "a piece never synced has nothing online to delete")
         let online = try url("projects/" + id)
         StubAPI.reset(try listing(id, savedAt: "2020-01-01T09:00:00+00:00").merging(["DELETE " + online: .init(status: 412, body: Data())]) { first, _ in first })
 
@@ -206,6 +213,7 @@ final class CloudSyncTests: XCTestCase {
 
         XCTAssertEqual(StubAPI.requests.first { $0.httpMethod == "DELETE" }?.value(forHTTPHeaderField: "If-Match"), "\"e1\"")
         XCTAssertEqual(SyncRecords.load(from: records)[id]?.deletedHere, true, "saved elsewhere since: it stays online")
+        XCTAssertNil(SyncRecords.load(from: records)["p_never"], "a piece never synced has nothing online to delete: forgotten")
 
         StubAPI.reset(try listing(id, savedAt: "2020-01-03T09:00:00+00:00").merging([
             online: .init(status: 200, body: Data(try projectFile(id: id, tags: ["Elsewhere"]).utf8), headers: ["ETag": "\"e2\""]),
@@ -254,8 +262,10 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(SyncRecords.load(from: records)[id]?.etag, "\"e2\"")
     }
 
-    /// The 1.6 plan's decision 36: a later build's copy online meets this iPad's changed one. The later build's takes the
-    /// piece here, read-only and never sent; this iPad's goes beside as a piece of its own, which the next pass sends as new.
+    /// The lead's decision 39 (amending 36 for a later build's copy online): a later build's copy online meets this iPad's
+    /// changed one. The later build's stays the piece, here read-only and never sent, since writing over it would remove
+    /// what that build wrote (`ProjectSync.Apart`); this iPad's goes beside as a piece of its own, which the next pass sends
+    /// as new.
     func testALaterBuildsCopyOnlineTakesThePieceAndThisIPadsGoesBeside() async throws {
         let id = "p_" + String(repeating: "l", count: 32)
         let here = folder.appendingPathComponent("Elise.motiff.json")

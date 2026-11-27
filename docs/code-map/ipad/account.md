@@ -10,17 +10,21 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
 
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features, the
   profile (`PlayerProfile`, `saveProfile`), `deleteOnlineData` («Удалить аккаунт и данные онлайн»: DELETE /me, then
-  sign out; the files and sync records here stay, E-settings-5).
+  sign out, answering an `OnlineDeletion`; the rule itself in the static `deleteOnlineData(_:signOut:)`; the files and
+  sync records here stay, E-settings-5).
 
 ### Sync (version 0.2; v1.6 c-17b)
 
 - `CloudSync.swift`: one pass (`run`), music-core deciding each step (`project.sync`). `SyncRecords` (per environment,
   `sync.json` / `sync-test.json`): the ETag, save time and hash last seen, `deletedHere`. `SyncBases`: the copy last
-  sent or fetched per piece (`sync-bases/`, `sync-test-bases/`), sent as `project.resolve`'s "base" with "sendsFile":
-  the previous copy is written first, then "file", which goes online itself when "upload" is true (If-Match the fetched
-  ETag). A first upload has no If-Match (create only; 412 → resolved next pass). `markDeletedHere` (the library's
-  Delete) → "deleteOnline" → DELETE with If-Match (204/404 drop the record and base, 412 keeps them). A later build's
-  copy here (`PieceSummary.readOnly`) is never sent. `Outcome.conflicts`: `SyncConflict` (`SyncConflict.swift`), the
+  sent or fetched per piece (`sync-bases/`, `sync-test-bases/`; a piece synced before c-17b gets one while neither side
+  changed it, `seedBase`), sent as `project.resolve`'s "base" with "sendsFile": `keep` writes the previous copy, then
+  "file" (the copy goes again when "file" cannot be written, E-sync-3); "file" goes online itself when "upload" is true
+  (If-Match the fetched ETag), and on the next pass when the merge failed its self-check (E-sync-7). A first upload has
+  no If-Match (create only; 412 → resolved next pass). `markDeletedHere` (the library's Delete) and `join` (a copy that
+  joined another) mark a piece → "deleteOnline" → DELETE with If-Match (204/404 drop the record and base, 412 keeps
+  them); `offered` leaves the marked out of «Нет на этом iPad» (E-sync-2). A later build's copy here
+  (`PieceSummary.readOnly`) is never sent; one online stays the piece (decision 39). `Outcome.conflicts`: `SyncConflict` (`SyncConflict.swift`), the
   pieces resolved with a conflict, named by kind from the core's "in" for the library's line (E-sync-4).
 - `OnlineProjects.swift`: the API's projects (list, fetch with ETag, `upload` with If-Match, `delete(_:ifMatch:)`,
   `deleteEverything` = DELETE /me), «Нет на этом iPad» (`OnlineList`, `OnlineShelf`).

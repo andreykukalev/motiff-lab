@@ -45,8 +45,7 @@ extension LibraryView {
         }
         let listed = listing?.projects ?? []
         // A piece deleted here whose online copy is still to go is not offered to get back (E-sync-2).
-        let deleting = CloudSync.deletingHere(recordsURL: account.environment.syncRecordsURL)
-        online = OnlineProjects.notHere(listed, here: Set(library.summaries.values.compactMap(\.id)).union(deleting))
+        online = CloudSync.offered(listed, here: Set(library.summaries.values.compactMap(\.id)), recordsURL: account.environment.syncRecordsURL)
     }
 
     /// The library's Delete: the piece's file goes here, and its online copy is marked to go with the pass started now

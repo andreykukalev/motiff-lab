@@ -85,8 +85,9 @@ struct AccountPanel: View {
     /// The delete, once confirmed: signed out when it is done, and the signed-out section says the data online went.
     private func deleteOnline() {
         Task {
-            deleteProblem = await account.deleteOnlineData()
-            deletedOnline = deleteProblem == nil && account.player == nil
+            let deleted = await account.deleteOnlineData()
+            deleteProblem = deleted.problemKey.map { text[$0] }
+            deletedOnline = deleted == .done
         }
     }
 
