@@ -30,6 +30,10 @@ struct InsightsStream: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel(text["insights.filter"])
                 }
+                if let problem = insights.problem {
+                    // E-insights-1: a Try, Keep or On the circle that failed says why, as a stream not read does.
+                    Text(problem).dsType(.label).foregroundStyle(Color.ds("danger"))
+                }
                 if understanding.facts.isEmpty {
                     caption(text["understand.nothingYet"])
                 }

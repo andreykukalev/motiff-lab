@@ -4,7 +4,8 @@ import XCTest
 
 /// InsightsController (W2.12, v1.6 i-12) on the kit's piece through music-core: the stream's rules that moved from its
 /// view into the controller, rule for rule (the filter chips, the lenses under Details folded and opened, the trial kept
-/// in reach when its fact is filtered out), each written only by the controller's methods.
+/// in reach when its fact is filtered out), each written only by the controller's methods; and the robustness rules of
+/// v1.6 i-12 (docs/ui-edge-cases.md, E-insights-1 to 3).
 @MainActor
 final class InsightsControllerTests: XCTestCase {
     private var opened: [Int32] = []
@@ -85,5 +86,20 @@ final class InsightsControllerTests: XCTestCase {
         await insights.leave()
         XCTAssertNil(insights.trial)
         XCTAssertFalse(insights.trialFilteredOut)
+    }
+
+    /// E-insights-1: a step that fails says why while the facts are shown, and the next step takes the words away.
+    func testAStepThatFailsSaysWhyUntilTheNextStep() async throws {
+        let (insights, _) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        let fact = try XCTUnwrap(understanding.facts.first { InsightsController.opensCircle($0) }, "the harmony opens the circle")
+
+        await insights.tryWay(Fact.Try(id: "no.such.way", label: "?"), of: fact)
+        XCTAssertNil(insights.trial)
+        XCTAssertNotNil(insights.problem, "music-core's refusal is kept to show")
+        XCTAssertNotNil(insights.understanding, "over the facts, which stay")
+        await insights.toggleCircle(fact)
+        XCTAssertNotNil(insights.circle)
+        XCTAssertNil(insights.problem, "the next step takes the last one's words away")
     }
 }

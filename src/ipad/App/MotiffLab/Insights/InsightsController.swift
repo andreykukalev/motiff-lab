@@ -156,6 +156,8 @@ final class InsightsController: ObservableObject {
             return
         }
         circleFor = fact.id
+        // E-insights-1: what the last step's failure said goes with the next step.
+        problem = nil
         guard circle == nil else { return }
         let piece = piece
         let selection = understood
@@ -228,6 +230,8 @@ final class InsightsController: ObservableObject {
     /// Keeps the variation being tried as an idea, named after its way and filed with its fact (`idea.keep`).
     func keep() async {
         guard let trial, !trial.kept else { return }
+        // E-insights-1, as On the circle.
+        problem = nil
         let piece = piece
         let request = facadeRequest(["name": trial.way.label, "factId": trial.factId, "now": ISO8601DateFormatter().string(from: Date())])
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.ideaKeep, request) }
