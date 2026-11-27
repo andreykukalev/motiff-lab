@@ -74,7 +74,7 @@ extension ScoreWorkspace {
     }
 
     /// The note editor on the roll (testing item 15): a press on its notes edits them while it is open. The reaction on
-    /// `score.noteEditor`.
+    /// `score.checkModel.noteEditor`.
     func noteEditorChanged(_ editor: NoteEditorState?) {
         roll.showEditor(editor)
     }

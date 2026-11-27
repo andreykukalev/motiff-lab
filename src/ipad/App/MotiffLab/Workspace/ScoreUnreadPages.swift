@@ -59,12 +59,12 @@ extension ScoreController {
     /// The working notes' unread pages at their place; none while they are read again or once they are in.
     var unreadPages: [UnreadPage] {
         guard let item = unreadRecognition, item.state == .done, let unread = item.unread, let read = item.read else { return [] }
-        return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+        return UnreadPage.of(unread: unread, read: read, starts: checkModel.check.pageStarts)
     }
 
     /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
     func unreadPagesCheck(_ text: UIText) -> some View {
-        UnreadPagesCheck(score: self, text: text)
+        UnreadPagesCheck(score: self, checkModel: checkModel, text: text)
     }
 }
 
@@ -72,6 +72,8 @@ extension ScoreController {
 /// recognition's «Повторить» for them (`UnreadPagesRetry`, as on the piece's line in the library).
 struct UnreadPagesCheck: View {
     @ObservedObject var score: ScoreController
+    /// Where the notes' pages start (`check`'s "pageStarts"), which places the pages.
+    @ObservedObject var checkModel: CheckModel
     let text: UIText
     @ObservedObject private var queue = RecognitionQueue.shared
 
