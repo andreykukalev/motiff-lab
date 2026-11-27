@@ -6,55 +6,147 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>
-/// Melody facts beyond line, intervals in semitones, contour, range and degrees (S1-A2): interval
-/// names, repeated notes, melody notes that sound with lower notes, and the phrase boundaries the
-/// source marks or the player set.
+/// The melody lens measured (S1-A2): the line, its intervals and contour, range, scale degrees, the interval size that
+/// leads, repeated notes, melody notes that sound with lower notes, and the phrase boundaries the source marks or the
+/// player set. Each measure is a record; the sentences are written from them in <c>MotifAnalyzer.Melody.Facts.cs</c>.
 /// </summary>
 internal static partial class MotifAnalyzer
 {
-    /// <summary>A list of intervals names at most this many, then says how many more there are.</summary>
-    private const int MaxNamedIntervals = 12;
-
-    private static MotifFact IntervalNamesFact(Note[] line, int[] intervals, FactCertainty certainty, string basis, Words w)
+    /// <summary>
+    /// The melody: the texture it was read from, the line (the top line when notes sound together), the semitones from
+    /// each note to the next, and their directions.
+    /// </summary>
+    private sealed record LineMeasure(MotifTexture Texture, Note[] Line, bool TopNotes, int[] Intervals, ContourStep[] Contour)
     {
-        string[] names = [.. intervals.Select(step => step == 0
-            ? w.T("unison", "прима")
-            : $"{w.IntervalName(step)} {(step > 0 ? w.T("up", "вверх") : w.T("down", "вниз"))}")];
-        string list = w.Listed(names, MaxNamedIntervals, ", ", " ");
-        string text = $"{w.T("Intervals by name", "Интервалы по названию")}: {list}.";
-        string brief = w.IsRussian
-            ? $"{w.Count(intervals.Length, "", "", "интервал", "интервала", "интервалов")}, ни один размер не преобладает."
-            : $"{Words.EnglishCount(intervals.Length, "interval", "intervals")}; no size clearly leads.";
-
-        // The most common size, up or down, when one size clearly leads; its place is the notes of every interval of that size.
-        IGrouping<int, int>[] sizes = [.. intervals.GroupBy(Math.Abs).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
-        FactPlace[] places = [];
-        if (sizes[0].Count() > 1 && (sizes.Length == 1 || sizes[0].Count() > sizes[1].Count()))
-        {
-            string name = sizes[0].Key == 0 ? w.T("repeated note", "повтор звука") : w.IntervalName(sizes[0].Key);
-            string common = w.IsRussian
-                ? $"Чаще всего: {name} ({sizes[0].Count()} из {intervals.Length})."
-                : $"Most common: {(sizes[0].Key == 0 ? "the repeated note" : Words.WithArticle(name))} ({sizes[0].Count()} of {intervals.Length}).";
-            text += " " + common;
-            brief = common;
-            Note[] notes = [.. Enumerable.Range(0, intervals.Length)
-                .Where(i => Math.Abs(intervals[i]) == sizes[0].Key)
-                .SelectMany(i => new[] { line[i], line[i + 1] })
-                .Distinct()];
-            places = [FactPlace.Of($"{w.T("most common", "чаще всего")}, {name}", notes)];
-        }
-
-        return new MotifFact("melody.interval-names", FactLens.Melody, certainty, text, $"{basis} {w.T("Names go by size in semitones, not by spelling.", "Названия даны по размеру в полутонах, а не по написанию.")}")
-        {
-            Places = places,
-            Brief = brief,
-        };
+        /// <summary>A top line is inferred; notes read one at a time are detected.</summary>
+        public FactCertainty Certainty => TopNotes ? FactCertainty.Inferred : FactCertainty.Detected;
     }
 
-    private static MotifFact RepeatedNotesFact(Note[] line, MeterMap meter, MusicalKey key, FactCertainty certainty, string basis, Words w)
+    /// <summary>The intervals as steps (1 or 2 semitones), leaps and repeated notes, and the largest, the higher one on a tie.</summary>
+    private sealed record StepMeasure(int Steps, int Leaps, int Repeats, int Largest);
+
+    /// <summary>
+    /// The contour's runs (the directions once each, leaving out repeated notes), the semitones from the first note to
+    /// the last, and where the line turns: the index of each interval that leaves in a new direction.
+    /// </summary>
+    private sealed record ContourMeasure(IReadOnlyList<ContourStep> Runs, int Net, IReadOnlyList<int> Turns);
+
+    /// <summary>The interval size, up or down, that clearly leads; how many intervals have it, and the notes of each.</summary>
+    private sealed record CommonSize(int Size, int Count, Note[] Notes);
+
+    /// <summary>Each run of a pitch repeated straight away (its first index and the index after it), and the pitch that clearly sounds most often.</summary>
+    private sealed record RepeatMeasure(IReadOnlyList<(int Start, int End)> Runs, IGrouping<int, Note>? MostOften);
+
+    /// <summary>
+    /// Of the <paramref name="Melody"/> notes of the line, how many are struck with lower notes or sound over notes still
+    /// held, and each one whose pitch class a lower note shares.
+    /// </summary>
+    private sealed record OverMeasure(int Melody, int Struck, int Held, IReadOnlyList<(Note Note, Note[] Doubled)> Shared);
+
+    /// <summary>The phrase boundaries after the motif's first onset up to its last, the one at its first onset, and whether any cited is a reading of the notes.</summary>
+    private sealed record PhraseMeasure(PhraseBoundary[] Inside, PhraseBoundary? AtStart, bool Inferred);
+
+    /// <summary>The melody facts in display order, each measured and then written.</summary>
+    private static List<MotifFact> MelodyFacts(Note[] chosen, LineMeasure line, KeyReading key, MeterMap meter, IEnumerable<PhraseBoundary>? phrases, Words w)
     {
-        var runs = new List<string>();
-        var places = new List<FactPlace>();
+        var facts = new List<MotifFact> { LineFact(line, key.Key, w) };
+        if (line.Intervals.Length > 0)
+        {
+            facts.Add(IntervalsFact(line, MeasureSteps(line.Intervals), key.Key, w));
+            facts.Add(ContourFact(line, MeasureContour(line.Contour, line.Intervals), key.Key, w));
+        }
+
+        facts.Add(RangeFact(MeasureRegister(chosen), chosen, key.Key, w));
+        facts.Add(DegreesFact(line, [.. line.Line.Select(note => Degree(note.Pitch, key.Key))], key, w));
+        if (line.Intervals.Length > 0)
+        {
+            facts.Add(IntervalNamesFact(line, MeasureCommonSize(line.Line, line.Intervals), w));
+        }
+
+        facts.Add(RepeatedNotesFact(line, MeasureRepeats(line.Line), meter, key.Key, w));
+        if (line.TopNotes)
+        {
+            facts.Add(SoundingWithFact(MeasureOver(line.Texture), key.Key, w));
+        }
+
+        if (phrases is not null)
+        {
+            facts.Add(PhraseFact(MeasurePhrases(chosen, phrases), chosen, meter, w));
+        }
+
+        return facts;
+    }
+
+    private static LineMeasure MeasureLine(Note[] notes)
+    {
+        MotifTexture texture = MotifTexture.Read(notes);
+        Note[] line = [.. texture.Melody];
+        int[] intervals = [.. line.Zip(line.Skip(1), (from, to) => to.Pitch.MidiNumber - from.Pitch.MidiNumber)];
+        ContourStep[] contour = [.. intervals.Select(step => step > 0 ? ContourStep.Up : step < 0 ? ContourStep.Down : ContourStep.Same)];
+        return new LineMeasure(texture, line, !texture.IsSingleLine, intervals, contour);
+    }
+
+    private static StepMeasure MeasureSteps(int[] intervals) => new(
+        intervals.Count(step => Math.Abs(step) is 1 or 2),
+        intervals.Count(step => Math.Abs(step) > 2),
+        intervals.Count(step => step == 0),
+        intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First());
+
+    private static ContourMeasure MeasureContour(ContourStep[] contour, int[] intervals)
+    {
+        var runs = new List<ContourStep>();
+        foreach (ContourStep step in contour.Where(step => step != ContourStep.Same))
+        {
+            if (runs.Count == 0 || runs[^1] != step)
+            {
+                runs.Add(step);
+            }
+        }
+
+        var turns = new List<int>();
+        ContourStep? direction = null;
+        for (int i = 0; i < contour.Length; i++)
+        {
+            if (contour[i] == ContourStep.Same)
+            {
+                continue;
+            }
+
+            if (direction is not null && contour[i] != direction)
+            {
+                turns.Add(i);
+            }
+
+            direction = contour[i];
+        }
+
+        return new ContourMeasure(runs, intervals.Sum(), turns);
+    }
+
+    /// <summary>The group with the most items when it has more than one and more than any other group; null when no group leads.</summary>
+    private static IGrouping<int, T>? ClearlyMost<T>(IEnumerable<T> items, Func<T, int> key)
+    {
+        IGrouping<int, T>[] ranked = [.. items.GroupBy(key).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
+        return ranked[0].Count() > 1 && (ranked.Length == 1 || ranked[0].Count() > ranked[1].Count()) ? ranked[0] : null;
+    }
+
+    private static CommonSize? MeasureCommonSize(Note[] line, int[] intervals)
+    {
+        if (ClearlyMost(intervals, Math.Abs) is not { } leader)
+        {
+            return null;
+        }
+
+        Note[] notes = [.. Enumerable.Range(0, intervals.Length)
+            .Where(i => Math.Abs(intervals[i]) == leader.Key)
+            .SelectMany(i => new[] { line[i], line[i + 1] })
+            .Distinct()];
+        return new CommonSize(leader.Key, leader.Count(), notes);
+    }
+
+    private static RepeatMeasure MeasureRepeats(Note[] line)
+    {
+        var runs = new List<(int Start, int End)>();
         for (int start = 0; start < line.Length;)
         {
             int end = start + 1;
@@ -65,51 +157,20 @@ internal static partial class MotifAnalyzer
 
             if (end - start > 1)
             {
-                runs.Add(w.IsRussian
-                    ? $"{key.Spell(line[start].Pitch.MidiNumber)} {w.Times(end - start)} ({Place(meter.ToPosition(line[start].Span.Onset), w)})"
-                    : $"{key.Spell(line[start].Pitch.MidiNumber)} {(end - start == 2 ? "twice" : $"{end - start} times")} from {Place(meter.ToPosition(line[start].Span.Onset), w)}");
-                places.Add(FactPlace.Of(runs[^1], line[start..end]));
+                runs.Add((start, end));
             }
 
             start = end;
         }
 
-        string text = runs.Count == 0
-            ? w.T("No note is repeated straight away.", "Ни одна нота не повторяется сразу.")
-            : $"{w.T("Repeated straight away", "Сразу повторяются")}: {string.Join("; ", runs)}.";
-        string? brief = runs.Count == 0
-            ? null
-            : w.IsRussian
-                ? $"Сразу {Words.RussianForm(runs.Count, "повторяется", "повторяются", "повторяются")} {w.Count(runs.Count, "", "", "нота", "ноты", "нот")}."
-                : $"{Words.EnglishCount(runs.Count, "note", "notes")} {(runs.Count == 1 ? "is" : "are")} repeated straight away.";
-
-        IGrouping<int, Note>[] pitches = [.. line.GroupBy(note => note.Pitch.MidiNumber).OrderByDescending(group => group.Count()).ThenBy(group => group.Key)];
-        if (pitches[0].Count() > 1 && (pitches.Length == 1 || pitches[0].Count() > pitches[1].Count()))
-        {
-            text += w.IsRussian
-                ? $" Чаще всего звучит {key.Spell(pitches[0].Key)}: {pitches[0].Count()} {w.OutOf(line.Length, "", "", "ноты", "нот")}."
-                : $" {key.Spell(pitches[0].Key)} sounds most often, {pitches[0].Count()} of {Words.EnglishCount(line.Length, "note", "notes")}.";
-            places.Add(FactPlace.Of($"{w.T("most often", "чаще всего")}, {key.Spell(pitches[0].Key)}", pitches[0]));
-        }
-
-        return new MotifFact("melody.repeated-notes", FactLens.Melody, certainty, text, basis)
-        {
-            Places = places,
-            Brief = brief,
-        };
+        return new RepeatMeasure(runs, ClearlyMost(line, note => note.Pitch.MidiNumber));
     }
 
-    /// <summary>
-    /// Melody notes that sound over lower notes, struck with them or over notes still held, and those
-    /// whose pitch class a lower note shares: such a note is both a melody note and a note of the chord
-    /// under it, so the ear can take it either way.
-    /// </summary>
-    private static MotifFact SoundingWithFact(MotifTexture texture, MusicalKey key, Words w)
+    private static OverMeasure MeasureOver(MotifTexture texture)
     {
         int struck = 0;
         int held = 0;
-        var shared = new List<string>();
-        var places = new List<FactPlace>();
+        var shared = new List<(Note Note, Note[] Doubled)>();
         foreach (Note note in texture.Melody)
         {
             Note[] lower = [.. texture.SoundingWith(note).Where(other => other.Pitch < note.Pitch)];
@@ -130,131 +191,21 @@ internal static partial class MotifAnalyzer
             Note[] doubled = [.. lower.Where(other => other.Pitch.PitchClass == note.Pitch.PitchClass).OrderByDescending(other => other.Pitch.MidiNumber)];
             if (doubled.Length > 0)
             {
-                shared.Add($"{key.Spell(note.Pitch.MidiNumber)} ({w.T("with", "с")} {string.Join(", ", doubled.Select(other => key.Spell(other.Pitch.MidiNumber)))})");
-                places.Add(FactPlace.Of(shared[^1], [note, .. doubled]));
+                shared.Add((note, doubled));
             }
         }
 
-        int over = struck + held;
-        string text;
-        string? brief = null;
-        if (over == 0)
-        {
-            text = w.T(
-                "Every melody note sounds on its own; the other notes fall between melody notes.",
-                "Каждая нота мелодии звучит одна; остальные ноты попадают между нотами мелодии.");
-        }
-        else
-        {
-            string[] how = [.. new[] { (struck, w.T("struck together with them", "взяты вместе с ними")), (held, w.T("over notes still held", "над ещё звучащими нотами")) }
-                .Where(part => part.Item1 > 0)
-                .Select(part => w.IsRussian ? $"{part.Item2}: {part.Item1}" : $"{part.Item1} {part.Item2}")];
-            string list = w.Listed(shared, MaxNamedIntervals, ", ", " ");
-            if (w.IsRussian)
-            {
-                text = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами: {string.Join(", ", how)}.";
-                brief = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами.";
-                text += shared.Count == 0
-                    ? " Ни одна из них не совпадает по звуковысотному классу с нижней нотой."
-                    : $" {shared.Count} {Words.RussianForm(shared.Count, "совпадает", "совпадают", "совпадают")} по звуковысотному классу с нижней нотой, поэтому {(shared.Count == 1 ? "она входит" : "они входят")} и в аккорд под ней: {list}.";
-            }
-            else
-            {
-                text = $"{over} of {Words.EnglishCount(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes: {string.Join(", ", how)}.";
-                brief = $"{over} of {Words.EnglishCount(texture.Melody.Count, "melody note", "melody notes")} sound over lower notes.";
-                text += shared.Count == 0
-                    ? " None shares its pitch class with a lower note."
-                    : $" {Words.EnglishCount(shared.Count, "shares its pitch class", "share their pitch class")} with a lower note, so {(shared.Count == 1 ? "it is" : "they are")} also part of the chord below: {list}.";
-            }
-        }
-
-        return new MotifFact(
-            "melody.over-chords",
-            FactLens.Melody,
-            FactCertainty.Inferred,
-            text,
-            w.T(
-                "The melody is the inferred top line. A lower note sounds with a melody note when it starts with it or is still held when it starts. A shared pitch class means the melody note is also a note of the chord under it.",
-                "Мелодия — предположенный верхний голос. Нижняя нота звучит с нотой мелодии, если начинается вместе с ней или ещё звучит, когда та начинается. Общий звуковысотный класс значит, что нота мелодии входит и в аккорд под ней."))
-        {
-            // The melody notes the text names, each with the lower notes that share its pitch class.
-            Places = places,
-            Brief = brief,
-        };
+        return new OverMeasure(texture.Melody.Count, struck, held, shared);
     }
 
-    private static MotifFact PhraseFact(Note[] notes, IEnumerable<PhraseBoundary> phrases, MeterMap meter, Words w)
+    private static PhraseMeasure MeasurePhrases(Note[] notes, IEnumerable<PhraseBoundary> phrases)
     {
         Tick first = notes[0].Span.Onset;
         Tick last = notes.Max(note => note.Span.Onset);
         PhraseBoundary[] all = [.. phrases.OrderBy(boundary => boundary.At)];
         PhraseBoundary[] inside = [.. all.Where(boundary => boundary.At > first && boundary.At <= last)];
         PhraseBoundary? atStart = all.FirstOrDefault(boundary => boundary.At == first);
-
-        string text = inside.Length == 0
-            ? w.T("No phrase boundary falls inside the motif.", "Внутри мотива нет границы фразы.")
-            : w.IsRussian
-                ? $"{w.Count(inside.Length, "", "", "граница фразы", "границы фраз", "границ фраз")} внутри мотива: {string.Join("; ", inside.Select(boundary => $"{Place(meter.ToPosition(boundary.At), w)}, {EvidenceText(boundary, w)}"))}."
-                : $"{Words.EnglishCount(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif: {string.Join("; ", inside.Select(boundary => $"at {Place(meter.ToPosition(boundary.At), w)}, {EvidenceText(boundary, w)}"))}.";
-        if (atStart is not null)
-        {
-            text += w.T($" It starts where a phrase starts ({EvidenceText(atStart, w)}).", $" Мотив начинается там же, где фраза ({EvidenceText(atStart, w)}).");
-        }
-
         PhraseBoundary[] cited = atStart is null ? inside : [atStart, .. inside];
-        bool inferred = cited.Any(boundary => boundary.Attribution.Provenance is Provenance.Inferred or Provenance.Detected);
-        string basis = w.T(
-            "Boundaries come from phrase slurs, rests of a beat or more and repeat signs in the source, from a passage that comes back note for note or starts again at once, and from boundaries the player set; where none of these marks one, none is invented.",
-            "Границы берутся из фразировочных лиг, пауз длиной в долю и больше и знаков повторения в источнике, из отрывка, который возвращается нота в ноту или сразу начинается снова, и из границ, поставленных исполнителем; там, где ничего из этого границу не отмечает, она не придумывается.");
-        MotifFact fact = inferred
-            ? new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Inferred, text, $"{basis} {w.T("A boundary from a rest or a return alone is a reading of the notes, not a mark in the score.", "Граница только по паузе или возврату — это прочтение нот, а не знак в нотах.")}")
-            : new MotifFact("melody.phrases", FactLens.Melody, FactCertainty.Detected, text, basis);
-        FactPlace[] places = [.. inside.Select(boundary => BoundaryPlace($"{w.T("phrase boundary", "граница фразы")}, {Place(meter.ToPosition(boundary.At), w)}", boundary.At, notes))];
-        string? brief = inside.Length == 0
-            ? null
-            : w.IsRussian
-                ? $"{w.Count(inside.Length, "", "", "граница фразы", "границы фраз", "границ фраз")} внутри мотива."
-                : $"{Words.EnglishCount(inside.Length, "phrase boundary", "phrase boundaries")} inside the motif.";
-        return fact with { Places = atStart is null ? places : [.. places, BoundaryPlace(w.T("phrase start", "начало фразы"), first, notes)], Brief = brief };
-    }
-
-    /// <summary>
-    /// A boundary as the notes of the motif that start a phrase there, or, when none of them starts
-    /// exactly there, the stretch from the boundary to the motif's next onset.
-    /// </summary>
-    private static FactPlace BoundaryPlace(string label, Tick at, Note[] notes)
-    {
-        Note[] starting = [.. notes.Where(note => note.Span.Onset == at)];
-        return starting.Length > 0
-            ? FactPlace.Of(label, starting)
-            : new FactPlace(label, TickSpan.FromBounds(at, notes.Where(note => note.Span.Onset > at).Min(note => note.Span.Onset)), []);
-    }
-
-    /// <summary>"from a slur and a rest of a beat or more", "set by the player", or "from a slur, confirmed by the player".</summary>
-    private static string EvidenceText(PhraseBoundary boundary, Words w)
-    {
-        // Russian names the evidence after "по" ("по лиге и паузе"), in the dative.
-        string[] evidence = [.. boundary.Evidence.Select(mark => mark switch
-        {
-            PhraseEvidence.Slur => w.T("a slur", "лиге"),
-            PhraseEvidence.Rest => w.T("a rest of a beat or more", "паузе в долю и больше"),
-            PhraseEvidence.RepeatSign => w.T("a repeat sign", "знаку повторения"),
-            PhraseEvidence.Repetition => w.T("a passage that comes back note for note", "отрывку, который возвращается нота в ноту"),
-            PhraseEvidence.Restatement => w.T("a passage that starts again at once", "отрывку, который сразу начинается снова"),
-            _ => mark.ToString(),
-        })];
-        string source = evidence.Length switch
-        {
-            0 => "",
-            1 => $"{w.T("from", "по")} {evidence[0]}",
-            _ => $"{w.T("from", "по")} {w.Joined(evidence)}",
-        };
-
-        return boundary.Attribution.Provenance switch
-        {
-            Provenance.UserEdited or Provenance.UserConfirmed when source.Length == 0 => w.T("set by the player", "поставлена исполнителем"),
-            Provenance.UserEdited or Provenance.UserConfirmed => $"{source}, {w.T("confirmed by the player", "подтверждена исполнителем")}",
-            _ => source,
-        };
+        return new PhraseMeasure(inside, atStart, cited.Any(boundary => boundary.Attribution.Provenance is Provenance.Inferred or Provenance.Detected));
     }
 }

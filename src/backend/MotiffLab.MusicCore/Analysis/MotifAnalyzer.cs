@@ -41,6 +41,10 @@ public sealed record MotifAnalysis(
 /// Analysis is pure: the same notes, meter, selection and key signature give the same facts.
 /// Interval names go by size in semitones, not by spelling, so three semitones is a minor 3rd
 /// even where the score writes an augmented 2nd.
+/// Each lens measures in its own file (<c>.Melody</c>, <c>.Rhythm</c>, <c>.Character</c> with <c>.Texture</c>) and
+/// writes its sentences from those measures in another (<c>.Melody.Facts</c>, <c>.Rhythm.Facts</c>,
+/// <c>.Character.Facts</c>); this file picks the notes, reads the key and holds the note values and grids they share,
+/// and <c>.Facts</c> the key fact and the wording every lens uses.
 /// </remarks>
 internal static partial class MotifAnalyzer
 {
@@ -81,6 +85,13 @@ internal static partial class MotifAnalyzer
         new(60, "thirty-second", "thirty-seconds", "тридцать вторая", "тридцать вторые", "тридцать вторых"),
     ];
 
+    /// <summary>The note value a length in ticks is, or null when it is no single note value.</summary>
+    private static NoteValue? ValueOf(long ticks)
+    {
+        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
+        return index < 0 ? null : s_values[index];
+    }
+
     // Onset grids from coarse to fine, measured from the bar line; the Russian names the grid ("сетка восьмых") and goes after "с" ("с триольными восьмыми").
     private static readonly (long Ticks, string Name, bool Triplet, string RussianGrid, string RussianWith)[] s_grids =
     [
@@ -113,121 +124,35 @@ internal static partial class MotifAnalyzer
         ArgumentNullException.ThrowIfNull(meter);
         ArgumentNullException.ThrowIfNull(selection);
 
+        Note[] chosen = Chosen(notes, selection);
+        if (chosen.Length == 0)
+        {
+            return new MotifAnalysis([], false, [], [], null, []);
+        }
+
+        LineMeasure line = MeasureLine(chosen);
+        KeyReading key = ReadKey(chosen, signature);
+        Hit[] hits = Hits(chosen.GroupBy(note => note.Span.Onset));
+        List<MotifFact> facts =
+        [
+            .. MelodyFacts(chosen, line, key, meter, phrases, words),
+            .. RhythmFacts(chosen, hits, meter, selection.Span, key.Key, accents, words),
+            KeyFact(key, signature, chosen.Length, PitchClassCount(chosen), words),
+        ];
+        return new MotifAnalysis(line.Line, line.TopNotes, line.Intervals, line.Contour, key, WithHand(facts, selection, words));
+    }
+
+    /// <summary>The selection's notes, picked from the piece's by id, in time order, then by pitch and id.</summary>
+    private static Note[] Chosen(IEnumerable<Note> notes, MotifSelection selection)
+    {
         var byId = new Dictionary<string, Note>(StringComparer.Ordinal);
         foreach (Note note in notes)
         {
             byId.TryAdd(note.Id, note);
         }
 
-        Note[] chosen = [.. selection.NoteIds.Where(byId.ContainsKey).Select(id => byId[id])
+        return [.. selection.NoteIds.Where(byId.ContainsKey).Select(id => byId[id])
             .OrderBy(note => note.Span.Onset).ThenBy(note => note.Pitch.MidiNumber).ThenBy(note => note.Id, StringComparer.Ordinal)];
-        if (chosen.Length == 0)
-        {
-            return new MotifAnalysis([], false, [], [], null, []);
-        }
-
-        Words w = words;
-        IGrouping<Tick, Note>[] onsets = [.. chosen.GroupBy(note => note.Span.Onset)];
-        MotifTexture texture = MotifTexture.Read(chosen);
-        Note[] line = [.. texture.Melody];
-        bool topNotes = !texture.IsSingleLine;
-        int[] intervals = [.. line.Zip(line.Skip(1), (from, to) => to.Pitch.MidiNumber - from.Pitch.MidiNumber)];
-        ContourStep[] contour = [.. intervals.Select(step => step > 0 ? ContourStep.Up : step < 0 ? ContourStep.Down : ContourStep.Same)];
-        KeyReading key = ReadKey(chosen, signature);
-        string keyName = key.Key.NameIn(w);
-
-        FactCertainty lineCertainty = topNotes ? FactCertainty.Inferred : FactCertainty.Detected;
-        string lineBasis = topNotes
-            ? w.T(
-                "Notes sound together, so the melody is taken as the top line: the highest note at each onset, among right-hand notes when there are any, leaving out notes under a melody note still held.",
-                "Ноты звучат вместе, поэтому мелодией считается верхний голос: самая высокая нота каждой атаки, среди нот правой руки, если они есть, без нот под ещё звучащей нотой мелодии.")
-            : w.T("Read from the notes, one at a time.", "Прочитано по нотам, одна за другой.");
-        string lineName = topNotes ? w.T("top line", "верхнем голосе") : w.T("melody", "мелодии");
-        string degreesBasis = w.IsRussian
-            ? $"Отсчитано от тоники ({keyName}); ♯ и ♭ отмечают ноты вне {(key.Key.Mode == KeyMode.Minor ? "натурального минора" : "мажорной гаммы")}. {(key.Certainty == FactCertainty.Detected ? "Тональность указана в файле." : "Тональность прочитана по нотам, поэтому ступени тоже.")}"
-            : $"Counted from the tonic of {keyName}; ♯ and ♭ mark notes outside its {(key.Key.Mode == KeyMode.Minor ? "natural minor" : "major")} scale. {(key.Certainty == FactCertainty.Detected ? "The key is stated by the file." : "The key is a reading of the notes, so the degrees are too.")}";
-
-        var facts = new List<MotifFact>
-        {
-            new(
-                "melody.line",
-                FactLens.Melody,
-                lineCertainty,
-                w.IsRussian
-                    ? $"{w.Count(line.Length, "", "", "нота", "ноты", "нот")} в {lineName}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}."
-                    : $"{Words.EnglishCount(line.Length, "note", "notes")} in the {lineName}: {string.Join(" ", line.Select(note => key.Key.Spell(note.Pitch.MidiNumber)))}.",
-                w.IsRussian ? $"{lineBasis} Ноты названы для тональности {keyName}." : $"{lineBasis} Spelled for {keyName}.")
-            {
-                Places = [FactPlace.Of(topNotes ? w.T("the top line", "верхний голос") : w.T("the melody", "мелодия"), line)],
-                Brief = w.IsRussian
-                    ? $"{w.Count(line.Length, "", "", "нота", "ноты", "нот")} в {lineName}."
-                    : $"{Words.EnglishCount(line.Length, "note", "notes")} in the {lineName}.",
-            },
-        };
-
-        if (intervals.Length > 0)
-        {
-            facts.Add(new MotifFact("melody.intervals", FactLens.Melody, lineCertainty, IntervalsText(intervals, w), $"{lineBasis} {w.T("Intervals are named by their size in semitones.", "Интервалы названы по размеру в полутонах.")}")
-            {
-                Places = LeapPlaces(line, intervals, key.Key, w),
-                Brief = IntervalsSummary(intervals, w),
-            });
-            facts.Add(new MotifFact("melody.contour", FactLens.Melody, lineCertainty, ContourText(contour, intervals.Sum(), w), lineBasis)
-            {
-                Places = ContourPlaces(line, contour, key.Key, w),
-            });
-        }
-
-        facts.Add(RangeFact(chosen, key.Key, w));
-        facts.Add(new MotifFact(
-            "melody.degrees",
-            FactLens.Melody,
-            Weaker(lineCertainty, key.Certainty),
-            w.IsRussian
-                ? $"Ступени в тональности {keyName}: {string.Join(" ", line.Select(note => Degree(note.Pitch, key.Key)))}."
-                : $"Scale degrees in {keyName}: {string.Join(" ", line.Select(note => Degree(note.Pitch, key.Key)))}.",
-            degreesBasis)
-        {
-            // The notes outside the scale, which the degrees mark with ♯ or ♭.
-            Places = [.. line
-                .Select(note => (Note: note, Degree: Degree(note.Pitch, key.Key)))
-                .Where(entry => entry.Degree.Length > 1)
-                .Select(entry => FactPlace.Of($"{key.Key.Spell(entry.Note.Pitch.MidiNumber)}, {w.T("degree", "ступень")} {entry.Degree}", [entry.Note]))],
-            Brief = DegreesBrief(line, key.Key, keyName, w),
-        });
-
-        if (intervals.Length > 0)
-        {
-            facts.Add(IntervalNamesFact(line, intervals, lineCertainty, lineBasis, w));
-        }
-
-        facts.Add(RepeatedNotesFact(line, meter, key.Key, lineCertainty, lineBasis, w));
-        if (topNotes)
-        {
-            facts.Add(SoundingWithFact(texture, key.Key, w));
-        }
-
-        if (phrases is not null)
-        {
-            facts.Add(PhraseFact(chosen, phrases, meter, w));
-        }
-
-        bool offGrid = OffGridCount(chosen, meter) > 0;
-        facts.Add(DurationsFact(chosen, offGrid, w));
-        facts.Add(GridFact(chosen, onsets.Select(group => group.Key).ToArray(), meter, w));
-        facts.Add(SilenceFact(chosen, selection.Span, w));
-        Hit[] hits = Hits(onsets);
-        facts.Add(GroupingFact(hits, meter, selection.Span, offGrid, w));
-        facts.Add(SyncopationFact(chosen, hits, meter, offGrid, w));
-        if (accents is not null)
-        {
-            facts.Add(AccentFact(chosen, accents, meter, key.Key, w));
-        }
-
-        facts.Add(PatternFact(chosen, hits, meter, selection.Span, offGrid, w));
-        facts.Add(KeyFact(key, signature, chosen.Length, PitchClassCount(chosen), w));
-
-        return new MotifAnalysis(line, topNotes, intervals, contour, key, WithHand(facts, selection, w));
     }
 
     /// <summary>The scale degree of a pitch in a key: "5", or "♯7" for a note outside the scale.</summary>
@@ -235,22 +160,6 @@ internal static partial class MotifAnalyzer
     {
         int offset = ((pitch.PitchClass - key.TonicPitchClass) % 12 + 12) % 12;
         return key.Mode == KeyMode.Major ? s_majorDegrees[offset] : s_minorDegrees[offset];
-    }
-
-    /// <summary>Detected facts become inferred when the hand that picked the motif's notes is inferred.</summary>
-    private static List<MotifFact> WithHand(List<MotifFact> facts, MotifSelection selection, Words w)
-    {
-        if (!selection.HandInferred)
-        {
-            return facts;
-        }
-
-        string handBasis = w.T(
-            "The hand is inferred, so which notes the motif holds is inferred too. ",
-            "Рука предположена, поэтому и состав нот мотива предположен. ");
-        return [.. facts.Select(fact => fact.Certainty == FactCertainty.Detected
-            ? fact with { Certainty = FactCertainty.Inferred, Basis = handBasis + fact.Basis }
-            : fact)];
     }
 
     /// <summary>The key the notes are in: stated by the file, or read from the pitches with the signature's help when it gives only the accidentals.</summary>
@@ -283,375 +192,16 @@ internal static partial class MotifAnalyzer
         return new KeyReading(ranked[0].Key, thin || unclear ? FactCertainty.Uncertain : FactCertainty.Inferred, ranked[1].Key);
     }
 
-    private static MotifFact KeyFact(KeyReading key, Pieces.KeySignature? signature, int noteCount, int pitchClasses, Words w)
-    {
-        string name = key.Key.NameIn(w);
-        string? runnerUp = key.RunnerUp?.NameIn(w);
-        string thin = noteCount < MinNotesForKey || pitchClasses < MinPitchClassesForKey
-            ? w.IsRussian
-                ? $" При {w.Count(noteCount, "", "", "ноте", "нотах", "нотах")} и {w.Count(pitchClasses, "", "", "звуковысотном классе", "звуковысотных классах", "звуковысотных классах")} это слабая догадка."
-                : $" With {Words.EnglishCount(noteCount, "note", "notes")} and {Words.EnglishCount(pitchClasses, "pitch class", "pitch classes")}, that is a weak guess."
-            : key.Certainty == FactCertainty.Uncertain ? w.T($" {runnerUp} fits almost as well.", $" {Words.Capitalize(runnerUp ?? "")} подходит почти так же.") : "";
+    /// <summary>True when an onset falls on one of the grids, measured from the bar line.</summary>
+    private static bool OnGrid(MeterMap meter, Tick onset) => s_grids.Any(grid => OffsetInBar(meter, onset) % grid.Ticks == 0);
 
-        string basis = w.IsRussian
-            ? signature switch
-            {
-                { Mode: not null } => $"В файле указаны ключевые знаки ({w.Accidentals(signature.Fifths)}) и лад.",
-                not null => $"Ключевые знаки: {w.Accidentals(signature.Fifths)}, но лад не указан; ноты подходят к тональности {name} лучше, чем к тональности {runnerUp}.{thin}",
-                null => $"В файле нет ключевых знаков; ноты лучше всего подходят к тональности {name}, затем к тональности {runnerUp}.{thin}",
-            }
-            : signature switch
-            {
-                { Mode: not null } => $"The file states the key signature ({w.Accidentals(signature.Fifths)}) and the mode.",
-                not null => $"The key signature has {w.Accidentals(signature.Fifths)} but no mode; the notes fit {name} better than {runnerUp}.{thin}",
-                null => $"The file has no key signature; the notes fit {name} best, then {runnerUp}.{thin}",
-            };
-
-        return new MotifFact("key", FactLens.Key, key.Certainty, w.T($"Key: {name}.", $"Тональность: {name}."), basis);
-    }
-
-    private static string IntervalsText(int[] intervals, Words w)
-    {
-        string list = string.Join(" ", intervals.Select(step => step > 0 ? $"+{step}" : step < 0 ? $"−{-step}" : "0"));
-        return $"{w.T("Intervals in semitones", "Интервалы в полутонах")}: {list}. {IntervalsSummary(intervals, w)}";
-    }
-
-    /// <summary>The intervals counted, without the list: "7 steps, 10 leaps. Largest leap: a major 6th down."</summary>
-    private static string IntervalsSummary(int[] intervals, Words w)
-    {
-        int steps = intervals.Count(step => Math.Abs(step) is 1 or 2);
-        int leaps = intervals.Count(step => Math.Abs(step) > 2);
-        int repeats = intervals.Count(step => step == 0);
-        var summary = new List<string>();
-        if (steps > 0)
-        {
-            summary.Add(w.Count(steps, "step", "steps", "шаг", "шага", "шагов"));
-        }
-
-        if (leaps > 0)
-        {
-            summary.Add(w.Count(leaps, "leap", "leaps", "скачок", "скачка", "скачков"));
-        }
-
-        if (repeats > 0)
-        {
-            summary.Add(w.Count(repeats, "repeated note", "repeated notes", "повтор звука", "повтора звука", "повторов звука"));
-        }
-
-        string text = $"{Words.Capitalize(string.Join(", ", summary))}.";
-        if (leaps > 0)
-        {
-            int largest = intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First();
-            text += w.IsRussian
-                ? $" Самый большой скачок: {w.IntervalName(largest)} {(largest > 0 ? "вверх" : "вниз")}."
-                : $" Largest leap: {w.IntervalBy(largest)} {(largest > 0 ? "up" : "down")}.";
-        }
-
-        return text;
-    }
-
-    /// <summary>How many notes of the line lie outside the scale, the notes the fact's places ring; or that none does.</summary>
-    private static string DegreesBrief(Note[] line, MusicalKey key, string keyName, Words w)
-    {
-        int outside = line.Count(note => Degree(note.Pitch, key).Length > 1);
-        return outside == 0
-            ? w.T($"Every note of the line is in the scale of {keyName}.", $"Все ноты линии — в звукоряде тональности {keyName}.")
-            : w.IsRussian
-                ? $"{Words.Capitalize(w.Count(outside, "", "", "нота", "ноты", "нот"))} вне звукоряда тональности {keyName}."
-                : $"{Words.EnglishCount(outside, "note", "notes")} outside the scale of {keyName}.";
-    }
-
-    private static string ContourText(ContourStep[] contour, int netSemitones, Words w)
-    {
-        var runs = new List<ContourStep>();
-        foreach (ContourStep step in contour.Where(step => step != ContourStep.Same))
-        {
-            if (runs.Count == 0 || runs[^1] != step)
-            {
-                runs.Add(step);
-            }
-        }
-
-        string shape = runs.Count switch
-        {
-            0 => w.T("Stays on one pitch", "Остаётся на одной высоте"),
-            1 => runs[0] == ContourStep.Up ? w.T("Rises", "Поднимается") : w.T("Falls", "Опускается"),
-            <= 3 => w.T("Moves ", "Движется ") + string.Join(w.T(", then ", ", затем "), runs.Select(step => step == ContourStep.Up ? w.T("up", "вверх") : w.T("down", "вниз"))),
-            _ => w.IsRussian ? $"Идёт зигзагом, меняя направление {w.Times(runs.Count - 1)}" : $"Zigzags, turning {runs.Count - 1} times",
-        };
-
-        if (runs.Count == 0)
-        {
-            return $"{shape}.";
-        }
-
-        string end = netSemitones == 0
-            ? w.T("ends where it starts", "заканчивается там же, где начинается")
-            : w.IsRussian
-                ? $"заканчивается на {w.IntervalBy(netSemitones)} {(netSemitones > 0 ? "выше" : "ниже")}, чем начинается"
-                : $"ends {w.IntervalBy(netSemitones)} {(netSemitones > 0 ? "higher" : "lower")} than it starts";
-        return $"{shape}; {end}.";
-    }
-
-    private static MotifFact RangeFact(Note[] notes, MusicalKey key, Words w)
-    {
-        Note low = notes.MinBy(note => note.Pitch.MidiNumber)!;
-        Note high = notes.MaxBy(note => note.Pitch.MidiNumber)!;
-        int span = high.Pitch.MidiNumber - low.Pitch.MidiNumber;
-        string text = span == 0
-            ? w.T($"Range: one pitch, {key.Spell(low.Pitch.MidiNumber)}.", $"Диапазон: одна высота, {key.Spell(low.Pitch.MidiNumber)}.")
-            : w.IsRussian
-                ? $"Диапазон: от {key.Spell(low.Pitch.MidiNumber)} до {key.Spell(high.Pitch.MidiNumber)}, {w.IntervalName(span)} ({w.Count(span, "", "", "полутон", "полутона", "полутонов")})."
-                : $"Range: {key.Spell(low.Pitch.MidiNumber)} to {key.Spell(high.Pitch.MidiNumber)}, {w.IntervalBy(span)} ({Words.EnglishCount(span, "semitone", "semitones")}).";
-        return new MotifFact("melody.range", FactLens.Melody, FactCertainty.Detected, text, w.T("Measured over every note of the motif.", "Измерено по всем нотам мотива."))
-        {
-            Places = ExtremePlaces(notes, key, w),
-        };
-    }
-
-    /// <summary>The lowest and the highest notes, each pitch as one place with every note on it; one place when every note has one pitch.</summary>
-    private static FactPlace[] ExtremePlaces(Note[] notes, MusicalKey key, Words w)
-    {
-        int low = notes.Min(note => note.Pitch.MidiNumber);
-        int high = notes.Max(note => note.Pitch.MidiNumber);
-        return low == high
-            ? [FactPlace.Of($"{w.T("one pitch", "одна высота")}, {key.Spell(low)}", notes)]
-            :
-            [
-                FactPlace.Of($"{w.T("lowest", "самая низкая")}, {key.Spell(low)}", notes.Where(note => note.Pitch.MidiNumber == low)),
-                FactPlace.Of($"{w.T("highest", "самая высокая")}, {key.Spell(high)}", notes.Where(note => note.Pitch.MidiNumber == high)),
-            ];
-    }
-
-    /// <summary>Each place where the line makes its largest leap, the two notes of the leap; none when the line has no leap.</summary>
-    private static FactPlace[] LeapPlaces(Note[] line, int[] intervals, MusicalKey key, Words w)
-    {
-        if (!intervals.Any(step => Math.Abs(step) > 2))
-        {
-            return [];
-        }
-
-        int largest = intervals.OrderByDescending(Math.Abs).ThenByDescending(step => step).First();
-        return [.. Enumerable.Range(0, intervals.Length)
-            .Where(i => intervals[i] == largest)
-            .Select(i => FactPlace.Of(
-                w.IsRussian
-                    ? $"самый большой скачок, {key.Spell(line[i].Pitch.MidiNumber)} – {key.Spell(line[i + 1].Pitch.MidiNumber)}"
-                    : $"largest leap, {key.Spell(line[i].Pitch.MidiNumber)} to {key.Spell(line[i + 1].Pitch.MidiNumber)}",
-                [line[i], line[i + 1]]))];
-    }
-
-    /// <summary>
-    /// Where the contour starts, turns and ends: a turn is the note the line leaves in a new
-    /// direction, a peak when it turns down and a low point when it turns up. None for one pitch.
-    /// </summary>
-    private static FactPlace[] ContourPlaces(Note[] line, ContourStep[] contour, MusicalKey key, Words w)
-    {
-        if (contour.All(step => step == ContourStep.Same))
-        {
-            return [];
-        }
-
-        var places = new List<FactPlace> { FactPlace.Of($"{w.T("start", "начало")}, {key.Spell(line[0].Pitch.MidiNumber)}", [line[0]]) };
-        ContourStep? direction = null;
-        for (int i = 0; i < contour.Length; i++)
-        {
-            if (contour[i] == ContourStep.Same)
-            {
-                continue;
-            }
-
-            if (direction is not null && contour[i] != direction)
-            {
-                string turn = contour[i] == ContourStep.Down ? w.T("peak", "вершина") : w.T("low point", "нижняя точка");
-                places.Add(FactPlace.Of($"{turn}, {key.Spell(line[i].Pitch.MidiNumber)}", [line[i]]));
-            }
-
-            direction = contour[i];
-        }
-
-        places.Add(FactPlace.Of($"{w.T("end", "конец")}, {key.Spell(line[^1].Pitch.MidiNumber)}", [line[^1]]));
-        return [.. places];
-    }
-
-    private static MotifFact DurationsFact(Note[] notes, bool offGrid, Words w)
-    {
-        var counts = new List<(NoteValue Value, Note[] Notes)>();
-        var other = new List<Note>();
-        foreach (IGrouping<long, Note> group in notes.GroupBy(note => note.Span.Duration))
-        {
-            int index = Array.FindIndex(s_values, value => value.Ticks == group.Key);
-            if (index < 0)
-            {
-                other.AddRange(group);
-            }
-            else
-            {
-                counts.Add((s_values[index], [.. group]));
-            }
-        }
-
-        // Each length the text names is a place: the notes of that length.
-        var ordered = counts
-            .OrderByDescending(value => value.Notes.Length)
-            .ThenByDescending(value => value.Value.Ticks)
-            .ToList();
-        var parts = ordered.Select(value => value.Value.Counted(value.Notes.Length, w)).ToList();
-        var places = ordered.Select(value => FactPlace.Of(w.IsRussian ? value.Value.RussianFew : value.Notes.Length == 1 ? value.Value.One : value.Value.Many, value.Notes)).ToList();
-        if (other.Count > 0)
-        {
-            parts.Add(w.IsRussian
-                ? $"{other.Count} {Words.RussianForm(other.Count, "длина, не равная одной длительности", "длины, не равные одной длительности", "длин, не равных одной длительности")}"
-                : Words.EnglishCount(other.Count, "length that is no single note value", "lengths that are no single note value"));
-            places.Add(FactPlace.Of(w.T("no single note value", "не одна длительность"), other));
-        }
-
-        string text = $"{w.T("Lengths", "Длительности")}: {string.Join(", ", parts)}.";
-        MotifFact fact = offGrid
-            ? new MotifFact("rhythm.durations", FactLens.Rhythm, FactCertainty.Uncertain, text, w.T(
-                "Onsets fall between grid lines, as in a played performance, so lengths may not be the written note values.",
-                "Атаки попадают между линиями сетки, как в живом исполнении, поэтому длины могут не совпадать с записанными длительностями."))
-            : new MotifFact("rhythm.durations", FactLens.Rhythm, FactCertainty.Detected, text, w.T(
-                "Read from the notes' lengths; a tied note counts as one length.",
-                "Прочитано по длинам нот; нота с лигой считается одной длиной."));
-        return fact with { Places = places };
-    }
-
-    private static MotifFact GridFact(Note[] notes, Tick[] onsets, MeterMap meter, Words w)
-    {
-        int onBeat = onsets.Count(onset => OffsetInBar(meter, onset) % meter.SignatureAt(onset).BeatTicks == 0);
-        int offGrid = 0;
-        int finestStraight = -1;
-        int finestTriplet = -1;
-        foreach (Tick onset in onsets)
-        {
-            long offset = OffsetInBar(meter, onset);
-            int index = Array.FindIndex(s_grids, grid => offset % grid.Ticks == 0);
-            if (index < 0)
-            {
-                offGrid++;
-            }
-            else if (s_grids[index].Triplet)
-            {
-                finestTriplet = Math.Max(finestTriplet, index);
-            }
-            else
-            {
-                finestStraight = Math.Max(finestStraight, index);
-            }
-        }
-
-        MetricPosition start = meter.ToPosition(onsets[0]);
-        string startText = w.IsRussian
-            ? start.BeatOffset == 0
-                ? $"Начинается на доле {start.Beat} такта {start.Bar}."
-                : $"Начинается после доли {start.Beat} такта {start.Bar}, не на долю."
-            : start.BeatOffset == 0
-                ? $"It starts on beat {start.Beat} of bar {start.Bar}."
-                : $"It starts after beat {start.Beat} of bar {start.Bar}, off the beat.";
-        string beats = w.IsRussian
-            ? $"{onBeat} {w.OutOf(onsets.Length, "", "", "атаки", "атак")} {Words.RussianForm(onBeat, "приходится", "приходятся", "приходятся")} на долю."
-            : $"{onBeat} of {Words.EnglishCount(onsets.Length, "onset", "onsets")} {(onBeat == 1 ? "falls" : "fall")} on a beat.";
-        FactPlace startPlace = FactPlace.Of($"{w.T("start", "начало")}, {Place(start, w)}", notes.Where(note => note.Span.Onset == onsets[0]));
-
-        if (offGrid > 0)
-        {
-            return new MotifFact(
-                "rhythm.grid",
-                FactLens.Rhythm,
-                FactCertainty.Uncertain,
-                w.IsRussian
-                    ? $"{offGrid} {w.OutOf(onsets.Length, "", "", "атаки", "атак")} {Words.RussianForm(offGrid, "попадает", "попадают", "попадают")} между линиями сетки тридцать вторых и триолей. {beats} {startText}"
-                    : $"{offGrid} of {Words.EnglishCount(onsets.Length, "onset", "onsets")} {(offGrid == 1 ? "falls" : "fall")} between thirty-second and triplet grid lines. {beats} {startText}",
-                w.T(
-                    "Measured from the bar lines. Onsets off every grid usually mean a played performance whose timing was not quantised.",
-                    "Измерено от тактовых черт. Атаки вне любой сетки обычно означают живое исполнение без квантования."))
-            {
-                Places = [FactPlace.Of(w.T("between grid lines", "между линиями сетки"), notes.Where(note => !s_grids.Any(grid => OffsetInBar(meter, note.Span.Onset) % grid.Ticks == 0))), startPlace],
-            };
-        }
-
-        // A triplet grid covers straight onsets that fall on its lines, such as quarters on the eighth-note triplet grid.
-        string grid = w.IsRussian
-            ? (finestStraight, finestTriplet) switch
-            {
-                ( < 0, _) => $"сетку {s_grids[finestTriplet].RussianGrid}",
-                (_, < 0) => $"сетку {s_grids[finestStraight].RussianGrid}",
-                _ when s_grids[finestStraight].Ticks % s_grids[finestTriplet].Ticks == 0 => $"сетку {s_grids[finestTriplet].RussianGrid}",
-                _ => $"сетку {s_grids[finestStraight].RussianGrid}, с {s_grids[finestTriplet].RussianWith}",
-            }
-            : (finestStraight, finestTriplet) switch
-            {
-                ( < 0, _) => $"the {s_grids[finestTriplet].Name} grid",
-                (_, < 0) => $"the {s_grids[finestStraight].Name} grid",
-                _ when s_grids[finestStraight].Ticks % s_grids[finestTriplet].Ticks == 0 => $"the {s_grids[finestTriplet].Name} grid",
-                _ => $"the {s_grids[finestStraight].Name} grid, with {s_grids[finestTriplet].Name}s",
-            };
-        return new MotifFact("rhythm.grid", FactLens.Rhythm, FactCertainty.Detected, w.T($"Onsets fit {grid}. {beats} {startText}", $"Атаки укладываются в {grid}. {beats} {startText}"), w.T("Measured from the bar lines.", "Измерено от тактовых черт."))
-        {
-            Places = [startPlace],
-            Brief = w.T($"Onsets fit {grid}.", $"Атаки укладываются в {grid}."),
-        };
-    }
-
-    private static MotifFact SilenceFact(Note[] notes, TickSpan span, Words w)
-    {
-        var gaps = new List<long>();
-        var places = new List<FactPlace>();
-        Tick soundingUntil = notes[0].Span.End;
-        foreach (Note note in notes.Skip(1))
-        {
-            if (note.Span.Onset > soundingUntil)
-            {
-                gaps.Add(note.Span.Onset.Value - soundingUntil.Value);
-                places.Add(new FactPlace($"{w.T("silence", "пауза")}, {LengthName(gaps[^1], w)}", TickSpan.FromBounds(soundingUntil, note.Span.Onset), []));
-            }
-
-            if (note.Span.End > soundingUntil)
-            {
-                soundingUntil = note.Span.End;
-            }
-        }
-
-        string text = gaps.Count == 0
-            ? w.T("No silence between notes", "Между нотами нет пауз")
-            : w.IsRussian
-                ? $"{w.Count(gaps.Count, "", "", "пауза", "паузы", "пауз")} между нотами: {string.Join(", ", gaps.Select(gap => LengthName(gap, w)))}"
-                : $"{Words.EnglishCount(gaps.Count, "silence", "silences")} between notes: {string.Join(", ", gaps.Select(gap => LengthName(gap, w)))}";
-        long before = notes[0].Span.Onset.Value - span.Onset.Value;
-        if (before > 0)
-        {
-            text += w.IsRussian
-                ? $"; выделение начинается с паузы: {LengthName(before, w)}"
-                : $"; the selection opens with {LengthName(before, w)} of silence";
-            places.Add(new FactPlace($"{w.T("opening silence", "начальная пауза")}, {LengthName(before, w)}", TickSpan.FromBounds(span.Onset, notes[0].Span.Onset), []));
-        }
-
-        return new MotifFact("rhythm.silences", FactLens.Rhythm, FactCertainty.Detected, $"{text}.", w.T(
-            "Measured where no note of the motif sounds; rests in other voices or hands are not counted.",
-            "Измерено там, где не звучит ни одна нота мотива; паузы в других голосах или руках не считаются."))
-        {
-            Places = places,
-        };
-    }
-
-    private static int OffGridCount(Note[] notes, MeterMap meter) =>
-        notes.Count(note => !s_grids.Any(grid => OffsetInBar(meter, note.Span.Onset) % grid.Ticks == 0));
+    private static int OffGridCount(Note[] notes, MeterMap meter) => notes.Count(note => !OnGrid(meter, note.Span.Onset));
 
     /// <summary>Ticks from the bar line, counting a pickup from where a full bar would start.</summary>
     private static long OffsetInBar(MeterMap meter, Tick position)
     {
         Bar bar = meter.BarAt(position);
         return position.Value - bar.Origin;
-    }
-
-    /// <summary>"a quarter", or "a length that is no single note value"; "четверть".</summary>
-    private static string LengthName(long ticks, Words w)
-    {
-        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
-        return index < 0
-            ? w.T("a length that is no single note value", "длина, не равная одной длительности")
-            : w.IsRussian ? s_values[index].RussianOne : Words.WithArticle(s_values[index].One);
     }
 
     private static int PitchClassCount(Note[] notes) => notes.Select(note => note.Pitch.PitchClass).Distinct().Count();

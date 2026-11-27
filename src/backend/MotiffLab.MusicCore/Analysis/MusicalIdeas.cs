@@ -44,7 +44,7 @@ public enum IdeaKind
 /// the map marks inferred. The cards of phrases share no bars; a sequence or a motif may lie inside one. Pure: the same notes, meter, structure, key
 /// lane and language give the same ideas.
 /// </remarks>
-internal static class MusicalIdeas
+internal static partial class MusicalIdeas
 {
     /// <summary>The most ideas the map shows besides the selection.</summary>
     public const int MaxIdeas = 5;
@@ -54,9 +54,6 @@ internal static class MusicalIdeas
 
     /// <summary>A card plays at most this many bars of a phrase, as a long phrase is read (<see cref="PhraseMap.LongPhraseBars"/>).</summary>
     private const int MaxBars = PhraseMap.LongPhraseBars;
-
-    /// <summary>Notes per beat this many times the theme's, or fewer by as much, are said to be denser or sparser.</summary>
-    private const double DensityRatio = 1.5;
 
     /// <summary>A highest note this many semitones away from the theme's is said to reach higher or stay lower.</summary>
     private const int RegisterStep = 5;
@@ -114,11 +111,19 @@ internal static class MusicalIdeas
         public IEnumerable<Phrase> Phrases => Sentences.Sentences.SelectMany(sentence => sentence.Phrases);
     }
 
+    /// <summary>What the theme's card line is written from (<c>MusicalIdeas.Facts.cs</c>): whether it is a question and its answer, how its first phrase closes, how often its opening comes back elsewhere, how many of those at another pitch, and the later sections whose start it opens.</summary>
+    private sealed record ThemeFound(bool Period, CloseKind FirstClose, int Returns, int Moved, IReadOnlyList<string> Opens);
+
+    /// <summary>The contrast's section and the opening's, the notes per beat of both, how much higher its highest note is, and its key when the theme's differs.</summary>
+    private sealed record ContrastFound(string Label, string OpeningLabel, double Density, double Against, int Higher, DnaKey? Key);
+
+    /// <summary>How many times the bar is heard in a row, and the step in semitones from each statement to the next.</summary>
+    private sealed record SequenceFound(int Statements, int[] Steps);
+
     // MARK: - The theme
 
     private static DnaIdea? Theme(Piece piece)
     {
-        Words w = piece.W;
         Phrase[] phrases = [.. piece.Phrases];
         Phrase first = phrases[0];
         Note[]? head = IdeaFinder.Opening(piece.Line, piece.Meter, first.Span.Onset);
@@ -132,44 +137,11 @@ internal static class MusicalIdeas
         TickSpan span = Capped(piece.Meter, period ? TickSpan.FromBounds(first.Span.Onset, answer!.Span.End) : first.Span);
 
         List<Recurrence> heardAgain = [.. returns.Where(recurrence => !Inside(recurrence.Span.Onset, span))];
-        string why = period
-            ? w.T("The first two phrases begin alike; the first ends on a half close, the second on a full one, as a question and its answer.",
-                  "Первые две фразы начинаются одинаково; первая кончается половинным кадансом, вторая полным, как вопрос и ответ.")
-            : w.T("The piece's first phrase", "Первая фраза пьесы") + firstClose switch
-            {
-                CloseKind.Full => w.T(", ending on a full close.", ", кончается полным кадансом."),
-                CloseKind.Half => w.T(", ending on a half close.", ", кончается половинным кадансом."),
-                _ => ".",
-            };
-        if (heardAgain.Count > 0 && head is not null)
-        {
-            why += " " + Returns(heardAgain, piece);
-        }
-
-        List<IdeaOccurrence> marks = [.. heardAgain.Select(Occurrence)];
-        return Idea(IdeaKind.Theme, span, piece, w.T("Theme", "Тема"), why, marks);
-    }
-
-    /// <summary>"Its opening comes back 9 times, 2 of them at another pitch, and opens A twice and B once."</summary>
-    private static string Returns(List<Recurrence> returns, Piece piece)
-    {
-        Words w = piece.W;
-        int moved = returns.Count(recurrence => !recurrence.IsExact);
-        string text = w.T("Its opening comes back ", "Её начало возвращается ") + w.Times(returns.Count);
-        if (moved > 0)
-        {
-            text += w.T($", {moved} of them at another pitch", $", из них {moved} в другой высоте");
-        }
-
         string[] opens = [.. piece.Sections.Skip(1)
-            .Where(section => returns.Any(recurrence => Inside(recurrence.Span.Onset, piece.Meter.GetBar(section.FirstBar).Span) || recurrence.Span.Onset == section.Span.Onset))
+            .Where(section => heardAgain.Any(recurrence => Inside(recurrence.Span.Onset, piece.Meter.GetBar(section.FirstBar).Span) || recurrence.Span.Onset == section.Span.Onset))
             .Select(section => section.Label)];
-        if (opens.Length > 0)
-        {
-            text += w.T(" and opens ", " и открывает ") + w.Joined(w.Tallied(opens));
-        }
-
-        return text + ".";
+        var found = new ThemeFound(period, firstClose, heardAgain.Count, heardAgain.Count(recurrence => !recurrence.IsExact), opens);
+        return Idea(IdeaKind.Theme, span, piece, ThemeText(found, piece.W), [.. heardAgain.Select(Occurrence)]);
     }
 
     // MARK: - The contrast
@@ -190,45 +162,10 @@ internal static class MusicalIdeas
             return null;
         }
 
-        Words w = piece.W;
         TickSpan span = Capped(piece.Meter, TickSpan.FromBounds(phrase.Span.Onset, Earlier(phrase.Span.End, other.Span.End)));
-        List<string> differences = [.. new[] { DensityAgainst(piece, span, theme.Span), RegisterAgainst(piece, span, theme.Span), KeyAgainst(piece, span, theme.Span) }.OfType<string>()];
-        string why = w.T($"Section {other.Label} begins here, with material not heard in {opening.Label}",
-                         $"Здесь начинается раздел {other.Label}, с материалом, которого не было в {opening.Label}")
-            + (differences.Count > 0 ? ": " + w.Joined(differences) : "") + ".";
-        return Idea(IdeaKind.Contrast, span, piece, w.T($"Contrast · {other.Label}", $"Контраст · {other.Label}"), why, []);
-    }
-
-    /// <summary>"denser (2.3 notes a beat against 1.1)", "sparser (…)", or null when the two are close.</summary>
-    private static string? DensityAgainst(Piece piece, TickSpan span, TickSpan theme)
-    {
-        Words w = piece.W;
-        double density = Density(piece, span);
-        double against = Density(piece, theme);
-        string numbers = w.T($" ({w.Decimal((decimal)density)} notes a beat against {w.Decimal((decimal)against)})",
-                             $" ({w.Decimal((decimal)density)} ноты на долю против {w.Decimal((decimal)against)})");
-        return against > 0 && density >= against * DensityRatio ? w.T("denser", "плотнее") + numbers
-            : density > 0 && density * DensityRatio <= against ? w.T("sparser", "реже") + numbers
-            : null;
-    }
-
-    /// <summary>"reaching an octave higher", "staying 7 semitones lower", by the highest notes, or null when they are close.</summary>
-    private static string? RegisterAgainst(Piece piece, TickSpan span, TickSpan theme)
-    {
-        Words w = piece.W;
-        int high = Highest(piece, span) - Highest(piece, theme);
-        return high >= RegisterStep ? w.T("reaching ", "поднимается на ") + Interval(high, w) + w.T(" higher", " выше")
-            : high <= -RegisterStep ? w.T("staying ", "остаётся на ") + Interval(-high, w) + w.T(" lower", " ниже")
-            : null;
-    }
-
-    /// <summary>"in C major", with "(inferred)" when the key lane infers it, or null in the theme's key.</summary>
-    private static string? KeyAgainst(Piece piece, TickSpan span, TickSpan theme)
-    {
-        Words w = piece.W;
-        return KeyAt(piece, span.Onset) is { } key && KeyAt(piece, theme.Onset) is { } themeKey && key.Key != themeKey.Key
-            ? w.T("in ", "в ") + key.Key.NameIn(w) + (key.Inferred ? w.T(" (inferred)", " (выведено)") : "")
-            : null;
+        DnaKey? key = KeyAt(piece, span.Onset) is { } own && KeyAt(piece, theme.Span.Onset) is { } themeKey && own.Key != themeKey.Key ? own : null;
+        var found = new ContrastFound(other.Label, opening.Label, Density(piece, span), Density(piece, theme.Span), Highest(piece, span) - Highest(piece, theme.Span), key);
+        return Idea(IdeaKind.Contrast, span, piece, ContrastText(found, piece.W), []);
     }
 
     private static char Letter(string label) => label.Length > 0 ? label[0] : ' ';
@@ -285,18 +222,10 @@ internal static class MusicalIdeas
         }
 
         (Note[] first, List<Recurrence> moved) = run;
-        Words w = piece.W;
         int[] shifts = [0, .. moved.Select(recurrence => recurrence.Transposition)];
-        int[] steps = [.. shifts.Zip(shifts.Skip(1), (from, to) => to - from)];
-        string how = steps.Distinct().Count() == 1
-            ? w.T("each time ", "каждый раз на ") + Interval(Math.Abs(steps[0]), w) + (steps[0] > 0 ? w.T(" higher", " выше") : w.T(" lower", " ниже"))
-            : steps.All(step => step > 0) ? w.T("each time higher", "каждый раз выше")
-            : steps.All(step => step < 0) ? w.T("each time lower", "каждый раз ниже")
-            : w.T("each time at another pitch", "каждый раз в другой высоте");
-        string why = w.T($"One bar heard {shifts.Length} times in a row, {how}: a sequence.",
-                         $"Один такт звучит {w.Times(shifts.Length)} подряд, {how}: секвенция.");
+        var found = new SequenceFound(shifts.Length, [.. shifts.Zip(shifts.Skip(1), (from, to) => to - from)]);
         TickSpan span = TickSpan.FromBounds(first[0].Span.Onset, moved[^1].Span.End);
-        return Idea(IdeaKind.Sequence, span, piece, w.T("Sequence", "Секвенция"), why, [.. moved.Select(Occurrence)]);
+        return Idea(IdeaKind.Sequence, span, piece, SequenceText(found, piece.W), [.. moved.Select(Occurrence)]);
     }
 
     // MARK: - The motif and the peak
@@ -313,8 +242,7 @@ internal static class MusicalIdeas
             return null;
         }
 
-        string bars = piece.W.Bars(found.FirstBar, found.LastBar);
-        return found with { Kind = IdeaKind.Motif, Title = piece.W.T($"Motif · {bars}", $"Мотив · {bars}") };
+        return found with { Kind = IdeaKind.Motif, Title = MotifTitle(found.FirstBar, found.LastBar, piece.W) };
     }
 
     private static DnaIdea? Peak(Piece piece, DnaIdea? theme)
@@ -332,7 +260,6 @@ internal static class MusicalIdeas
             return null;
         }
 
-        Words w = piece.W;
         int bar = piece.Meter.BarAt(top.Span.Onset).Number;
         TickSpan span = Capped(piece.Meter, phrase.Span);
         if (!Inside(top.Span.Onset, span))
@@ -340,14 +267,12 @@ internal static class MusicalIdeas
             span = Capped(piece.Meter, TickSpan.FromBounds(piece.Meter.GetBar(bar).Span.Onset, phrase.Span.End));
         }
 
-        string why = w.T($"Holds the highest note of the piece, in bar {bar}, ", $"Здесь самая высокая нота пьесы, в такте {bar}, на ")
-            + Interval(above, w) + w.T(" above anything in the theme.", " выше всего в теме.");
-        return Idea(IdeaKind.Peak, span, piece, w.T("Highest point", "Вершина"), why, []);
+        return Idea(IdeaKind.Peak, span, piece, PeakText(bar, above, piece.W), []);
     }
 
     // MARK: - Cards
 
-    private static DnaIdea Idea(IdeaKind kind, TickSpan span, Piece piece, string name, string why, List<IdeaOccurrence> heardAgain)
+    private static DnaIdea Idea(IdeaKind kind, TickSpan span, Piece piece, (string Name, string Why) text, List<IdeaOccurrence> heardAgain)
     {
         int firstBar = piece.Meter.BarAt(span.Onset).Number;
         Note[] inside = [.. piece.Notes.Where(note => Inside(note.Span.Onset, span)).OrderBy(note => note.Span.Onset).ThenBy(note => note.Id, StringComparer.Ordinal)];
@@ -355,7 +280,7 @@ internal static class MusicalIdeas
         string[] ids = [.. inside.Select(note => note.Id)];
         List<IdeaOccurrence> occurrences = [new(OccurrenceKind.Original, span, firstBar, lastBar, 0, ids), .. heardAgain];
         occurrences.Sort((a, b) => a.Span.Onset.CompareTo(b.Span.Onset));
-        return new DnaIdea("", false, span, firstBar, lastBar, ids, occurrences, $"{name} · {piece.W.Bars(firstBar, lastBar)}", why) { Kind = kind };
+        return new DnaIdea("", false, span, firstBar, lastBar, ids, occurrences, Title(text.Name, firstBar, lastBar, piece.W), text.Why) { Kind = kind };
     }
 
     private static IdeaOccurrence Occurrence(Recurrence recurrence) => new(
@@ -365,14 +290,6 @@ internal static class MusicalIdeas
         recurrence.LastBar,
         recurrence.Transposition,
         recurrence.NoteIds);
-
-    /// <summary>"an octave", "2 octaves", "7 semitones"; "октаву", "2 октавы", "7 полутонов".</summary>
-    private static string Interval(int semitones, Words w) => semitones switch
-    {
-        12 => w.T("an octave", "октаву"),
-        _ when semitones % 12 == 0 => w.Count(semitones / 12, "octave", "octaves", "октаву", "октавы", "октав"),
-        _ => w.Count(semitones, "semitone", "semitones", "полутон", "полутона", "полутонов"),
-    };
 
     /// <summary>A passage of at most <see cref="MaxBars"/> bars from its start.</summary>
     private static TickSpan Capped(MeterMap meter, TickSpan span)

@@ -27,10 +27,15 @@ through the facade; the API references it.
   as data, `GroupReason`, chosen by `After`) and `SentenceMap.Facts` (`GroupBasis` words them); `HarmonyAnalyzer`: the chord model and finder in `Harmony.cs` with
   `Measure` (into `Measures`: steps and cadence, bass moves and pedal, spreads, changes and shared notes), the motion's
   rules in `Harmony.Motion` (`Numeral`, `FunctionOf`, `CadenceOf`, `Steps`), the sentences in `Harmony.Facts` (also
-  `From`, `InversionName`, `FunctionName`); `.Phrasing`: the phrase levels, one edit algebra
+  `From`, `InversionName`, `FunctionName`); `MusicalIdeas` (each idea measured into `ThemeFound`, `ContrastFound`,
+  `SequenceFound`) and `MusicalIdeas.Facts` (the names, titles and lines); `MotifAnalyzer` by lens: `MotifAnalyzer` (`Analyze`, `Chosen`, `ReadKey`, the note values and grids),
+  `.Melody` and `.Rhythm` (each fact measured into its own record; `Syncopations` as data), `.Character` (`AnalyzeCharacter`)
+  and `.Texture` (`TextureMeasure`), their sentences in `.Melody.Facts`, `.Rhythm.Facts` and `.Character.Facts`, and in
+  `.Facts` the key fact, `WithHand` and `Place`; `.Phrasing`: the phrase levels, one edit algebra
   (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
-- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
+- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; `VariationFacts`: the diff, the Keep checks and the
+  explanation's measures, `DiffMeasures` and `CopyMove`, with their sentences and `Length` in `VariationFacts.Explanation`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
   voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
