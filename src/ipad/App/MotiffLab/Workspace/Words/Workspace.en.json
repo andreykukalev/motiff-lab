@@ -260,5 +260,6 @@
   "settings.theme": "Theme",
   "settings.thisPiece": "This piece has its own: {0}.",
   "settings.title": "Settings",
-  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it.",
+  "sync.hide": "Hide"
 }

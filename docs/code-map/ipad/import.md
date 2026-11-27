@@ -16,7 +16,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   pause doubling to a minute after a miss: no answer, a 5xx or a 429; a 404 is a job gone; fetch once `ready`, merge by
   `scan.join` with readings and evidence, engines in `ScanJobs.engineOrder`, each page's report passed on), `submitJob`,
   `deleteJob`. Calls go through `ScanTarget` (`Scan.swift`), which signs for Motiff Lab's server and carries the
-  `URLSession` (a stub's in `ScanJobsTests`). `ScanServer.recognise` uses a job with «Четыре движка» when the server takes jobs, else
+  `URLSession` (a stub's in `ScanJobsTests`); every file goes in `ScanServer.form` under a neutral name («score.pdf»,
+  `neutralName`, v1.6 c-17b), never the player's. `ScanServer.recognise` uses a job with «Четыре движка» when the server takes jobs, else
   «Авто»'s way (`choseAuto`). The batch (`Recognition.swift`) keeps a piece's job in `recognition.json` (`RecognitionItem.job`,
   device state, not the project file), asks again after a relaunch for those pieces only (`restoreAndFollowJobs`; the
   others wait for «Продолжить»), fetches only once the piece is not open on screen,

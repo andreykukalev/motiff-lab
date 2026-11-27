@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 c-17b):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -58,6 +58,39 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   left, and a photo picked again is read again; before, the slower one won, and the same photo picked again did nothing
   (the picker kept it selected) · a control shows what was last chosen (HIG), as the plan's latest ask wins
   (`Account.refreshPlan`) · v1.6 i-14
+- `E-settings-4` · «Удалить аккаунт и данные онлайн» (Settings · Account, the 1.6 plan's decision 14) · asks once more
+  in an alert whose destructive button says «Удалить» and whose text says what goes (the pieces online and the profile),
+  what stays (the pieces on this iPad) and that a device still signed in saves its changed pieces online again; while it
+  runs the account section is busy and takes no tap; a failure keeps the player signed in and says why in the danger
+  line; once done the player is signed out and the signed-out section says the data online went. Where the app may not
+  write online (Main in a version build) the button is off and a line says why · HIG: confirm a destructive action that
+  cannot be undone; as «Очистить всё» (`TestLibraryPanel`); a control that cannot act is disabled with why · v1.6 c-17b
+- `E-settings-5` · The pieces on this iPad after «Удалить аккаунт и данные онлайн» · they stay with their sync records:
+  signed in again, each counts as deleted online, as when another device deleted it, and goes online again only once it
+  changes here; nothing is sent back by itself to an account the player has just emptied · as a piece deleted online
+  elsewhere (`ProjectSync`, "forget") · v1.6 c-17b. Known limit: a save already on its way when the delete is sent
+  (a sync pass under way in the library) may land after it; the player then sees that piece online again
+- `E-sync-1` · A piece deleted in the library while a sync pass runs · its mark (`SyncRecord.deletedHere`) survives the
+  pass writing the records it read before, and the next pass deletes it online · robustness rule: nothing the player did is
+  lost by a race (`CloudSync.run`) · v1.6 c-17b
+- `E-sync-2` · A piece deleted here whose online copy is still to go (offline, signed out, Main read-only, the pass not
+  run yet) · it is not offered under «Нет на этом iPad»; the next pass that can write deletes it online; one saved on
+  another device since is fetched again instead (the 1.6 plan's decision 26) · the player deleted it: a list never offers
+  back what was just removed · v1.6 c-17b
+- `E-sync-3` · A merge whose previous copy cannot be written (the disk full) · nothing is written and nothing is sent: the
+  previous copy is written before the merged file, so a failure leaves both copies as they were and the next pass merges
+  again · robustness rule: nothing is lost (`CloudSync.resolve`) · v1.6 c-17b
+- `E-sync-4` · The lines of pieces a pass resolved with a conflict («„…“ изменили на двух устройствах по-разному (идеи,
+  пометки). Версия, сохранённая раньше, лежит рядом: „…“.») · under the library's header until «Скрыть», a later pass
+  with conflicts of its own or another environment; a pass with none leaves them · as the line of pieces over the free
+  room stays (`online.overQuota`); a status line the player may have missed is not taken away by a pass in the
+  background · v1.6 c-17b
+- `E-sync-5` · A later build's copy on this iPad (written by a resolve, or put in the folder) · kept here read-only and
+  never sent: the pass does not ask music-core to send it again every time (`project.online` refuses it) and says
+  nothing · robustness rule: no repeated error for what the player cannot change · v1.6 c-17b
+- `E-sync-6` · A merged file whose upload fails (no connection, the server asleep) · it stays here changed, and the next
+  pass sends it over the copy it fetched (`If-Match` that copy's ETag); saved elsewhere meanwhile (412), the next pass
+  merges again · robustness rule: nothing is lost, nothing is written over without its ETag · v1.6 c-17b
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over

@@ -273,6 +273,62 @@ final class OnlineProjectsTests: XCTestCase {
     }
 }
 
+/// «Удалить аккаунт и данные онлайн» (the 1.6 plan's decision 14) and the sync's delete of one piece, as sent to the API.
+@MainActor
+final class OnlineDeleteTests: XCTestCase {
+    private var account: Account!
+
+    override func setUp() async throws {
+        StubAPI.reset()
+        account = Account(options: try XCTUnwrap(AccountOptions.load()))
+    }
+
+    override func tearDown() async throws {
+        StubAPI.reset()
+    }
+
+    private func online(writable: Bool = true) -> OnlineProjects {
+        let account = account!
+        return OnlineProjects(session: StubAPI.session(), request: { path in await account.request(path: path, token: "t") }, writable: writable)
+    }
+
+    private func url(_ path: String) throws -> String {
+        try XCTUnwrap(account.request(path: path, token: "t")?.url?.absoluteString)
+    }
+
+    func testEverythingOnlineGoesWithOneDeleteOfMeAndNothingWhereTheAppMayNotWrite() async throws {
+        StubAPI.reset([try "DELETE " + url("me"): .init(status: 200, body: Data(#"{"deletedProjects":2}"#.utf8))])
+        let deleted = await online().deleteEverything()
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(StubAPI.requests.map { $0.httpMethod }, ["DELETE"])
+        XCTAssertEqual(StubAPI.requests.first?.value(forHTTPHeaderField: "Authorization"), "Bearer t")
+
+        StubAPI.reset([try "DELETE " + url("me"): .init(status: 503, body: Data())])
+        let failed = await online().deleteEverything()
+        XCTAssertFalse(failed, "the server did not do it: the player is told and stays signed in")
+
+        StubAPI.reset()
+        let refused = await online(writable: false).deleteEverything()
+        XCTAssertFalse(refused)
+        XCTAssertTrue(StubAPI.requests.isEmpty, "Main in a version build: nothing is asked of the players' database")
+    }
+
+    func testAPieceIsDeletedOnlineOnlyAsLastSeenAndOneGoneAlreadyCountsAsGone() async throws {
+        StubAPI.reset([
+            try "DELETE " + url("projects/p_1"): .init(status: 204, body: Data()),
+            try "DELETE " + url("projects/p_2"): .init(status: 412, body: Data()),
+            try "DELETE " + url("projects/p_3"): .init(status: 404, body: Data()),
+        ])
+        let gone = await online().delete("p_1", ifMatch: "\"e1\"")
+        let changed = await online().delete("p_2", ifMatch: "\"e1\"")
+        let already = await online().delete("p_3", ifMatch: nil)
+        XCTAssertEqual([gone, changed, already], [.gone, .changedOnline, .gone])
+        XCTAssertEqual(StubAPI.requests.map { $0.value(forHTTPHeaderField: "If-Match") }, ["\"e1\"", "\"e1\"", nil])
+        let offline = await online().delete("p_4", ifMatch: nil)
+        XCTAssertEqual(offline, .failed)
+    }
+}
+
 private extension Result {
     var failure: Failure? {
         if case .failure(let failure) = self { return failure }

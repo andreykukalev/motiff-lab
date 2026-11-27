@@ -344,6 +344,21 @@ final class Account: ObservableObject {
         profile = nil
     }
 
+    /// «Удалить аккаунт и данные онлайн» (the 1.6 plan's decision 14, App Store 5.1.1(v)), once the player confirmed it:
+    /// everything they keep online in the environment the app works in goes (the API's DELETE /me: every project and the
+    /// profile), then they are signed out here. The project files on this iPad stay, and so do its sync records: a piece
+    /// here then counts as deleted online, as when another device deleted it, and goes online again only once it changes
+    /// (E-settings-5). Nil once done, else why not, in the player's words; nothing is asked while signed out.
+    func deleteOnlineData() async -> String? {
+        guard player != nil, !busy else { return nil }
+        guard writes else { return text["account.deleteReadOnly"] }
+        busy = true
+        defer { busy = false }
+        guard await online.deleteEverything() else { return text["account.deleteFailed"] }
+        signOut()
+        return nil
+    }
+
     /// An access token for the scope without asking the player anything, or nil when there is none.
     func token(_ scope: String) async -> String? {
         guard let application, let account, !scope.isEmpty else { return nil }
