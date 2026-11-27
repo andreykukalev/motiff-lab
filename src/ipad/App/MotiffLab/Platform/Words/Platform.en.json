@@ -4,6 +4,5 @@
   "opening.noNotation": "The notes could not be shown.",
   "opening.notLaidOut": "The notes could not be laid out on the page.",
   "opening.notSaved": "The piece could not be saved.",
-  "opening.unreadable": "The project file could not be read.",
-  "score.layout": "Score layout"
+  "opening.unreadable": "The project file could not be read."
 }

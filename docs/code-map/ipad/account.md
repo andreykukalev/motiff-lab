@@ -24,7 +24,7 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
 - `AccountPanel.swift`: the Account section's account: signed out (why, «Войти», «Создать учётную запись», the problem);
   signed in, in this order: who (`PlayerAvatar`), the profile (`ProfileEditor` or «Изменить профиль»),
   `accountActions` («Выйти»), the plan (a tester's Pro | no Pro) and saving online (`CloudSync.onKey`). An action of
-  the account itself joins `accountActions` (c-17: «Удалить аккаунт и данные онлайн»). `PlayerAvatar` is also the
+  the account itself joins `accountActions` (c-17b: «Удалить аккаунт и данные онлайн»). `PlayerAvatar` is also the
   library's.
 - `ProfileController.swift`: the profile being edited, from the account's profile: the name (cut at `longestName`, none
   when only spaces), the photo (`choosePhoto`: its middle square; the latest choice or removal wins, E-settings-3) and

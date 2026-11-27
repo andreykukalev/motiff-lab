@@ -4,6 +4,5 @@
   "opening.noNotation": "Не получилось показать ноты.",
   "opening.notLaidOut": "Не получилось расставить ноты на странице.",
   "opening.notSaved": "Пьесу не получилось сохранить.",
-  "opening.unreadable": "Файл проекта не читается.",
-  "score.layout": "Вид нот"
+  "opening.unreadable": "Файл проекта не читается."
 }
