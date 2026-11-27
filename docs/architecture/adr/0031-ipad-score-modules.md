@@ -326,3 +326,41 @@ composition: its state, the page's events routed to the models, the render order
 per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
 `PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
 extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.
+
+## Note (W2.12, the PDF on its model and views, v1.6 i-11)
+
+`Pdf.swift` is cut by the pattern of this record: `PdfController` (the PDF piece's model over music-core's `document`
+calls and PDFKit, `Pdf/PdfController.swift`, with `keepView`, which sat in the score's `ScoreScreenViews`), the pages'
+view (`PdfPages` beside `BarPdfView` in `PdfPagesView.swift`), More (`PdfMore.swift`), and the screen. The screen
+composes the PDF's model with the pen, the metronome, the Reference, Sources, the scan server and the account, as
+`ScoreScreen` composes the score's, so it moved to `Workspace/` (`PdfScreen.swift`, with `PdfScreenBar`,
+`PdfScreenReading`, `PdfScreenSources` as section 4's extensions), and the 27 folder edges `Pdf/` had for it went;
+the model keeps the nine edges of the pen's state to `Ink/`. «Пьесы в этом файле»'s model (`PieceSplitter.swift`) is
+made from values and answers the pieces made, so it names no `PdfController`; the sheet writes the PDF's family.
+
+## Note (W2.12, the library on its model and views, v1.6 i-11b)
+
+`LibraryView.swift` is cut by the same pattern. `LibraryModel` (`Library/LibraryModel.swift`) owns the project files and
+their summaries, the shelf made from them (its query, tab and group picked) and the piece on screen, and is the one
+owner of opening a piece, whatever asks, of PDF | Notes and of deleting: one opening at a time (`openOnce`), so the
+library's two guards for a switch (`opening` and the screen shown) are one; the screens' `handingOver` stays, as it only
+keeps their save before they ask. It reads the recognition queue (Import) through a closure it is handed, and names
+three `Pdf/` types of the opening (`Landing`, `OtherView`, `PieceFamily`), as `OpenPiece` does. The screen composes the
+model with the account, the imports, the Reference and `PieceScreen`, so it moved to `Workspace/` (`LibraryView.swift`,
+with `LibraryOnline.swift`: sync and the copies online). In the quality baseline 34 folder edges went and 9 came with the
+code they serve, 25 fewer in all; 3 of the 9 are now on `LibraryModel`. `LibraryTools.swift` is cut by
+view group (`LibraryTabs`, `LibraryList`, `PieceActions` beside `LineSwipe`).
+
+## Note (W2.12, Insights on its model, controller and views, v1.6 i-12)
+
+`Insights.swift` is cut by the audit's row. `InsightsModel.swift` holds the typed `understand` answer (`Fact`,
+`Understanding`), as `DnaModel.swift` holds Piece DNA's. `InsightsController` keeps its name (the protected harness
+reads `workspace.insights.chosen` and `InsightsController.Choice`, so no test-side names are needed) and now holds the
+rules its stream view worked out (`mainShown`, `detailsShown`, `opens`, `trialFilteredOut`); the lens filtered to, the
+lenses opened and whether the scale sounds are written only by its methods (`filter`, `fold`, `hearingAloneChanged`), so
+each state has one writer, as section 3 asks of a model. The views are `InsightsStream` and `FactRow` (with `TryRow`,
+`TrialRow`). The sheet composes the stream with the player (`HearingSwitch`), the selection and the assistant, as the
+score's screen composes the features, so it moved to `Workspace/` with `HearingSwitch`, which Expand's bar shares, and
+no longer observes `ScoreController`, which it did not read; `FlowLayout`, used by five folders, moved to Platform. In
+the quality baseline 13 folder edges went and 2 came with the code they serve, 11 fewer in all (the controller hands the player
+the piece with the variation in place, `PlaybackNote` and `PlaybackScore`).

@@ -46,7 +46,7 @@ extension ScoreScreenContent {
         } else if !panels.sheetOpen, let owner = mapOwner, let draft = piece.draft {
             DraftMap(score: score, seams: score.seamsModel, techniques: score.draftModel, draft: draft, owner: owner, text: text, reopen: reopen)
         } else {
-            InsightsSheet(insights: insights, score: score, selectionModel: selectionModel, player: player, range: variationRange, text: text) { change(.close(.insights)) }
+            InsightsSheet(insights: insights, selectionModel: selectionModel, player: player, range: variationRange, text: text) { change(.close(.insights)) }
         }
     }
 

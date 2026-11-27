@@ -46,7 +46,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Import`.
   `UnreadPage`, from `RecognitionItem.read` and `check`'s "pageStarts", drawn with the Check flags) and listed in Check
   with «Показать» and «Повторить» (`UnreadPagesCheck`, `UnreadPagesRetry` in `ScanPageAgain.swift`); the server's estimate before sending
   in the batch's consent (`ScanHealth.seconds(pieces:)`) and in Sources (`SourcesController.jobPlanLine`); photos of
-  pages with «Четыре движка» go to the background recognition as a PDF does (`Pdf.swift`), the job's page reports kept
+  pages with «Четыре движка» go to the background recognition as a PDF does (`Workspace/PdfScreenReading.swift`), the job's page reports kept
   with the notes; the progress «страница 3 из 5 · около 1 мин 40 с» (`ScanProgress.secondsLeft`, `about(seconds:)`,
   `RecognitionTop.jobLine`).
 - v1.5 r-2b: the batch writes a piece's notes only by `RecognitionQueue.write`, never into a piece deleted meanwhile

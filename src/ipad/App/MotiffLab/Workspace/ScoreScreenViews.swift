@@ -1,4 +1,3 @@
-import PDFKit
 import SwiftUI
 import WebKit
 
@@ -59,13 +58,5 @@ extension ScoreController {
         let y = min(max(CGFloat(line.doubleValue) * scroll.zoomScale, lowest), highest)
         let x = min(max(CGFloat(left) * scroll.contentSize.width, 0), max(0, scroll.contentSize.width - scroll.bounds.width))
         scroll.setContentOffset(CGPoint(x: x, y: y), animated: false)
-    }
-}
-
-extension PdfController {
-    /// Keeps where the pages are on the device (#511 section 10), with the page under the bar; nothing before they are laid out.
-    func keepView() {
-        guard let projectId, let pages = view as? BarPdfView, let state = pages.viewState() else { return }
-        ViewStates.keep(state, projectId)
     }
 }
