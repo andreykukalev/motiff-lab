@@ -33,7 +33,7 @@ internal static class EarlierOrigins
         }
 
         (string? from, DateTimeOffset? at) = ReadMadeFrom(scan);
-        return ReadScanBlock(scan, Text(scan, "engine"), from, at);
+        return ReadScanBlock(scan, Text(scan, "engine"), from, at, tolerant: false);
     }
 
     internal static Import.Transcription.TranscriptionOrigin? ReadTranscription(JsonElement root, int version)

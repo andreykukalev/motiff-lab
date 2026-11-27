@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects.File;
@@ -316,6 +317,9 @@ public static class ProjectFile
 
     /// <summary>A key signature as the file writes an assembly's (<see cref="AssemblyCodec.WriteKeySignature"/>): the facade's answers use the same shape.</summary>
     internal static void WriteKeySignature(Utf8JsonWriter json, KeySignature key) => AssemblyCodec.WriteKeySignature(json, key);
+
+    /// <summary>A mark «что не так» as the file keeps it, in an object already open (check's "marks").</summary>
+    internal static void WriteReadingMark(Utf8JsonWriter json, ReadingMark mark) => OriginCodec.WriteMark(json, mark);
 
     /// <summary>"fingering" as the file writes it (<see cref="MarksCodec.WriteFingering"/>): the facade's marks answer writes it too.</summary>
     internal static void WriteFingering(Utf8JsonWriter json, IEnumerable<Fingering> fingering) => MarksCodec.WriteFingering(json, fingering);

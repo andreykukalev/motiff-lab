@@ -127,15 +127,17 @@ internal sealed partial class OpenPiece
     /// "pages", "reports" (the scan server's page reports) and "now": other Notes beside the working ones, which keep their
     /// corrections (<see cref="NotesOperations.RecognisedAgain"/>), carried over to the new Notes where they still apply
     /// (<see cref="SourcesSession.CarriedOver"/>). Answers the sources with their "id" and, when corrections or confirmed
-    /// bars were carried, "carried" (<see cref="CarryAnswer"/>).
+    /// bars were carried, "carried" (<see cref="CarryAnswer"/>); the working notes' marks «что не так» put into the reading first and
+    /// carried to the new Notes (<see cref="SourcesSession.Marked"/>), answered as "marked" (<see cref="MarksAnswer"/>).
     /// </summary>
     private string RecogniseAgain(Request request)
     {
-        ReadScore read = SourcesSession.Read("notes.musicxml", SourceRequest.Base64(request.Required("musicXml"), "musicXml"), Words);
+        string original = request.Required("original");
+        (ReadScore read, SourcesSession.MarksCarried? marks) = SourcesSession.Marked(
+            State, original, "notes.musicxml", SourcesSession.Read("notes.musicxml", SourceRequest.Base64(request.Required("musicXml"), "musicXml"), Words));
         string id = Project.NextNotesId();
         PageMap pages = SourcesSession.ReadPages(read, request.Int("pages"));
         List<PageReport>? reports = ScanRequest.ReportsIn(request);
-        string original = request.Required("original");
         string engine = request.Required("engine");
         DateTimeOffset now = request.Now();
         ReadingCarry? carry = null;
@@ -144,13 +146,34 @@ internal sealed partial class OpenPiece
             project =>
             {
                 (Project carried, carry) = SourcesSession.CarriedOver(State, project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), id, original, read);
-                return carried;
+                return SourcesSession.WithMarks(carried, id, marks, read);
             },
             json =>
             {
                 json.WriteString("id", id);
                 CarryAnswer(json, carry, Words);
+                MarksAnswer(json, marks, Words);
             });
+    }
+
+    /// <summary>
+    /// "marked" (within contract 16, «Как напечатано», step 3): what became of the working notes' marks «что не так» on the
+    /// notes read again, "used" and "unfit" (how many), "bars" (where those not used are, each flagged MarkUnfit) and "text"
+    /// (the toast's line, null when it says nothing); nothing when the working notes had no marks.
+    /// </summary>
+    private static void MarksAnswer(Utf8JsonWriter json, SourcesSession.MarksCarried? marks, Words words)
+    {
+        if (marks is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("marked");
+        json.WriteNumber("used", marks.Applied.Count);
+        json.WriteNumber("unfit", marks.Unfit.Count);
+        JsonWrite.Numbers(json, "bars", [.. marks.Unfit.Select(static mark => mark.Bar).Distinct().Order()]);
+        json.WriteString("text", marks.Text(words));
+        json.WriteEndObject();
     }
 
     /// <summary>
