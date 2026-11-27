@@ -122,13 +122,9 @@ internal static partial class MotifAnalyzer
     }
 
     /// <summary>"a quarter", or "a length that is no single note value"; "четверть".</summary>
-    private static string LengthName(long ticks, Words w)
-    {
-        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
-        return index < 0
-            ? w.T("a length that is no single note value", "длина, не равная одной длительности")
-            : w.IsRussian ? s_values[index].RussianOne : Words.WithArticle(s_values[index].One);
-    }
+    private static string LengthName(long ticks, Words w) => ValueOf(ticks) is { } value
+        ? w.IsRussian ? value.RussianOne : Words.WithArticle(value.One)
+        : w.T("a length that is no single note value", "длина, не равная одной длительности");
 
     private static MotifFact GroupingFact(GroupingMeasure measure, bool offGrid, Words w)
     {
@@ -299,9 +295,5 @@ internal static partial class MotifAnalyzer
         new(label, slot, [.. notes.Where(note => slot.Contains(note.Span.Onset)).Select(note => note.Id)]);
 
     /// <summary>"sixteenth", or "odd length" for a length that is no single note value; "шестнадцатая".</summary>
-    private static string ValueName(long ticks, Words w)
-    {
-        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
-        return index < 0 ? w.T("odd length", "нестандартная длина") : s_values[index].Name(w);
-    }
+    private static string ValueName(long ticks, Words w) => ValueOf(ticks)?.Name(w) ?? w.T("odd length", "нестандартная длина");
 }

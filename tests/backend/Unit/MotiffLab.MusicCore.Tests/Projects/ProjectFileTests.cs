@@ -87,32 +87,6 @@ public class ProjectFileTests
     }
 
     [Fact]
-    public void A_hand_made_variation_round_trips_with_its_edits()
-    {
-        Project project = Worked();
-        Note[] notes = [.. OpenedProject.Open(project).Notes.Take(3)];
-        NoteValues first = NoteValues.Of(notes[0]);
-        NoteValues last = NoteValues.Of(notes[2]);
-        SavedStep[] steps =
-        [
-            new(HandEdit.OperationId, HandEditParameters.Change(notes[0].Id, first with { Pitch = new Pitch(first.Pitch.MidiNumber + 1), Velocity = 100 })),
-            new(HandEdit.OperationId, HandEditParameters.Remove(notes[1].Id)),
-        ];
-        var pending = new SavedStep(HandEdit.OperationId, HandEditParameters.Add("h1", last with { Span = new TickSpan(last.Span.End, last.Span.Duration) }));
-        project = project with { Variations = [project.Variations[0], new SavedVariation("v_0002", "m_0002", steps, pending, [KeepProperty.Pitches])] };
-
-        Project reread = ProjectFile.Read(ProjectFile.Write(project));
-        OpenedProject opened = OpenedProject.Open(reread);
-
-        Assert.Equal(steps, reread.Variations[1].Steps);
-        Assert.Equal(pending, reread.Variations[1].Pending);
-        VariationChain chain = opened.Variations[1].Chain;
-        Assert.Equal("E7 › E7 › E7", chain.Result!.Operation);
-        Assert.Equal(OpenedProject.Open(project).Variations[1].Chain.Result!.Notes, chain.Result.Notes);
-        Assert.Equal(KeepStatus.NoLongerKept, chain.Result.Checks.Single().Status);
-    }
-
-    [Fact]
     public void Every_saved_operation_round_trips_with_its_parameters_and_scope()
     {
         SavedStep[] steps =

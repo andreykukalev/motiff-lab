@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Facade;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Tests.Import.Scan;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Projects;
@@ -19,10 +21,23 @@ public class PiecePartsPlaceTests
 
     private static PageReport Report(int contrast) => new(1, 0, 1.1, contrast, 4, 6, 2, 15.5, 2);
 
+    /// <summary>A scan of three pages read one at a time, with the PDF it was read from, a doubtful bar on page 2 and a bar the player checked on page 3.</summary>
+    internal static Project Scan()
+    {
+        byte[] score = ScanJoin.Join([ScanJoinTests.Page(3), ScanJoinTests.Page(2), ScanJoinTests.Page(2)]);
+        ImportedPiece piece = PieceImporter.Import("scan.musicxml", score).Piece!;
+        Project pdf = Project.CreateDocument("p_scan", "Songbook.pdf", PiecePartsTests.Pdf(3), s_now);
+        return pdf.Recognised(score, "homr 0.7.0", PageMap.Of(piece, 3), s_now) with
+        {
+            Check = [new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooShort, false), new CheckFlag(6, CheckSource.Scan, CheckReason.GraceNotes, true)],
+            Scan = new ScanOrigin("homr 0.7.0", [6]) { From = PieceOriginal.DocumentId, At = s_now },
+        };
+    }
+
     [Fact]
     public void Each_part_of_a_scan_names_the_collections_pages_it_takes_and_keeps_their_page_reports()
     {
-        Project scan = PiecePartsTests.Scan();
+        Project scan = Scan();
         Project book = scan with { Scan = scan.Scan! with { Pages = PageReport.ForPages([Report(118), Report(50), Report(110)], 3) } };
 
         PieceSplit split = PieceParts.Split(book, [new("Prelude", PartUnit.Pages, 1, 1), new("Waltz", PartUnit.Pages, 2, 3) { Pdf = PiecePartsTests.Pdf(2) }], PiecePartsTests.Options());

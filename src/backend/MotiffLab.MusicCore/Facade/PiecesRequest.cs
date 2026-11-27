@@ -46,7 +46,8 @@ internal static class PiecesRequest
             json.WriteNumber("confidence", section.Confidence);
             json.WriteString("certainty", section.ConfidenceIn(words));
             json.WriteString("reason", section.ReasonIn(words));
-            json.WriteBoolean("added", section.IsAdded);
+            // A proposal is never the player's (pieces.save keeps the player's pieces); the field stays in the contract.
+            json.WriteBoolean("added", false);
             json.WriteBoolean("onlySilence", section.IsOnlySilence);
             json.WriteEndObject();
         }

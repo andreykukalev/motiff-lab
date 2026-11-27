@@ -314,7 +314,7 @@ public sealed record PieceDna(
                 continue;
             }
 
-            MusicalKey spelling = keys.LastOrDefault(key => key.Span.Onset <= bar.Onset)?.Key ?? opening ?? new MusicalKey(0, KeyMode.Major);
+            MusicalKey spelling = keys.LastOrDefault(key => key.Span.Onset <= bar.Onset)?.Key ?? opening ?? MusicalKey.CMajor;
             var chord = new DnaChord(number, best.Span, best.Symbol(spelling), best.Confidence >= HarmonyAnalyzer.ClearConfidence)
             {
                 Degree = HarmonyAnalyzer.Numeral(best.Chord, spelling),

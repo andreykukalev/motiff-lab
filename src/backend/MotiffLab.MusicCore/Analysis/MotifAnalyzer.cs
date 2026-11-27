@@ -85,6 +85,13 @@ internal static partial class MotifAnalyzer
         new(60, "thirty-second", "thirty-seconds", "тридцать вторая", "тридцать вторые", "тридцать вторых"),
     ];
 
+    /// <summary>The note value a length in ticks is, or null when it is no single note value.</summary>
+    private static NoteValue? ValueOf(long ticks)
+    {
+        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
+        return index < 0 ? null : s_values[index];
+    }
+
     // Onset grids from coarse to fine, measured from the bar line; the Russian names the grid ("сетка восьмых") and goes after "с" ("с триольными восьмыми").
     private static readonly (long Ticks, string Name, bool Triplet, string RussianGrid, string RussianWith)[] s_grids =
     [

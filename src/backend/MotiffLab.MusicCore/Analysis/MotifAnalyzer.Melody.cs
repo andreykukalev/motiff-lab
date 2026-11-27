@@ -37,8 +37,11 @@ internal static partial class MotifAnalyzer
     /// <summary>Each run of a pitch repeated straight away (its first index and the index after it), and the pitch that clearly sounds most often.</summary>
     private sealed record RepeatMeasure(IReadOnlyList<(int Start, int End)> Runs, IGrouping<int, Note>? MostOften);
 
-    /// <summary>How many melody notes are struck with lower notes or sound over notes still held, and each one whose pitch class a lower note shares.</summary>
-    private sealed record OverMeasure(int Struck, int Held, IReadOnlyList<(Note Note, Note[] Doubled)> Shared);
+    /// <summary>
+    /// Of the <paramref name="Melody"/> notes of the line, how many are struck with lower notes or sound over notes still
+    /// held, and each one whose pitch class a lower note shares.
+    /// </summary>
+    private sealed record OverMeasure(int Melody, int Struck, int Held, IReadOnlyList<(Note Note, Note[] Doubled)> Shared);
 
     /// <summary>The phrase boundaries after the motif's first onset up to its last, the one at its first onset, and whether any cited is a reading of the notes.</summary>
     private sealed record PhraseMeasure(PhraseBoundary[] Inside, PhraseBoundary? AtStart, bool Inferred);
@@ -63,7 +66,7 @@ internal static partial class MotifAnalyzer
         facts.Add(RepeatedNotesFact(line, MeasureRepeats(line.Line), meter, key.Key, w));
         if (line.TopNotes)
         {
-            facts.Add(SoundingWithFact(line.Line, MeasureOver(line.Texture), key.Key, w));
+            facts.Add(SoundingWithFact(MeasureOver(line.Texture), key.Key, w));
         }
 
         if (phrases is not null)
@@ -192,7 +195,7 @@ internal static partial class MotifAnalyzer
             }
         }
 
-        return new OverMeasure(struck, held, shared);
+        return new OverMeasure(texture.Melody.Count, struck, held, shared);
     }
 
     private static PhraseMeasure MeasurePhrases(Note[] notes, IEnumerable<PhraseBoundary> phrases)
