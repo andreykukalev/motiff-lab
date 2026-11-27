@@ -182,8 +182,7 @@ final class InsightsController: ObservableObject {
         placeChosen?(place.onset)
     }
 
-    /// Hear the scale: the key's scale loops from the selection's start.
-    /// Hear the scale, or stop it while it sounds (testing, 2026-11-06: it went round with no way to stop it).
+    /// Hear the scale, which loops from the selection's start, or stop it while it sounds (testing, 2026-11-06: it went round with no way to stop it).
     func hearScale() {
         if scaleHeard {
             scaleStop?()

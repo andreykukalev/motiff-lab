@@ -350,3 +350,17 @@ model with the account, the imports, the Reference and `PieceScreen`, so it move
 with `LibraryOnline.swift`: sync and the copies online). In the quality baseline 34 folder edges went and 9 came with the
 code they serve, 25 fewer in all; 3 of the 9 are now on `LibraryModel`. `LibraryTools.swift` is cut by
 view group (`LibraryTabs`, `LibraryList`, `PieceActions` beside `LineSwipe`).
+
+## Note (W2.12, Insights on its model, controller and views, v1.6 i-12)
+
+`Insights.swift` is cut by the audit's row. `InsightsModel.swift` holds the typed `understand` answer (`Fact`,
+`Understanding`), as `DnaModel.swift` holds Piece DNA's. `InsightsController` keeps its name (the protected harness
+reads `workspace.insights.chosen` and `InsightsController.Choice`, so no test-side names are needed) and now holds the
+rules its stream view worked out (`mainShown`, `detailsShown`, `opens`, `trialFilteredOut`); the lens filtered to, the
+lenses opened and whether the scale sounds are written only by its methods (`filter`, `fold`, `hearingAloneChanged`), so
+each state has one writer, as section 3 asks of a model. The views are `InsightsStream` and `FactRow` (with `TryRow`,
+`TrialRow`). The sheet composes the stream with the player (`HearingSwitch`), the selection and the assistant, as the
+score's screen composes the features, so it moved to `Workspace/` with `HearingSwitch`, which Expand's bar shares, and
+no longer observes `ScoreController`, which it did not read; `FlowLayout`, used by five folders, moved to Platform. In
+the quality baseline 13 folder edges went and 2 were re-keyed with the code they serve (the controller hands the player
+the piece with the variation in place, `PlaybackNote` and `PlaybackScore`).

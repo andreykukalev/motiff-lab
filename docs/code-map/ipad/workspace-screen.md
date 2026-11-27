@@ -6,6 +6,10 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
   `Intent`), `following(_:)` one rule (a `Rule`). Tested by `PanelStateTests` against `Golden/panel-states.txt`.
 
+- `InsightsSheet.swift`, `HearingSwitch.swift` (v1.6 i-12): the Insights sheet over the right
+  ([`insights.md`](insights.md)): the stream with the selection it names, what sounds while a variation is there and
+  the assistant's foot; `HearingSwitch` (Original | Variation | Alternate, or Notes | Version | Alternate) is
+  Expand's bar's (`FocusBar`) too.
 - `LibraryView.swift`, `LibraryOnline.swift` (v1.6 i-11b): the library's screen ([`library.md`](library.md)): `LibraryModel`
   with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else

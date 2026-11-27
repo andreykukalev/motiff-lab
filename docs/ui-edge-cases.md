@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-11b):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-12):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -106,6 +106,20 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   under way and shows that it waits (HIG: prevent a repeated submit), as `E-scan-9` · v1.6 i-11. Also while «Предложить»
   or «Подтвердить пьесы» is under way (it saves the piece's file): «Разделить на пьесы» is off and a press is refused,
   as those two are off while a split is under way · v1.6 i-11 (review)
+
+## Insights
+
+- `E-insights-1` · A Try, «Оставить» or «На круге» that music-core refuses while the facts are shown · its words show
+  over the facts, in the stream's danger line, until the next step (another way, Keep, the circle opened, another
+  selection) · the stream already said a refusal so when nothing was understood; a fallible step shows its error state
+  (developer's role, step 6) · v1.6 i-12
+- `E-insights-2` · A phrase tapped (or the selection cleared) while a way is being made · the way is left: music-core
+  forgets the variation, nothing sounds, no trial and no refusal shows on the new selection's facts · a variation
+  belongs to the passage it was tried on, as Insights leaves a trial when the selection changes; a stale answer is never
+  shown (as `E-drafts-3`) · v1.6 i-12
+- `E-insights-3` · «Оставить» tapped again before music-core has kept the idea · one idea; the second tap does nothing
+  · one step at a time, as a second Try while a way is made (`starting`) and `E-drafts-4`; HIG: prevent a repeated
+  submit · v1.6 i-12
 
 ## Drafts and the assistant
 
