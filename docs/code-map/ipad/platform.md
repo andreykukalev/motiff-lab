@@ -1,6 +1,6 @@
 # Code map: iPad `Platform/`
 
-Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. What every folder may use; it uses none.
+Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. What every folder may use; it may use none, and its known edges are baseline entries.
 
 ## Files
 
@@ -58,4 +58,5 @@ written only by its `set`, `apply(preset:)` and `update`). The rest: not recorde
 
 ## Baseline entries that protect it
 
-UX baseline: `SET-01` (`DeviceSettings`), `SCAN-02` (the engine's choice). Quality ratchet: none.
+UX baseline: `SET-01` (`DeviceSettings`), `SCAN-02` (the engine's choice). Quality ratchet: 23 folder edges known when the check came or moved here
+with their code (`MotiffLabApp`, `OpenPiece`, `ProjectFiles`, `ScreensHook`, `ViewStates`, `InterfaceLanguage`, …).

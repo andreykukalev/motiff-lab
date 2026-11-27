@@ -86,11 +86,14 @@ final class SettingsTests: XCTestCase {
     /// E-settings-2: Save tapped again while the profile is on its way saves it once.
     func testSaveTappedTwiceSavesOnce() async throws {
         let saves = Saves()
-        // The first save is held on its way until the test lets it go; a let-go given early is kept.
+        // Only the first save is held on its way, until the test lets it go; a let-go given early is kept. A second save
+        // goes through at once, so it fails the assertions below rather than waiting on the same stream.
         let (held, letGo) = AsyncStream<Void>.makeStream()
         let profile = ProfileController(profile: PlayerProfile(name: "Андрей", photo: nil)) { name, _ in
             saves.names.append(name)
-            for await _ in held { break }
+            if saves.names.count == 1 {
+                for await _ in held { break }
+            }
             return nil
         }
 
