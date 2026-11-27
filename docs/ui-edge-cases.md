@@ -46,6 +46,9 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   every change is kept and a switch ends as last set; before, the second answer dropped the first change, and a switch
   turned off and on at once stayed off · a control shows what was last chosen (HIG); as the score's calls go one after
   another (`DeviceSettings.queueChange`) · v1.6 i-14
+- `E-settings-2` · «Сохранить» of the profile tapped again while the first save is on its way (before the button
+  shows as off) · one save; the second tap does nothing · as Keep tapped twice keeps one idea (`E-insights-3`) and the
+  button is off while it saves (`ProfileController.save`) · v1.6 i-14
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over

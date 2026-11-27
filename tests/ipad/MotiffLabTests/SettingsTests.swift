@@ -62,4 +62,27 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(profile.message, .notSaved("Не сохранилось."))
         XCTAssertFalse(profile.saving)
     }
+
+    /// E-settings-2: Save tapped again while the profile is on its way saves it once.
+    func testSaveTappedTwiceSavesOnce() async throws {
+        var kept: [String?] = []
+        var release: CheckedContinuation<Void, Never>?
+        let profile = ProfileController(profile: PlayerProfile(name: "Андрей", photo: nil)) { name, _ in
+            kept.append(name)
+            await withCheckedContinuation { release = $0 }
+            return nil
+        }
+
+        let first = Task { await profile.save() }
+        _ = await profile.$saving.values.first { $0 }
+        let second = await profile.save()
+        XCTAssertFalse(second, "the second tap saves nothing")
+        XCTAssertEqual(kept, ["Андрей"])
+
+        try XCTUnwrap(release, "the first save is with the account").resume()
+        let firstSaved = await first.value
+        XCTAssertTrue(firstSaved)
+        XCTAssertFalse(profile.saving)
+        XCTAssertEqual(kept, ["Андрей"], "kept once")
+    }
 }

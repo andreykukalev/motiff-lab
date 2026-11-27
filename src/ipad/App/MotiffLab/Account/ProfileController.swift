@@ -49,8 +49,10 @@ final class ProfileController: ObservableObject {
         photo = nil
     }
 
-    /// Saves the name (none when it is only spaces) and the photo; true once kept.
+    /// Saves the name (none when it is only spaces) and the photo; true once kept. One save at a time: a tap while one is
+    /// under way saves nothing more (E-settings-2).
     func save() async -> Bool {
+        guard !saving else { return false }
         saving = true
         defer { saving = false }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
