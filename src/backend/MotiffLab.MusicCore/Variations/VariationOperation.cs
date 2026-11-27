@@ -134,10 +134,6 @@ internal abstract class VariationOperation<TParameters> : IVariationOperation
         return VariationFacts.Build(Id, context.Span, notes, after!, context.Keep, flags, context.Key, context.Meter, context.Words);
     }
 
-    /// <summary>Applies the operation to the selected notes of <paramref name="notes"/>.</summary>
-    public Variation Apply(IEnumerable<Note> notes, MotifSelection selection, IReadOnlySet<KeepProperty> keep, TParameters parameters) =>
-        Apply(VariationFacts.MotifNotes(notes, selection), VariationContext.For(selection, keep), parameters);
-
     string? IVariationOperation.UnavailableReason(IReadOnlyList<Note> notes, VariationContext context, OperationParameters parameters) =>
         UnavailableReason(notes, context, Cast(parameters));
 

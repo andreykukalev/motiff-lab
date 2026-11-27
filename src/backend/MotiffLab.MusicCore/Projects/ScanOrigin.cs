@@ -113,8 +113,6 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     /// <summary>A scan just read, with no bar checked yet.</summary>
     public static ScanOrigin Read(string engine) => new(engine, []);
 
-    internal bool IsConfirmed(int bar) => ConfirmedBars.Contains(bar);
-
     /// <summary>
     /// The check of the notes this scan read (<paramref name="piece"/>, its source as imported), with the page reports it
     /// keeps (<see cref="Pages"/>, version 0.4): bars on a weak page less sure, bars on a poor page flagged
