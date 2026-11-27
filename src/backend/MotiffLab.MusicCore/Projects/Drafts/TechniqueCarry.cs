@@ -52,7 +52,7 @@ internal static class TechniqueCarry
 
     /// <summary>
     /// The draft with the приём carried into the place <paramref name="toId"/> (as <see cref="Targets"/> reads it): a variant
-    /// of that place, <paramref name="at"/> when, its id the draft's next; and the place's bars it was carried into.
+    /// of that place, <paramref name="at"/> when, its id from <paramref name="ids"/>; and the place's bars it was carried into.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place, приём, or bar of it.</exception>
     /// <exception cref="ArgumentException">The place of the приём itself.</exception>
@@ -60,7 +60,7 @@ internal static class TechniqueCarry
     /// Bars put in, a bridge place, no bar it fits, every note of the place taken out, or the place has that variant already;
     /// the message in <paramref name="words"/>.
     /// </exception>
-    public static (Draft Draft, IReadOnlyList<int> Bars) Put(Draft draft, string fromId, int number, int? bar, string toId, DateTimeOffset at, Words words)
+    public static (Draft Draft, IReadOnlyList<int> Bars) Put(Draft draft, string fromId, int number, int? bar, string toId, DateTimeOffset at, Words words, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(draft);
         Pattern pattern = PatternOf(draft, fromId, number, bar, words);
@@ -93,7 +93,7 @@ internal static class TechniqueCarry
 
         DraftSource from = to.BaseVariant.From;
         var provenance = new NotesProvenance(NotesProvenance.Variation) { ParamsJson = pattern.Params, At = at };
-        var variant = new DraftVariant(draft.NextVariantId(), at, new DraftSource(from.Notes, from.Span) { Project = from.Project }, provenance, music);
+        var variant = new DraftVariant(draft.NextVariantId(ids), at, new DraftSource(from.Notes, from.Span) { Project = from.Project }, provenance, music);
         return (draft.With(variant, DraftDrop.Variant, toId), bars);
     }
 
@@ -178,7 +178,7 @@ internal static class TechniqueCarry
         HashSet<string> removed = [];
         List<Note> added = [];
         // The notes put in are named c_ and the next numbers in the base, counted on from the first free one.
-        int next = int.Parse(Project.NextId("c_", music.Notes.Select(static note => note.Id)).AsSpan(2), System.Globalization.CultureInfo.InvariantCulture);
+        int next = int.Parse(IdSource.Numbered.Next("c_", music.Notes.Select(static note => note.Id)).AsSpan(2), System.Globalization.CultureInfo.InvariantCulture);
         List<int> bars = [];
         for (int index = 0; index < music.Bars.Count; index++)
         {

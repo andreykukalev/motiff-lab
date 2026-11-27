@@ -33,7 +33,7 @@ public class SamePieceTests
     /// <summary>A copy as the other device fetches it: without the PDF, as it went online.</summary>
     private static Project Fetched(Project project) => ProjectFile.Read(ProjectFile.Write(project.ForOnline()!));
 
-    private static Project Bookmarked(Project project) => project with { DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Reprise", s_now) };
+    private static Project Bookmarked(Project project) => project with { DocumentMarks = DocumentMarks.Empty.AddBookmark(1, "Reprise", s_now, IdSource.Numbered) };
 
     private static SyncStep Next(bool here, bool online, bool known) => ProjectSync.Next(new SyncFacts(here, online, known, ChangedHere: !known, ChangedOnline: false));
 
@@ -106,7 +106,7 @@ public class SamePieceTests
 
         Project[] own =
         [
-            OnWeb() with { DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Coda", s_now) },
+            OnWeb() with { DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Coda", s_now, IdSource.Numbered) },
             OnWeb() with { PlayerTempo = 60 },
             OnWeb() with { SettingOverrides = new Dictionary<string, string> { ["playback.metronome"] = "on" } },
             OnWeb() with { HiddenViews = ["src_pdf"] },

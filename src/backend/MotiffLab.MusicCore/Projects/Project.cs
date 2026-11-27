@@ -39,6 +39,22 @@ public sealed partial record Project(
     /// </summary>
     public IReadOnlyList<UnknownEntity> Unknown { get; init; } = [];
 
+    /// <summary>
+    /// Set when the project was read from a file of a later version whose "minReader" lets this build read it (0026 S6,
+    /// #315): it opens read-only, is never kept (<see cref="ProjectFile.Save"/>) and is written again only with its own
+    /// version and "minReader"; null for a file this build may save.
+    /// </summary>
+    public NewerFile? Newer { get; init; }
+
+    /// <summary>
+    /// The ids the project was known by before, oldest first (version 18, "formerIds"): a numbered id it was re-keyed from
+    /// (<see cref="ProjectIds.Rekeyed"/>, #317), so what names the piece by it (another piece's draft, the sync) can follow it.
+    /// </summary>
+    public IReadOnlyList<string> FormerIds { get; init; } = [];
+
+    /// <summary>Whether the project opens read-only: read from a later version (<see cref="Newer"/>).</summary>
+    public bool IsReadOnly => Newer is not null;
+
     /// <summary>The player's corrections of the imported notes, oldest first (S1-I7).</summary>
     public NoteEditLog Edits { get; init; } = NoteEditLog.Empty;
 
@@ -268,13 +284,4 @@ public sealed partial record Project(
     /// <summary>The ids of the unknown entities of a list, so a new id never takes one (S6).</summary>
     internal static IEnumerable<string> UnknownIds(IEnumerable<UnknownEntity> unknown, string list) =>
         unknown.Where(entity => entity.List == list && entity.Id is not null).Select(entity => entity.Id!);
-
-    internal static string NextId(string prefix, IEnumerable<string> ids)
-    {
-        int highest = ids
-            .Select(id => id.StartsWith(prefix, StringComparison.Ordinal) && int.TryParse(id.AsSpan(prefix.Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number) ? number : 0)
-            .DefaultIfEmpty(0)
-            .Max();
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{prefix}{highest + 1:0000}");
-    }
 }

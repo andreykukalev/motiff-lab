@@ -51,8 +51,8 @@ internal static class DraftCarryRequest
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
         int technique = request.RequiredInt("technique");
         string to = request.Required("to");
-        (Draft carried, IReadOnlyList<int> bars) = Refused(() => TechniqueCarry.Put(draft, placeId, technique, request.Int("bar"), to, request.Now(), owner.Words));
-        return DraftRequest.Restructured(owner, request, draft, to, draft.NextVariantId(), _ => carried, (json, _) => JsonWrite.Numbers(json, "bars", bars));
+        (Draft carried, IReadOnlyList<int> bars) = Refused(() => TechniqueCarry.Put(draft, placeId, technique, request.Int("bar"), to, request.Now(), owner.Words, owner.Ids));
+        return DraftRequest.Restructured(owner, request, draft, to, carried.Ids.Except(draft.Ids).Single(), _ => carried, (json, _) => JsonWrite.Numbers(json, "bars", bars));
     }
 
     /// <summary>What <paramref name="make"/> gives; no such place, приём or bar is a bad request, what cannot be carried unavailable, its message the player's.</summary>

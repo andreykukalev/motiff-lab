@@ -23,7 +23,7 @@ public class SourcesSessionTests
         "FurElise.musicxml",
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml")),
         Words.English,
-        s_now);
+        s_now, IdSource.Numbered);
 
     private static byte[] Scanned() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "Scan", "Fixtures", "homr-fur-elise-page1.musicxml"));
 

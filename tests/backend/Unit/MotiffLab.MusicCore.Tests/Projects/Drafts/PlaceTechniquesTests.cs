@@ -119,7 +119,7 @@ public class PlaceTechniquesTests
     {
         Draft draft = Dense(3);
 
-        Assert.Equal([2], DraftTakes.TakeSure(draft, "pl_1", At).Taken);
+        Assert.Equal([2], DraftTakes.TakeSure(draft, "pl_1", At, Ids).Taken);
     }
 
     /// <summary>

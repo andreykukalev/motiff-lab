@@ -113,7 +113,7 @@ public class PerformanceTakeTests
         Assert.Equal([3], kept.Dismissed);
         Assert.Equal(written, ProjectFile.Write(reread));
         Assert.True(reread.ChangesNotes);
-        Assert.Equal("perf_2", reread.NextPerformanceId());
+        Assert.Equal("perf_2", reread.NextPerformanceId(IdSource.Numbered));
         Assert.Equal(score.Count, kept.Notes().Count);
         Assert.True(kept.Notes().Min(note => note.Onset) >= 2_000_000);
 

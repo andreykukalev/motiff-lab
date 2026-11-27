@@ -87,6 +87,70 @@ public class PageInsertTests
         return Read(3, tied, next);
     }
 
+    /// <summary>
+    /// Version 18 (decision 3 of 1.6, deferred from v1.5 i-7): which pages of the PDF no engine read is kept with the notes,
+    /// not only in one iPad's recognition queue; check answers them, and a page put in with "pdfPage" is read from then on.
+    /// </summary>
+    [Fact]
+    public void The_pages_no_engine_read_are_kept_with_the_notes_until_they_are_put_in()
+    {
+        var facade = new MusicCoreFacade();
+        using JsonDocument joined = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { Page("C"), Page("E") } })));
+        string score = joined.RootElement.GetProperty("score").GetString()!;
+        Assert.DoesNotContain("\"error\"", facade.Open("Photos.pdf", "%PDF-1.4\n%%EOF\n"u8.ToArray(), $$"""{"id": "p_scan", "photos": 3, "now": "{{Now}}"}"""), StringComparison.Ordinal);
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = 3, now = Now, unread = new[] { 2 }, read = new[] { 3, 1 } });
+        using JsonDocument read = JsonDocument.Parse(facade.Call(1, "document.read", request));
+        string file = read.RootElement.GetProperty("file").GetString()!;
+
+        ScanOrigin scan = ProjectFile.Read(Encoding.UTF8.GetBytes(file)).Scan!;
+        Assert.Equal([2], scan.Unread);
+        Assert.Equal([1, 3], scan.ReadPages);
+        var again = new MusicCoreFacade();
+        Assert.DoesNotContain("\"error\"", again.Open("scan.motiff.json", Encoding.UTF8.GetBytes(file)), StringComparison.Ordinal);
+        using JsonDocument check = JsonDocument.Parse(again.Call(1, "check"));
+        Assert.Equal([2], check.RootElement.GetProperty("unreadPages").EnumerateArray().Select(static page => page.GetInt32()));
+        Assert.Equal([1, 3], check.RootElement.GetProperty("readPages").EnumerateArray().Select(static page => page.GetInt32()));
+
+        string put = JsonSerializer.Serialize(new { file, page = 2, reading = Page("G"), pages = 3, language = "en", pdfPage = 2 });
+        using JsonDocument inserted = JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", put));
+        ScanOrigin after = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!)).Scan!;
+        Assert.Empty(after.Unread);
+        Assert.Empty(after.ReadPages);
+        Assert.DoesNotContain("\"unread\"", inserted.RootElement.GetProperty("file").GetString()!, StringComparison.Ordinal);
+    }
+
+    /// <summary>A page put in leaves the other unread pages with the notes (review of c-14a): only its own is read now.</summary>
+    [Fact]
+    public void A_page_put_in_leaves_the_other_unread_pages_kept()
+    {
+        var facade = new MusicCoreFacade();
+        using JsonDocument joined = JsonDocument.Parse(facade.Call(0, "scan.join", JsonSerializer.Serialize(new { pages = new[] { Page("C"), Page("E") } })));
+        string score = joined.RootElement.GetProperty("score").GetString()!;
+        Assert.DoesNotContain("\"error\"", facade.Open("Photos.pdf", "%PDF-1.4\n%%EOF\n"u8.ToArray(), $$"""{"id": "p_scan", "photos": 4, "now": "{{Now}}"}"""), StringComparison.Ordinal);
+        string request = JsonSerializer.Serialize(new { musicXml = Convert.ToBase64String(Encoding.UTF8.GetBytes(score)), engine = "homr", pages = 4, now = Now, unread = new[] { 2, 4 }, read = new[] { 1, 3 } });
+        using JsonDocument read = JsonDocument.Parse(facade.Call(1, "document.read", request));
+        string file = read.RootElement.GetProperty("file").GetString()!;
+
+        string put = JsonSerializer.Serialize(new { file, page = 2, reading = Page("G"), pages = 4, language = "en", pdfPage = 2 });
+        using JsonDocument inserted = JsonDocument.Parse(new MusicCoreFacade().Call(0, "scan.insert", put));
+
+        ScanOrigin after = ProjectFile.Read(Encoding.UTF8.GetBytes(inserted.RootElement.GetProperty("file").GetString()!)).Scan!;
+        Assert.Equal([4], after.Unread);
+        Assert.Equal([1, 2, 3], after.ReadPages);
+    }
+
+    [Fact]
+    public void A_page_both_read_and_unread_or_below_one_is_refused()
+    {
+        ScanOrigin scan = ScanOrigin.Read("homr");
+
+        Assert.Throws<ArgumentException>(() => scan.WithUnread([2], [2]));
+        Assert.Throws<ArgumentException>(() => scan.WithUnread([0], [1]));
+        Assert.Equal([3], scan.WithUnread([2, 3], [1]).WithPageRead(2).Unread);
+        Assert.Equal([1, 2], scan.WithUnread([2, 3], [1]).WithPageRead(2).ReadPages);
+        Assert.Same(scan, scan.WithPageRead(4));
+    }
+
     [Theory]
     [InlineData(1, new[] { 79, 67, 72, 60, 76, 64 })]
     [InlineData(2, new[] { 72, 60, 79, 67, 76, 64 })]
@@ -188,16 +252,19 @@ public class PageInsertTests
     }
 
     [Fact]
-    public void Checked_bars_and_flags_move_on_with_the_bars_after_the_page()
+    public void Checked_bars_flags_and_marks_move_on_with_the_bars_after_the_page()
     {
         Project read = ProjectFile.Read(Encoding.UTF8.GetBytes(Read(3, Page("C"), Page("E"))));
+        ScanOrigin marked = read.Scan!.Confirm([1, 3]).WithMark(new ReadingMark(ReadingMarkKind.Hands, 3, 4, null, null)).WithMark(new ReadingMark(ReadingMarkKind.Octave, 1, 3, 1, "8va"));
         Project confirmed = read with
         {
-            Scan = read.Scan!.Confirm([1, 3]),
+            Scan = marked with { UnknownMarks = ["""{"kind":"fingering","bar":3,"last":4}"""] },
             Check = [new CheckFlag(1, CheckSource.Scan, CheckReason.BarTooLong, true), new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooLong, false)],
         };
         PageInserted inserted = ScanPageInsert.Into(confirmed, 2, Encoding.UTF8.GetBytes(Page("G")), null, 3);
         Assert.Equal([1, 5], inserted.Project!.Scan!.ConfirmedBars);
+        Assert.Equal([(1, 5), (5, 6)], inserted.Project.Scan.Marks.Select(static mark => (mark.Bar, mark.Last)));
+        Assert.Equal(["""{"kind":"fingering","bar":5,"last":6}"""], inserted.Project.Scan.UnknownMarks);
         Assert.Equal([(1, true), (6, false)], inserted.Project.Check!.Select(flag => (flag.Bar, flag.Resolved)));
     }
 

@@ -15,6 +15,9 @@ internal static class DraftFixtures
 
     public static readonly DateTimeOffset At = new(2026, 11, 20, 9, 30, 0, TimeSpan.Zero);
 
+    /// <summary>The ids the drafts' tests make: numbered, as the goldens and the facade's fixtures have them.</summary>
+    public static readonly MusicCore.Projects.IdSource Ids = MusicCore.Projects.IdSource.Numbered;
+
     public static readonly NotesProvenance Read = new(NotesProvenance.PdfRecognition)
     {
         From = [new ProvenanceSource("src_pdf") { Sha256 = new string('a', 64), Pages = (1, 2) }],

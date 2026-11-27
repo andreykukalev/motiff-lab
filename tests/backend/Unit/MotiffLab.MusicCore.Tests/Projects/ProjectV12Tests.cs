@@ -38,7 +38,7 @@ public class ProjectV12Tests
         Project project = Project.Create("p_test", "minuet.musicxml", s_source, s_created)
             .ChangeMarks(marks => marks
                 .AddInk([Stroke("k1", opening.Onset), Stroke("k2", bar3.Onset, InkColour.Amber)])
-                .AddNote(new MarginNote(marks.NextNoteId(), bar3, "  Breathe here ", s_now))
+                .AddNote(new MarginNote(marks.NextNoteId(IdSource.Numbered), bar3, "  Breathe here ", s_now))
                 .AddHighlight(new Highlight("h_0001", opening, [firstNote], InkColour.Amber))
                 .SetFingering(new Fingering(firstNote, 3)))
             .AddCategory(new BookmarkCategory("c_0001", "Exam", InkColour.Ochre))
@@ -46,7 +46,7 @@ public class ProjectV12Tests
             .AddBookmark(new Bookmark("b_0001", "Opening", BookmarkCategory.PractiseId, opening, FromPhrase: true, s_now))
             .AddBookmark(new Bookmark("b_0002", "Breathe", "c_0001", bar3, FromPhrase: false, s_now.AddMinutes(1)))
             .AddResumePoint(ResumePoint.Start("r_0001", s_now, "Left hand").Touch(bar3.Onset, new SavedPassage(bar3, SelectionFilter.ForHand(Hand.Left)), true, [Overlay.Insights, Overlay.PianoRoll], 60, Hand.Left, true, s_now.AddMinutes(5)))
-            .OverrideSetting("phrases.granularity", "short")
+            .OverrideSetting("layers.analysis", "off")
             .OverrideSetting("layers.bookmarks", "off");
         return project with { Check = [new CheckFlag(2, CheckSource.Transcription, CheckReason.TempoUncertain, false), new CheckFlag(4, CheckSource.Transcription, CheckReason.HandsGuessed, true)] };
     }
@@ -165,7 +165,7 @@ public class ProjectV12Tests
         Assert.Equal(100, first.TempoPercent);
         Assert.Null(project.ResumePoints[1].Name);
         Assert.Null(project.ResumePoints[1].Passage);
-        Assert.Equal("r_0003", project.NextResumePointId());
+        Assert.Equal("r_0003", project.NextResumePointId(IdSource.Numbered));
 
         Assert.Single(project.Observations);
         Assert.Null(project.Observations[0].FactId);
@@ -214,7 +214,7 @@ public class ProjectV12Tests
     [InlineData("\"category\": \"c_0001\"", "\"category\": \"c_0009\"", "bookmarks")]
     [InlineData("\"tempoPercent\": 60", "\"tempoPercent\": 10", "resume point")]
     [InlineData("\"reason\": \"TempoUncertain\"", "\"reason\": \"a hunch\"", "reason")]
-    [InlineData("\"phrases.granularity\": \"short\"", "\"phrases.granularity\": \"tiny\"", "settings")]
+    [InlineData("\"layers.analysis\": \"off\"", "\"layers.analysis\": 3", "settings")]
     [InlineData("\"layers.bookmarks\": \"off\"", "\"guidance.hints\": \"off\"", "settings")]
     public void Damaged_version_12_fields_are_refused_with_a_plain_reason(string from, string to, string what)
     {
@@ -247,7 +247,7 @@ public class ProjectV12Tests
     [Fact]
     public void A_newer_file_is_still_refused()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace($"\"version\": {ProjectFile.Version}", $"\"version\": {ProjectFile.Version + 1}", StringComparison.Ordinal);
+        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace($"\"version\": {ProjectFile.Version}", $"\"version\": {ProjectFile.Version + 1}", StringComparison.Ordinal).Replace($"\"minReader\": {ProjectFile.MinReader}", $"\"minReader\": {ProjectFile.Version + 1}", StringComparison.Ordinal);
 
         ProjectFileException exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
 

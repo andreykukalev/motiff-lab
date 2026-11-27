@@ -337,10 +337,10 @@ public class MusicCoreFacadeTests
         Assert.Equal("phrase", Call(facade, "phrases").GetProperty("level").GetString());
         Assert.Equal("unknownCall", Error(facade, 1, "phrases.level", """{"level": "sentence"}"""));
 
-        // A file that still carries the level once remembered opens in phrases and saves it back as it was.
-        Call(facade, "settings.override", """{"id": "phrases.granularity", "value": "sentences"}""");
+        // The level once remembered is no setting any more (version 18): a piece always opens in phrases.
+        Assert.Equal("badRequest", Error(facade, 1, "settings.override", """{"id": "phrases.granularity", "value": "sentences"}"""));
         string saved = facade.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}""");
-        Assert.Contains("\"phrases.granularity\": \"sentences\"", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("phrases.granularity", saved, StringComparison.Ordinal);
         var again = new MusicCoreFacade();
         again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
         Assert.Equal("phrase", Call(again, "phrases").GetProperty("level").GetString());
@@ -816,9 +816,10 @@ public class MusicCoreFacadeTests
     {
         var facade = new MusicCoreFacade();
         JsonElement catalogue = Json(facade.Call(0, "settings"));
-        JsonElement granularity = catalogue.GetProperty("settings").EnumerateArray().Single(setting => setting.GetProperty("id").GetString() == "phrases.granularity");
-        Assert.Equal("piece", granularity.GetProperty("scope").GetString());
-        Assert.Equal(["short", "phrases", "sentences"], granularity.GetProperty("choices").EnumerateArray().Select(choice => choice.GetString()!).ToArray());
+        JsonElement ink = catalogue.GetProperty("settings").EnumerateArray().Single(setting => setting.GetProperty("id").GetString() == "layers.ink");
+        Assert.Equal("piece", ink.GetProperty("scope").GetString());
+        Assert.Equal(["on", "off"], ink.GetProperty("choices").EnumerateArray().Select(choice => choice.GetString()!).ToArray());
+        Assert.DoesNotContain(catalogue.GetProperty("settings").EnumerateArray(), setting => setting.GetProperty("id").GetString() == "phrases.granularity");
 
         JsonElement learning = Json(facade.Call(0, "settings.state", """{"preset": "learning"}"""));
         Assert.Equal("learning", learning.GetProperty("preset").GetString());
@@ -828,13 +829,13 @@ public class MusicCoreFacadeTests
         Assert.Equal("badRequest", Json(facade.Call(0, "settings.state", """{"set": {"id": "guidance.hints", "value": "maybe"}}""")).GetProperty("error").GetString());
 
         Json(facade.Open(FurElise, Fixture(FurElise)));
-        JsonElement overridden = Call(facade, "settings.override", """{"id": "phrases.granularity", "value": "sentences"}""");
-        Assert.Equal("sentences", overridden.GetProperty("overrides").GetProperty("phrases.granularity").GetString());
+        JsonElement overridden = Call(facade, "settings.override", """{"id": "layers.ink", "value": "off"}""");
+        Assert.Equal("off", overridden.GetProperty("overrides").GetProperty("layers.ink").GetString());
         Assert.Equal("badRequest", Error(facade, 1, "settings.override", """{"id": "appearance.theme", "value": "night"}"""));
-        JsonElement resolved = Json(facade.Call(0, "settings.state", """{"preset": "learning", "overrides": {"phrases.granularity": "sentences"}}"""));
-        Assert.Equal("sentences", resolved.GetProperty("values").GetProperty("phrases.granularity").GetString());
-        Assert.Equal("sentences", Json(facade.Call(1, "project.save")).GetProperty("workspace").GetProperty("settings").GetProperty("phrases.granularity").GetString());
-        Assert.Empty(Call(facade, "settings.override", """{"id": "phrases.granularity", "value": null}""").GetProperty("overrides").EnumerateObject());
+        JsonElement resolved = Json(facade.Call(0, "settings.state", """{"preset": "learning", "overrides": {"layers.ink": "off"}}"""));
+        Assert.Equal("off", resolved.GetProperty("values").GetProperty("layers.ink").GetString());
+        Assert.Equal("off", Json(facade.Call(1, "project.save")).GetProperty("workspace").GetProperty("settings").GetProperty("layers.ink").GetString());
+        Assert.Empty(Call(facade, "settings.override", """{"id": "layers.ink", "value": null}""").GetProperty("overrides").EnumerateObject());
     }
 
     [Fact]

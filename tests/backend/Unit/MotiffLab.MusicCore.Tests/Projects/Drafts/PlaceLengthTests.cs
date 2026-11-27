@@ -93,7 +93,7 @@ public class PlaceLengthTests
     {
         Draft two = Draft.Start("d_1", "Коллаж", At, "pl_1", Variant("v_1", Score(), 1, 4))
             .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 5, 8, notes: "n_g"), DraftDrop.Place, "pl_2");
-        Draft bridged = DraftBridges.Put(two, "pl_2", At).With(next => new DraftTempo(next, At, "pl_0003", 100));
+        Draft bridged = DraftBridges.Put(two, "pl_2", At, Ids).With(next => new DraftTempo(next, At, "pl_0003", 100));
         SourceMusic music = place == "pl_1" ? Score() : Score(fifths: 1, prefix: "b");
 
         Draft resized = PlaceLength.Resized(bridged, place, Variant(place == "pl_1" ? "v_1" : "v_2", music, first, last, notes: place == "pl_1" ? "n_1" : "n_g"));
@@ -129,7 +129,7 @@ public class PlaceLengthTests
         Assert.Throws<ArgumentException>(() => PlaceLength.Resized(drafted, "pl_1", Variant("v_1", Score(), 1, 4, DraftPart.Right)));
         Assert.Throws<KeyNotFoundException>(() => PlaceLength.Resized(drafted, "pl_9", Cut(1, 4)));
         Assert.Throws<InvalidOperationException>(() => PlaceLength.Resized(composed, "pl_1", Cut(1, 4)));
-        Draft bridged = DraftBridges.Put(Draft.Start("d_1", "Коллаж", At, "pl_1", Cut(1, 4)).With(Variant("v_2", Score(fifths: 1, prefix: "o"), 1, 4, notes: "n_other"), DraftDrop.Place, "pl_2"), "pl_2", At);
+        Draft bridged = DraftBridges.Put(Draft.Start("d_1", "Коллаж", At, "pl_1", Cut(1, 4)).With(Variant("v_2", Score(fifths: 1, prefix: "o"), 1, 4, notes: "n_other"), DraftDrop.Place, "pl_2"), "pl_2", At, Ids);
         DraftPlace bridge = bridged.Places[1];
         Assert.True(bridge.Bridge);
         Assert.Throws<InvalidOperationException>(() => PlaceLength.Resized(bridged, bridge.Id, bridge.BaseVariant));

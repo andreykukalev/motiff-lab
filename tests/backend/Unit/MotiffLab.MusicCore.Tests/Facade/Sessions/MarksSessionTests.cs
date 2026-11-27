@@ -20,7 +20,7 @@ public class MarksSessionTests
         "FurElise.musicxml",
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml")),
         words,
-        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero)).State;
+        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero), IdSource.Numbered).State;
 
     private static string Refused(Func<Project> change) => Assert.Throws<FacadeException>(() => change()).Code;
 

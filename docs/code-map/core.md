@@ -16,7 +16,7 @@ through the facade; the API references it.
   `PieceMetadata` (`TitleOf`), `Bookmark` and `OriginalKind` (`OriginalKinds.FileKind`), where Notes came from
   (`NotesProvenance`, `ProvenanceSource`; `UnknownField` keeps a later build's field).
 - `Import`: the readers: MIDI, MusicXML, scans (`Scan`; `ScanMerge`: engines' readings per staff, bar levels, settled by the page: `ScanEvidence`, `ScanAssembly`, `ScanMerge.Staffing` reads a reading's clefs; `ScanMerge.Variants`: a Check bar's other readings and crop box, v1.3 i-2, put in by `corrections.variant`; `ScanMerge.Meter`: homr's time signatures over the agreement of the printed-meter engines that wrote one, #647), a page no engine read put in later by `ScanJoin.Insert` (v1.3 i-1b, `ScanPageInsert.Into`, `Project.CanInsertPage`, the bookmarks and resume points (v1.5 i-7), the phrases, ideas, motifs and marks (r-2b, notes by `NoteEditLog.IdsMovedOn`) moved on by its length by `FollowedWork.Inserted`; its corrections carried by `NoteEditLog.CarriedOver`, `NoteEditLog.Insert.cs`; facade `scan.insert`, `ScanRequest.Insert.cs`), `StaffPitch` (steps, clefs, key alterations, MIDI of a written note: MusicXML, Vector, Scan), recordings (`Transcription`: `RecordingBars`, `GridSearch`,
-  `TranscriptionOrigin`), PDFs (`Vector`), folders; the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
+  `TranscriptionOrigin`), PDFs (`Vector`), folders; the player's marks «что не так» (`Scan/ReadingMark`, kept in `ScanOrigin.Marks`) put into the next reading of the pages by `ReadingMarks.Apply` (hands, clef, octave, key, meter; «Как напечатано» step 3, c-14b1; triplets in `ReadingMarks.Triplets`, c-14b2), a bar read badly read again from another engine by `ScanMerge.ReadAgain` (`ScanBefore`: the page as read before and its bad bars, scan.join's "replace" with "bad"; marked `MusicXmlImport.ReadAgainMark`, flagged `ReadAgain`), and scan.join's fingerprint and variants taken after the marks with "file" (`ScanRequest.Marks.cs`: `SourcesSession.Marked` on a project and its piece, a variant written into its page by `ScanMergedPage.WithVariant`; each variant and each group of readings of a bad bar joins and imports the whole score again, as a mark from an earlier page holds on: a few such bars cost a few readings of the piece); the doubts they raise (`CheckFlag`, `CheckReason`, `CheckSource`).
   The MusicXML reader: `MusicXmlImporter` (file checks, part list) walks each part with `PartReader` (`PartFacts`;
   `.Writing`: how each note is written, `WrittenNotes`, `Spaces`);
   `ScoreBuilder` joins them with `ScoreNotes` (ties), `ScoreMarks` (rests, slurs, texts…) and `MusicXmlTimeline`.
@@ -41,11 +41,13 @@ through the facade; the API references it.
   `StaffPlan.TakePiece` numbers the pieces of ids in both ways.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
-  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
+  records apart (`ProjectSummary`, `SavedMotif`, …); new entity ids from the caller's `IdSource` (`Random` on the iPad, `Numbered` in tests, #317) and a numbered project id re-keyed by `ProjectIds.Rekeyed` (kept in `Project.FormerIds`); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
   ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
-  `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
-  `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
+  `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
+  read-only since version 18) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
+  keeps the unknown fields of workspace entities, `Legacy`); `ScanOrigin` keeps the PDF pages no engine read (`Unread`,
+  `ReadPages`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
   `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
   seam), `DraftAnchors` (anchors the player confirms), `OnRecording` (the stretch of a recording that is a place's
   music, «Найти на записи»), `PlaceLength` (a place's base cut again over other bars), `TechniqueCarry` (a приём carried
@@ -55,7 +57,7 @@ through the facade; the API references it.
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
   `Words.cs`: the sentences in both languages; `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
-  `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
+  `Contract`; made with the `IdSource` its pieces take ids from (`OpenPiece.Ids`, `OpenDocument.Ids`, `SessionPiece.Ids`), and `open` with "onlineIds" re-keys a numbered project not saved online. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
   partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections, the sources, the performances and the marks, `OpenPiece.Selection`, `OpenPiece.Corrections`, `OpenPiece.Sources`, `OpenPiece.Performance` and `OpenPiece.Marks`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
@@ -69,7 +71,7 @@ through the facade; the API references it.
   adapter `OpenPiece.Corrections` (`Calls.Corrections`, every call's bar read before anything changes);
   `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
   iPad's mark, «Распознать ещё раз» with the corrections carried over (`CarriedOver`), each answering the project it makes, the time taken as `now`) answers `KeptFile`,
-  `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
+  `ReadScore`, `DocumentVersion`; the working notes' marks placed on the new reading and carried (`Marked`, `WithMarks`, `MarksCarried`); its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
   `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
   each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
   notes again) answers the comparison (`Answer.Performance`) and `AddedVersion`; its adapter `OpenPiece.Performance` (`Calls.Performances`);
@@ -78,6 +80,7 @@ through the facade; the API references it.
   adapter `OpenPiece.Marks` (`Calls.Marks`; the resume points, ideas, settings and Check stay in `OpenPiece.Project`);
   the time of a call is read once, `Request.Now` («now», else the clock) and `Request.SentNow` (project.save), by the
   adapters only (D15); the one exception is sync.online's «now», read as its other times are (`SyncRequest.Time`);
+  check.mark and check.unmark in `ReadingMarkRequest` (with check's "marks");
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
   shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
@@ -88,13 +91,13 @@ through the facade; the API references it.
 ## The native build (`src/ipad/Core`)
 
 `Exports.cs`: the C functions `ml_version`, `ml_open`, `ml_call`, `ml_close`, `ml_free` (`include/motifflab_core.h`)
-over one `MusicCoreFacade`; no exception crosses them. `build.sh` packages the xcframework (the `iPad` workflow, on a
+over one `MusicCoreFacade` with random ids (`IdSource.Random`); no exception crosses them. `build.sh` packages the xcframework (the `iPad` workflow, on a
 Mac); `check.py` calls a published library. The app's side: `Platform/MusicCore.swift`, `PieceCore.swift`.
 
 ## Tests
 
 - `tests/backend/Unit/MotiffLab.MusicCore.Tests/<Folder>`, one folder per source folder; `Facade/` for calls,
-  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`), `<Folder>/Golden/*.txt` for what real
+  `Golden/` for saved project files of every version (`ProjectFileGoldenTests`, a later version in its `.Newer`), `<Folder>/Golden/*.txt` for what real
   pieces give (`TextGoldens`); all written again with `MOTIFF_UPDATE_SNAPSHOTS=1`.
 - The wire contract: `tests/contracts/facade-calls.json` and the calls of `docs/facade-contract.md`, both checked
   against the registry and the facade's answers (`FacadeCallsContractTests`; the Swift scan

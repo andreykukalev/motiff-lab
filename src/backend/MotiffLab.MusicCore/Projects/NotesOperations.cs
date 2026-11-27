@@ -63,7 +63,7 @@ internal static class NotesOperations
     /// <exception cref="InvalidOperationException">The piece has no working notes yet: it is recognised into them instead.</exception>
     /// <exception cref="KeyNotFoundException">No original has the id.</exception>
     /// <exception cref="ArgumentException">No notes, or not one report per page of the notes.</exception>
-    public static Project RecognisedAgain(this Project project, string original, byte[] musicXml, string engine, PageMap? pages, DateTimeOffset at, IReadOnlyList<PageReport>? reports = null)
+    public static Project RecognisedAgain(this Project project, string original, byte[] musicXml, string engine, PageMap? pages, DateTimeOffset at, IdSource ids, IReadOnlyList<PageReport>? reports = null)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(musicXml);
@@ -78,7 +78,7 @@ internal static class NotesOperations
             throw new ArgumentException("The scan read no notes.", nameof(musicXml));
         }
 
-        string id = NextNotesId(project);
+        string id = project.NextNotesId(ids);
         var provenance = new NotesProvenance(NotesProvenance.PdfRecognition) { From = [new ProvenanceSource(read.Id) { Sha256 = read.Sha256 }], Engine = engine, At = at };
         var notes = new OtherNotes(id, Path.ChangeExtension(project.FileName, ".musicxml"), musicXml, provenance)
         {
@@ -97,7 +97,7 @@ internal static class NotesOperations
     /// </summary>
     /// <exception cref="KeyNotFoundException">No original has the id.</exception>
     /// <exception cref="ArgumentException">The original is not a recording, or no notes were heard.</exception>
-    public static Project HeardFrom(this Project project, string original, byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check, DateTimeOffset at, (long From, long To)? stretch = null)
+    public static Project HeardFrom(this Project project, string original, byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check, DateTimeOffset at, IdSource ids, (long From, long To)? stretch = null)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(midi);
@@ -121,7 +121,7 @@ internal static class NotesOperations
             return project with { FileName = fileName, Source = midi, Transcription = from, Check = [.. check], KeptProvenance = provenance, DocumentPages = null };
         }
 
-        return project.AddNotes(new OtherNotes(project.NextNotesId(), fileName, midi, provenance) { Transcription = from, Check = [.. check] });
+        return project.AddNotes(new OtherNotes(project.NextNotesId(ids), fileName, midi, provenance) { Transcription = from, Check = [.. check] });
     }
 
     /// <summary>The piece with other Notes added at the end of its Notes.</summary>
@@ -138,17 +138,14 @@ internal static class NotesOperations
     }
 
     /// <summary>
-    /// The next free Notes id: "n_" and one more than the highest number the piece's Notes use, the working ones, the other
-    /// ones and those kept unknown, as the first is "n_1".
+    /// A new Notes id from <paramref name="ids"/> that the piece's Notes do not use, the working ones, the other ones and
+    /// those kept unknown: numbered, "n_" and one more than the highest number, as the first is "n_1".
     /// </summary>
-    public static string NextNotesId(this Project project)
+    public static string NextNotesId(this Project project, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(project);
-        IEnumerable<string> ids = [project.NotesId, .. project.Sources.Notes.Select(static notes => notes.Id), .. Project.UnknownIds(project.Unknown, "notes")];
-        int highest = ids.Select(static id => id.StartsWith("n_", StringComparison.Ordinal)
-                && int.TryParse(id.AsSpan(2), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number) ? number : 0)
-            .DefaultIfEmpty(0).Max();
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"n_{highest + 1}");
+        ArgumentNullException.ThrowIfNull(ids);
+        return ids.Next("n_", [project.NotesId, .. project.Sources.Notes.Select(static notes => notes.Id), .. Project.UnknownIds(project.Unknown, "notes")], digits: 1);
     }
 
     /// <summary>

@@ -50,6 +50,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
   `ScorePageContractTests`); `RollCommand`, `RollEvent` are `roll-page.json` (`roll-page-contract.test.mjs`,
   `RollPageContractTests`); no other file builds a roll call.
 - Every `language:` sent to music-core or the assistant is `text.language`.
+- music-core's calls run in the order `MusicCore.run` is reached: an async helper around it that would hop off the
+  caller's actor first takes `isolation: isolated (any Actor)? = #isolation` (as `PieceCore` and `ProjectFiles.save`
+  do) where its calls must keep their order with the caller's others. A work never waits for another call.
 
 ## The state it owns
 

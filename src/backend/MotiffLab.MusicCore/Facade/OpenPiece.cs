@@ -29,16 +29,20 @@ namespace MotiffLab.MusicCore.Facade;
 /// </summary>
 internal sealed partial class OpenPiece
 {
-    private OpenPiece(Project project, ImportedPiece piece, IReadOnlyList<Note> notes, Words words)
+    private OpenPiece(Project project, ImportedPiece piece, IReadOnlyList<Note> notes, Words words, IdSource ids)
     {
         Project = project;
         Piece = piece;
         Notes = notes;
         Words = words;
+        Ids = ids;
         ReadStructure(project.PhraseLevels);
     }
 
     public Project Project { get; private set; }
+
+    /// <summary>Where the ids of what is made in the piece come from: the facade's (<see cref="MusicCoreFacade(IdSource)"/>).</summary>
+    public IdSource Ids { get; }
 
     public ImportedPiece Piece { get; private set; }
 
@@ -83,7 +87,7 @@ internal sealed partial class OpenPiece
     internal bool ReadOnly => ShownFrom is not null;
 
     /// <summary>The piece as the sessions read it now.</summary>
-    internal SessionPiece State => new(Project, Piece, Notes, Structure, Words);
+    internal SessionPiece State => new(Project, Piece, Notes, Structure, Words, Ids);
 
     /// <summary>This piece, open only to be shown from now on, as <paramref name="shown"/> says.</summary>
     internal OpenPiece AsReadOnly(ShownView shown)
@@ -92,8 +96,8 @@ internal sealed partial class OpenPiece
         return this;
     }
 
-    /// <summary>A new project for a file the player just imported.</summary>
-    public static OpenPiece Import(string id, string fileName, byte[] data, Words words, DateTimeOffset now)
+    /// <summary>A new project for a file the player just imported; the passage picked is saved as its first motif.</summary>
+    public static OpenPiece Import(string id, string fileName, byte[] data, Words words, DateTimeOffset now, IdSource ids)
     {
         PieceImportResult result = PieceImporter.Import(fileName, data);
         if (result.Piece is not { } piece)
@@ -102,7 +106,9 @@ internal sealed partial class OpenPiece
             throw new FacadeException("import", $"{rejection.Text(words)} {rejection.TipIn(words)}".Trim()) { Data = { ["reason"] = JsonWrite.Name(rejection.Reason), ["tip"] = rejection.TipIn(words) } };
         }
 
-        return new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words);
+        var imported = new OpenPiece(Project.Create(id, fileName, data, now), piece, piece.Notes, words, ids);
+        imported.Selection.SaveBeside(imported.State);
+        return imported;
     }
 
     /// <summary>
@@ -111,12 +117,12 @@ internal sealed partial class OpenPiece
     /// some fit ("tempo": "live" finds the beat afresh in each section, <see cref="LiveTempoRequest"/>), with the transcription's
     /// engine ("engine"), its seams and the Check flags it raises.
     /// </summary>
-    public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now)
+    public static OpenPiece Transcribe(string id, string fileName, Request heard, Words words, DateTimeOffset now, IdSource ids)
     {
         string name = Path.ChangeExtension(string.IsNullOrWhiteSpace(fileName) ? "recording" : fileName, ".mid");
         (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = Heard(name, heard, words);
         Project project = Project.Create(id, name, midi, now) with { Transcription = origin, Check = check };
-        return Open(ProjectFile.Write(project), words);
+        return Open(ProjectFile.Write(project), words, ids);
     }
 
     /// <summary>
@@ -156,7 +162,7 @@ internal sealed partial class OpenPiece
     /// (version 0.5), strictly by default.
     /// </summary>
     /// <param name="asTheFileSays">The corrections are left out when the file says the player turned them off ("editsOff"), whatever <paramref name="layer"/> says.</param>
-    public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict, bool asTheFileSays = false)
+    public static OpenPiece Open(byte[] projectFile, Words words, IdSource ids, EditsLayer layer = EditsLayer.Strict, bool asTheFileSays = false)
     {
         Project project;
         OpenedProject opened;
@@ -170,7 +176,7 @@ internal sealed partial class OpenPiece
             throw new FacadeException("import", exception.Text(words)) { Data = { ["reason"] = "damaged" } };
         }
 
-        var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words);
+        var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words, ids);
         if (opened.Motifs.Count > 0)
         {
             Motif motif = opened.Motifs[0];
@@ -506,6 +512,6 @@ internal sealed partial class OpenPiece
             LastOpened = now ?? Project.LastOpened,
         };
         // Corrections made in the note editor are kept only once the player saves them (testing item 15).
-        return System.Text.Encoding.UTF8.GetString(ProjectFile.Write(Project with { Edits = Corrections.Kept(State) }));
+        return System.Text.Encoding.UTF8.GetString(ProjectFile.Save(Project with { Edits = Corrections.Kept(State) }));
     }
 }

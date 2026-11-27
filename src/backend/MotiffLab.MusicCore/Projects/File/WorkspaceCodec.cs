@@ -38,6 +38,12 @@ internal static class WorkspaceCodec
 
     internal const string WorkspacePath = "workspace";
 
+    /// <summary>The fields of an idea this build reads; a file's others are kept (version 18).</summary>
+    private static readonly HashSet<string> s_observationFields = new(StringComparer.Ordinal)
+    {
+        "id", "name", "factId", "note", "createdAt", "phrase", "experiment", "variation", "notes", "provenance",
+    };
+
     internal static void WriteWorkspace(Utf8JsonWriter json, Project project)
     {
         json.WriteStartObject(WorkspacePath);
@@ -51,7 +57,7 @@ internal static class WorkspaceCodec
         WriteEditsOff(json, project);
         WritePlayerTempo(json, project);
         WriteMotifsAndVariations(json, project);
-        WriteList(json, "observations", project.Observations, KeptUnknown(project.Unknown, "observations", project.Observations.Select(static observation => observation.Id), null, out _), observation => WriteObservation(json, observation, project.HasNotes ? project.NotesId : null));
+        WriteList(json, "observations", project.Observations, KeptUnknown(project.Unknown, "observations", project.Observations.Select(static observation => observation.Id), null, out _), observation => WriteObservation(json, observation, project.HasNotes ? project.NotesId : null, project.UnknownFieldsAt(FieldsPath("observations", observation.Id))));
         WritePhrases(json, project);
         WriteMarks(json, project.Marks);
         WriteBookmarks(json, project);
@@ -69,6 +75,8 @@ internal static class WorkspaceCodec
             json.WriteString(id, value);
         }
 
+        // A setting a later build has, or a value it allows, kept as the file held it (#314), unless the player set it here since.
+        WriteUnknownFields(json, [.. project.UnknownFieldsAt(ProjectFile.SettingsPath).Where(field => !project.SettingOverrides.ContainsKey(field.Name))]);
         json.WriteEndObject();
         if (project.HiddenViews.Count > 0)
         {
@@ -122,8 +130,11 @@ internal static class WorkspaceCodec
         json.WriteEndObject();
     }
 
-    /// <summary>An idea; with a variation, the Notes it was built on (version 16): its own, else <paramref name="working"/>.</summary>
-    private static void WriteObservation(Utf8JsonWriter json, Observation observation, string? working)
+    /// <summary>
+    /// An idea; with a variation, the Notes it was built on (version 16): its own, else <paramref name="working"/>; then the
+    /// fields of it this build did not know (version 18).
+    /// </summary>
+    private static void WriteObservation(Utf8JsonWriter json, Observation observation, string? working, IReadOnlyList<UnknownField> unknown)
     {
         json.WriteStartObject();
         json.WriteString("id", observation.Id);
@@ -170,6 +181,7 @@ internal static class WorkspaceCodec
             WriteProvenance(json, provenance);
         }
 
+        WriteUnknownFields(json, unknown);
         json.WriteEndObject();
     }
 
@@ -197,7 +209,7 @@ internal static class WorkspaceCodec
     {
         List<SavedMotif> motifs = ReadMotifs(work, version, unknowns, out List<SavedVariation> variations);
         List<Observation> observations = version >= 6
-            ? ReadList(Property(work, "observations", JsonValueKind.Array), "observations", observation => ReadObservation(observation, version), unknowns)
+            ? ReadList(Property(work, "observations", JsonValueKind.Array), "observations", observation => ReadObservation(observation, version), unknowns, s_observationFields)
             : [];
         if (observations.Select(static observation => observation.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count)
         {
@@ -205,7 +217,7 @@ internal static class WorkspaceCodec
         }
 
         List<ResumePoint> resumePoints = version >= 12
-            ? ReadList(Property(work, "resumePoints", JsonValueKind.Array), "resumePoints", ReadResumePoint, unknowns)
+            ? ReadList(Property(work, "resumePoints", JsonValueKind.Array), "resumePoints", ReadResumePoint, unknowns, s_resumePointFields)
             : version >= 8 ? Property(work, "sessions", JsonValueKind.Array).EnumerateArray().Select(ReadSessionAsResumePoint).ToList() : [];
         if (resumePoints.Select(static point => point.Id).Distinct(StringComparer.Ordinal).Count() != resumePoints.Count)
         {
@@ -225,11 +237,11 @@ internal static class WorkspaceCodec
             Marks = version >= 12 ? ReadMarks(Property(work, "marks", JsonValueKind.Object), unknowns) : Marks.Empty,
             Categories = categories,
             Bookmarks = bookmarks,
-            SettingOverrides = version >= 12 ? ReadSettings(Property(work, "settings", JsonValueKind.Object)) : new Dictionary<string, string>(StringComparer.Ordinal),
+            SettingOverrides = version >= 12 ? ReadSettings(Property(work, "settings", JsonValueKind.Object), version, unknowns) : new Dictionary<string, string>(StringComparer.Ordinal),
             Assembly = version >= 15 ? ReadAssembly(work) : PieceAssembly.Empty,
             Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
-            HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? ReadHiddenViews(hidden) : [],
+            HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? DistinctTexts(hidden, "hiddenViews") : [],
         }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work);
     }
 
@@ -284,30 +296,55 @@ internal static class WorkspaceCodec
     private static PhraseEdits ReadPhraseLevel(JsonElement phrases, string name) =>
         phrases.TryGetProperty(name, out JsonElement level) && level.ValueKind == JsonValueKind.Object ? ReadPhrases(level) : PhraseEdits.None;
 
-    private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings)
+    /// <summary>
+    /// The piece's overrides. In a file of this layout a setting this build does not have, or a value of one it does not
+    /// allow, is kept as the file held it and has no effect (0026 S6, #314); in an older file it is damage. The level a
+    /// piece opened in, "phrases.granularity", is gone (version 18, the phrases spec): a file before 18 drops it.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> ReadSettings(JsonElement settings, int version, Unknowns unknowns)
     {
         var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+        List<UnknownField> kept = [];
         foreach (JsonProperty property in settings.EnumerateObject())
         {
-            Setting setting = SettingsCatalogue.Find(property.Name) ?? throw Damaged("settings");
-            string value = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString()! : throw Damaged("settings");
-            if (setting.Scope != SettingScope.Piece || !setting.Allows(value))
+            if (version < 18 && property.Name == RemovedGranularity)
+            {
+                continue;
+            }
+
+            Setting? setting = SettingsCatalogue.Find(property.Name);
+            string? value = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : null;
+            if (setting is { Scope: SettingScope.Piece } && value is not null && setting.Allows(value))
+            {
+                overrides[property.Name] = value;
+            }
+            else if (unknowns.Tolerant && (setting is null || (setting.Scope == SettingScope.Piece && value is not null)))
+            {
+                kept.Add(new UnknownField(property.Name, property.Value.GetRawText()));
+            }
+            else
             {
                 throw Damaged("settings");
             }
+        }
 
-            overrides[property.Name] = value;
+        if (kept.Count > 0)
+        {
+            unknowns.Fields[ProjectFile.SettingsPath] = kept;
         }
 
         return overrides;
     }
 
-    /// <summary>"hiddenViews": the ids of the views hidden from the switch, each a text that is not blank.</summary>
-    private static List<string> ReadHiddenViews(JsonElement hidden)
+    /// <summary>The piece's phrase level of versions 12 to 17 (0018 section 3), gone since the score shows phrases only (version 1.2).</summary>
+    private const string RemovedGranularity = "phrases.granularity";
+
+    /// <summary>A list of ids, such as "hiddenViews" (the views hidden from the switch) or "formerIds": distinct texts that are not blank.</summary>
+    internal static List<string> DistinctTexts(JsonElement list, string what)
     {
-        Expect(hidden, JsonValueKind.Array, "hiddenViews");
-        List<string> ids = [.. hidden.EnumerateArray().Select(static id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("hiddenViews"))];
-        return ids.Distinct(StringComparer.Ordinal).Count() == ids.Count ? ids : throw Damaged("hiddenViews");
+        Expect(list, JsonValueKind.Array, what);
+        List<string> ids = [.. list.EnumerateArray().Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged(what))];
+        return ids.Distinct(StringComparer.Ordinal).Count() == ids.Count ? ids : throw Damaged(what);
     }
 
     /// <summary>The project with the place in its collection its file keeps (<see cref="ReadPartOf"/>).</summary>

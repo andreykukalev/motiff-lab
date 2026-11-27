@@ -19,7 +19,7 @@ public class TechniqueCarryTests
     [Fact]
     public void An_octave_carried_into_another_place_is_a_variant_of_it_with_that_place_s_notes_an_octave_up_in_every_bar()
     {
-        (Draft carried, IReadOnlyList<int> bars) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English);
+        (Draft carried, IReadOnlyList<int> bars) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English, Ids);
 
         Assert.Equal([1, 2, 3, 4], bars);
         DraftVariant variant = carried.FindPlace("pl_2")!.Variants[1];
@@ -46,7 +46,7 @@ public class TechniqueCarryTests
         Draft draft = Filled(Score(bars: 2, melody: static _ => [71, 72, 74, 76], fifths: 1, prefix: "g"));
         PlaceTechnique fill = Assert.Single(draft.TechniquesOf("pl_1"));
 
-        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", fill.Number, null, "pl_2", Later, Words.English);
+        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", fill.Number, null, "pl_2", Later, Words.English, Ids);
 
         // In G major two steps below B, C, D, E are G, A, B, C (by semitones they would be G♯, A, A♯, C♯).
         Assert.Equal([67, 69, 71, 72], PutIn(carried));
@@ -70,7 +70,7 @@ public class TechniqueCarryTests
         SourceMusic minor = Score(bars: 2, melody: static _ => [69, 70, 72, 74], fifths: -1);
         Draft draft = Filled(minor with { Keys = [new MotiffLab.MusicCore.Pieces.KeySignature(Tick.Zero, -1, KeyMode.Minor)] });
 
-        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", 1, null, "pl_2", Later, Words.English);
+        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", 1, null, "pl_2", Later, Words.English, Ids);
 
         // In D minor two steps below A, B♭, C, D are F, G, A, B♭ (by semitones they would be F♯, G, A♭, B).
         Assert.Equal([65, 67, 69, 70], PutIn(carried));
@@ -86,7 +86,7 @@ public class TechniqueCarryTests
         Draft draft = Draft.Start("d_1", "Хроматика", At, "pl_1", Variant("v_1", Score(melody: Melody), 1, 8)).With(Variant("v_2", heard, 1, 8, notes: "perf_1"), DraftDrop.Variant, "pl_1")
             .With(Variant("v_3", Score(bars: 2, melody: static _ => [65, 74, 76, 77], prefix: "g"), 1, 2, notes: "n_other"), DraftDrop.Place, "pl_2");
 
-        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", Assert.Single(draft.TechniquesOf("pl_1")).Number, null, "pl_2", Later, Words.English);
+        (Draft carried, _) = TechniqueCarry.Put(draft, "pl_1", Assert.Single(draft.TechniquesOf("pl_1")).Number, null, "pl_2", Later, Words.English, Ids);
 
         // Onto F: two steps up is A, and the semitone less gives A♭; the others follow D, E, F by steps of C major.
         Assert.Equal([68, 71, 72, 74], PutIn(carried));
@@ -102,18 +102,18 @@ public class TechniqueCarryTests
         Draft draft = Drafted(emptied).With(Variant("v_3", melody, 1, 1, notes: "n_other"), DraftDrop.Place, "pl_2");
         PlaceTechnique simplify = Assert.Single(draft.TechniquesOf("pl_1"));
 
-        Assert.Equal("Этот приём убрал бы все ноты этого места.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(draft, "pl_1", simplify.Number, null, "pl_2", Later, Words.Russian)).Message);
+        Assert.Equal("Этот приём убрал бы все ноты этого места.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(draft, "pl_1", simplify.Number, null, "pl_2", Later, Words.Russian, Ids)).Message);
         Assert.Empty(Assert.Single(TechniqueCarry.Targets(draft, "pl_1", simplify.Number, null, Words.English)).Bars);
     }
 
     [Fact]
     public void The_same_draft_gives_the_same_notes_and_a_second_carry_is_refused_and_not_offered()
     {
-        (Draft once, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English);
-        (Draft again, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English);
+        (Draft once, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English, Ids);
+        (Draft again, _) = TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_2", Later, Words.English, Ids);
 
         Assert.Equal(once.FindPlace("pl_2")!.Variants[1].Music.Notes, again.FindPlace("pl_2")!.Variants[1].Music.Notes);
-        Assert.Equal("Этот приём уже перенесён в это место.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(once, "pl_1", 1, null, "pl_2", Later, Words.Russian)).Message);
+        Assert.Equal("Этот приём уже перенесён в это место.", Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(once, "pl_1", 1, null, "pl_2", Later, Words.Russian, Ids)).Message);
         Assert.DoesNotContain(TechniqueCarry.Targets(once, "pl_1", 1, null, Words.English), static target => target.Place.Id == "pl_2");
     }
 
@@ -133,21 +133,21 @@ public class TechniqueCarryTests
         Assert.Empty(targets[1].Bars);
         // Bars of 3/4 are not of the приём's length.
         Assert.Empty(targets[2].Bars);
-        Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(draft, "pl_1", 1, null, "pl_4", Later, Words.English));
+        Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(draft, "pl_1", 1, null, "pl_4", Later, Words.English, Ids));
     }
 
     [Fact]
     public void Bars_put_in_into_itself_into_a_bridge_and_an_unknown_приём_are_refused()
     {
         Draft inserted = Drafted(WithABarAdded(4)).With(Variant("v_3", Score(bars: 4, prefix: "g"), 1, 4, notes: "n_other"), DraftDrop.Place, "pl_2");
-        Draft bridged = DraftBridges.Put(Two(), "pl_2", At);
+        Draft bridged = DraftBridges.Put(Two(), "pl_2", At, Ids);
 
         Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Targets(inserted, "pl_1", 1, null, Words.English));
-        Assert.Throws<ArgumentException>(() => TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_1", Later, Words.English));
-        Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(bridged, "pl_1", 1, null, bridged.Places[1].Id, Later, Words.English));
+        Assert.Throws<ArgumentException>(() => TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_1", Later, Words.English, Ids));
+        Assert.Throws<InvalidOperationException>(() => TechniqueCarry.Put(bridged, "pl_1", 1, null, bridged.Places[1].Id, Later, Words.English, Ids));
         Assert.DoesNotContain(TechniqueCarry.Targets(bridged, "pl_1", 1, null, Words.English), static target => target.Place.Bridge);
         Assert.Throws<KeyNotFoundException>(() => TechniqueCarry.Targets(Two(), "pl_1", 9, null, Words.English));
         Assert.Throws<KeyNotFoundException>(() => TechniqueCarry.Targets(Two(), "pl_1", 1, 3, Words.English));
-        Assert.Throws<KeyNotFoundException>(() => TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_9", Later, Words.English));
+        Assert.Throws<KeyNotFoundException>(() => TechniqueCarry.Put(Two(), "pl_1", 1, null, "pl_9", Later, Words.English, Ids));
     }
 }

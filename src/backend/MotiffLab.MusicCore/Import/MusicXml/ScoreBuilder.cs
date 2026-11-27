@@ -62,8 +62,13 @@ internal static class ScoreBuilder
         Texts = ScoreMarks.Texts(parts, at),
         WrittenNotes = written,
         Spaces = ScoreMarks.Spaces(parts, at),
-        EnginesDisagree = [.. import.Measures.Where(measure => parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index].EnginesDisagree).Select(measure => measure.Index)],
+        EnginesDisagree = [.. import.Measures.Where(measure => FirstOf(parts, measure).EnginesDisagree).Select(measure => measure.Index)],
+        ReadAgain = [.. import.Measures.Where(measure => FirstOf(parts, measure).ReadAgain).Select(measure => measure.Index)],
     };
+
+    /// <summary>The measure as the first part that has it reads it, where a scan merge's marks are.</summary>
+    private static MeasureInfo FirstOf(List<PartReader> parts, MusicXmlMeasure measure) =>
+        parts.First(part => measure.Index < part.Measures.Count).Measures[measure.Index];
 
     /// <summary>
     /// Where each measure starts, exactly, and the end of the last: each lasts as long as its longest part, and one with no

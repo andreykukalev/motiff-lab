@@ -70,9 +70,13 @@ internal static class ProjectSync
         ["format"] = FieldClass.Bookkeeping,
         ["version"] = FieldClass.Bookkeeping,
         ["id"] = FieldClass.Bookkeeping,
+        // Version 18 (#317): the ids a re-keyed piece was known by before, for the sync to follow it.
+        ["formerIds"] = FieldClass.Bookkeeping,
         ["fileName"] = FieldClass.Import,
         ["createdAt"] = FieldClass.Bookkeeping,
         ["lastOpened"] = FieldClass.Bookkeeping,
+        // Version 18: the oldest build that reads the file, this build's (0026 S6).
+        ["minReader"] = FieldClass.Bookkeeping,
         ["source"] = FieldClass.Import,
         ["document"] = FieldClass.Import,
         ["documentPages"] = FieldClass.Import,

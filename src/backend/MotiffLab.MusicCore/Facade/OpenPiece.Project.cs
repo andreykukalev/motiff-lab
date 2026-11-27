@@ -81,6 +81,11 @@ internal sealed partial class OpenPiece
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
         ScanRequest.PageStarts(json, Project, Piece);
+        // Version 18: the PDF's pages no engine read and those the notes have, kept with the notes (empty when none).
+        JsonWrite.Numbers(json, "unreadPages", Project.Scan?.Unread ?? []);
+        JsonWrite.Numbers(json, "readPages", Project.Scan?.ReadPages ?? []);
+        // Version 18: the player's marks «что не так» on a scan's notes (c-14b).
+        ReadingMarkRequest.Write(json, Project, Words);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
         // beside a scan's Check bars on the device is found by it.
         json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));
@@ -113,7 +118,7 @@ internal sealed partial class OpenPiece
         ResumePoint point;
         try
         {
-            point = id is null ? ResumePoint.Start(Project.NextResumePointId(), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
+            point = id is null ? ResumePoint.Start(Project.NextResumePointId(Ids), now, request.Text("name")) : Project.FindResumePoint(id) ?? throw FacadeException.BadRequest($"There is no resume point {id}.");
             if (request.Has("name"))
             {
                 point = point.Rename(request.Text("name"));
@@ -168,7 +173,7 @@ internal sealed partial class OpenPiece
             ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : MarksSession.BarsTitle(State, selection.Span));
         string? factId = request.Text("factId");
         return Ideas(project => project.Keep(Observation.Create(
-            project.NextObservationId(),
+            project.NextObservationId(Ids),
             SavedPassage.Of(selection),
             chain is null ? null : KeptVariation.Create(chain, selection.Filter),
             name,

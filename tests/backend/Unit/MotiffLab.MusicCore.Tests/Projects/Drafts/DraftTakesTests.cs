@@ -61,7 +61,7 @@ public class DraftTakesTests
         Draft drafted = DraftTakes.Leave(Drafted(OctavesAndBass()), "pl_1", 2, null, Later);
         Draft other = Drafted(OctavesAndBass());
 
-        (Draft draft, IReadOnlyList<int> taken) = DraftTakes.TakeSure(other, "pl_1", Later);
+        (Draft draft, IReadOnlyList<int> taken) = DraftTakes.TakeSure(other, "pl_1", Later, Ids);
 
         Assert.Equal([1, 2], taken);
         Assert.Equal(2, draft.Steps.Count);
@@ -69,7 +69,7 @@ public class DraftTakesTests
         Draft undone = draft.Undone();
         Assert.Empty(undone.Steps);
         Assert.Equal(3, undone.Next);
-        Assert.Equal([1], DraftTakes.TakeSure(drafted, "pl_1", Later).Taken);
+        Assert.Equal([1], DraftTakes.TakeSure(drafted, "pl_1", Later, Ids).Taken);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class DraftTakesTests
         Draft draft = Drafted(Octaves()).With(Variant("v_3", Octaves(), 1, 8, notes: "perf_2"), DraftDrop.Variant, "pl_1");
         Assert.Equal([("v_2", true), ("v_3", true)], draft.TechniquesOf("pl_1").Select(static technique => (technique.Variant, technique.IsSure)));
 
-        (Draft taken, IReadOnlyList<int> numbers) = DraftTakes.TakeSure(draft, "pl_1", Later);
+        (Draft taken, IReadOnlyList<int> numbers) = DraftTakes.TakeSure(draft, "pl_1", Later, Ids);
 
         Assert.Equal([1], numbers);
         SourceMusic result = taken.ResultOf("pl_1").Music;
@@ -91,7 +91,7 @@ public class DraftTakesTests
     {
         Draft draft = Drafted(WithABarAdded(after: 4));
 
-        Assert.Throws<InvalidOperationException>(() => DraftTakes.TakeSure(draft, "pl_1", Later));
+        Assert.Throws<InvalidOperationException>(() => DraftTakes.TakeSure(draft, "pl_1", Later, Ids));
     }
 
     [Fact]

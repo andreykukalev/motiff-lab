@@ -19,7 +19,8 @@ internal static class UnknownEntities
     /// this build does not know is left out and kept as unknown; any other fault is damage, as before.
     /// </summary>
     /// <param name="owner">The field naming the entity it belongs with, kept with it when it is unknown.</param>
-    internal static List<(int Index, JsonElement Element, T Value)> ReadEntries<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns, string? owner = null)
+    /// <param name="fields">The fields this build reads in such an entity: the others are kept and written back (version 18).</param>
+    internal static List<(int Index, JsonElement Element, T Value)> ReadEntries<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns, string? owner = null, IReadOnlySet<string>? fields = null)
     {
         List<(int, JsonElement, T)> entries = [];
         int index = 0;
@@ -28,6 +29,10 @@ internal static class UnknownEntities
             try
             {
                 entries.Add((index, element, read(element)));
+                if (fields is not null)
+                {
+                    unknowns.KeepFields(list, element, fields);
+                }
             }
             catch (ProjectFileException reason) when (unknowns.Keeps(reason, element))
             {
@@ -41,8 +46,14 @@ internal static class UnknownEntities
     }
 
     /// <summary>The entities of one array of the file this build reads, as <see cref="ReadEntries"/> reads them.</summary>
-    internal static List<T> ReadList<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns) =>
-        [.. ReadEntries(array, list, read, unknowns).Select(static entry => entry.Value)];
+    internal static List<T> ReadList<T>(JsonElement array, string list, Func<JsonElement, T> read, Unknowns unknowns, IReadOnlySet<string>? fields = null) =>
+        [.. ReadEntries(array, list, read, unknowns, fields: fields).Select(static entry => entry.Value)];
+
+    /// <summary>
+    /// Where the unknown fields of an entity of a workspace list stand in <see cref="Project.UnknownFields"/> (version 18):
+    /// "workspace/", the list and the entity's id, such as "workspace/motifs/m_0001".
+    /// </summary>
+    internal static string FieldsPath(string list, string id) => $"{WorkspaceCodec.WorkspacePath}/{list}/{id}";
 
     /// <summary>The entities read, but those that belong with an unknown entity, which are kept as unknown with it.</summary>
     /// <param name="key">The id of the entity an entity belongs with (a motif's own id, a variation's motif).</param>
@@ -151,6 +162,21 @@ internal static class UnknownEntities
     internal sealed class Unknowns(bool tolerant)
     {
         public List<UnknownEntity> Kept { get; } = [];
+
+        /// <summary>The unknown fields of the entities read whole (<see cref="FieldsPath"/>) and of the settings (<see cref="ProjectFile.SettingsPath"/>).</summary>
+        public Dictionary<string, IReadOnlyList<UnknownField>> Fields { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Whether the read keeps what this build does not know: a file in this build's layout.</summary>
+        public bool Tolerant => tolerant;
+
+        /// <summary>The fields of a list's entity this build does not read, kept by its id (a tolerant read only).</summary>
+        public void KeepFields(string list, JsonElement entity, IReadOnlySet<string> known)
+        {
+            if (tolerant && TextOf(entity, "id") is { } id)
+            {
+                UnknownEntities.KeepFields(Fields, FieldsPath(list, id), entity, known);
+            }
+        }
 
         /// <summary>Whether the only fault of a list's entity is a value this build does not know.</summary>
         public bool Keeps(ProjectFileException reason, JsonElement entity) =>
