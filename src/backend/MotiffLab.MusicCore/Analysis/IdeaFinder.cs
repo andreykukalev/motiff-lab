@@ -125,9 +125,7 @@ internal static class IdeaFinder
             recurrence.NoteIds)));
         occurrences.Sort((a, b) => a.Span.Onset.CompareTo(b.Span.Onset));
 
-        string bars = firstBar == lastBar
-            ? w.T($"bar {firstBar}", $"такт {firstBar}")
-            : w.T($"bars {firstBar}–{lastBar}", $"такты {firstBar}–{lastBar}");
+        string bars = w.Bars(firstBar, lastBar);
         string title = w.T($"Idea {number} · {bars}", $"Идея {number} · {bars}");
         return new DnaIdea($"idea_{id}", false, span, firstBar, lastBar, [.. motif.Select(note => note.Id)], occurrences, title, Summary(occurrences, meter, sections, w));
     }

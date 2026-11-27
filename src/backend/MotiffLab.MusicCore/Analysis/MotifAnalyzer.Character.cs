@@ -154,7 +154,7 @@ internal static partial class MotifAnalyzer
         else
         {
             int[] values = [tempos[first].MicrosecondsPerQuarter, .. changes.Select(tempo => tempo.MicrosecondsPerQuarter)];
-            string list = Listed([.. changes.Select(tempo => TempoAt(tempo, meter, w))], w);
+            string list = w.Listed([.. changes.Select(tempo => TempoAt(tempo, meter, w))], MaxListed, "; ", "; ");
             text = w.IsRussian
                 ? $"Темп: начинается с {start} BPM и меняется {w.Times(changes.Count)}: {list}. Он меняется от {Bpm(values.Max(), w)} до {Bpm(values.Min(), w)} BPM."
                 : $"Tempo: starts at {start} BPM and changes {w.Times(changes.Count)}: {list}. It ranges from {Bpm(values.Max(), w)} to {Bpm(values.Min(), w)} BPM.";
@@ -191,7 +191,7 @@ internal static partial class MotifAnalyzer
         int busiest = counts.Max();
         string text = w.IsRussian
             ? $"Плотность: {Ratio(hits.Length, beats.Count, w)} атаки на долю ({w.Count(hits.Length, "", "", "атака", "атаки", "атак")} на {w.Count(beats.Count, "", "", "долю", "доли", "долей")}); в самой плотной доле {w.Count(busiest, "", "", "атака", "атаки", "атак")}."
-            : $"Density: {Ratio(hits.Length, beats.Count, w)} onsets per beat ({Count(hits.Length, "onset", "onsets")} over {Count(beats.Count, "beat", "beats")}); the busiest beat holds {busiest}.";
+            : $"Density: {Ratio(hits.Length, beats.Count, w)} onsets per beat ({Words.EnglishCount(hits.Length, "onset", "onsets")} over {Words.EnglishCount(beats.Count, "beat", "beats")}); the busiest beat holds {busiest}.";
         if (noteCount > hits.Length)
         {
             text += w.T($" Counting every note of a chord, {Ratio(noteCount, beats.Count, w)} notes per beat.", $" Если считать каждую ноту аккорда, {Ratio(noteCount, beats.Count, w)} ноты на долю.");
@@ -235,14 +235,14 @@ internal static partial class MotifAnalyzer
                 ? "every note is at or above middle C"
                 : above == 0
                     ? "every note is below middle C"
-                    : $"{above} of {Count(pitches.Length, "note", "notes")} are at or above middle C";
+                    : $"{above} of {Words.EnglishCount(pitches.Length, "note", "notes")} are at or above middle C";
         string text = w.IsRussian
             ? low == high
                 ? $"Регистр: одна высота, {key.Spell(low)}; {where}."
                 : $"Регистр: от {key.Spell(low)} до {key.Spell(high)}, диапазон {w.Count(high - low, "", "", "полутон", "полутона", "полутонов")}; {where}, средняя высота {key.Spell(median)}."
             : low == high
                 ? $"Register: one pitch, {key.Spell(low)}; {where}."
-                : $"Register: {key.Spell(low)} to {key.Spell(high)}, a range of {Count(high - low, "semitone", "semitones")}; {where}, and the middle pitch is {key.Spell(median)}.";
+                : $"Register: {key.Spell(low)} to {key.Spell(high)}, a range of {Words.EnglishCount(high - low, "semitone", "semitones")}; {where}, and the middle pitch is {key.Spell(median)}.";
         return new MotifFact(
             "character.register",
             FactLens.Character,
@@ -323,7 +323,7 @@ internal static partial class MotifAnalyzer
             ? $"Артикуляция: в среднем ноты звучат {Percent(percents.Sum(), percents.Count)}% времени до следующей атаки; "
                 + $"{held} {w.OutOf(percents.Count, "", "", "ноты", "нот")} {Words.RussianForm(held, "звучит", "звучат", "звучат")} до следующей атаки, а {detached} — меньше половины этого времени."
             : $"Articulation: notes sound for {Percent(percents.Sum(), percents.Count)}% of the time to the next onset on average; "
-                + $"{held} of {Count(percents.Count, "note", "notes")} {(held == 1 ? "sounds" : "sound")} until the next onset, and {detached} {(detached == 1 ? "sounds" : "sound")} for less than half of it.";
+                + $"{held} of {Words.EnglishCount(percents.Count, "note", "notes")} {(held == 1 ? "sounds" : "sound")} until the next onset, and {detached} {(detached == 1 ? "sounds" : "sound")} for less than half of it.";
 
         // The two sets the text counts: the notes held until the next onset, and the detached ones.
         var places = new List<FactPlace>();
@@ -352,7 +352,7 @@ internal static partial class MotifAnalyzer
         int syncopated = places.Count;
         string text = w.IsRussian
             ? $"Доля синкоп: {syncopated} {w.OutOf(hits.Length, "", "", "атаки", "атак")} ({Percent(syncopated * 100m, hits.Length)}%)."
-            : $"Syncopation share: {syncopated} of {Count(hits.Length, "onset", "onsets")} ({Percent(syncopated * 100m, hits.Length)}%).";
+            : $"Syncopation share: {syncopated} of {Words.EnglishCount(hits.Length, "onset", "onsets")} ({Percent(syncopated * 100m, hits.Length)}%).";
         string basis = w.T("Onsets counted with the same rule as the syncopation fact. ", "Атаки посчитаны по тому же правилу, что и в факте о синкопах. ") + SyncopationBasis(w);
         MotifFact fact = offGrid
             ? new MotifFact("character.syncopation", FactLens.Character, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))

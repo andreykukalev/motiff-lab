@@ -9,7 +9,8 @@ public enum TextLanguage
 
 /// <summary>
 /// The language a fact, a basis or a place label is written in, and the few grammar helpers both
-/// languages need (#134). Each sentence is written in both languages where it is built, so the
+/// languages need (#134); with <c>Words.Music.cs</c>, the one module of the words every analysis
+/// sentence shares (W1.8, D14). Each sentence is written in both languages where it is built, so the
 /// numbers, cases and plurals agree; the UI shows the text as it comes and never rewrites it.
 /// </summary>
 /// <remarks>
@@ -18,7 +19,7 @@ public enum TextLanguage
 /// kinds are обнаружено, предположено. Note names stay letters with the octave ("E5"), as the score
 /// view and the roll write them; key names use the Russian syllables ("ля минор").
 /// </remarks>
-public readonly record struct Words(TextLanguage Language)
+public readonly partial record struct Words(TextLanguage Language)
 {
     public static Words English { get; } = new(TextLanguage.English);
 

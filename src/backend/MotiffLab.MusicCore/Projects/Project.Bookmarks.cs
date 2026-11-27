@@ -89,7 +89,7 @@ public sealed partial record Project
                 continue;
             }
 
-            string bars = Bookmark.Bars(section.FirstBar, section.LastBar, words);
+            string bars = words.Bars(section.FirstBar, section.LastBar);
             string title = words.T($"Section {section.Label}, {bars}", $"Раздел {section.Label}, {bars}");
             project = project.AddBookmark(new Bookmark(project.NextBookmarkId(ids), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
         }

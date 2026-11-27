@@ -121,8 +121,8 @@ public partial class RussianFactTests
     [InlineData(24, "2 октавы", "2 октавы")]
     public void Intervals_are_named_in_russian(int semitones, string name, string by)
     {
-        Assert.Equal(name, MotifAnalyzer.IntervalName(semitones, Words.Russian));
-        Assert.Equal(by, MotifAnalyzer.IntervalBy(-semitones, Words.Russian));
+        Assert.Equal(name, Words.Russian.IntervalName(semitones));
+        Assert.Equal(by, Words.Russian.IntervalBy(-semitones));
     }
 
     [Theory]

@@ -55,7 +55,7 @@ public sealed partial class FactsDigest
                 Unique(string.Create(CultureInfo.InvariantCulture, $"key.{index + 1}"), ids),
                 "key",
                 key.KeyInferred || key.ModeInferred ? "inferred" : "detected",
-                $"{key.Key.NameIn(w)}, {Bars(key.FirstBar, key.LastBar, w)}")
+                $"{key.Key.NameIn(w)}, {w.Bars(key.FirstBar, key.LastBar)}")
             { Bars = (key.FirstBar, key.LastBar) };
         }
 
@@ -81,7 +81,7 @@ public sealed partial class FactsDigest
                 Unique(string.Create(CultureInfo.InvariantCulture, $"sentence.{sentence.Number}"), ids),
                 "sentence",
                 Certainty(sentence.Found),
-                w.T($"Sentence {sentence.Number}, {Bars(sentence.FirstBar, sentence.LastBar, w)}: {sentence.PhrasesIn(w)}", $"Предложение {sentence.Number}, {Bars(sentence.FirstBar, sentence.LastBar, w)}: {sentence.PhrasesIn(w)}"))
+                w.T($"Sentence {sentence.Number}, {w.Bars(sentence.FirstBar, sentence.LastBar)}: {sentence.PhrasesIn(w)}", $"Предложение {sentence.Number}, {w.Bars(sentence.FirstBar, sentence.LastBar)}: {sentence.PhrasesIn(w)}"))
             { Bars = (sentence.FirstBar, sentence.LastBar) }),
         ];
     }
@@ -89,9 +89,9 @@ public sealed partial class FactsDigest
     /// <summary>"A′, bars 78–105, shares material with A (bars 0–8)": the section and the others of its letter (<see cref="DnaSection.SharesWith"/>).</summary>
     private static DigestItem SectionItem(DnaSection section, IReadOnlyList<DnaSection> form, HashSet<string> ids, Words w)
     {
-        string[] shared = [.. form.Where(other => section.SharesWith.Contains(other.Id)).Select(other => $"{other.Label} ({Bars(other.FirstBar, other.LastBar, w)})")];
+        string[] shared = [.. form.Where(other => section.SharesWith.Contains(other.Id)).Select(other => $"{other.Label} ({w.Bars(other.FirstBar, other.LastBar)})")];
         string shares = shared.Length == 0 ? "" : w.T($", shares material with {w.Joined(shared)}", $", общий материал с {w.Joined(shared)}");
-        return new DigestItem(Unique($"form.{section.Id}", ids), "form", "inferred", $"{section.Label}, {Bars(section.FirstBar, section.LastBar, w)}{shares}")
+        return new DigestItem(Unique($"form.{section.Id}", ids), "form", "inferred", $"{section.Label}, {w.Bars(section.FirstBar, section.LastBar)}{shares}")
         {
             Bars = (section.FirstBar, section.LastBar),
             Label = section.Label,
@@ -145,7 +145,7 @@ public sealed partial class FactsDigest
             Unique(string.Create(CultureInfo.InvariantCulture, $"new.{run.First}"), ids),
             "newMaterial",
             "inferred",
-            w.T($"new material in {Bars(run.First, run.Last, w)}", $"новый материал: {Bars(run.First, run.Last, w)}"))
+            w.T($"new material in {w.Bars(run.First, run.Last)}", $"новый материал: {w.Bars(run.First, run.Last)}"))
         { Bars = run });
 
     /// <summary>"Phrase 2, bars 4–8, from bar 4, beat 3": numbered as the marks on the score number it.</summary>
@@ -158,8 +158,8 @@ public sealed partial class FactsDigest
             "phrase",
             phrase.Start is { } boundary ? Certainty(boundary.Attribution) : "detected",
             w.T(
-                $"Phrase {phrase.Number}, {Bars(phrase.FirstBar, phrase.LastBar, w)}, from bar {start.Bar}, beat {start.Beat}",
-                $"Фраза {phrase.Number}, {Bars(phrase.FirstBar, phrase.LastBar, w)}, начало: такт {start.Bar}, доля {start.Beat}"))
+                $"Phrase {phrase.Number}, {w.Bars(phrase.FirstBar, phrase.LastBar)}, from bar {start.Bar}, beat {start.Beat}",
+                $"Фраза {phrase.Number}, {w.Bars(phrase.FirstBar, phrase.LastBar)}, начало: такт {start.Bar}, доля {start.Beat}"))
         { Bars = (phrase.FirstBar, phrase.LastBar) };
     }
 
@@ -192,7 +192,7 @@ public sealed partial class FactsDigest
                 Unique($"chords.{id}", ids),
                 "chords",
                 "inferred",
-                w.T($"Chords of {of} ({Bars(from, to, w)}), bars each: {chords}{more}", $"Аккорды {of} ({Bars(from, to, w)}), тактов у каждого: {chords}{more}"))
+                w.T($"Chords of {of} ({w.Bars(from, to)}), bars each: {chords}{more}", $"Аккорды {of} ({w.Bars(from, to)}), тактов у каждого: {chords}{more}"))
             { Bars = (from, to) };
         }
     }

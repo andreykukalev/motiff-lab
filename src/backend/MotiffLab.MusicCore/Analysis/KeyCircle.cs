@@ -316,12 +316,7 @@ internal static class KeyCircle
         string relative = neighbours.Single(neighbour => neighbour.Relation == KeyRelation.Relative).Name;
         string dominant = neighbours.Single(neighbour => neighbour.Relation == KeyRelation.Dominant).Name;
         string subdominant = neighbours.Single(neighbour => neighbour.Relation == KeyRelation.Subdominant).Name;
-        string signature = key.Fifths switch
-        {
-            0 => words.T("no sharps or flats", "без диезов и бемолей"),
-            > 0 => words.Count(key.Fifths, "sharp", "sharps", "диез", "диеза", "диезов"),
-            _ => words.Count(-key.Fifths, "flat", "flats", "бемоль", "бемоля", "бемолей"),
-        };
+        string signature = words.Accidentals(key.Fifths);
         List<string> lines =
         [
             words.T(

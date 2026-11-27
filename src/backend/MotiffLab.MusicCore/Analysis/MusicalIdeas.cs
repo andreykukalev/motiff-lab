@@ -313,7 +313,7 @@ internal static class MusicalIdeas
             return null;
         }
 
-        string bars = Bars(found.FirstBar, found.LastBar, piece.W);
+        string bars = piece.W.Bars(found.FirstBar, found.LastBar);
         return found with { Kind = IdeaKind.Motif, Title = piece.W.T($"Motif · {bars}", $"Мотив · {bars}") };
     }
 
@@ -355,7 +355,7 @@ internal static class MusicalIdeas
         string[] ids = [.. inside.Select(note => note.Id)];
         List<IdeaOccurrence> occurrences = [new(OccurrenceKind.Original, span, firstBar, lastBar, 0, ids), .. heardAgain];
         occurrences.Sort((a, b) => a.Span.Onset.CompareTo(b.Span.Onset));
-        return new DnaIdea("", false, span, firstBar, lastBar, ids, occurrences, $"{name} · {Bars(firstBar, lastBar, piece.W)}", why) { Kind = kind };
+        return new DnaIdea("", false, span, firstBar, lastBar, ids, occurrences, $"{name} · {piece.W.Bars(firstBar, lastBar)}", why) { Kind = kind };
     }
 
     private static IdeaOccurrence Occurrence(Recurrence recurrence) => new(
@@ -365,10 +365,6 @@ internal static class MusicalIdeas
         recurrence.LastBar,
         recurrence.Transposition,
         recurrence.NoteIds);
-
-    private static string Bars(int first, int last, Words w) => first == last
-        ? w.T($"bar {first}", $"такт {first}")
-        : w.T($"bars {first}–{last}", $"такты {first}–{last}");
 
     /// <summary>"an octave", "2 octaves", "7 semitones"; "октаву", "2 октавы", "7 полутонов".</summary>
     private static string Interval(int semitones, Words w) => semitones switch

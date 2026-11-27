@@ -300,7 +300,7 @@ internal sealed record CarrySheet(
         ArgumentNullException.ThrowIfNull(music);
         int first = music.BarAt(start).Number;
         int last = music.BarAt(new Tick(Math.Max(start.Value, end.Value - 1))).Number;
-        return first == last ? words.T($"bar {first}", $"такт {first}") : words.T($"bars {first}–{last}", $"такты {first}–{last}");
+        return words.Bars(first, last);
     }
 
     /// <summary>«такта 15» or «тактов 15–16».</summary>
@@ -309,8 +309,8 @@ internal sealed record CarrySheet(
         ArgumentNullException.ThrowIfNull(music);
         int first = music.BarAt(start).Number;
         int last = music.BarAt(new Tick(Math.Max(start.Value, end.Value - 1))).Number;
-        return first == last ? words.T($"bar {first}", $"такта {first}") : words.T($"bars {first}–{last}", $"тактов {first}–{last}");
+        return words.BarsGenitive(first, last);
     }
 
-    private static string BarText(SourceMusic music, Tick at, Words words) => words.T($"bar {music.BarAt(at).Number}", $"такт {music.BarAt(at).Number}");
+    private static string BarText(SourceMusic music, Tick at, Words words) => words.Bars(music.BarAt(at).Number, music.BarAt(at).Number);
 }

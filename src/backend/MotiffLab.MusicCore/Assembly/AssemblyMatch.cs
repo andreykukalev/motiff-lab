@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Time;
@@ -276,33 +277,18 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
             return;
         }
 
-        string bars = words.Joined([.. runs.Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
+        string bars = words.Joined([.. runs.Select(run => Words.Range(run.First, run.Last))]);
         bool one = runs.Length == 1 && runs[0].First == runs[0].Last;
         sentences.Add(kind == MatchKind.NotFound
-            ? words.T($"{start} {(one ? "bar" : "bars")} {bars}.", $"{start} {(one ? "такт" : "такты")} {bars}.")
+            ? $"{start} {words.Bars(bars, one)}."
             : words.T($"{start} {(one ? "bar" : "bars")} {bars}.", $"{start} {(one ? "такте" : "тактах")} {bars}."));
     }
 
     private IReadOnlyList<int> CorrectedBars(SourceMusic source) =>
         [.. Bars.Where(bar => bar.Kind == MatchKind.Same && !bar.Identical && bar.Clean).Select(bar => source.NumberOf(bar.Index))];
 
-    private static string BarList(IReadOnlyList<int> bars, Words words)
-    {
-        List<string> runs = [];
-        for (int i = 0; i < bars.Count; i++)
-        {
-            int first = bars[i];
-            while (i + 1 < bars.Count && bars[i + 1] == bars[i] + 1)
-            {
-                i++;
-            }
-
-            runs.Add(first == bars[i] ? $"{first}" : $"{first}–{bars[i]}");
-        }
-
-        string list = string.Join(", ", runs);
-        return words.T(bars.Count == 1 ? $"bar {list}" : $"bars {list}", bars.Count == 1 ? $"такт {list}" : $"такты {list}");
-    }
+    private static string BarList(IReadOnlyList<int> bars, Words words) =>
+        words.Bars(string.Join(", ", StructureAnalyzer.Runs(bars).Select(run => Words.Range(run.First, run.Last))), bars.Count == 1);
 
     private static IReadOnlyList<MatchSegment> RunsOf(SourceMusic source, IReadOnlyList<MatchBar> bars)
     {

@@ -249,7 +249,7 @@ public class MotifAnalyzerTests
     [InlineData(14, "octave and a major 2nd")]
     [InlineData(24, "2 octaves")]
     public void Intervals_are_named_by_size(int semitones, string name) =>
-        Assert.Equal(name, MotifAnalyzer.IntervalName(semitones));
+        Assert.Equal(name, Words.English.IntervalName(semitones));
 
     [Theory]
     [InlineData(68, 0, KeyMode.Minor, "♯7")]
