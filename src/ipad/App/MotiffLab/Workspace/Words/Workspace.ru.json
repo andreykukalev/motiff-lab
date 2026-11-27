@@ -202,5 +202,17 @@
   "focus.versionHear": "Версия",
   "focus.notes": "Ноты",
   "padAssistant.open": "Спросить ассистента",
+  "performance.close": "Закрыть другие версии",
+  "sources.sheet.add": "Добавить",
+  "sources.sheet.addMore": "Добавить ещё",
+  "sources.sheet.addPdfHint": "Страницы как есть, без распознавания",
+  "sources.sheet.addPhotosHint": "Снимите страницы камерой iPad",
+  "sources.sheet.addRecordingHint": "Звук остаётся только на этом iPad",
+  "sources.sheet.addScore": "MIDI или MusicXML",
+  "sources.sheet.addScoreHint": "Ноты из файла, читаются на iPad",
+  "sources.sheet.looseNotesCount": "Ноты без оригинала · {0}",
+  "sources.sheet.originalsCount": "Оригиналы · {0}",
+  "sources.sheet.photosFile": "Фото страниц",
+  "drafts.group": "Черновики · {0}",
   "piece.newerReadOnly": "Сохранено более новой версией Motiff Lab: открыто только для чтения, и ничего сделанное здесь не сохраняется. Обновите приложение, чтобы работать с пьесой."
 }

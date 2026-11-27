@@ -117,6 +117,48 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNil(sources.progress)
     }
 
+    /// E-sources-1 (v1.6 i-13): one original is recognised at a time, as the library recognises one piece at a time. While
+    /// one is on its way, another's panel says which is being recognised instead of offering Send (and `recognise` answers
+    /// the same words without sending); the one on its way is offered as before.
+    @MainActor
+    func testAnotherOriginalWaitsWhileOneIsRecognised() {
+        func original(_ id: String, _ shown: String) -> SourceLayers.Original {
+            SourceLayers.Original(
+                id: id, kind: "pdf", shown: shown, fileName: shown + ".pdf", state: "here", removedAt: nil, kept: "file",
+                pages: 2, durationMs: nil, hidden: false, notes: [], pageMarks: 0
+            )
+        }
+        let henle = original("src_a", "Henle")
+        let peters = original("src_b", "Peters")
+        var layers = SourceLayers()
+        layers.originals = [henle, peters]
+        for language in ["en", "ru"] {
+            let text = UIText(language: language)
+            let words = SourcesController.readingOther("src_a", than: peters, in: layers, text: text)
+            XCTAssertEqual(words, text.format("sources.sheet.readingOther", "Henle"), "the name its row shows, \(language)")
+            XCTAssertFalse(words?.hasPrefix("sources.") ?? true, "worded in \(language)")
+            XCTAssertNil(SourcesController.readingOther("src_a", than: henle, in: layers, text: text), "the one on its way")
+            XCTAssertNil(SourcesController.readingOther(nil, than: peters, in: layers, text: text), "none on its way")
+        }
+        XCTAssertNil(SourcesController(layers: layers).readingOther(than: peters), "nothing is being recognised")
+    }
+
+    /// E-sources-2 (v1.6 i-13): a file picked in Files for Sources that cannot be read says why on the sheet, in the words
+    /// «Привязать оригинал» uses (`LinkProblem`), instead of nothing; a readable one is read as it is.
+    @MainActor
+    func testAPickedFileThatCannotBeReadSaysSo() async throws {
+        let sources = SourcesController()
+        let gone = await sources.read(picked: folder.appendingPathComponent("Gone.pdf"))
+        XCTAssertNil(gone)
+        let words = [LinkProblem.missing, .unreadable].map { $0.text(UIText.current) }
+        XCTAssertTrue(words.contains(sources.status ?? ""), "why, as a picked original says it: \(sources.status ?? "nothing")")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("Etude.pdf")
+        try Data([1, 2, 3]).write(to: file)
+        let read = await sources.read(picked: file)
+        XCTAssertEqual(read, Data([1, 2, 3]))
+    }
+
     /// v1.5 r-2b: pages recognised in Sources with no scan server set (scanning off) say how to set one up, as the PDF's own
     /// panel does, and send nothing; before, they said the server found no notes, which no server had been asked.
     @MainActor

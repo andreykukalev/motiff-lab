@@ -8,7 +8,7 @@ here the folder's files and the rules that hold across them.
 ## Files
 
 Screen ([screen](workspace-screen.md)): `LibraryOnline`, `LibraryView`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreScreen`,
-`ScoreScreenBars`, `ScoreScreenPanels`, `ScoreScreenReactions`, `ScoreScreenRoll`, `ScoreScreenSources`, `ScoreBar`,
+`ScoreScreenBars`, `ScoreScreenPanels`, `ScoreScreenReactions`, `ScoreScreenRoll`, `ScoreScreenSources`, `SourcesSheet`, `ScoreBar`,
 `Pill`, `PillItems`, `SelectionMenu`, `FocusBar`, `MorePanel`, `ScoreWebView`, `TopBar`, `ScoreWorkspace`,
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`,
 `ScoreWorkspaceSources`. Controller ([controller](workspace-controller.md)): `ScoreController`, `ScoreColouring`,

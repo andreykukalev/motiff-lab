@@ -56,7 +56,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   controller); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
   `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`); `FocusBar.swift` (with `FocusShowAs`,
   `FocusRollCard`); `HearingSwitch.swift` (also the Insights sheet's); `InsightsSheet.swift`
-  ([`insights.md`](insights.md)); `MorePanel.swift`; `ScoreWebView.swift` (the page's web view, `prewarm` at launch).
+  ([`insights.md`](insights.md)); `SourcesSheet.swift` ([`sources.md`](sources.md), v1.6 i-13); `MorePanel.swift`; `ScoreWebView.swift` (the page's web view, `prewarm` at launch).
 - `TopBar.swift`: the bar's layout over the score and over a PDF alike: the same start in both, then the pages, then
   each view's actions; where it is short the view's note goes first, then the pages, then the actions turn compact.
   The read-only line (`readOnlyLine`, v1.6 c-14a) hangs under it on every view.
