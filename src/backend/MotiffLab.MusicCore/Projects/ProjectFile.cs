@@ -211,20 +211,14 @@ public static class ProjectFile
         IReadOnlyList<PieceOriginal> derived = PieceOriginals.Derived(project);
         return project with
         {
-            // Version 18 (#317): the ids the piece was known by before, never its own.
-            FormerIds = root.TryGetProperty("formerIds", out JsonElement former) ? FormerIdsOf(former, project.Id) : [],
+            // Version 18 (#317): the ids the piece was known by before; its own is not one of them and is dropped.
+            FormerIds = root.TryGetProperty("formerIds", out JsonElement former) ? [.. DistinctTexts(former, "formerIds").Where(each => each != project.Id)] : [],
             KeptOriginals = [.. described.Where(original => !derived.Contains(original))],
             // An idea or a motif built on the working notes says nothing more in memory, as one of an earlier file.
             Observations = [.. project.Observations.Select(observation => observation.Notes == working ? observation with { Notes = null } : observation)],
             Motifs = [.. project.Motifs.Select(motif => motif.Notes == working ? motif with { Notes = null } : motif)],
             UnknownFields = fields,
         };
-    }
-
-    private static List<string> FormerIdsOf(JsonElement former, string id)
-    {
-        List<string> ids = DistinctTexts(former, "formerIds");
-        return ids.Contains(id) ? throw Damaged("formerIds") : ids;
     }
 
     /// <summary>

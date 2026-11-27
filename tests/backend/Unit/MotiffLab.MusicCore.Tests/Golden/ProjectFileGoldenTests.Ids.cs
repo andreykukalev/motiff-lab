@@ -65,22 +65,31 @@ public partial class ProjectFileGoldenTests
     public void An_id_that_is_not_numbered_stays(string id)
     {
         Project project = Numbered(id);
-        Assert.False(project.HasNumberedId());
+        Assert.False(ProjectIds.IsNumbered(project.Id));
         Assert.Same(project, project.Rekeyed());
     }
 
     [Theory]
     [InlineData("""["p_0001", "p_0001"]""")]
-    [InlineData("""["p_0003"]""")]
     [InlineData("""[""]""")]
     [InlineData("""["p_0001", 2]""")]
     [InlineData("\"p_0001\"")]
-    public void Former_ids_that_repeat_name_the_piece_itself_or_are_not_texts_are_damage(string former)
+    public void Former_ids_that_repeat_or_are_not_texts_are_damage(string former)
     {
         JsonObject file = Node(File("v18-edits-meters.motiff.json"));
         file["id"] = "p_0003";
         file["formerIds"] = JsonNode.Parse(former);
 
         Assert.Contains("formerIds", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(file))).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_former_id_that_names_the_piece_itself_is_dropped()
+    {
+        JsonObject file = Node(File("v18-edits-meters.motiff.json"));
+        file["id"] = "p_0003";
+        file["formerIds"] = JsonNode.Parse("""["p_0001", "p_0003", "p_0002"]""");
+
+        Assert.Equal(["p_0001", "p_0002"], ProjectFile.Read(Bytes(file)).FormerIds);
     }
 }

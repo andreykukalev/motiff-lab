@@ -16,6 +16,14 @@ public class IdSourceTests
     }
 
     [Fact]
+    public void Ids_of_a_kind_are_numbered_from_the_stem_itself_or_random_after_it()
+    {
+        Assert.Equal("src_rec", IdSource.Numbered.Stemmed("src_rec", new HashSet<string>()));
+        Assert.Equal("src_rec_3", IdSource.Numbered.Stemmed("src_rec", new HashSet<string> { "src_rec", "src_rec_2" }));
+        Assert.Matches("^src_rec_[0-9a-f]{32}$", IdSource.Random.Stemmed("src_rec", new HashSet<string>()));
+    }
+
+    [Fact]
     public void Random_ids_are_the_prefix_and_32_hex_digits_never_one_taken()
     {
         string[] ids = [.. Enumerable.Range(0, 100).Select(_ => IdSource.Random.Next("b_", ["b_0001"]))];

@@ -78,26 +78,26 @@ public partial class ProjectIdsFacadeTests
     }
 
     [Fact]
-    public void Notes_a_version_and_an_original_after_the_first_of_its_kind_get_random_ids_the_answers_name()
+    public void Notes_a_version_and_every_original_but_the_first_pdf_get_random_ids_the_answers_name()
     {
         MusicCoreFacade facade = Random();
-        string first = Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-27T10:00:00Z"}""").GetProperty("id").GetString()!;
-        string second = Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Take 2.m4a", "kept": "device", "now": "2026-11-27T10:01:00Z"}""").GetProperty("id").GetString()!;
-        string heard = Call(facade, "sources.notes.hear", RecordingPieceFacadeTests.Heard(second)).GetProperty("id").GetString()!;
+        string pdf = Call(facade, "sources.original.add", """{"kind": "pdf", "fileName": "Henle.pdf", "kept": "link", "now": "2026-11-27T10:00:00Z"}""").GetProperty("id").GetString()!;
+        string recording = Call(facade, "sources.original.add", """{"kind": "audio", "fileName": "Live.m4a", "kept": "device", "now": "2026-11-27T10:01:00Z"}""").GetProperty("id").GetString()!;
+        string heard = Call(facade, "sources.notes.hear", RecordingPieceFacadeTests.Heard(recording)).GetProperty("id").GetString()!;
         var piece = PieceImporter.Import("FurElise.musicxml", s_elise).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "performance"));
         string version = Id(JsonNode.Parse(facade.Call(1, "performance.add", $$$"""{"name": "Live", "midi": "{{{midi}}}"}"""))!["performance"]);
 
-        // The first recording is the piece's recording, as on every device.
-        Assert.Equal(PieceOriginal.RecordingId, first);
-        AssertRandom("src_rec_", second);
+        // The first PDF is the piece's PDF, as on every device; a first recording added is kept and could clash.
+        Assert.Equal(PieceOriginal.DocumentId, pdf);
+        AssertRandom("src_rec_", recording);
         AssertRandom("n_", heard);
         AssertRandom("perf_", version);
         Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
         Assert.Equal(Project.FirstNotesId, saved.NotesId);
         Assert.Equal(heard, Assert.Single(saved.Sources.Notes).Id);
         Assert.Equal(version, Assert.Single(saved.Performances).Id);
-        Assert.Contains(saved.Originals, original => original.Id == second);
+        Assert.Contains(saved.Originals, original => original.Id == recording);
     }
 
     [Fact]

@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// Where a new entity's id comes from (0026 S3, #317): a motif, a variation, an idea, a resume point, a bookmark (of the
 /// notes or of a PDF's page), a category, a margin note, a highlight, a draft with its places and variants, a group of
-/// steps, Notes, a version compared and an original after the first of its kind. The caller gives it, so music-core
+/// steps, Notes, a version compared and an original but the first PDF. The caller gives it, so music-core
 /// stays deterministic: the iPad gives <see cref="Random"/>, whose ids two devices working offline never both make, and
 /// tests and goldens <see cref="Numbered"/>, the same ids for the same calls. An id is only ever compared whole, so ids
 /// of either kind, and those of earlier builds, stay valid (V1).
@@ -30,6 +30,13 @@ public abstract class IdSource
     /// <param name="digits">The least digits of a numbered id: 4 for most, 1 where builds before 1.6 wrote "n_2".</param>
     internal abstract string Next(string prefix, IEnumerable<string> taken, int digits = 4);
 
+    /// <summary>
+    /// A new id of one of several of a kind named by <paramref name="stem"/> ("src_rec") that none of <paramref name="taken"/>
+    /// is: random, the stem, "_" and 32 hex digits; numbered, the stem itself while it is free, else the stem, "_" and one
+    /// more than the highest number, as the stem counts as the first ("src_rec_2").
+    /// </summary>
+    internal abstract string Stemmed(string stem, IReadOnlySet<string> taken);
+
     private sealed class RandomIds : IdSource
     {
         internal override string Next(string prefix, IEnumerable<string> taken, int digits = 4)
@@ -44,6 +51,8 @@ public abstract class IdSource
 
             return id;
         }
+
+        internal override string Stemmed(string stem, IReadOnlySet<string> taken) => Next(stem + "_", taken);
     }
 
     private sealed class NumberedIds : IdSource
@@ -56,5 +65,8 @@ public abstract class IdSource
                 .Max();
             return prefix + (highest + 1).ToString(CultureInfo.InvariantCulture).PadLeft(digits, '0');
         }
+
+        internal override string Stemmed(string stem, IReadOnlySet<string> taken) =>
+            taken.Contains(stem) ? Next(stem + "_", [.. taken, stem + "_1"], digits: 1) : stem;
     }
 }

@@ -411,7 +411,7 @@ public sealed partial class MusicCoreFacade
     /// different devices never share one (V8). Ids numbered by a counter in each run ("p_0001") gave two different iPad
     /// pieces the same id; files that carry such ids still open as they are.
     /// </summary>
-    public static string NewProjectId() => string.Create(CultureInfo.InvariantCulture, $"p_{Guid.NewGuid():N}");
+    public static string NewProjectId() => IdSource.Random.Next("p_", []);
 
     /// <summary>
     /// The project to save for a project file the player imports, given the project already saved under the file's id
@@ -443,6 +443,12 @@ public sealed partial class MusicCoreFacade
         Project project;
         try
         {
+            string id = ProjectFile.ReadEnvelope(projectFile).Id;
+            if (!ProjectIds.IsNumbered(id) || online.Contains(id))
+            {
+                return projectFile;
+            }
+
             project = ProjectFile.Read(projectFile);
         }
         catch (ProjectFileException)
@@ -450,7 +456,7 @@ public sealed partial class MusicCoreFacade
             return projectFile;
         }
 
-        return project.IsReadOnly || !project.HasNumberedId() || online.Contains(project.Id) ? projectFile : ProjectFile.Write(project.Rekeyed());
+        return project.IsReadOnly ? projectFile : ProjectFile.Write(project.Rekeyed());
     }
 
     /// <summary>Forgets an open piece; false when it was not open.</summary>

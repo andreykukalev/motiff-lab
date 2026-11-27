@@ -7,13 +7,13 @@ namespace MotiffLab.MusicCore.Projects;
 internal static class ProjectIds
 {
     /// <summary>
-    /// Whether the project's id is numbered, "p_" and digits, as earlier builds made them by a counter in each run ("p_0001"):
+    /// Whether a project's id is numbered, "p_" and digits, as earlier builds made them by a counter in each run ("p_0001"):
     /// two different pieces, on two devices or on one, can carry the same one (V8).
     /// </summary>
-    internal static bool HasNumberedId(this Project project)
+    internal static bool IsNumbered(string id)
     {
-        ArgumentNullException.ThrowIfNull(project);
-        return project.Id.Length > 2 && project.Id.StartsWith("p_", StringComparison.Ordinal) && !project.Id.AsSpan(2).ContainsAnyExceptInRange('0', '9');
+        ArgumentNullException.ThrowIfNull(id);
+        return id.Length > 2 && id.StartsWith("p_", StringComparison.Ordinal) && !id.AsSpan(2).ContainsAnyExceptInRange('0', '9');
     }
 
     /// <summary>
@@ -26,7 +26,8 @@ internal static class ProjectIds
     /// </summary>
     internal static Project Rekeyed(this Project project)
     {
-        if (!project.HasNumberedId())
+        ArgumentNullException.ThrowIfNull(project);
+        if (!IsNumbered(project.Id))
         {
             return project;
         }
