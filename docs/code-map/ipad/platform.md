@@ -56,7 +56,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and
   bytes for the fingerprint, up to `fingerprintLimit`).
 - `Design.swift` reads `design/kit/tokens.css`. `FlowLayout.swift` (from Insights, v1.6 i-12): views in rows that
-  wrap, each centred in its row (Insights, the Contents' card, the piece's properties, the Reference).
+  wrap, each centred in its row's height (Insights, the Contents' card, the piece's properties, the Reference).
   `SegmentedChoice.swift` (from Marks, v1.6 i-13): the choice of two or three (ds.css `.seg`: `SegmentedChoice`,
   `SegmentFill`, `SegmentedCapsule`), used by eight folders.
 - `HighlightInk.swift` (v0.10 d-5): the four inks a highlight is laid in and an ink's kit colour by name, the one list

@@ -70,11 +70,15 @@ final class InsightsController: ObservableObject {
     private var piece: Int32 = 0
     /// Keep is on its way to music-core: a second tap meanwhile keeps nothing more (E-insights-3).
     private var keeping = false
+    /// Counts each other selection read and each variation left: a way still being made when it moves on is left,
+    /// whether the sheet is open or not (E-insights-2).
+    private var generation = 0
 
-    /// Reads the selection's facts from music-core; again only when the selection is another one.
-    func load(piece: Int32, selection: ScoreSelection?) async {
+    /// Reads the selection's facts from music-core; again only when the selection is another one, or `again` (`reread`).
+    func load(piece: Int32, selection: ScoreSelection?, again: Bool = false) async {
         self.piece = piece
-        guard selection != understood || (selection != nil && understanding == nil && !loading) else { return }
+        guard again || selection != understood || (selection != nil && understanding == nil && !loading) else { return }
+        if selection != understood { generation += 1 }
         understood = selection
         chosen = nil
         evidence = []
@@ -108,8 +112,8 @@ final class InsightsController: ObservableObject {
     /// so a fact on recognised notes still to check says so, or no longer does (#352). Nothing when nothing was read.
     func reread() async {
         guard let selection = understood, trial == nil else { return }
-        understood = nil
-        await load(piece: piece, selection: selection)
+        // The same passage: a way being made for it stays.
+        await load(piece: piece, selection: selection, again: true)
     }
 
     /// The claim tapped: its places are ringed; tapped again, they are cleared.
@@ -205,15 +209,15 @@ final class InsightsController: ObservableObject {
     func tryWay(_ way: Fact.Try, of fact: Fact) async {
         guard starting == nil else { return }
         let piece = piece
-        let selection = understood
+        let generation = generation
         starting = way.id
-        defer { starting = nil }
         problem = nil
         let request = facadeRequest(["chip": way.id])
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.tryWay, request) }
         guard let state = facadeObject(answer), state["error"] == nil, let result = state["result"] as? [String: Any] else {
+            starting = nil
             // E-insights-2: a refusal for a passage no longer selected is not said over the next one's facts.
-            if understood == selection { problem = facadeObject(answer)?["message"] as? String }
+            if self.generation == generation { problem = facadeObject(answer)?["message"] as? String }
             return
         }
         let ends = (result["notes"] as? [[String: Any]] ?? []).compactMap { note -> Double? in
@@ -221,12 +225,15 @@ final class InsightsController: ObservableObject {
             return onset + duration
         }
         let heard = await PieceCore(piece: piece).playback(#"{"of": "inPlace"}"#)
-        // E-insights-2: the selection moved on while music-core made the variation, which belongs to the passage it was
-        // tried on (as `load` leaves a trial): it goes, and nothing sounds or shows it.
-        guard understood == selection else {
+        // E-insights-2: the selection moved on, or the variation was left, while music-core made it; it belongs to the
+        // passage it was tried on (as `load` leaves a trial): it goes, and nothing sounds or shows it. `starting` is not
+        // left on meanwhile, so no way shows as busy; it is cleared here, not on exit, as the next way may set it.
+        guard self.generation == generation else {
+            starting = nil
             _ = await MusicCore.run { PieceCore(piece: piece).send(.variationClear) }
             return
         }
+        starting = nil
         guard let score = heard.value.map(PlaybackScore.init) else {
             problem = heard.message
             return
@@ -255,8 +262,13 @@ final class InsightsController: ObservableObject {
 
     /// Leaves the variation: music-core forgets it, and the original sounds again.
     func leave() async {
+        // E-insights-2: a way still being made is left too, wherever the leave comes from (another selection with the
+        // sheet closed, Sources opened, the screen handed over).
+        generation += 1
         guard trial != nil else { return }
         trial = nil
+        // E-insights-1: Leave is a next step.
+        problem = nil
         let piece = piece
         _ = await MusicCore.run { PieceCore(piece: piece).send(.variationClear) }
         variationLeft?()

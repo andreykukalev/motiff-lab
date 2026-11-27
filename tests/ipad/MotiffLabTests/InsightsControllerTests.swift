@@ -15,14 +15,20 @@ final class InsightsControllerTests: XCTestCase {
         opened = []
     }
 
-    /// The kit's piece with bars 4–12 selected in music-core, and the stream read for them.
-    private func loaded() async throws -> (insights: InsightsController, piece: Int32) {
+    /// The kit's piece opened with bars 4–12 selected in music-core.
+    private func opened4to12() throws -> (piece: Int32, selection: ScoreSelection) {
         let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
         let answer = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en", "id": "p_insights"}"#)))
         let piece = Int32(answer["piece"] as? Int ?? 0)
         XCTAssertGreaterThan(piece, 0, "\(answer)")
         opened.append(piece)
         let selection = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 4, "last": 12}}"#)))
+        return (piece, selection)
+    }
+
+    /// The kit's piece with bars 4–12 selected in music-core, and the stream read for them.
+    private func loaded() async throws -> (insights: InsightsController, piece: Int32) {
+        let (piece, selection) = try opened4to12()
         let insights = InsightsController()
         await insights.load(piece: piece, selection: selection)
         XCTAssertNotNil(insights.understanding, "music-core understood bars 4–12")
@@ -114,7 +120,7 @@ final class InsightsControllerTests: XCTestCase {
         insights.variationReady = { _, _ in handed += 1 }
 
         let trying = Task { await insights.tryWay(way, of: fact) }
-        await Task.yield()
+        _ = await insights.$starting.values.first { $0 == way.id }
         XCTAssertEqual(insights.starting, way.id, "the way is under way in music-core")
         await insights.load(piece: piece, selection: nil)
         await trying.value
@@ -140,5 +146,27 @@ final class InsightsControllerTests: XCTestCase {
         XCTAssertEqual(insights.trial?.kept, true)
         let ideas = facadeObject(MusicCore.call(piece: piece, "ideas"))?["ideas"] as? [[String: Any]]
         XCTAssertEqual(ideas?.count, 1, "one idea for two taps")
+    }
+
+    /// E-insights-2 with the sheet closed: another selection while a way is being made leaves it through the workspace
+    /// (`selectionChanged`), so the way that lands plays nothing and shows nothing.
+    func testAWayStillBeingMadeIsLeftByAnotherSelectionWithTheSheetClosed() async throws {
+        let (piece, selection) = try opened4to12()
+        let workspace = ScoreWorkspace(piece: OpenPiece(id: piece, title: "Für Elise", pages: [], timemap: ""))
+        workspace.wire()
+        let insights = workspace.insights
+        await insights.load(piece: piece, selection: selection)
+        let fact = try XCTUnwrap(insights.understanding?.facts.first { !$0.tries.isEmpty })
+        let way = try XCTUnwrap(fact.tries.first)
+        XCTAssertFalse(workspace.panels[.insights], "the sheet is closed")
+
+        let trying = Task { await insights.tryWay(way, of: fact) }
+        _ = await insights.$starting.values.first { $0 == way.id }
+        workspace.selectionChanged(ScoreSelection(onset: 0, end: 1920, firstBar: 1, lastBar: 1))
+        await trying.value
+        XCTAssertNil(insights.trial)
+        XCTAssertNil(insights.starting, "no way shows as busy")
+        XCTAssertFalse(workspace.player.hasVariation, "nothing plays")
+        XCTAssertNotNil(facadeObject(MusicCore.call(piece: piece, "variation"))?["error"], "music-core forgot the variation")
     }
 }

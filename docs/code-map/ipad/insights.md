@@ -31,10 +31,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Insights`.
     `toggle`; `DnaPlaying`, which button reads Stop (`DnaPlayingTests`).
 - `DnaBookmarks.swift`: what Piece DNA's «Добавить закладки «Структура»» did, in words (how many, or that every section
   has one, and where: the contents, Bookmarks › Structure; nothing when the call failed).
-- The Insights stream, cut from `Insights.swift` in v1.6 i-12 (W2.12; behaviour unchanged):
+- The Insights stream, cut from `Insights.swift` in v1.6 i-12 (W2.12; behaviour unchanged apart from E-insights-1 to 3):
   - `InsightsModel.swift`: `Fact` (with `Place`, `Try`) and `Understanding`, the typed `understand` answer (Main,
-    the lenses in the stream's order, a lens's facts under Details). Also read by `Roll/RollController.highlight`
-    (`Fact.Place`) and the tests (`FacadeTests`, `PencilTests`).
+    the lenses in the stream's order, a lens's facts under Details). `Fact.Place` is also read by `Circle.swift`
+    (`KeyCircle`, `CircleDrawing`), `Roll/RollController.highlight`, `Workspace/ScoreController` and
+    `ScorePageLayout` (the rings); `Understanding` by the tests (`FacadeTests`, `PencilTests`).
   - `InsightsController.swift`: the stream's state and rules (below), its six music-core calls (`understand`,
     `circle`, `try` then `playback` of `inPlace`, `idea.keep`, `variation.clear`), and the callbacks to the player that
     `ScoreWorkspace.wire()` hands in (`placeChosen`, `variationReady`, `variationLeft`, `scaleReady`, `scaleStop`).
@@ -54,8 +55,9 @@ opened under Details (`fold`), Evidence, the fact or place chosen, the open Try 
 the circle and its row, and whether the scale sounds (`hearingAloneChanged`, the player's, which the workspace follows).
 Each is written only by its methods; the views read the rules (`mainShown`, `detailsShown`, `opens`,
 `trialFilteredOut`, `shows`, `opensCircle`). Rules not to break: a variation belongs to the passage it was tried on
-(`load` leaves it; a way still being made when the selection moves on is left, E-insights-2); one Try and one Keep at a
-time (`starting`, E-insights-3); a step's refusal shows over the facts until the next step (E-insights-1). `DnaScreen`: its own view state only (`@State`, written
+(`load` and `leave` count a `generation`; a way still being made when it moves on is left, sheet open or not,
+E-insights-2); one Try (`starting`) and one Keep (`keeping`, E-insights-3) at a time; a step's refusal shows over the
+facts until the next step (E-insights-1). `DnaScreen`: its own view state only (`@State`, written
 by its extensions); the playback state is the `Player`'s, the harmony rows' switches `DeviceSettings`'. The rest: not
 recorded yet.
 
