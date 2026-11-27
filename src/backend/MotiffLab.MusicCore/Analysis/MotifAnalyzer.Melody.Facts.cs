@@ -279,7 +279,7 @@ internal static partial class MotifAnalyzer
     /// whose pitch class a lower note shares: such a note is both a melody note and a note of the chord
     /// under it, so the ear can take it either way.
     /// </summary>
-    private static MotifFact SoundingWithFact(Note[] melody, OverMeasure measure, MusicalKey key, Words w)
+    private static MotifFact SoundingWithFact(OverMeasure measure, MusicalKey key, Words w)
     {
         // The melody notes the text names, each with the lower notes that share its pitch class.
         FactPlace[] places = [.. measure.Shared.Select(entry => FactPlace.Of(
@@ -292,7 +292,7 @@ internal static partial class MotifAnalyzer
         string? brief = null;
         if (over > 0)
         {
-            (text, brief) = OverText(measure, melody.Length, [.. places.Select(place => place.Label)], w);
+            (text, brief) = OverText(measure, [.. places.Select(place => place.Label)], w);
         }
 
         return new MotifFact(
@@ -311,8 +311,9 @@ internal static partial class MotifAnalyzer
 
     /// <summary>The text and brief of the over-chords fact when some melody note sounds over lower notes.</summary>
     /// <param name="shared">The label of each melody note whose pitch class a lower note shares.</param>
-    private static (string Text, string Brief) OverText(OverMeasure measure, int melody, string[] shared, Words w)
+    private static (string Text, string Brief) OverText(OverMeasure measure, string[] shared, Words w)
     {
+        int melody = measure.Melody;
         int over = measure.Struck + measure.Held;
         string[] how = [.. new[] { (measure.Struck, w.T("struck together with them", "взяты вместе с ними")), (measure.Held, w.T("over notes still held", "над ещё звучащими нотами")) }
             .Where(part => part.Item1 > 0)

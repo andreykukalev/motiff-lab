@@ -214,14 +214,21 @@ internal static partial class VariationFacts
 
     /// <summary>What the explanation is written from (<c>VariationFacts.Explanation.cs</c>): the diff's counts, lengths, onsets and the melody's steps.</summary>
     /// <param name="Changed">Notes kept by id, changed or not.</param>
+    /// <param name="Added">Notes whose id is only in the variant.</param>
+    /// <param name="Removed">Notes whose id is only in the motif.</param>
+    /// <param name="PitchChanges">Kept notes whose pitch changed.</param>
     /// <param name="MelodySteps">The melody's intervals in semitones before and after, when it keeps its notes by id and its intervals changed; null otherwise.</param>
+    /// <param name="LengthChanges">Kept notes whose length changed.</param>
     /// <param name="Doubled">Every kept note lasts twice as long.</param>
     /// <param name="Halved">Every kept note lasts half as long.</param>
+    /// <param name="Louder">Kept notes played louder.</param>
+    /// <param name="Softer">Kept notes played softer.</param>
     /// <param name="Moved">Kept notes that start at a new place.</param>
     /// <param name="Shift">The one distance in ticks every kept note moved by, when they all moved by the same; null otherwise.</param>
     /// <param name="GapsDouble">The time between the kept notes' onsets doubles.</param>
     /// <param name="GapsHalve">The time between the kept notes' onsets halves.</param>
     /// <param name="ExtentBefore">Ticks from the first onset to the last note's end, before.</param>
+    /// <param name="ExtentAfter">The same, after.</param>
     private sealed record DiffMeasures(
         int Changed,
         int Added,
