@@ -68,6 +68,13 @@ public enum CheckReason
     /// the earlier reading, beside these notes, and the player decides.
     /// </summary>
     CorrectionUnfit,
+
+    /// <summary>
+    /// A mark «что не так» the player made on an earlier reading of the same pages that the new reading could not take: its
+    /// bar is not there, or the reading has no such staff or clef (scan, «Как напечатано» step 3, version 1.6, project file
+    /// 18). The mark stays on the notes; the player checks the bar.
+    /// </summary>
+    MarkUnfit,
 }
 
 /// <summary>
@@ -306,6 +313,9 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
         CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+        CheckReason.MarkUnfit => words.T(
+            "Your mark on this bar could not be used in this reading: the reading has no such bar, staff or clef here. The mark stays; check the bar against the page.",
+            "Вашу отметку на этом такте не удалось учесть в этом чтении: в нём нет такого такта, стана или ключа. Отметка осталась; сверьте такт со страницей."),
         CheckReason.CorrectionUnfit => words.T(
             "Your correction on the earlier reading of these pages does not fit this reading: it reads the note neither as you found it nor as you corrected it. The earlier reading keeps the correction; compare the two in Sources.",
             "Ваше исправление не подошло к новому чтению: оно читает эту ноту не так, как вы её нашли, и не так, как исправили. Исправление осталось в прежнем чтении; сравните их в «Источниках»."),
@@ -325,6 +335,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
             CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
             CheckReason.CorrectionUnfit => words.T("Your correction did not fit", "Исправление не подошло"),
+            CheckReason.MarkUnfit => words.T("Your mark not used", "Отметка не учтена"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -366,6 +377,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
             CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
             CheckReason.CorrectionUnfit => Describe(CheckReason.CorrectionUnfit, words),
+            CheckReason.MarkUnfit => Describe(CheckReason.MarkUnfit, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }

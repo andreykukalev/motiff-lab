@@ -60,7 +60,7 @@ internal static class ScanPageInsert
         }
 
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
-        ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports };
+        ScanOrigin scan = new(project.Scan!.Engine, [.. project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))]) { From = project.Scan.From, At = project.Scan.At, Pages = reports, Marks = MarksMovedOn(project.Scan.Marks, first, bars) };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
         // The player's work in ticks moves on with the bars after the page, by one rule (v1.5 i-7, r-2b); nothing else is there to move (CanInsertPage).
         if (FollowedWork.Inserted(project, before.Meter, after.Meter, at, length, ids) is not { } followed)
@@ -95,4 +95,8 @@ internal static class ScanPageInsert
 
     /// <summary>A bar number from <paramref name="first"/> on moved on by <paramref name="bars"/>; an earlier one as it is.</summary>
     private static int MovedOn(int bar, int first, int bars) => bar < first ? bar : bar + bars;
+
+    /// <summary>The marks «что не так» with the bars after the page (version 18): each end moved on, so a mark across the page's place takes it in.</summary>
+    private static IReadOnlyList<ReadingMark> MarksMovedOn(IReadOnlyList<ReadingMark> marks, int first, int bars) =>
+        [.. marks.Select(mark => new ReadingMark(mark.Kind, MovedOn(mark.Bar, first, bars), ReadingMark.FromBarOn(mark.Kind) ? MovedOn(mark.Bar, first, bars) : MovedOn(mark.Last, first, bars), mark.Staff, mark.Value))];
 }

@@ -32,6 +32,7 @@ internal static class OriginCodec
                 JsonWrite.Numbers(json, "read", scan.ReadPages);
             }
 
+            WriteMarks(json, scan.Marks);
             json.WriteEndObject();
         }
 
@@ -69,6 +70,45 @@ internal static class OriginCodec
 
         WriteSentFrom(json, heard);
         json.WriteEndObject();
+    }
+
+    /// <summary>
+    /// "marks" in "scan" (version 18): the player's marks «что не так», each {"kind", "bar", "last", "staff" (a clef or octave
+    /// mark's), "value" (what the page prints)}; left out when there are none.
+    /// </summary>
+    private static void WriteMarks(Utf8JsonWriter json, IReadOnlyList<ReadingMark> marks)
+    {
+        if (marks.Count == 0)
+        {
+            return;
+        }
+
+        json.WriteStartArray("marks");
+        foreach (ReadingMark mark in marks)
+        {
+            json.WriteStartObject();
+            WriteMark(json, mark);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>A mark's fields as the file keeps them, in an object already open: "kind", "bar", "last", and "staff" and "value" when it has them.</summary>
+    internal static void WriteMark(Utf8JsonWriter json, ReadingMark mark)
+    {
+        json.WriteString("kind", JsonNamingPolicy.CamelCase.ConvertName(mark.Kind.ToString()));
+        json.WriteNumber("bar", mark.Bar);
+        json.WriteNumber("last", mark.Last);
+        if (mark.Staff is { } staff)
+        {
+            json.WriteNumber("staff", staff);
+        }
+
+        if (mark.Value is { } value)
+        {
+            json.WriteString("value", value);
+        }
     }
 
     /// <summary>"pages" in "scan": each page's report as the scan server sent it, numbers only; left out when there are none.</summary>
@@ -133,8 +173,51 @@ internal static class OriginCodec
         int[] bars = [.. Property(scan, "confirmedBars", JsonValueKind.Array)
             .EnumerateArray()
             .Select(bar => bar.ValueKind == JsonValueKind.Number && bar.TryGetInt32(out int value) && value >= 0 ? value : throw Damaged("checked bars"))];
-        ScanOrigin read = new(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan) };
+        ScanOrigin read = new(engine, bars) { From = from, At = at, Pages = ReadScanPages(scan), Marks = ReadMarks(scan) };
         return scan.TryGetProperty("unread", out JsonElement unread) ? WithUnreadIn(read, unread, Property(scan, "read", JsonValueKind.Array)) : read;
+    }
+
+    /// <summary>
+    /// "marks" in "scan" (version 18), none without it. A mark of a kind this build does not know, from a later one (whose
+    /// file opens read-only), is left out; one this build knows that says what its kind cannot is damage.
+    /// </summary>
+    private static IReadOnlyList<ReadingMark> ReadMarks(JsonElement scan)
+    {
+        if (!scan.TryGetProperty("marks", out JsonElement marks))
+        {
+            return [];
+        }
+
+        if (marks.ValueKind != JsonValueKind.Array)
+        {
+            throw Damaged("reading marks");
+        }
+
+        List<ReadingMark> read = [];
+        foreach (JsonElement mark in marks.EnumerateArray())
+        {
+            Expect(mark, JsonValueKind.Object, "reading marks");
+            string kind = mark.TryGetProperty("kind", out JsonElement named) && named.ValueKind == JsonValueKind.String ? named.GetString()! : throw Damaged("reading marks");
+            if (!Enum.TryParse(kind, ignoreCase: true, out ReadingMarkKind known) || JsonNamingPolicy.CamelCase.ConvertName(known.ToString()) != kind)
+            {
+                continue;
+            }
+
+            try
+            {
+                read.Add(new ReadingMark(known, Whole(mark, "bar"), Whole(mark, "last"), mark.TryGetProperty("staff", out _) ? Whole(mark, "staff") : null,
+                    mark.TryGetProperty("value", out JsonElement value) ? value.ValueKind == JsonValueKind.String ? value.GetString() : throw Damaged("reading marks") : null));
+            }
+            catch (ArgumentException)
+            {
+                throw Damaged("reading marks");
+            }
+        }
+
+        return ScanOrigin.Ordered(read);
+
+        static int Whole(JsonElement mark, string name) =>
+            mark.TryGetProperty(name, out JsonElement number) && number.ValueKind == JsonValueKind.Number && number.TryGetInt32(out int value) ? value : throw Damaged("reading marks");
     }
 
     /// <summary>"unread" and "read" in "scan" (version 18): the PDF's pages no engine read and those the notes have, each from 1.</summary>

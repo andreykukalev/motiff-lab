@@ -43,6 +43,24 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public IReadOnlyList<int> ReadPages { get; init; } = [];
 
     /// <summary>
+    /// The player's marks «что не так» on these notes (version 18; «Как напечатано», step 3), by bar, then kind, then staff:
+    /// what the page prints where the reading went wrong, used by the next reading of the same pages and carried to it
+    /// (<see cref="ReadingMarks"/>). Empty when the player marked nothing.
+    /// </summary>
+    public IReadOnlyList<ReadingMark> Marks { get; init; } = [];
+
+    /// <summary>The origin with <paramref name="mark"/> among its marks, in the place of one at the same place (<see cref="ReadingMark.SamePlace"/>).</summary>
+    public ScanOrigin WithMark(ReadingMark mark) => this with { Marks = Ordered([.. Marks.Where(kept => !kept.SamePlace(mark)), mark]) };
+
+    /// <summary>The origin without the mark of <paramref name="kind"/> at <paramref name="bar"/> (on <paramref name="staff"/>); as it was when there is none.</summary>
+    public ScanOrigin WithoutMark(ReadingMarkKind kind, int bar, int? staff) =>
+        this with { Marks = [.. Marks.Where(kept => !(kept.Kind == kind && kept.Bar == bar && kept.Staff == staff))] };
+
+    /// <summary>Marks in the order the file keeps them: by bar, then kind, then staff.</summary>
+    public static IReadOnlyList<ReadingMark> Ordered(IEnumerable<ReadingMark> marks) =>
+        [.. marks.OrderBy(static mark => mark.Bar).ThenBy(static mark => mark.Kind).ThenBy(static mark => mark.Staff ?? 0)];
+
+    /// <summary>
     /// The origin with the PDF's pages no engine read and those the notes have (version 18), each a page from 1, once and in
     /// order; none unread leaves both empty.
     /// </summary>
@@ -74,14 +92,15 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
 
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
-    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages };
+    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks };
 
     /// <summary>The origin with the bar taken out of the confirmed ones, so its notes are detected again.</summary>
-    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages };
+    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks };
 
     public bool Equals(ScanOrigin? other) =>
         other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars) && From == other.From && At == other.At
-        && Pages.SequenceEqual(other.Pages) && Unread.SequenceEqual(other.Unread) && ReadPages.SequenceEqual(other.ReadPages);
+        && Pages.SequenceEqual(other.Pages) && Unread.SequenceEqual(other.Unread) && ReadPages.SequenceEqual(other.ReadPages)
+        && Marks.SequenceEqual(other.Marks);
 
     public override int GetHashCode() => ConfirmedBars.Aggregate(Engine.GetHashCode(StringComparison.Ordinal), HashCode.Combine);
 }

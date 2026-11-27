@@ -50,6 +50,30 @@ internal sealed class SourcesSession
         return before with { Next = now.Next };
     }
 
+    /// <summary>What became of the working notes' marks on notes read again: all of them on the new reading's bars, those put in, and those that could not be.</summary>
+    public sealed record MarksCarried(IReadOnlyList<ReadingMark> Marks, IReadOnlyList<ReadingMark> Applied, IReadOnlyList<ReadingMark> Unfit)
+    {
+        /// <summary>The toast's line: «учтено отметок: 2 · не учтено, в «Проверить»: 1 (такт 3)»; null when no mark was put in or left out.</summary>
+        public string? Text(Words words)
+        {
+            List<string> parts = [];
+            if (Applied.Count > 0)
+            {
+                string marks = words.Count(Applied.Count, "mark", "marks", "отметка", "отметки", "отметок");
+                parts.Add(words.T($"{marks} used", $"учтено: {marks}"));
+            }
+
+            int[] bars = [.. Unfit.Select(static mark => mark.Bar).Distinct().Order()];
+            if (bars.Length > 0)
+            {
+                string where = string.Join(", ", bars);
+                parts.Add(words.T($"not used, in Check: {Unfit.Count} ({(bars.Length == 1 ? "bar" : "bars")} {where})", $"не учтено, в «Проверить»: {Unfit.Count} ({(bars.Length == 1 ? "такт" : "такты")} {where})"));
+            }
+
+            return parts.Count == 0 ? null : string.Join(" · ", parts);
+        }
+    }
+
     /// <summary>The PDF kept in the piece, to send to the scan server; refused when it keeps none.</summary>
     public static KeptFile Document(SessionPiece piece) =>
         piece.Project.Document is { } pdf ? new KeptFile(piece.Project.DocumentFileName, pdf) : throw FacadeException.Unavailable("This piece keeps no PDF.");
@@ -182,15 +206,72 @@ internal sealed class SourcesSession
     }
 
     /// <summary>The Notes read again with the carry: its corrections, the bars confirmed, and the reading's Check flags with a <see cref="CheckReason.CorrectionUnfit"/> on each bar a correction was not carried to.</summary>
-    private static OtherNotes Carried(OtherNotes notes, ScanOrigin scan, ReadingCarry carry, ReadScore read)
+    private static OtherNotes Carried(OtherNotes notes, ScanOrigin scan, ReadingCarry carry, ReadScore read) =>
+        Flagged(notes with { Edits = carry.Edits }, scan, read, carry.NotCarriedBars.Select(static bar => new CheckFlag(bar, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false)));
+
+    /// <summary>The Notes with <paramref name="scan"/> and Check: the reading's flags, its bars confirmed, and <paramref name="more"/>, by bar and reason.</summary>
+    private static OtherNotes Flagged(OtherNotes notes, ScanOrigin scan, ReadScore read, IEnumerable<CheckFlag> more) => notes with
     {
-        IEnumerable<CheckFlag> unfit = carry.NotCarriedBars.Select(static bar => new CheckFlag(bar, CheckSource.Scan, CheckReason.CorrectionUnfit, Resolved: false));
-        return notes with
+        Scan = scan,
+        Check = [.. (notes.Check ?? CheckFlag.FromScan(scan.CheckOf(read.Piece), scan.ConfirmedBars)).Concat(more).OrderBy(static flag => flag.Bar).ThenBy(static flag => flag.Reason)],
+    };
+
+    /// <summary>
+    /// The working notes' marks «что не так» put into <paramref name="read"/>, the notes read again from the original
+    /// <paramref name="original"/> («Как напечатано», step 3, <see cref="ReadingMarks"/>), when the working notes are a reading
+    /// of it with marks; each mark first placed on the bar of the new reading its bar's music starts (<see cref="ReadingMatch"/>),
+    /// a mark whose bar has no such place not put in; <paramref name="fileName"/> names the reading as it is imported. Answers
+    /// the reading with the marks in and what became of them; the reading as it was and null with no marks.
+    /// </summary>
+    public static (ReadScore Read, MarksCarried? Marks) Marked(SessionPiece piece, string original, string fileName, ReadScore read)
+    {
+        if (piece.Project.Scan is not { Marks.Count: > 0 } scan || (scan.From ?? PieceOriginal.DocumentId) != original)
         {
-            Edits = carry.Edits,
-            Scan = scan,
-            Check = [.. CheckFlag.FromScan(scan.CheckOf(read.Piece), scan.ConfirmedBars).Concat(unfit).OrderBy(static flag => flag.Bar).ThenBy(static flag => flag.Reason)],
-        };
+            return (read, null);
+        }
+
+        ReadingMatch match = new(piece.Piece, read.Piece);
+        List<ReadingMark> placed = [], lost = [];
+        foreach (ReadingMark mark in scan.Marks)
+        {
+            if (match.Moved(piece.Piece.Meter.GetBar(mark.Bar)) is { } bar)
+            {
+                placed.Add(mark.At(bar.Number));
+            }
+            else
+            {
+                lost.Add(mark);
+            }
+        }
+
+        MarkedReading marked = ReadingMarks.Apply(read.MusicXml, read.Piece, placed);
+        IReadOnlyList<ReadingMark> carried = ScanOrigin.Ordered([.. placed, .. lost]);
+        if (ReferenceEquals(marked.Score, read.MusicXml))
+        {
+            return (read, new MarksCarried(carried, [], [.. marked.Unfit, .. lost]));
+        }
+
+        // Imported as marked, not repaired again: the engines' rules would take a meter the player marked back to the bars' median.
+        return PieceImporter.Import(fileName, marked.Score).Piece is { } again
+            ? (new ReadScore(marked.Score, again), new MarksCarried(carried, marked.Applied, [.. marked.Unfit, .. lost]))
+            : (read, new MarksCarried(carried, [], [.. placed, .. lost]));
+    }
+
+    /// <summary>
+    /// <paramref name="again"/> with the Notes <paramref name="id"/> (read again, <paramref name="read"/>) keeping the marks
+    /// carried, each mark that could not be put in flagged in Check (<see cref="CheckReason.MarkUnfit"/>) on its bar; as it was
+    /// without marks.
+    /// </summary>
+    public static Project WithMarks(Project again, string id, MarksCarried? marks, ReadScore read)
+    {
+        if (marks is null)
+        {
+            return again;
+        }
+
+        IEnumerable<CheckFlag> unfit = marks.Unfit.Select(static mark => mark.Bar).Distinct().Select(static bar => new CheckFlag(bar, CheckSource.Scan, CheckReason.MarkUnfit, Resolved: false));
+        OtherNotes[] notes = [.. again.Sources.Notes.Select(notes => notes.Id == id && notes.Scan is { } scan ? Flagged(notes, scan with { Marks = marks.Marks }, read, unfit) : notes)];
+        return again with { Sources = again.Sources with { Notes = notes } };
     }
 
     /// <summary>The <paramref name="pages"/> (else one) of the PDF notes were read again from, by the bars the scan began each with.</summary>
