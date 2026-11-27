@@ -167,8 +167,8 @@ internal static class PhraseVariants
         ArgumentNullException.ThrowIfNull(draft);
         return [.. draft.Edits.Select(static edit => new SavedStep(HandEdit.OperationId, edit.Kind switch
         {
-            DraftEditKind.Remove => HandEditParameters.Remove(edit.NoteId),
-            DraftEditKind.Change => HandEditParameters.Change(edit.NoteId, edit.After!.Value),
+            DraftEditKind.Remove => new HandEditParameters(HandEditKind.Remove, edit.NoteId, null),
+            DraftEditKind.Change => new HandEditParameters(HandEditKind.Change, edit.NoteId, edit.After!.Value),
             _ => HandEditParameters.Add(edit.NoteId, edit.After!.Value),
         }))];
     }

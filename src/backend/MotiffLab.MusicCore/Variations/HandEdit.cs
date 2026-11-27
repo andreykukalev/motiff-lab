@@ -21,10 +21,6 @@ public enum HandEditKind
 /// <param name="Values">The note's new values; null for a removal.</param>
 public sealed record HandEditParameters(HandEditKind Kind, string NoteId, NoteValues? Values) : OperationParameters
 {
-    public static HandEditParameters Change(string noteId, NoteValues values) => new(HandEditKind.Change, noteId, values);
-
-    public static HandEditParameters Remove(string noteId) => new(HandEditKind.Remove, noteId, null);
-
     public static HandEditParameters Add(string noteId, NoteValues values) => new(HandEditKind.Add, noteId, values);
 }
 
