@@ -79,6 +79,27 @@ public class FollowedWorkTests
     }
 
     [Fact]
+    public void Two_phrase_anchors_placed_on_one_span_become_one_the_smaller_id_with_what_was_on_both()
+    {
+        PhraseAnchor second = PhraseAnchor.Mint(Bars(2, 2), []), third = PhraseAnchor.Mint(Bars(3, 3), []);
+        string smaller = string.CompareOrdinal(second.Id, third.Id) < 0 ? second.Id : third.Id;
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5 | F5 G5 A5 B5", "E4 F4 G4 A4 | F5 G5 A5 B5") with
+        {
+            MintedAnchors = [second, third],
+            Observations =
+            [
+                Observation.Create("o_0001", new SavedPassage(Bars(2, 2), SelectionFilter.All), null, "Idea", "Here", s_now) with { Anchor = second.Id },
+                Observation.Create("o_0002", new SavedPassage(Bars(3, 3), SelectionFilter.All), null, "Idea", "There", s_now) with { Anchor = third.Id },
+            ],
+        };
+
+        Project swapped = project.MakeWorking("n_2", out _);
+
+        Assert.Equal([new PhraseAnchor(smaller, Bars(2, 2))], swapped.Anchors);
+        Assert.All(swapped.Observations, observation => Assert.Equal(smaller, observation.Anchor));
+    }
+
+    [Fact]
     public void A_bookmark_in_a_bar_the_new_notes_have_not_is_kept_by_the_music_before_it_and_told()
     {
         Project project = Bookmarked(Piece("E4 F4 G4 A4 | B4 C5 D5 E5 | F5 G5 A5 B5", "E4 F4 G4 A4 | F5 G5 A5 B5"), Bars(2, 2), Bars(3, 3));

@@ -27,8 +27,11 @@ internal sealed partial class OpenPiece
     /// snapped to the nearest note), «Начать фразу здесь» ("start", at the first note from that tick), «Убрать границу»
     /// ("remove", a phrase start), «Вернуть найденную» ("putBack", a start of the player's), «Вернуть найденные границы»
     /// ("resetAll": the phrases as found, the other levels as they are, answering "replaced", how many of the player's
-    /// boundaries went) or Undo and Redo ("restore", the edits a "previous" gave, with "expected", the "edits" it left).
-    /// The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>). What is attached to a phrase
+    /// boundaries went) or Undo and Redo ("restore", the edits a "previous" gave, with "expected", the "edits" it left, and
+    /// "step", the step's number its answer gave: its anchors are put back as they were before it, for an Undo, or after
+    /// it, for a Redo; with no "step", or one this opening no longer keeps, they follow the edits as any other's).
+    /// The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>) and "step", the step's number
+    /// (a new one for an edit, the step undone or redone, else null). What is attached to a phrase
     /// goes with it (#318, <see cref="ProjectAnchors.AnchorsFollowed"/>); bookmarks stay where they are (the phrases spec: a bookmark
     /// never moves with a phrase boundary).
     /// </summary>
@@ -46,23 +49,18 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest(exception.Message);
         }
 
-        AnchorState? restored = request.Has("restore") ? StepAnchors(Normal(before.Edits), Normal(edits)) : null;
+        LevelEdits now = Normal(before.Edits);
+        PhraseStep? undone = request.Has("restore") && request.Int("step") is int sent ? _steps.FirstOrDefault(step => step.Number == sent) : null;
         Structure = Structure.With(Levels.With(edits));
         Project = Project.WithPhraseLevels(Levels.Edits).AnchorsFollowed(before.Phrases, Phrases);
-        if (restored is not null)
-        {
-            Project = Project.WithAnchorState(restored, Phrases);
-        }
-        else
-        {
-            KeepStep(new PhraseStep(Normal(before.Edits), Normal(Levels.Edits), anchors, Project.AnchorState()));
-        }
+        int? number = request.Has("restore") ? RestoreAnchors(undone, now) : KeepStep(now, Normal(Levels.Edits), anchors);
 
         Selection.ForgetUnderstanding();
         return Answer.Write(json =>
         {
             PhrasesAnswer(json, Level);
             Answer.PhraseEdit(json, before, Levels);
+            WriteStep(json, number);
             if (request.Bool("resetAll") == true)
             {
                 json.WriteNumber("replaced", before.Phrases.OwnCount);
@@ -71,50 +69,61 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>The most phrases steps whose anchors an Undo or Redo puts back (<see cref="_steps"/>); an older step is undone by its edits alone.</summary>
-    private const int KeptSteps = 100;
+    internal const int KeptSteps = 100;
 
     /// <summary>
-    /// The phrases steps of this opening, oldest first, each with its edits and the anchors before and after it (#318), so
-    /// an Undo or Redo ("restore") puts back exactly what was attached where: Undo of a join brings the second anchor back
-    /// with what was on it. Written only by <see cref="EditPhrases"/>.
+    /// The phrases steps of this opening, oldest first, each with its number, its edits and the anchors before and after it
+    /// (#318), so an Undo or Redo ("restore" with the step's "step") puts back exactly what was attached where: Undo of a
+    /// join brings the second anchor back with what was on it. Written only by <see cref="EditPhrases"/>.
     /// </summary>
     private readonly List<PhraseStep> _steps = [];
 
-    /// <summary>A phrases step: the edits before and after it, as <see cref="Normal(LevelEdits)"/> writes them, and the anchors then.</summary>
-    private sealed record PhraseStep(LevelEdits Before, LevelEdits After, AnchorState Was, AnchorState Made);
+    /// <summary>The number of the latest phrases step of this opening; the first is 1.</summary>
+    private int _lastStep;
 
-    /// <summary>Keeps <paramref name="step"/> as the latest phrases step, the oldest dropped past <see cref="KeptSteps"/>.</summary>
-    private void KeepStep(PhraseStep step)
+    /// <summary>A phrases step: its number, the edits before and after it, as <see cref="Normal(LevelEdits)"/> writes them, and the anchors then.</summary>
+    private sealed record PhraseStep(int Number, LevelEdits Before, LevelEdits After, AnchorState Was, AnchorState Made);
+
+    /// <summary>
+    /// Keeps a new phrases step from the edits <paramref name="before"/> and the anchors <paramref name="was"/> to the edits
+    /// <paramref name="after"/> and the anchors now, the oldest dropped past <see cref="KeptSteps"/>; its number.
+    /// </summary>
+    private int KeepStep(LevelEdits before, LevelEdits after, AnchorState was)
     {
-        _steps.Add(step);
+        _steps.Add(new PhraseStep(++_lastStep, before, after, was, Project.AnchorState()));
         if (_steps.Count > KeptSteps)
         {
             _steps.RemoveAt(0);
         }
+
+        return _lastStep;
     }
 
     /// <summary>
-    /// The anchors a "restore" from the edits <paramref name="now"/> to <paramref name="back"/> puts back: those before the
-    /// latest step that went from <paramref name="back"/> to <paramref name="now"/> (Undo), or after the one that went the
-    /// other way (Redo); null when no step kept here did, and the anchors follow the edit as any other.
+    /// Puts back the anchors of <paramref name="step"/>, undone or redone from the edits <paramref name="now"/>: as they were
+    /// before it when <paramref name="now"/> are the edits it left (Undo), as it left them when they are those it found (Redo);
+    /// nothing otherwise, the anchors having followed the edits. The step's number, or null with no step.
     /// </summary>
-    private AnchorState? StepAnchors(LevelEdits now, LevelEdits back)
+    private int? RestoreAnchors(PhraseStep? step, LevelEdits now)
     {
-        for (int index = _steps.Count - 1; index >= 0; index--)
+        if ((step is null ? null : step.After.Equals(now) ? step.Was : step.Before.Equals(now) ? step.Made : null) is { } state)
         {
-            PhraseStep step = _steps[index];
-            if (step.After.Equals(now) && step.Before.Equals(back))
-            {
-                return step.Was;
-            }
-
-            if (step.Before.Equals(now) && step.After.Equals(back))
-            {
-                return step.Made;
-            }
+            Project = Project.WithAnchorState(state, Phrases);
         }
 
-        return null;
+        return step?.Number;
+    }
+
+    private static void WriteStep(Utf8JsonWriter json, int? number)
+    {
+        if (number is int step)
+        {
+            json.WriteNumber("step", step);
+        }
+        else
+        {
+            json.WriteNull("step");
+        }
     }
 
     /// <summary>The phrases answer (<see cref="Answer.Phrases"/>) at <paramref name="level"/>, with the project's phrase anchors.</summary>

@@ -46,6 +46,13 @@ public class PhraseAnchorsFacadeTests
         return Anchor(Call(facade, "idea.keep", $$$"""{"note": "{{{note}}}", {{{Now}}}}""").GetProperty("ideas").EnumerateArray().Last())!;
     }
 
+    /// <summary>
+    /// Undo or Redo as the app sends it: "restore" the edits <paramref name="answer"/> found ("previous"), expecting those it
+    /// left ("edits"), with the number of <paramref name="step"/>, the step undone or redone.
+    /// </summary>
+    private static JsonElement Restore(MusicCoreFacade facade, JsonElement answer, JsonElement step) =>
+        Call(facade, "phrases.edit", $$$"""{"restore": {{{answer.GetProperty("previous")}}}, "expected": {{{answer.GetProperty("edits")}}}, "step": {{{step.GetProperty("step")}}}}""");
+
     /// <summary>A tick inside the unit, on a note of it, so a mark dragged there snaps to that note.</summary>
     private static long Inside(JsonElement unit) => Onset(unit) + ((End(unit) - Onset(unit)) / 2);
 
@@ -144,7 +151,7 @@ public class PhraseAnchorsFacadeTests
         JsonElement joined = Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[2])}}}}""");
         Assert.All(Ideas(facade), idea => Assert.Equal(smaller, Anchor(idea)));
 
-        JsonElement undone = Call(facade, "phrases.edit", $$$"""{"restore": {{{joined.GetProperty("previous")}}}, "expected": {{{joined.GetProperty("edits")}}}}""");
+        JsonElement undone = Restore(facade, joined, joined);
 
         Assert.Equal((first, second), (Anchor(Units(undone)[1]), Anchor(Units(undone)[2])));
         Assert.Equal([first, second, second], Ideas(facade).Select(Anchor));
@@ -152,10 +159,99 @@ public class PhraseAnchorsFacadeTests
         Assert.Equal(second, Anchor(resumed));
         Assert.Equal(Onset(units[2]), resumed.GetProperty("passage").GetProperty("span").GetProperty("onset").GetInt64());
 
-        JsonElement redone = Call(facade, "phrases.edit", $$$"""{"restore": {{{undone.GetProperty("previous")}}}, "expected": {{{undone.GetProperty("edits")}}}}""");
+        JsonElement redone = Restore(facade, undone, joined);
         Assert.Equal(smaller, Anchor(Units(redone)[1]));
         Assert.Single(redone.GetProperty("anchors").EnumerateArray());
         Assert.All(Ideas(facade), idea => Assert.Equal(smaller, Anchor(idea)));
+    }
+
+    [Fact]
+    public void Undo_and_Redo_go_by_the_step_so_a_split_join_split_chain_undone_twice_brings_the_second_anchor_back()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement phrase = Units(Call(facade, "phrases"))[4];
+        string first = Keep(facade, Onset(phrase), End(phrase));
+        JsonElement split = Call(facade, "phrases.edit", $$$"""{"start": {{{Inside(phrase)}}}}""");
+        JsonElement part = Units(split)[5];
+        string second = Keep(facade, Onset(part), End(part));
+        string smaller = string.CompareOrdinal(first, second) < 0 ? first : second;
+        JsonElement joined = Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(part)}}}}""");
+        JsonElement again = Call(facade, "phrases.edit", $$$"""{"start": {{{Onset(part)}}}}""");
+        Assert.Equal([1, 2, 3], new[] { split, joined, again }.Select(static step => step.GetProperty("step").GetInt32()));
+        Assert.Equal([smaller, smaller], Ideas(facade).Select(Anchor));
+
+        JsonElement undoneAgain = Restore(facade, again, again);
+        JsonElement undoneJoin = Restore(facade, joined, joined);
+
+        Assert.Equal(2, undoneJoin.GetProperty("step").GetInt32());
+        Assert.Equal([first, second], Ideas(facade).Select(Anchor));
+        Assert.Equal((first, second), (Anchor(Units(undoneJoin)[4]), Anchor(Units(undoneJoin)[5])));
+        Restore(facade, undoneJoin, joined);
+        Assert.Equal([smaller, smaller], Ideas(facade).Select(Anchor));
+        JsonElement redoneAgain = Restore(facade, undoneAgain, again);
+        Assert.Equal((smaller, null), (Anchor(Units(redoneAgain)[4]), Anchor(Units(redoneAgain)[5])));
+    }
+
+    [Fact]
+    public void An_idea_kept_after_a_step_is_attached_to_its_phrase_now_when_the_step_is_undone()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement[] units = Units(Call(facade, "phrases"));
+        string first = Keep(facade, Onset(units[3]), End(units[3]));
+        JsonElement longer = Call(facade, "phrases.edit", $$$"""{"move": {"from": {{{Onset(units[4])}}}, "to": {{{Inside(units[4])}}}}}""");
+        Assert.Equal(first, Keep(facade, Onset(units[4]), Inside(units[4]), "On the stretch moved"));
+
+        JsonElement undone = Restore(facade, longer, longer);
+
+        string? now = Anchor(Units(undone)[4]);
+        Assert.NotNull(now);
+        Assert.Equal([first, now], Ideas(facade).Select(Anchor));
+        Assert.Equal(first, Anchor(Units(undone)[3]));
+    }
+
+    [Fact]
+    public void Undo_puts_a_resume_point_s_anchor_back_only_while_it_is_open_in_phrase_focus()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement[] units = Units(Call(facade, "phrases"));
+        Keep(facade, Onset(units[1]), End(units[1]));
+        string point = Call(facade, "resume.save", $$$"""{"passage": {"span": {{{units[2].GetProperty("selectable")}}}}, "focused": true, {{{Now}}}}""").GetProperty("saved").GetProperty("id").GetString()!;
+        JsonElement joined = Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[2])}}}}""");
+        Assert.Null(Anchor(Call(facade, "resume.save", $$$"""{"id": "{{{point}}}", "focused": false, {{{Now}}}}""").GetProperty("saved")));
+
+        Restore(facade, joined, joined);
+
+        Assert.Null(Anchor(Call(facade, "resume").GetProperty("resumePoints").EnumerateArray().Single(entry => entry.GetProperty("id").GetString() == point)));
+    }
+
+    [Fact]
+    public void A_step_of_an_earlier_opening_and_one_past_the_steps_kept_are_undone_by_their_edits_alone()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement[] units = Units(Call(facade, "phrases"));
+        string first = Keep(facade, Onset(units[1]), End(units[1]));
+        string second = Keep(facade, Onset(units[2]), End(units[2]));
+        string smaller = string.CompareOrdinal(first, second) < 0 ? first : second;
+        JsonElement joined = Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[2])}}}}""");
+
+        // Opened again from its file, the step is not this opening's: the anchors follow the edits as any other's.
+        var reopened = new MusicCoreFacade();
+        Assert.Equal(1, Json(reopened.Open("piece" + ProjectFile.Extension, Encoding.UTF8.GetBytes(facade.Call(1, "project.save")))).GetProperty("piece").GetInt32());
+        JsonElement undone = Restore(reopened, joined, joined);
+        Assert.Equal(JsonValueKind.Null, undone.GetProperty("step").ValueKind);
+        Assert.Equal((smaller, null), (Anchor(Units(undone)[1]), Anchor(Units(undone)[2])));
+
+        // Past the steps kept, the oldest is gone: steps that set a start and take it away again leave the join's edits.
+        long far = Inside(units[10]);
+        for (int step = 0; step < OpenPiece.KeptSteps; step += 2)
+        {
+            Call(facade, "phrases.edit", $$$"""{"start": {{{far}}}}""");
+            Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(Units(Call(facade, "phrases")).Single(unit => Onset(unit) > Onset(units[10]) && Onset(unit) <= far))}}}}""");
+        }
+
+        JsonElement late = Restore(facade, joined, joined);
+        Assert.Equal(JsonValueKind.Null, late.GetProperty("step").ValueKind);
+        Assert.Equal((smaller, null), (Anchor(Units(late)[1]), Anchor(Units(late)[2])));
     }
 
     [Fact]

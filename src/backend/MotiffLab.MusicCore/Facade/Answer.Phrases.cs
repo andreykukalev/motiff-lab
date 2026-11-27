@@ -70,7 +70,7 @@ internal static partial class Answer
     }
 
     /// <summary>
-    /// "anchors" (#318, within contract 16): each phrase anchor something is attached to, its id, span and bars, and "phrase",
+    /// "anchors" (#318, within contract 16): each phrase anchor something is attached to, its id and span, and "phrase",
     /// the number of the phrase it is, or null when the notes or their analysis changed so that it is no phrase any more
     /// (phrases.reattach attaches those again); then "unmatched", how many are null.
     /// </summary>
@@ -84,7 +84,7 @@ internal static partial class Answer
             json.WriteString("id", anchor.Id);
             json.WriteNumber("onset", anchor.Span.Onset.Value);
             json.WriteNumber("end", anchor.Span.End.Value);
-            if (phrases.Phrases.FirstOrDefault(phrase => phrase.Span == anchor.Span) is { } phrase)
+            if (phrases.WithSpan(anchor.Span) is { } phrase)
             {
                 json.WriteNumber("phrase", phrase.Number);
             }

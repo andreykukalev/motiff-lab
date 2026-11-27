@@ -121,7 +121,7 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
     /// <summary><paramref name="made"/> with its work placed one by one by <paramref name="follow"/>, and what that moved.</summary>
     private static FollowedWork Followed(Project made, Following follow)
     {
-        Project followed = made with
+        Project followed = (made with
         {
             Phrases = follow.Edits(made.Phrases, Told.Phrase),
             ShortPhrases = follow.Edits(made.ShortPhrases, Told.None),
@@ -138,7 +138,7 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             Marks = follow.Marked(made.Marks),
             Performances = [.. made.Performances.Select(follow.Compared)],
             Check = made.Check is { } check ? follow.Checks(check) : null,
-        };
+        }).WithAnchorsMerged();
         return new FollowedWork(followed, follow.Moved(Told.Bookmark), follow.Moved(Told.Phrase), follow.Moved(Told.Idea), follow.Near, [.. follow.NearBars]);
     }
 
