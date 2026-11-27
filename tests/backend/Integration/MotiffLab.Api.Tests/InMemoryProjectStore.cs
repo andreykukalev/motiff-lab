@@ -23,7 +23,8 @@ internal sealed class InMemoryProjectStore : IProjectStore
 
     public Task<string> PutAsync(string ownerId, ProjectSummary summary, string packedFile, string? ifMatch, CancellationToken cancellationToken)
     {
-        if (ifMatch is not null && (!_documents.TryGetValue((ownerId, summary.Id), out var current) || current.Project.ETag != ifMatch))
+        bool kept = _documents.TryGetValue((ownerId, summary.Id), out var current);
+        if (ifMatch is null ? kept : !kept || current.Project.ETag != ifMatch)
         {
             throw new ConflictException();
         }
@@ -34,8 +35,15 @@ internal sealed class InMemoryProjectStore : IProjectStore
         return Task.FromResult(etag);
     }
 
-    public Task<bool> DeleteAsync(string ownerId, string id, CancellationToken cancellationToken) =>
-        Task.FromResult(_documents.TryRemove((ownerId, id), out _));
+    public Task<bool> DeleteAsync(string ownerId, string id, string? ifMatch, CancellationToken cancellationToken)
+    {
+        if (ifMatch is not null && _documents.TryGetValue((ownerId, id), out var current) && current.Project.ETag != ifMatch)
+        {
+            throw new ConflictException();
+        }
+
+        return Task.FromResult(_documents.TryRemove((ownerId, id), out _));
+    }
 
     public Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken)
     {

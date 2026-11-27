@@ -97,6 +97,6 @@ The API is not part of the pair: it deploys on its own after Andrei approves (V1
 - The `merger` stamp (an older merger does not merge a newer one's output): for the core, web, iPad and advocates 1 and 2, against for the cost seat and the blind seat as a duplicate of `minReader`.
 - The stored snapshot of derived data that advocate 3 asked for: only if the parity golden fails (S7).
 - Server-kept version history (C5): Andrei's decision after the RU measurement of 2026-11-08.
-- The rule when two anchors `ph_` still meet for one span; the council's proposal (the iPad seat) keeps the smaller id. Set by the merge task.
+- The rule when two anchors `ph_` still meet for one span; the council's proposal (the iPad seat) keeps the smaller id. Set by the merge task: the smaller id stays (the lead, 2026-11-27; c-14d for one copy, c-17a for two, `ProjectMerge`).
 - Whether a recognised PDF's marks stay on the iPad (C3, the moderator's reading).
 - The sync quota (0025, section 8).

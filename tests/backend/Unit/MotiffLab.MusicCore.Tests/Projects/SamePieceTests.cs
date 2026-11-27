@@ -230,6 +230,25 @@ public class SamePieceTests
     }
 
     [Fact]
+    public void Project_join_leaves_out_a_later_builds_copy_and_answers_and_takes_the_indices_as_sent()
+    {
+        // The indices of "files", "stay", "keeper" and "from" are the request's, with the read-only copy among them.
+        var facade = new MusicCoreFacade();
+        static string Text(Project project) => Encoding.UTF8.GetString(ProjectFile.Write(project));
+        string later = Text(OnWeb() with { Id = "p_cccccccccccccccccccccccccccccccc", Newer = new NewerFile(ProjectFile.Version + 1, ProjectFile.MinReader) });
+        string[] files = [later, Text(OnIpad()), Text(Fetched(OnWeb()))];
+        JsonElement Joined(int[] stay) => Assert.Single(JsonDocument.Parse(facade.Call(0, "project.join", JsonSerializer.Serialize(new { files, stay }))).RootElement.GetProperty("joined").EnumerateArray());
+
+        JsonElement made = Joined([]);
+        Assert.Equal(2, made.GetProperty("keeper").GetInt32());
+        Assert.Equal([1], made.GetProperty("from").EnumerateArray().Select(static index => index.GetInt32()).ToArray());
+
+        JsonElement stays = Joined([1]);
+        Assert.Equal(1, stays.GetProperty("keeper").GetInt32());
+        Assert.Equal([2], stays.GetProperty("from").EnumerateArray().Select(static index => index.GetInt32()).ToArray());
+    }
+
+    [Fact]
     public void Two_files_saved_by_the_ipad_from_the_same_score_on_two_days_join_with_both_tags()
     {
         // As CloudSyncTests.testTheSamePieceAddedHereAndOnTheWebIsOnePiece makes them on the iPad.
