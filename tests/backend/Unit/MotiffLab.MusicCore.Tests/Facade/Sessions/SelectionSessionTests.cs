@@ -28,10 +28,23 @@ public class SelectionSessionTests
     private static SelectionSession Tried(OpenPiece piece)
     {
         SelectionSession session = piece.Selection;
-        session.Select(Bars(piece, 1, 4), MotifSelectionKind.Range);
-        SelectionUnderstanding understood = session.Understand(piece.State);
-        session.Try(piece.State, understood.Context.Motif.Facts.SelectMany(understood.Chips).Select(offered => offered.Id).First());
+        session.Select(piece.State, Bars(piece, 1, 4), MotifSelectionKind.Range);
+        TryFirst(session, piece.State);
         return session;
+    }
+
+    /// <summary>The first chip the selected motif offers tried.</summary>
+    private static void TryFirst(SelectionSession session, SessionPiece state)
+    {
+        SelectionUnderstanding understood = session.Understand(state);
+        session.Try(state, understood.Context.Motif.Facts.SelectMany(understood.Chips).Select(offered => offered.Id).First());
+    }
+
+    /// <summary>The piece as <paramref name="state"/> with the session's motifs and variations saved into its project.</summary>
+    private static SessionPiece SavedBy(SelectionSession session, SessionPiece state)
+    {
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = session.Saved(state, layerOff: false);
+        return state with { Project = state.Project with { Motifs = motifs, Variations = variations } };
     }
 
     [Fact]
@@ -39,7 +52,7 @@ public class SelectionSessionTests
     {
         OpenPiece piece = Example();
         SelectionSession session = piece.Selection;
-        session.Select(Bars(piece, 1, 4), MotifSelectionKind.Range);
+        session.Select(piece.State, Bars(piece, 1, 4), MotifSelectionKind.Range);
 
         SelectionUnderstanding understood = session.Understand(piece.State);
         Assert.Same(understood.Context, session.Understood(piece.State));
@@ -62,7 +75,7 @@ public class SelectionSessionTests
         SelectionSession session = Tried(piece);
         InvitationContext before = session.Understood(piece.State);
 
-        session.Select(Bars(piece, 5, 8), MotifSelectionKind.Range);
+        session.Select(piece.State, Bars(piece, 5, 8), MotifSelectionKind.Range);
 
         Assert.Null(session.Chain);
         Assert.Null(session.Chip);
@@ -71,11 +84,103 @@ public class SelectionSessionTests
     }
 
     [Fact]
+    public void Another_passage_after_a_save_is_saved_beside_the_working_motif_and_the_same_passage_again_is_not()
+    {
+        // #821: the working motif keeps its variations in the file once another passage is chosen.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+
+        session.Select(saved, Bars(piece, 1, 4), MotifSelectionKind.Range);
+        Assert.Equal("m_0001", session.MotifId);
+        session.Select(saved, Bars(piece, 5, 8), MotifSelectionKind.Range);
+        Assert.Equal("m_0002", session.MotifId);
+
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = session.Saved(saved, layerOff: false);
+        Assert.Equal(["m_0002", "m_0001"], motifs.Select(motif => motif.Id));
+        Assert.Same(saved.Project.Motifs[0], motifs[1]);
+        Assert.Equal(saved.Project.Variations, variations);
+    }
+
+    [Fact]
+    public void With_no_passage_left_to_save_the_working_motif_stays_with_every_saved_variation_of_it()
+    {
+        // #821: the correction took every note of the passage; the chain shown goes, its saved copy and the motif stay.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+        SavedVariation other = saved.Project.Variations[0] with { Id = "v_0002" };
+        saved = saved with { Project = saved.Project with { Variations = [.. saved.Project.Variations, other] } };
+
+        session.FollowNotes(saved with { Notes = [] });
+
+        (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = session.Saved(saved, layerOff: false);
+        Assert.Equal(saved.Project.Motifs, motifs);
+        Assert.Equal(saved.Project.Variations, variations);
+    }
+
+    [Fact]
+    public void The_same_passage_again_or_the_variation_cleared_keeps_its_saved_copy_and_the_next_one_is_saved_beside_it()
+    {
+        // #821, the lead's decision: a save never loses a saved variation; only what was shown and not saved goes.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+
+        session.Select(saved, Bars(piece, 1, 4), MotifSelectionKind.Range);
+        Assert.Equal("m_0001", session.MotifId);
+        Assert.Equal(saved.Project.Variations, session.Saved(saved, layerOff: false).Variations);
+
+        TryFirst(session, saved);
+        SessionPiece again = SavedBy(session, saved);
+        Assert.Equal(["v_0002", "v_0001"], again.Project.Variations.Select(variation => variation.Id));
+        Assert.Same(saved.Project.Variations[0], again.Project.Variations[1]);
+
+        session.Clear(again);
+        Assert.Equal(again.Project.Variations, session.Saved(again, layerOff: false).Variations);
+    }
+
+    [Fact]
+    public void A_chip_tried_after_a_save_is_saved_beside_the_saved_chain_and_chips_tried_in_between_add_no_variation()
+    {
+        // #821, review round 1: try, autosave, try and try again, save: the first chain stays and the last one is saved beside it.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+
+        TryFirst(session, saved);
+        TryFirst(session, saved);
+        SessionPiece again = SavedBy(session, saved);
+
+        Assert.Equal(["v_0002", "v_0001"], again.Project.Variations.Select(variation => variation.Id));
+        Assert.Same(saved.Project.Variations[0], again.Project.Variations[1]);
+    }
+
+    [Fact]
+    public void A_chip_tried_while_the_working_variation_is_hidden_is_saved_beside_it()
+    {
+        // #821, review round 1: the variation that no longer fits the notes stays in the file as it was.
+        OpenPiece piece = Example();
+        SelectionSession session = Tried(piece);
+        SessionPiece saved = SavedBy(session, piece.State);
+        SavedVariation unfit = saved.Project.Variations[0] with { Steps = [new SavedStep("no.such.operation", saved.Project.Variations[0].Steps[0].Parameters)] };
+        saved = saved with { Project = saved.Project with { Variations = [unfit] } };
+        session.FollowLayer(saved, unfit);
+        Assert.Same(unfit, session.HiddenVariation);
+
+        TryFirst(session, saved);
+
+        IReadOnlyList<SavedVariation> variations = session.Saved(saved, layerOff: false).Variations;
+        Assert.Equal(["v_0002", "v_0001"], variations.Select(variation => variation.Id));
+        Assert.Same(unfit, variations[1]);
+    }
+
+    [Fact]
     public void A_passage_of_time_is_kept_but_not_understood_and_not_saved_as_a_motif()
     {
         OpenPiece piece = Example();
         SelectionSession session = piece.Selection;
-        session.Select(Bars(piece, 1, 2) with { NoteIds = [] }, MotifSelectionKind.Range);
+        session.Select(piece.State, Bars(piece, 1, 2) with { NoteIds = [] }, MotifSelectionKind.Range);
 
         Assert.Equal("unavailable", Assert.Throws<FacadeException>(() => session.Understood(piece.State)).Code);
         Assert.DoesNotContain(session.Saved(piece.State, layerOff: false).Motifs, motif => motif.Id == session.MotifId);
@@ -86,7 +191,7 @@ public class SelectionSessionTests
     {
         OpenPiece piece = Example();
         SelectionSession session = piece.Selection;
-        session.Select(Bars(piece, 1, 4), MotifSelectionKind.Range);
+        session.Select(piece.State, Bars(piece, 1, 4), MotifSelectionKind.Range);
         SessionPiece state = piece.State;
         InvitationContext first = session.Understood(state);
 
@@ -138,7 +243,7 @@ public class SelectionSessionTests
         SelectionSession session = Tried(piece);
         VariationChain idea = session.Variation();
 
-        session.Open(Bars(piece, 1, 4), idea);
+        session.Open(piece.State, Bars(piece, 1, 4), idea);
 
         Assert.Same(idea, session.Chain);
         Assert.Null(session.Chip);

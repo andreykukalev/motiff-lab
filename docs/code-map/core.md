@@ -61,7 +61,8 @@ through the facade; the API references it.
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
   registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   the typed sessions (W1.7) in `Facade/Sessions`: `SelectionSession` (the selection, what was understood, the Try chip,
-  the chain, the working motif) owns its state, reads the piece through `SessionPiece` (`OpenPiece.State`), takes typed
+  the chain, the working motif; a save keeps the working motif's other variations, another passage is saved beside it,
+  #821) owns its state, reads the piece through `SessionPiece` (`OpenPiece.State`), takes typed
   values and returns typed results, no request, JSON or clock; its JSON adapter is `OpenPiece.Selection` (`Calls.Selection`);
   `CorrectionsSession` (the note editor's draft, the draft or variant accepted last, the corrections' layer; each
   correction answers the edit log, which the open piece keeps) answers `BarCorrections` (`Answer.Corrections`), its

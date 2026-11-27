@@ -171,6 +171,26 @@ public class SourceLayersFacadeTests
     }
 
     [Fact]
+    public void A_passage_saved_once_other_notes_are_working_is_saved_beside_the_motif_waiting_with_the_notes_before()
+    {
+        // Opened strictly, no motif opens on the new working notes; the passage takes an id the waiting motif does not have (#821).
+        var imported = new MusicCoreFacade();
+        _ = imported.Open("a.musicxml", Performance.ReadingCarryTests.ReadingXml("E4 F4 G4 A4 | B4 C5 D5 E5"));
+        Call(imported, "select", """{"bars": {"first": 1, "last": 2}}""");
+        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(imported.Call(1, "project.save")))
+            .AddNotes(new OtherNotes("n_2", "b.musicxml", Performance.ReadingCarryTests.ReadingXml("C4 D4 E4 F4 | G4 A4 B4 C5"), new NotesProvenance(NotesProvenance.Import)));
+        var facade = new MusicCoreFacade();
+        _ = facade.Open("a.motiff.json", ProjectFile.Write(project));
+        Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
+
+        Call(facade, "select", """{"bars": {"first": 2, "last": 2}}""");
+        Project saved = ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save")));
+
+        Assert.Equal([("m_0002", null), ("m_0001", "n_1")], saved.Motifs.Select(motif => (motif.Id, motif.Notes)));
+        Assert.Equal(project.Motifs[0].NoteIds, saved.Motifs[1].NoteIds);
+    }
+
+    [Fact]
     public void A_removed_pdf_leaves_its_notes_removed_and_the_same_file_added_again_revives_it_beside_another_pdf()
     {
         MusicCoreFacade facade = Opened();

@@ -134,7 +134,7 @@ The working notes and everything the player made on them, in their ticks.
   "partOf": { "original": "src_book", "pages": [6, 11] },   // optional: only a piece made from a collection; or "ms": [from, to]
   "editsOff": true,                 // optional: only while the player has turned the corrections off
   "tempo": { "quarterNotesPerMinute": 92 },   // optional: only once the player set the piece's tempo
-  "motifs": [ … ],                  // the working selection; a motif made on other Notes than the working ones names them ("notes": "n_1")
+  "motifs": [ … ],                  // the working selection first; a motif made on other Notes than the working ones names them ("notes": "n_1")
   "variations": [ … ],              // chains of steps on a motif; an optional "key" { "fifths", "mode" } the steps read
   "observations": [ … ],            // ideas
   "phrases": { "added": [ticks], "removed": [ticks],
@@ -149,6 +149,8 @@ The working notes and everything the player made on them, in their ticks.
   "hiddenViews": ["src_pdf_2", "perf_1"]   // optional: the views hidden from the switch, only while the player hid one
 }
 ```
+
+A save never loses a saved variation (#821): the facade writes the selection as the working motif (the first motif, which the piece opens on) and the chain shown under the id of the variation it was opened from, written over only its own earlier save; every other variation stays as it was. A chain that goes (another chip tried, the same passage chosen again, the variation left, a correction) leaves its saved copy as it was, and the next one is saved beside it; trying chips without a save in between adds no variation. Once the player chooses another passage or brings back an idea on one, a working motif that has variations saved stays as it was, with all of them, and the passage is saved beside it under a new id; the same passage again stays the working motif.
 
 ### Views hidden from the switch (`hiddenViews`)
 
@@ -551,8 +553,8 @@ A later build can add a value to an enum while the file keeps its version ([0026
 - **The entities kept so**: an original (`originals`), a Notes this build cannot open (`notes`, see "Notes"), a motif (`motifs`), a variation (`variations`), an idea (`observations`), a stroke (`marks.ink`, an original's `marks.ink`), a highlight (`marks.highlights`), a bookmark category (`bookmarks.categories`), a resume point (`resumePoints`), a Check flag (`check`) and a draft (`drafts`, version 17), whatever the depth of the value inside it.
 - **What goes with it.** A motif and its variations are kept or left unknown together. A bookmark in an unknown category of the player's own is left unknown with it.
 - **Built-in categories** are always there (#364). One with an unknown ink is kept unknown and written back as it was, and stands in under the name the file gives it, in the built-in's own ink (an app never shows an ink it does not have): its bookmarks are read as known, bookmarks can be added to it and moved into it (removing a category moves its bookmarks to Practise). Once the player renames it, the renamed one takes its place.
-- **New ids** for bookmarks, categories, resume points, ideas, highlights and Notes pass the unknown ones by, and a bookmark is never added under the id of an unknown one (#364). An entity an app makes with the id of an unknown one (the facade's working motif `m_0001`) takes its place: the unknown one is not written, and neither is what went with it.
-- **Owned entities** (a variation of its motif, a bookmark of its category) are taken only by a known one with the same id and the same owner (#364): one of another owner never drops it. A variation the app makes with the id of an unknown variation of another motif (the facade names the working motif's variation after the motif, `v_0002` for `m_0002`) is written under the next id free of both, so no two variations of the file share one.
+- **New ids** for bookmarks, categories, resume points, ideas, highlights and Notes pass the unknown ones by, and a bookmark is never added under the id of an unknown one (#364). A new working motif of the facade passes the unknown motifs by too (#821). An entity an app makes with the id of an unknown one takes its place: the unknown one is not written, and neither is what went with it.
+- **Owned entities** (a variation of its motif, a bookmark of its category) are taken only by a known one with the same id and the same owner (#364): one of another owner never drops it. The facade never makes a variation with the id of an unknown one (its working variation passes them by, #821); one made so by a project built another way is written under the next id free of both, so no two variations of the file share one.
 - **Still damaged**: an unknown value in a note correction's values or hand, in the compared notes' `performance` or in the assembly, since keeping those aside would change the notes that sound (Andrei, #313); an unknown per-piece setting or variation operation; an unknown `Overlay` or Keep choice.
 - **Unknown fields** are kept at the top level, in `workspace`, in each Notes, each original and each provenance, and written back after the known fields in the order they came; elsewhere they are dropped on writing, except inside an entity kept whole as unknown. An unknown `op` keeps its provenance whole.
 

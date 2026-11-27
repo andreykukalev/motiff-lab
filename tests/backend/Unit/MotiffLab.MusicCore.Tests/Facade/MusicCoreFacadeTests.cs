@@ -152,7 +152,7 @@ public class MusicCoreFacadeTests
         string id = Call(facade, "corrections", """{"bar": 2}""").GetProperty("notes")[0].GetProperty("id").GetString()!;
         Call(facade, "corrections.remove", $$"""{"bar": 2, "id": "{{id}}"}""");
         Assert.Equal("badRequest", Error(facade, 1, "corrections.discard", """{"bar": 999}"""));
-        Assert.Equal("badRequest", Error(facade, 1, "corrections.save", "{}"));
+        Assert.Equal("badRequest", Error(facade, 1, "corrections.save", """{"bar": "two"}"""));
         JsonElement still = Call(facade, "corrections", """{"bar": 2}""");
         Assert.True(still.GetProperty("editing").GetBoolean());
         Assert.True(still.GetProperty("changed").GetBoolean());

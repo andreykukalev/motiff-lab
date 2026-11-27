@@ -110,7 +110,7 @@ public class UnknownValueTests
     [Fact]
     public void A_motif_an_app_makes_in_the_place_of_an_unknown_one_replaces_it_with_its_variations()
     {
-        // The facade keeps its working motif as m_0001 when no motif opens; saving it takes the unknown one's place.
+        // A known motif written under an unknown one's id takes its place (the facade's working motif never takes such an id, #821).
         JsonObject file = With(Worked(), "motifs/0/mode", UnknownValue);
         Project project = ProjectFile.Read(Bytes(file));
         SavedMotif working = project.Motifs[0] with { Id = "m_0001", Name = "New working motif" };
