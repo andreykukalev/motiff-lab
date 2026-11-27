@@ -31,7 +31,8 @@ through the facade; the API references it.
   `SequenceFound`) and `MusicalIdeas.Facts` (the names, titles and lines); `.Phrasing`: the phrase levels, one edit algebra
   (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
-- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
+- `Motifs`, `Variations` (the catalogue operations, `VariationChain`; `VariationFacts`: the diff, the Keep checks and the
+  explanation's measures, `DiffMeasures` and `CopyMove`, with their sentences and `Length` in `VariationFacts.Explanation`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
 - `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
   voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
