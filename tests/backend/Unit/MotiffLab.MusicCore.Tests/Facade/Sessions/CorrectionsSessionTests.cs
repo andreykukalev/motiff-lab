@@ -16,7 +16,7 @@ public class CorrectionsSessionTests
         "FurElise.musicxml",
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Import", "MusicXml", "Fixtures", "FurElise.musicxml")),
         Words.English,
-        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero));
+        new DateTimeOffset(2026, 11, 26, 8, 0, 0, TimeSpan.Zero), IdSource.Numbered);
 
     /// <summary>The piece as it reads with <paramref name="edits"/> kept, as the open piece keeps a log the session made.</summary>
     private static SessionPiece With(SessionPiece piece, NoteEditLog edits) => piece with { Project = piece.Project with { Edits = edits } };

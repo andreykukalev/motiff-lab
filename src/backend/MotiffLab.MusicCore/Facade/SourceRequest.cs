@@ -24,12 +24,12 @@ internal static class SourceRequest
     public static readonly FacadeCall<SourceOwner>[] Calls =
     [
         new("sources", static (on, _) => Sources(on.Get(), on.Words), CallFlags.OpenFirst),
-        new("sources.notes.hear", static (on, request) => Hear(request, on.Get, on.Set, on.Words)),
+        new("sources.notes.hear", static (on, request) => Hear(request, on)),
         new("sources.layers", static (on, request) => Layers(request, on.Get(), on.Words)),
         new("sources.view.hide", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.ViewHidden(request.Required("id"), request.Bool("hidden") ?? throw FacadeException.BadRequest("Send \"hidden\", true or false.")))),
         new("sources.notes.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.DeleteNotes(request.Required("id")))),
         new("sources.original.remove", static (on, request) => Changed(request, on.Get, on.Set, on.Words, project => project.RemoveOriginal(request.Required("id"), request.Now(), request.Bool("withNotes") ?? false))),
-        new("sources.original.add", static (on, request) => AddOriginal(request, on.Get, on.Set, on.EvenPages, on.Words)),
+        new("sources.original.add", static (on, request) => AddOriginal(request, on)),
     ];
 
     /// <summary>
@@ -78,14 +78,25 @@ internal static class SourceRequest
     /// finding 29), the working notes, so the app opens the piece again as notes from the file it saves. Answers the
     /// sources with their "id".
     /// </summary>
-    public static string Hear(Request request, Func<Project> get, Action<Project> set, Words words)
+    private static string Hear(Request request, SourceOwner on)
     {
-        Project project = get();
-        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = OpenPiece.Heard(Path.ChangeExtension(project.FileName, ".mid"), request, words);
+        Project project = on.Get();
+        (byte[] midi, TranscriptionOrigin origin, IReadOnlyList<CheckFlag> check) = OpenPiece.Heard(Path.ChangeExtension(project.FileName, ".mid"), request, on.Words);
         long from = request.Long("sentFromMs") ?? 0;
         (long, long) stretch = (from, from + request.Long("milliseconds")!.Value);
-        string id = project.HasNotes ? project.NextNotesId() : project.NotesId;
-        return Changed(request, get, set, words, piece => piece.HeardFrom(request.Required("original"), midi, origin, check, request.Now(), stretch), json => json.WriteString("id", id));
+        string id = string.Empty;
+        return Changed(
+            request,
+            on.Get,
+            on.Set,
+            on.Words,
+            piece =>
+            {
+                Project heard = piece.HeardFrom(request.Required("original"), midi, origin, check, request.Now(), on.Ids, stretch);
+                id = piece.HasNotes ? heard.Sources.Notes[^1].Id : heard.NotesId;
+                return heard;
+            },
+            json => json.WriteString("id", id));
     }
 
     /// <summary>
@@ -136,7 +147,7 @@ internal static class SourceRequest
     /// default, "device" or "link"), "data" (base64, with "file"), "folder", "pages", "durationMs" and "now". The same file
     /// as a removed original revives it. Answers the sources with the original's "id".
     /// </summary>
-    private static string AddOriginal(Request request, Func<Project> get, Action<Project> set, Func<int, PageMap>? evenPages, Words words)
+    private static string AddOriginal(Request request, SourceOwner on)
     {
         OriginalKind kind = request.Text("kind") switch
         {
@@ -163,20 +174,20 @@ internal static class SourceRequest
             OriginalKind.Midi => "src_midi",
             _ => "src_score",
         };
-        Project project = get();
-        var original = new PieceOriginal(project.NextOriginalId(stem), kind, request.Required("fileName"), kept, request.Now())
+        Project project = on.Get();
+        var original = new PieceOriginal(project.NextOriginalId(stem, on.Ids), kind, request.Required("fileName"), kept, request.Now())
         {
             Folder = request.Text("folder"),
             Pages = request.Int("pages"),
             DurationMs = request.Int("durationMs"),
         };
-        PageMap? pages = data is not null && kind == OriginalKind.Pdf && PdfDocument.IsPdf(data) && evenPages is not null
-            ? evenPages(Math.Max(1, request.Int("pages") ?? PdfDocument.PageCount(data)))
+        PageMap? pages = data is not null && kind == OriginalKind.Pdf && PdfDocument.IsPdf(data) && on.EvenPages is not null
+            ? on.EvenPages(Math.Max(1, request.Int("pages") ?? PdfDocument.PageCount(data)))
             : null;
         // The same file as a removed original takes its id back.
         string? sha = data is null ? null : PieceOriginal.Fingerprint(data);
         string id = project.Sources.Removed.FirstOrDefault(removed => sha is not null && removed.Original.Matches(sha))?.Original.Id ?? original.Id;
-        return Changed(request, get, set, words, piece => piece.AddOriginal(original, data, pages), json => json.WriteString("id", id));
+        return Changed(request, on.Get, on.Set, on.Words, piece => piece.AddOriginal(original, data, pages), json => json.WriteString("id", id));
     }
 
     public static byte[] Base64(string text, string name)
@@ -195,6 +206,6 @@ internal static class SourceRequest
 /// <summary>
 /// The project a call of <see cref="SourceRequest.Calls"/> reads and changes, of a piece with notes or without: how to get
 /// and set it, the page map of a PDF added to a piece with notes (its pages shared over the bars; null for a piece with
-/// none) and the words of the answer.
+/// none), the words of the answer and where the ids of new Notes and originals come from.
 /// </summary>
-internal sealed record SourceOwner(Func<Project> Get, Action<Project> Set, Func<int, PageMap>? EvenPages, Words Words);
+internal sealed record SourceOwner(Func<Project> Get, Action<Project> Set, Func<int, PageMap>? EvenPages, Words Words, IdSource Ids);

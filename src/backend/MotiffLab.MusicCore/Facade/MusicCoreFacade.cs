@@ -15,7 +15,9 @@ namespace MotiffLab.MusicCore.Facade;
 /// with JSON text. The iPad app calls it through the C functions of the native build (src/ipad/Core). The calls, where
 /// each is answered and its flags are <see cref="CallRegistry"/>; docs/facade-contract.md lists them with the contract's
 /// history. The same calls in the same order give the same answers, apart from a new project's id and creation time when
-/// the request names neither.
+/// the request names neither, and the ids of what is made in a piece, which come from the facade's <see cref="IdSource"/>
+/// (0026 S3, #317): the iPad's is <see cref="IdSource.Random"/>, the one a facade made without one numbers them, so tests
+/// and goldens get the same answers every time.
 /// </summary>
 /// <remarks>
 /// Not thread-safe: an app calls it from one thread at a time. Every answer is one JSON object; a failure is
@@ -27,8 +29,22 @@ public sealed partial class MusicCoreFacade
     public const int Contract = 16;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
+    private readonly IdSource _ids;
     private readonly Dictionary<int, OpenDocument> _documents = [];
     private int _next = 1;
+
+    /// <summary>A facade whose new ids are numbered (<see cref="IdSource.Numbered"/>): for tests, goldens and tools.</summary>
+    public MusicCoreFacade()
+        : this(IdSource.Numbered)
+    {
+    }
+
+    /// <summary>A facade whose pieces take every new id from <paramref name="ids"/>: the iPad gives <see cref="IdSource.Random"/>.</summary>
+    public MusicCoreFacade(IdSource ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        _ids = ids;
+    }
 
     /// <summary>How many pieces are open, PDF pieces with them.</summary>
     public int Count => _pieces.Count + _documents.Count;
@@ -50,7 +66,9 @@ public sealed partial class MusicCoreFacade
     /// "off", version 0.5) lays the corrections over the notes one by one or leaves them out; without it they must all fit.
     /// With "recording" ({"durationMs", "sha256"}, version 1.1, finding 29) the file is a recording the player added as it
     /// is, the data its sound (or nothing): the new piece is only that recording, with no notes, and opens as a PDF piece
-    /// does, its answer naming the "recording" in place of "document"; so does the project file of such a piece.
+    /// does, its answer naming the "recording" in place of "document"; so does the project file of such a piece. With
+    /// "onlineIds" (version 1.6, #317), the ids of the app's projects saved online, a project file with a numbered id that is not
+    /// among them opens re-keyed (<see cref="Rekeyed"/>): its project answers the new id and "formerIds", and is saved so.
     /// </summary>
     public string Open(string fileName, ReadOnlySpan<byte> data, string? request = null)
     {
@@ -61,11 +79,16 @@ public sealed partial class MusicCoreFacade
             Words words = Words.For(fields.Text("language"));
             DateTimeOffset now = fields.Now();
             byte[] bytes = data.ToArray();
+            if (fields.Has("onlineIds") && IsProjectFile(fileName, bytes))
+            {
+                bytes = Rekeyed(bytes, fields.Texts("onlineIds"));
+            }
+
             int number = _next;
             string id = fields.Text("id") ?? NewProjectId();
             if (fields.Has("transcription"))
             {
-                OpenPiece heard = OpenPiece.Transcribe(id, fileName, fields.Object("transcription"), words, now);
+                OpenPiece heard = OpenPiece.Transcribe(id, fileName, fields.Object("transcription"), words, now, _ids);
                 _pieces[number] = heard;
                 _next++;
                 return Answer.Write(json =>
@@ -80,9 +103,9 @@ public sealed partial class MusicCoreFacade
             bool recording = fields.Has("recording");
             if (recording || IsPdf(fileName, bytes) || (IsProjectFile(fileName, bytes) && ReadWithoutNotes(bytes, asPdf) is not null))
             {
-                OpenDocument document = recording ? OpenDocument.CreateRecording(id, fileName, data, fields, now)
-                    : IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, fields.Int("photos"))
-                    : OpenDocument.Open(ReadWithoutNotes(bytes, asPdf)!);
+                OpenDocument document = recording ? OpenDocument.CreateRecording(id, fileName, data, fields, now, _ids)
+                    : IsPdf(fileName, bytes) ? OpenDocument.Create(id, fileName, bytes, words, now, _ids, fields.Int("photos"))
+                    : OpenDocument.Open(ReadWithoutNotes(bytes, asPdf)!, _ids);
                 _documents[number] = document;
                 _next++;
                 return Answer.Write(json =>
@@ -100,7 +123,7 @@ public sealed partial class MusicCoreFacade
                 }
 
                 // Version 0.5, «Импорт папки»: the PDF read from where it is, matched by its fingerprint; never written into the file.
-                OpenDocument away = OpenDocument.Open(AwayOpened(bytes, fields.Required("pdf")));
+                OpenDocument away = OpenDocument.Open(AwayOpened(bytes, fields.Required("pdf")), _ids);
                 _documents[number] = away;
                 _next++;
                 return Answer.Write(json =>
@@ -111,8 +134,8 @@ public sealed partial class MusicCoreFacade
             }
 
             OpenPiece piece = IsProjectFile(fileName, bytes)
-                ? OpenPiece.Open(bytes, words, OpenPiece.LayerOf(fields.Text("edits")), asTheFileSays: fields.Text("edits") == "piece")
-                : OpenPiece.Import(id, fileName, bytes, words, now);
+                ? OpenPiece.Open(bytes, words, _ids, OpenPiece.LayerOf(fields.Text("edits")), asTheFileSays: fields.Text("edits") == "piece")
+                : OpenPiece.Import(id, fileName, bytes, words, now, _ids);
             _pieces[number] = piece;
             _next++;
             return Answer.Write(json =>
@@ -254,7 +277,7 @@ public sealed partial class MusicCoreFacade
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, from.Corrections.Layer).AsReadOnly(view);
+        OpenPiece opened = OpenPiece.Open(ProjectFile.Write(project), from.Words, _ids, from.Corrections.Layer).AsReadOnly(view);
         int number = _next++;
         _pieces[number] = opened;
         return Answer.Write(json =>
@@ -291,7 +314,7 @@ public sealed partial class MusicCoreFacade
             throw FacadeException.Unavailable(exception.Message);
         }
 
-        OpenPiece reopened = OpenPiece.Open(ProjectFile.Write(changed), open.Words, open.Corrections.Layer);
+        OpenPiece reopened = OpenPiece.Open(ProjectFile.Write(changed), open.Words, _ids, open.Corrections.Layer);
         _pieces[number] = reopened;
         return Answer.Write(json =>
         {
@@ -388,7 +411,7 @@ public sealed partial class MusicCoreFacade
     /// different devices never share one (V8). Ids numbered by a counter in each run ("p_0001") gave two different iPad
     /// pieces the same id; files that carry such ids still open as they are.
     /// </summary>
-    public static string NewProjectId() => string.Create(CultureInfo.InvariantCulture, $"p_{Guid.NewGuid():N}");
+    public static string NewProjectId() => IdSource.Random.Next("p_", []);
 
     /// <summary>
     /// The project to save for a project file the player imports, given the project already saved under the file's id
@@ -407,6 +430,33 @@ public sealed partial class MusicCoreFacade
             ? !savedUnreadable
             : saved.Id == file.Id && saved.CreatedAt == file.CreatedAt;
         return sameProject ? file : file with { Id = NewProjectId() };
+    }
+
+    /// <summary>
+    /// The project file with its numbered id re-keyed (<see cref="ProjectIds.Rekeyed"/>, 0026 C4), unless the project is saved
+    /// online, its id among <paramref name="online"/>: a copy online keeps its id, and the sync decides it (the lead's
+    /// decision 9 of version 1.6). A file that does not read, a later version's (read-only, never saved) and one whose id is
+    /// not numbered are left as they are.
+    /// </summary>
+    private static byte[] Rekeyed(byte[] projectFile, IReadOnlyList<string> online)
+    {
+        Project project;
+        try
+        {
+            string id = ProjectFile.ReadEnvelope(projectFile).Id;
+            if (!ProjectIds.IsNumbered(id) || online.Contains(id))
+            {
+                return projectFile;
+            }
+
+            project = ProjectFile.Read(projectFile);
+        }
+        catch (ProjectFileException)
+        {
+            return projectFile;
+        }
+
+        return project.IsReadOnly ? projectFile : ProjectFile.Write(project.Rekeyed());
     }
 
     /// <summary>Forgets an open piece; false when it was not open.</summary>

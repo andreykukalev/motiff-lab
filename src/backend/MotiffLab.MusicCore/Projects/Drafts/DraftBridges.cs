@@ -80,12 +80,12 @@ internal static class DraftBridges
 
     /// <summary>
     /// «Связка»: the candidates of the seam before the place <paramref name="placeId"/> put as the variants of a new bridge
-    /// place just before it, the first its base, <paramref name="at"/> when.
+    /// place just before it, the first its base, <paramref name="at"/> when, their ids from <paramref name="ids"/>.
     /// </summary>
     /// <exception cref="KeyNotFoundException">No such place.</exception>
     /// <exception cref="ArgumentException">The first place, which has no seam before it.</exception>
     /// <exception cref="InvalidOperationException">No bridge is offered there: the keys do not differ, or a side is a bridge.</exception>
-    public static Draft Put(Draft draft, string placeId, DateTimeOffset at)
+    public static Draft Put(Draft draft, string placeId, DateTimeOffset at, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(draft);
         int index = draft.Places.ToList().IndexOf(draft.FindPlace(placeId) ?? throw new KeyNotFoundException($"The draft has no place {placeId}."));
@@ -98,11 +98,11 @@ internal static class DraftBridges
 
         DraftSource after = seam.After.Base.From;
         var from = new DraftSource(after.Notes, after.Span) { Project = after.Project };
-        string place = draft.NextPlaceId();
+        string place = draft.NextPlaceId(ids);
         List<DraftVariant> variants = [];
         foreach (BridgeCandidate candidate in candidates)
         {
-            string id = Project.NextId("v_", [.. draft.Ids, .. variants.Select(static variant => variant.Id)]);
+            string id = ids.Next("v_", [.. draft.Ids, .. variants.Select(static variant => variant.Id)]);
             var provenance = new NotesProvenance(NotesProvenance.Variation) { ParamsJson = $$"""{"{{KindParam}}":"{{Name(candidate.Kind)}}"}""", At = at };
             variants.Add(new DraftVariant(id, at, from, provenance, candidate.Music));
         }

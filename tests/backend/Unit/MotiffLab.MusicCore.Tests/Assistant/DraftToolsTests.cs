@@ -26,7 +26,7 @@ public class DraftToolsTests
     {
         SourceMusic score = Score();
         Project project = Project.Create("p_1", "a.mid", MidiExporter.Export(score.Notes, score.Tempos, score.Meter, "a"), At).WithNewDraft(Drafted(OctavesAndBass()));
-        return DraftScope.Of(project, "d_1", "pl_1", null, At, Ru);
+        return DraftScope.Of(project, "d_1", "pl_1", null, At, Ru, IdSource.Numbered);
     }
 
     private static JsonElement Parameters(string json) => JsonDocument.Parse(json).RootElement;
@@ -99,7 +99,7 @@ public class DraftToolsTests
         Project project = Project.Create("p_1", "a.mid", MidiExporter.Export(score.Notes, score.Tempos, score.Meter, "a"), At)
             .WithNewDraft(Draft.Start("d_1", "Предложение", At, "pl_1", Variant("v_1", score, 1, 33)));
 
-        Assert.Throws<ArgumentException>(() => DraftScope.Of(project, "d_1", "pl_1", null, At, Ru));
+        Assert.Throws<ArgumentException>(() => DraftScope.Of(project, "d_1", "pl_1", null, At, Ru, IdSource.Numbered));
     }
 
     [Fact]

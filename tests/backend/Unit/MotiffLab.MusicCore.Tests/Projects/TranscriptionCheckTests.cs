@@ -152,7 +152,7 @@ public class TranscriptionCheckTests
         Project project = Project.Create("p_heard", "transkun-fur-elise.mid", midi, now) with { Transcription = new TranscriptionOrigin("transkun 2") };
         BarGrid found = project.FindBars()!;
         project = project.ChangeBars(found);
-        project = project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(), now).Touch(new Tick(4_800), null, true, [], 80, null, true, now));
+        project = project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(IdSource.Numbered), now).Touch(new Tick(4_800), null, true, [], 80, null, true, now));
         Assert.True(project.CanChangeBars);
 
         // Twice the tempo: the same notes in note values half as long, the flags worked out for those bars.

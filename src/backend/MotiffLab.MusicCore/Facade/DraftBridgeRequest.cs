@@ -20,16 +20,18 @@ internal static class DraftBridgeRequest
     public static string Put(OpenPiece owner, Request request)
     {
         Draft draft = DraftOf(owner, request);
-        string after = request.Required("place"), place = draft.NextPlaceId();
+        string after = request.Required("place");
         return DraftRequest.Restructured(
             owner,
             request,
             draft,
-            place,
-            draft.NextVariantId(),
-            each => DraftBridges.Put(each, after, request.Now()),
-            (json, changed) => Candidates(json, changed.FindPlace(place)!, owner.Words));
+            changed => (Made(draft, changed).Id, Made(draft, changed).Base),
+            each => DraftBridges.Put(each, after, request.Now(), owner.Ids),
+            (json, changed) => Candidates(json, Made(draft, changed), owner.Words));
     }
+
+    /// <summary>The place <paramref name="changed"/> has that <paramref name="draft"/> had not: the bridge put.</summary>
+    private static DraftPlace Made(Draft draft, Draft changed) => changed.Places.Single(place => draft.FindPlace(place.Id) is null);
 
     /// <summary>
     /// «Оставить» in a bridge place: the place "place" of the draft "draft" removed with its candidates and its steps.

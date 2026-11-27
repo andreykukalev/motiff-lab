@@ -38,7 +38,7 @@ public class ProjectV12Tests
         Project project = Project.Create("p_test", "minuet.musicxml", s_source, s_created)
             .ChangeMarks(marks => marks
                 .AddInk([Stroke("k1", opening.Onset), Stroke("k2", bar3.Onset, InkColour.Amber)])
-                .AddNote(new MarginNote(marks.NextNoteId(), bar3, "  Breathe here ", s_now))
+                .AddNote(new MarginNote(marks.NextNoteId(IdSource.Numbered), bar3, "  Breathe here ", s_now))
                 .AddHighlight(new Highlight("h_0001", opening, [firstNote], InkColour.Amber))
                 .SetFingering(new Fingering(firstNote, 3)))
             .AddCategory(new BookmarkCategory("c_0001", "Exam", InkColour.Ochre))
@@ -165,7 +165,7 @@ public class ProjectV12Tests
         Assert.Equal(100, first.TempoPercent);
         Assert.Null(project.ResumePoints[1].Name);
         Assert.Null(project.ResumePoints[1].Passage);
-        Assert.Equal("r_0003", project.NextResumePointId());
+        Assert.Equal("r_0003", project.NextResumePointId(IdSource.Numbered));
 
         Assert.Single(project.Observations);
         Assert.Null(project.Observations[0].FactId);

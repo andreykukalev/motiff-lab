@@ -30,7 +30,7 @@ public class FollowedWorkTests
             .AddNotes(new OtherNotes("n_2", "b.musicxml", ReadingXml(other), new NotesProvenance(NotesProvenance.Import)));
 
     private static Project Bookmarked(Project project, params TickSpan[] spans) => spans.Aggregate(project, static (marked, span) =>
-        marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), "Mine", BookmarkCategory.PractiseId, span, FromPhrase: false, s_now)));
+        marked.AddBookmark(new Bookmark(marked.NextBookmarkId(IdSource.Numbered), "Mine", BookmarkCategory.PractiseId, span, FromPhrase: false, s_now)));
 
     [Fact]
     public void Bookmarks_phrase_boundaries_resume_points_and_ideas_move_with_their_bars_and_back()
@@ -95,7 +95,7 @@ public class FollowedWorkTests
     {
         Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5");
         project = new[] { ("bar 2", Bars(2, 2)), ("такты 1–2", Bars(1, 2)), ("bar 2 tricky", Bars(2, 2)), ("Section A, bars 1–2", Bars(1, 2)), ("Раздел A, такты 1–2", Bars(1, 2)) }.Aggregate(project, static (marked, each) =>
-            marked.AddBookmark(new Bookmark(marked.NextBookmarkId(), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
+            marked.AddBookmark(new Bookmark(marked.NextBookmarkId(IdSource.Numbered), each.Item1, BookmarkCategory.PractiseId, each.Item2, FromPhrase: false, s_now)));
 
         Project swapped = project.MakeWorking("n_2", out _);
 

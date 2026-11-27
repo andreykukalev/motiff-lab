@@ -93,7 +93,7 @@ public static class ProjectFile
     /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
     internal const string SettingsPath = "workspace/settings";
 
-    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
+    private static readonly HashSet<string> s_rootFields = new(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
     /// <summary>
     /// The project as a file of <see cref="Version"/> in the layers of decision record 0030: its originals, its Notes and
@@ -116,6 +116,7 @@ public static class ProjectFile
             json.WriteNumber("version", version);
             json.WriteNumber("minReader", minReader);
             json.WriteString("id", project.Id);
+            JsonWrite.TextsIfAny(json, "formerIds", project.FormerIds);
             json.WriteString("fileName", project.FileName);
             json.WriteString("createdAt", project.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
             json.WriteString("lastOpened", project.LastOpened.ToString("O", CultureInfo.InvariantCulture));
@@ -210,6 +211,8 @@ public static class ProjectFile
         IReadOnlyList<PieceOriginal> derived = PieceOriginals.Derived(project);
         return project with
         {
+            // Version 18 (#317): the ids the piece was known by before; its own is not one of them and is dropped.
+            FormerIds = root.TryGetProperty("formerIds", out JsonElement former) ? [.. DistinctTexts(former, "formerIds").Where(each => each != project.Id)] : [],
             KeptOriginals = [.. described.Where(original => !derived.Contains(original))],
             // An idea or a motif built on the working notes says nothing more in memory, as one of an earlier file.
             Observations = [.. project.Observations.Select(observation => observation.Notes == working ? observation with { Notes = null } : observation)],
