@@ -373,9 +373,9 @@ internal static partial class HarmonyAnalyzer
             int first = meter.BarAt(held[0].Span.Onset).Number;
             int last = meter.BarAt(new Tick(held[^1].Span.End.Value - 1)).Number;
             string pitch = spelling.Spell(held[0].Pitch.MidiNumber);
-            string bars = first == last ? w.T($"bar {first}", $"такте {first}") : w.T($"bars {first}–{last}", $"тактах {first}–{last}");
-            text += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
-            brief += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
+            string inBars = w.InBars(first, last);
+            text += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
+            brief += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
             places.Add(FactPlace.Of(w.T($"stays on {pitch}", $"на {pitch}"), held));
         }
 
@@ -516,7 +516,6 @@ internal static partial class HarmonyAnalyzer
         };
     }
 
-    /// <summary>"a minor 3rd", "an octave", "2 octaves".</summary>
     /// <summary>The key's scale as pitch classes: major, or natural minor with its leading tone.</summary>
     private static int[] Scale(MusicalKey key)
     {

@@ -19,10 +19,38 @@ public sealed class WordsMusicTests
         Assert.Equal("такт 9", Words.Russian.Bars("9", one: true));
         Assert.Equal("в тактах 5–6", Words.Russian.InBars(5, 6));
         Assert.Equal("in bar 5", Words.English.InBars(5, 5));
+        Assert.Equal("в тактах 1–2, 5 и 9", Words.Russian.InBars("1–2, 5 и 9", one: false));
+        Assert.Equal("тактах 5–6, 9", Words.Russian.BarsPrepositional("5–6, 9", one: false));
+        Assert.Equal("bar 7", Words.English.BarsPrepositional("7", one: true));
         Assert.Equal("тактов 15–16", Words.Russian.BarsGenitive(15, 16));
         Assert.Equal("такта 15", Words.Russian.BarsGenitive(15, 15));
         Assert.Equal("9–16", Words.Range(9, 16));
         Assert.Equal("9", Words.Range(9, 9));
+        Assert.Equal([(1, 2), (5, 5), (7, 9)], Words.Runs([1, 2, 5, 7, 8, 9]));
+        Assert.Empty(Words.Runs([]));
+    }
+
+    [Theory]
+    [InlineData(0, "unison")]
+    [InlineData(-3, "minor 3rd")]
+    [InlineData(6, "tritone")]
+    [InlineData(12, "octave")]
+    [InlineData(14, "octave and a major 2nd")]
+    [InlineData(24, "2 octaves")]
+    public void Intervals_are_named_by_size(int semitones, string name) =>
+        Assert.Equal(name, Words.English.IntervalName(semitones));
+
+    [Theory]
+    [InlineData(3, "малая терция", "малую терцию")]
+    [InlineData(7, "чистая квинта", "чистую квинту")]
+    [InlineData(6, "тритон", "тритон")]
+    [InlineData(12, "октава", "октаву")]
+    [InlineData(14, "октава и большая секунда", "октаву и большую секунду")]
+    [InlineData(24, "2 октавы", "2 октавы")]
+    public void Intervals_are_named_in_russian(int semitones, string name, string by)
+    {
+        Assert.Equal(name, Words.Russian.IntervalName(semitones));
+        Assert.Equal(by, Words.Russian.IntervalBy(-semitones));
     }
 
     [Theory]
@@ -39,6 +67,9 @@ public sealed class WordsMusicTests
     {
         Assert.Equal("3 sharps", Words.English.Accidentals(3));
         Assert.Equal("1 бемоль", Words.Russian.Accidentals(-1));
+        Assert.Equal("1 диез", Words.Russian.Accidentals(1));
+        Assert.Equal("5 диезов", Words.Russian.Accidentals(5));
+        Assert.Equal("6 flats", Words.English.Accidentals(-6));
         Assert.Equal("без диезов и бемолей", Words.Russian.Accidentals(0));
         Assert.Equal("без знаков", Words.Russian.AccidentalsLabel(0));
         Assert.Equal("no sharps or flats", Words.English.AccidentalsLabel(0));

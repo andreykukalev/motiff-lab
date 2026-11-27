@@ -141,7 +141,7 @@ public sealed partial class FactsDigest
 
     /// <summary>Each run of bars whose line repeats no earlier bar (<see cref="PieceDna.NewMaterialBars"/>), by its first bar.</summary>
     private static IEnumerable<DigestItem> NewMaterialItems(IReadOnlyList<int> bars, HashSet<string> ids, Words w) =>
-        StructureAnalyzer.Runs(bars).Select(run => new DigestItem(
+        Words.Runs(bars).Select(run => new DigestItem(
             Unique(string.Create(CultureInfo.InvariantCulture, $"new.{run.First}"), ids),
             "newMaterial",
             "inferred",

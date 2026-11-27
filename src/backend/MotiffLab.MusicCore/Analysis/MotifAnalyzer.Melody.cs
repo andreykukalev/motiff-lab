@@ -20,9 +20,7 @@ internal static partial class MotifAnalyzer
         string[] names = [.. intervals.Select(step => step == 0
             ? w.T("unison", "прима")
             : $"{w.IntervalName(step)} {(step > 0 ? w.T("up", "вверх") : w.T("down", "вниз"))}")];
-        string list = names.Length <= MaxNamedIntervals
-            ? string.Join(", ", names)
-            : $"{string.Join(", ", names.Take(MaxNamedIntervals))} {w.T("and", "и ещё")} {names.Length - MaxNamedIntervals}{w.T(" more", "")}";
+        string list = w.Listed(names, MaxNamedIntervals, ", ", " ");
         string text = $"{w.T("Intervals by name", "Интервалы по названию")}: {list}.";
         string brief = w.IsRussian
             ? $"{w.Count(intervals.Length, "", "", "интервал", "интервала", "интервалов")}, ни один размер не преобладает."
@@ -151,9 +149,7 @@ internal static partial class MotifAnalyzer
             string[] how = [.. new[] { (struck, w.T("struck together with them", "взяты вместе с ними")), (held, w.T("over notes still held", "над ещё звучащими нотами")) }
                 .Where(part => part.Item1 > 0)
                 .Select(part => w.IsRussian ? $"{part.Item2}: {part.Item1}" : $"{part.Item1} {part.Item2}")];
-            string list = shared.Count <= MaxNamedIntervals
-                ? string.Join(", ", shared)
-                : $"{string.Join(", ", shared.Take(MaxNamedIntervals))} {w.T("and", "и ещё")} {shared.Count - MaxNamedIntervals}{w.T(" more", "")}";
+            string list = w.Listed(shared, MaxNamedIntervals, ", ", " ");
             if (w.IsRussian)
             {
                 text = $"{over} {w.OutOf(texture.Melody.Count, "", "", "ноты мелодии", "нот мелодии")} {Words.RussianForm(over, "звучит", "звучат", "звучат")} над нижними нотами: {string.Join(", ", how)}.";

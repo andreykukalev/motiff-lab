@@ -113,19 +113,6 @@ public partial class RussianFactTests
     }
 
     [Theory]
-    [InlineData(3, "малая терция", "малую терцию")]
-    [InlineData(7, "чистая квинта", "чистую квинту")]
-    [InlineData(6, "тритон", "тритон")]
-    [InlineData(12, "октава", "октаву")]
-    [InlineData(14, "октава и большая секунда", "октаву и большую секунду")]
-    [InlineData(24, "2 октавы", "2 октавы")]
-    public void Intervals_are_named_in_russian(int semitones, string name, string by)
-    {
-        Assert.Equal(name, Words.Russian.IntervalName(semitones));
-        Assert.Equal(by, Words.Russian.IntervalBy(-semitones));
-    }
-
-    [Theory]
     [InlineData(0, KeyMode.Minor, "ля минор")]
     [InlineData(-3, KeyMode.Major, "ми-бемоль мажор")]
     [InlineData(6, KeyMode.Major, "фа-диез мажор")]
