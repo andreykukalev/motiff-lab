@@ -344,6 +344,49 @@ final class Account: ObservableObject {
         profile = nil
     }
 
+    /// «Удалить аккаунт и данные онлайн» (the 1.6 plan's decision 14, App Store 5.1.1(v)), once the player confirmed it:
+    /// everything they keep online in the environment the app works in goes (the API's DELETE /me: every project and the
+    /// profile), then they are signed out here. The project files on this iPad stay, and so do its sync records: a piece
+    /// here then counts as deleted online, as when another device deleted it, and goes online again only once it changes
+    /// (E-settings-5). Nothing is asked while signed out or while the account is busy with another request.
+    func deleteOnlineData() async -> OnlineDeletion {
+        guard player != nil else { return .signedOut }
+        guard !busy else { return .busy }
+        busy = true
+        defer { busy = false }
+        return await Self.deleteOnlineData(online, signOut: signOut)
+    }
+
+    /// The delete itself, apart from the sign-in it needs: nothing where `online` may not write, and `signOut` only once
+    /// the API answered that everything went.
+    static func deleteOnlineData(_ online: OnlineProjects, signOut: () -> Void) async -> OnlineDeletion {
+        guard online.writable else { return .readOnly }
+        guard await online.deleteEverything() else { return .failed }
+        signOut()
+        return .done
+    }
+
+    /// What «Удалить аккаунт и данные онлайн» came to (`deleteOnlineData`).
+    enum OnlineDeletion: Equatable, Sendable {
+        /// Everything online went, and the player is signed out.
+        case done
+        /// Nothing was asked: nobody is signed in, or another request of the account is under way.
+        case signedOut, busy
+        /// Main in a version build: the app may not change anything online.
+        case readOnly
+        /// The API did not do it: the player stays signed in.
+        case failed
+
+        /// What the player is told under the button; nil when it went or nothing was asked.
+        var problemKey: String? {
+            switch self {
+            case .readOnly: "account.deleteReadOnly"
+            case .failed: "account.deleteFailed"
+            case .done, .signedOut, .busy: nil
+            }
+        }
+    }
+
     /// An access token for the scope without asking the player anything, or nil when there is none.
     func token(_ scope: String) async -> String? {
         guard let application, let account, !scope.isEmpty else { return nil }

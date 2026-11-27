@@ -219,17 +219,26 @@ final class ScanServer: ObservableObject {
         return true
     }
 
-    /// The multipart form the scan server takes: the fields, then the file.
+    /// The multipart form the scan server takes: the fields, then the file, under a neutral name (`neutralName`).
     nonisolated static func form(_ fields: [(String, String)], fileName: String, data: Data, boundary: String) -> Data {
         var body = Data()
         for (name, value) in fields {
             body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
         }
-        let file = fileName.replacingOccurrences(of: "\"", with: "")
+        let file = neutralName(fileName)
         body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(file)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
         body.append(data)
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         return body
+    }
+
+    /// The name a file goes to the scan server under: «score» with the file's own extension («score.pdf», «score.jpg»), as a
+    /// recording goes as «recording.wav». The server reads the bytes, never the name, so the player's file name (often the
+    /// piece's title) stays on the iPad (the 1.6 plan's decision 14). An extension that is not plain letters and digits is pdf.
+    nonisolated static func neutralName(_ fileName: String) -> String {
+        let found = (fileName as NSString).pathExtension.lowercased()
+        let plain = !found.isEmpty && found.count <= 8 && found.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        return ["score", plain ? found : "pdf"].joined(separator: ".")
     }
 
     /// Why the server refused a request, from its status and answer: Pro on Motiff Lab's server, an engine it does not have,

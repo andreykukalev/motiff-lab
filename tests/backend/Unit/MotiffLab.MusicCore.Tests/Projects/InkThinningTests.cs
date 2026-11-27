@@ -1,4 +1,7 @@
+using System.Text.Json;
+
 using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Projects.File;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Projects;
@@ -41,14 +44,26 @@ public class InkThinningTests
             return Math.Sqrt(Math.Pow(ax + (t * dx) - point.X, 2) + Math.Pow(ay + (t * dy) - point.Y, 2));
         });
 
+    /// <summary>The bytes of a stroke as the project file writes it.</summary>
+    private static int Bytes(InkStroke stroke)
+    {
+        using var buffer = new MemoryStream();
+        using (var json = new Utf8JsonWriter(buffer))
+        {
+            MarksCodec.WriteStroke(json, stroke);
+        }
+
+        return (int)buffer.Length;
+    }
+
     [Fact]
     public void A_curve_keeps_its_shape_to_a_twentieth_of_a_staff_space_in_a_third_of_the_bytes_or_less()
     {
         InkStroke written = Written();
         InkStroke thinned = written.Thinned();
 
-        int before = ProjectFile.WriteInk([written]).Length;
-        int after = ProjectFile.WriteInk([thinned]).Length;
+        int before = Bytes(written);
+        int after = Bytes(thinned);
         Assert.True(before >= 3 * after, $"{before} bytes thinned to {after}");
 
         List<(double X, double Y, double Pressure)> line = Line(thinned);

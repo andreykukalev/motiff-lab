@@ -119,7 +119,7 @@ public class PhraseMapTests
         Assert.Equal([new Tick(4320), new Tick(4 * Bar)], edits.Added);
         Assert.All(edited.Boundaries, boundary => Assert.Equal(Attribution.UserConfirmed, boundary.Attribution));
         Assert.Equal([PhraseEvidence.Slur, PhraseEvidence.Rest], edited.Phrases[1].Start!.Evidence);
-        Assert.Equal("at a slur and after a rest of a beat or more, confirmed by you", PhraseMap.Describe(edited.Phrases[1].Start));
+        Assert.Equal("at a slur and after a rest of a beat or more, confirmed by you", PhraseMap.Describe(edited.Phrases[1].Start, Words.English));
     }
 
     [Fact]
@@ -240,12 +240,12 @@ public class PhraseMapTests
     {
         PhraseMap map = Phrases();
 
-        Assert.Equal("the start of the piece", PhraseMap.Describe(map.Phrases[0].Start));
-        Assert.Equal("at a slur and after a rest of a beat or more", PhraseMap.Describe(map.Phrases[1].Start));
-        Assert.Equal("at a slur and at a repeat sign", PhraseMap.Describe(map.Phrases[2].Start));
-        Assert.Equal("where an earlier passage comes back note for note", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Repetition], Attribution.Inferred(0.6))));
-        Assert.Equal("after a rest of a beat or more", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Rest], Attribution.Inferred(0.7))));
-        Assert.Equal("set by you", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [], Attribution.UserEdited)));
+        Assert.Equal("the start of the piece", PhraseMap.Describe(map.Phrases[0].Start, Words.English));
+        Assert.Equal("at a slur and after a rest of a beat or more", PhraseMap.Describe(map.Phrases[1].Start, Words.English));
+        Assert.Equal("at a slur and at a repeat sign", PhraseMap.Describe(map.Phrases[2].Start, Words.English));
+        Assert.Equal("where an earlier passage comes back note for note", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Repetition], Attribution.Inferred(0.6)), Words.English));
+        Assert.Equal("after a rest of a beat or more", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Rest], Attribution.Inferred(0.7)), Words.English));
+        Assert.Equal("set by you", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [], Attribution.UserEdited), Words.English));
     }
 
     [Fact]
@@ -257,7 +257,6 @@ public class PhraseMapTests
         Assert.Equal("по лиге и после паузы в долю или больше", PhraseMap.Describe(map.Phrases[1].Start, Words.Russian));
         Assert.Equal("по лиге, подтверждено вами", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [PhraseEvidence.Slur], Attribution.UserConfirmed), Words.Russian));
         Assert.Equal("там, где вы поставили границу", PhraseMap.Describe(new PhraseBoundary(new Tick(1), [], Attribution.UserEdited), Words.Russian));
-        Assert.Equal(PhraseMap.Describe(map.Phrases[2].Start), PhraseMap.Describe(map.Phrases[2].Start, Words.English));
     }
 
     [Fact]

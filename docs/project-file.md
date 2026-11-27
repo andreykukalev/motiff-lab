@@ -205,7 +205,7 @@ The online copy is the file without the bytes of originals (0026 C3, as amended)
 
 ## Marks (`marks`)
 
-Everything the player writes on the score, kept with the piece ([0018](architecture/adr/0018-redesign.md), prep item 1). The pencil layer and the project file share one shape for strokes, so the web app and the iPad app pass them through unchanged (`ProjectFile.WriteInk` / `ReadInk` give the layer's own document, `{"version": 2, "marks": [stroke, …]}`).
+Everything the player writes on the score, kept with the piece ([0018](architecture/adr/0018-redesign.md), prep item 1). The pencil layer and the project file share one shape for strokes, so the iPad app passes them through unchanged.
 
 ```jsonc
 "marks": {

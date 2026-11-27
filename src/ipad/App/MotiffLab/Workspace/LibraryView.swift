@@ -31,6 +31,8 @@ struct LibraryView: View {
     @State var syncing = false
     /// How many pieces stay on this iPad because the free account's room online is full (0025 section 8).
     @State var overQuota = 0
+    /// The pieces a pass resolved with a conflict (v1.6 c-17b), until the player hides them.
+    @State var conflicts: [SyncConflict] = []
     @Environment(\.scenePhase) private var phase
     @State private var editing: LibraryEntry?
     /// Whether the search is typed in: off when the list scrolls or empty space is tapped (#479).
@@ -68,6 +70,7 @@ struct LibraryView: View {
                                 .dsType(.label)
                                 .foregroundStyle(Color.ds("ink-2"))
                         }
+                        if !conflicts.isEmpty { conflictLines }
                         if library.projects.isEmpty {
                             Text(text["home.emptyWhat"])
                                 .dsType(.body)
@@ -85,7 +88,7 @@ struct LibraryView: View {
                                 searching = false
                                 editing = entry
                             } delete: { url in
-                                library.delete(url)
+                                deleteHereAndOnline(url)
                             }
                         }
                     }
@@ -186,6 +189,7 @@ struct LibraryView: View {
             .onChange(of: account.environment) { _, _ in
                 online = []
                 overQuota = 0
+                conflicts = []
                 library.showProblem(nil)
                 library.picked = nil
                 Task { await library.reload(); await refreshOnline() }
@@ -195,7 +199,7 @@ struct LibraryView: View {
                 library.tab = library.tab.shown(online: !none)
             }
             // The Test library cleared (Settings · About, `TestLibrary`): read again from what is left, nothing.
-            .onChange(of: account.libraryCleared) { _, _ in online = []; overQuota = 0; library.picked = nil; folderImport.load(); Task { await library.reload(); await refreshOnline() } }
+            .onChange(of: account.libraryCleared) { _, _ in online = []; overQuota = 0; conflicts = []; library.picked = nil; folderImport.load(); Task { await library.reload(); await refreshOnline() } }
             // Another tab (the model starts its order and forgets the group picked): the keyboard goes away.
             .onChange(of: library.tab) { _, _ in searching = false }
         }

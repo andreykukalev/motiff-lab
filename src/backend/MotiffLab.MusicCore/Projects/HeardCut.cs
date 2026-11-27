@@ -59,7 +59,7 @@ internal static class HeardCut
     public static (long From, long To) StretchOfBars(HeardClock clock, TickSpan span)
     {
         ArgumentNullException.ThrowIfNull(clock);
-        return (clock.MicrosecondsAt(span.Onset) / 1000, (clock.MicrosecondsAt(span.End) + 999) / 1000);
+        return (clock.MillisecondsAt(span.Onset), (clock.MicrosecondsAt(span.End) + 999) / 1000);
     }
 
     /// <summary>The stretch <paramref name="from"/>–<paramref name="to"/> of the collection's recording as a transcription of its own, on bars found afresh.</summary>

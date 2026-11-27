@@ -43,8 +43,7 @@ public class PieceLayerTests
         Assert.Equal([(1, 20), (21, 40), (41, 60)], layer.Select(piece => (piece.FirstBar, piece.LastBar)));
         Assert.Equal(TickSpan.FromBounds(Tick.Zero, At(21)), layer[0].Span);
         Assert.Equal(TickSpan.FromBounds(At(41), s_end), layer[2].Span);
-        Assert.True(PieceLayer.Has(project));
-        Assert.False(PieceLayer.Has(Fresh()));
+        Assert.Empty(PieceLayer.Read(Fresh(), MeterMap.Default));
     }
 
     [Fact]
