@@ -33,8 +33,8 @@ import { CLICK_SLOP } from "./roll-press.js";
 import { RollPlaceGesture, type PlaceHost, type PlacePoint } from "./roll-place-gesture.js";
 import { drawPickedNotes, drawPlaceEdges, drawPlacePreview } from "./roll-place-draw.js";
 import { movedNote, type PickShape } from "./roll-place.js";
-import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
-import { type GridSpan, gridLines } from "../score/selection-grid.js";
+import { nextGestureId, type SelectionChange } from "../selection/selection-gesture.js";
+import { type GridSpan, gridLines } from "../selection/selection-grid.js";
 import { TICKS_PER_QUARTER } from "../score/score-timeline.js";
 import { sameZoom, type AxisZoom } from "./roll-zoom.js";
 import { frameOf, overviewSpan, revealSelection, selectionShift, viewAlong, viewOnLoad, zoomOutAfter, type ViewFrame, type ZoomOutEvent } from "./roll-view.js";
@@ -637,7 +637,7 @@ export class PianoRoll {
         this.gridMemo = { model: null, lines: [] };
     }
 
-    /** The lines the selection's edges stop at (score/selection-grid.ts): sixteenths from each bar's start, a tuplet one block. */
+    /** The lines the selection's edges stop at (selection/selection-grid.ts): sixteenths from each bar's start, a tuplet one block. */
     private selectionGrid(): number[] {
         const model = this.model;
         if (model === null) {

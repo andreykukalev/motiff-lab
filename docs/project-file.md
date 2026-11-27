@@ -4,7 +4,7 @@
 
 **Version 17 (2026-11-19, [0034](architecture/adr/0034-drafts.md); version 1.1):** keeps the layout of version 16; a piece with no notes may be only its recording (finding 29, "A piece with no notes"), and the piece's drafts come (`workspace.drafts`, "Drafts") with music-core's drafts step; nothing else changes. Builds since version 1.1 write version 17.
 
-**Version 18 (2026-11-27, #314, #315; version 1.6):** keeps the layout of version 16 and adds `minReader`, the oldest version that may read the file (18); a file of a later version whose `minReader` this build meets opens read-only ("Files of a later version"). Unknown fields are kept in every workspace entity, and an unknown per-piece setting or variation operation is kept rather than damage ("Unknown values"). The piece's phrase level (`phrases.granularity`) is gone: the score shows every level, and a file of version 17 or earlier loses the override on reading. A scan keeps the pages no engine read (`scan.unread`, `scan.read`) and the player's marks «что не так» (`scan.marks`). Builds since version 1.6 write version 18.
+**Version 18 (2026-11-27, #314, #315; version 1.6):** keeps the layout of version 16 and adds `minReader`, the oldest version that may read the file (18); a file of a later version whose `minReader` this build meets opens read-only ("Files of a later version"). Unknown fields are kept in every workspace entity, and an unknown per-piece setting or variation operation is kept rather than damage ("Unknown values"). The piece's phrase level (`phrases.granularity`) is gone: the score shows every level, and a file of version 17 or earlier loses the override on reading. A scan keeps the pages no engine read (`scan.unread`, `scan.read`) and the player's marks «что не так» (`scan.marks`). The phrases what the player keeps is attached to are stored anchors (`phrases.anchors`, an idea's and a resume point's `anchor`, "Phrase anchors"). Builds since version 1.6 write version 18.
 
 The project file is what a player keeps of a piece. Since version 16 ([0030](architecture/adr/0030-originals-notes-piece.md), version 0.6) it is laid out in three layers: the piece's **originals** (files as they are, never changed), the **notes** made from them (each with its provenance, corrections and Check flags) and the **workspace** (which notes are the working notes, and everything the player made on them). It is written and read by `MotiffLab.MusicCore.Projects.ProjectFile`, by hand, so the same project gives the same bytes. The web app saves it in IndexedDB and, when the player turns saving online on, sends it to the API ([0014](architecture/adr/0014-hosted-scan-server.md)); the iPad app reads and writes the same file through the facade. A file of any earlier version opens and is converted on reading; the rules are at the end ("Opening an older file").
 
@@ -153,7 +153,8 @@ The working notes and everything the player made on them, in their ticks.
   "observations": [ … ],            // ideas
   "phrases": { "added": [ticks], "removed": [ticks],
                "short": { "added": [ticks], "removed": [ticks] },       // cuts inside phrases at the Short level (0018, section 3)
-               "sentences": { "added": [ticks], "removed": [ticks] } },  // phrase boundaries where a sentence must end, and ones it runs on across
+               "sentences": { "added": [ticks], "removed": [ticks] },   // phrase boundaries where a sentence must end, and ones it runs on across
+               "anchors": [ { "id": "ph_…", "onset": 3360, "duration": 1440 } ] },  // optional (version 18): the phrase anchors something is attached to
   "marks": { … },
   "bookmarks": { … },
   "resumePoints": [ … ],
@@ -263,6 +264,7 @@ Where the player can come back to (prep item 3). One is made when a piece is ope
   { "id": "r_0001", "name": "Coda",         // name optional
     "at": 7680,                              // the tick in view
     "passage": { "onset": 7680, "duration": 3840, "filter": { "hand": "Right" } },   // the selection; absent for none
+    "anchor": "ph_…",                        // optional (version 18): the phrase anchor, while open in phrase focus on a phrase
     "focused": false,                        // phrase focus on
     "overlays": ["PianoRoll", "Insights"],   // open panels: PianoRoll, Insights, Contents, Check
     "tempoPercent": 70,                      // 25–150
@@ -283,6 +285,7 @@ An idea is an observation kept on a passage ([0009](architecture/adr/0009-explor
     "note": "Airier.",                       // optional
     "createdAt": "…",
     "phrase": { "onset": 0, "duration": 3840, "filter": { … } },
+    "anchor": "ph_…",                        // optional (version 18): the anchor of its phrase
     "experiment": { "id": "…", "alternative": 0 },   // optional
     "variation": { … },                      // the kept chain, with the ids of the notes it was built on; optional
     "notes": "n_1",                          // with a variation: the Notes it was built on
@@ -290,7 +293,15 @@ An idea is an observation kept on a passage ([0009](architecture/adr/0009-explor
 ]
 ```
 
-Any number of ideas can sit on one phrase. Which phrase an idea belongs to after the phrase level changes is worked out, not stored: the phrase that contains the idea's onset, else the phrase it overlaps most (`Observation.Home`).
+Any number of ideas can sit on one phrase. An idea kept since version 1.6 is attached to its phrase's anchor (`anchor`, "Phrase anchors"), found by the rule that also places an idea without one: the phrase that contains the idea's onset, else the phrase it overlaps most (`Observation.Home`).
+
+### Phrase anchors (`phrases.anchors`, version 18)
+
+A phrase becomes an object of the project when something first attaches to it (0026 C1, #318): an idea when it is kept (`idea.keep`), and a resume point while it is open in phrase focus on a phrase (`resume.save`; out of focus, or on a passage that is no phrase, it is attached to none). The hand-over record (0026 S11) does not exist yet; bookmarks never attach (the phrases spec: a bookmark never moves with a phrase boundary). The anchor's `id` is `ph_` and the first 32 hex digits of the SHA-256 of `phrase|{onset}|{end}` (ticks) in UTF-8, taken once when it is minted, so two devices working offline mint the same id for the same phrase; when an anchor minted on those bounds has moved since, the key takes `|2`, `|3`… (`IdSource.Hashed`). The id never changes; `onset` and `duration` are the phrase it stands for now.
+
+- The player's boundary edits carry it (`ProjectAnchors.AnchorsFollowed`): an anchor follows its phrase's start. A start kept stays; one taken away where one start was set between the same boundaries either side moves there (a mark dragged, «Вернуть найденную», their Undo and Redo); one taken away otherwise joins the anchor to the phrase that holds it; a split leaves it on the first part. Two anchors on one phrase become one, the smaller id kept and what was attached to the other attached to it (0026 «Open», the council's proposal, the lead 2026-11-27; deterministic, so two devices agree, and the merge of copies, c-17, takes the same rule). A resume point in phrase focus takes its phrase's new span (as a tap selects it), its `at` with it when it was at the passage, so the piece resumes in focus on the phrase's new bounds (the lead, 2026-11-27). Undo and Redo of a step (`phrases.edit` "restore" with the step's number, "step") put the anchors back exactly as the step found or left them, in the opening that made it (its latest 100 steps): Undo of a join brings the second anchor back with its ideas and, while it is in phrase focus, its resume point; an idea kept since is attached to its phrase then. A step of an earlier opening, or sent without its number, is undone by its edits alone. Two anchors that come to share a span when placed by bars in other Notes, or in a file read, are made one the same way.
+- A re-analysis never moves it: when the notes or their analysis change so that an anchor is no phrase any more, the phrases answer says so (`"phrase": null`, `"unmatched"`) and `phrases.reattach` attaches all of them again as one group, each to the phrase that holds its start, else that it overlaps most (`PhraseMap.HomeOf`, the rule of `Observation.Home`). Other Notes made working, and a page put in, place the anchors by bars as the rest of the work (`FollowedWork`).
+- Written only while something names it (an idea, a resume point, or an entity kept as a later build wrote it); `phrases.anchors` is left out while there is none, so a file without anchors reads and writes as before. An `anchor` naming one the file does not keep is read as none. Two anchors with one id, a blank id or a span that is no span is damage. In the sync they are the player's, with `phrases`.
 
 A kept variation belongs to the Notes it was built on (`notes`, research 4.6), beside their corrections; it is not Notes of its own. Every idea of version 16 is built on the working notes, and a file of an earlier version reads so. `provenance` is left out for an idea the player made in the app, except a variant (below); a later build's assistant writes `"op": "assistant"` with `request` and `model` in `params`, and `inputs` naming the Notes, which this build keeps and writes back.
 

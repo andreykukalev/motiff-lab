@@ -34,15 +34,17 @@ enum SyncRecords {
     }
 }
 
-/// Sync between the player's devices (version 0.2; Andrei, 2026-11-11), as the web app does it (Account/CloudSync.cs):
-/// new pieces and their changes go between the iPad and the web by themselves, and when both changed one, the last save
-/// wins and the previous copy is kept beside as a piece of its own. One pass compares each project file here with the
-/// API's list by music-core's rules (`project.sync`, `ProjectSync`): it sends what changed here (the copy without the PDF,
-/// `project.online`), fetches what changed online or is new there (keeping this iPad's PDF, `project.pulled`), and
-/// resolves a change on both (`project.resolve`). A piece that is only a PDF stays here (0026 C3). The library runs it
-/// when it opens, comes back to the screen, after a piece closes and on sign-in, never inside a piece. Where the app may
-/// not write (Main in a version build, `OnlineProjects.writable`) a pass only fetches: it sends nothing and leaves a piece
-/// changed on both sides as it is here, to be resolved once writing is allowed.
+/// Sync between the player's iPads through the Motiff Lab API (version 0.2; Andrei, 2026-11-11; the web app, which synced
+/// the same way, is archived, 0032): new pieces and their changes go between the devices by themselves, and when both
+/// changed one, the last save wins, takes the other's sources by music-core's merge, and the other copy is kept beside as
+/// a piece of its own when it has something the kept one lacks. One pass compares each project file here with the API's
+/// list by music-core's rules (`project.sync`, `ProjectSync`): it sends what changed here (the copy without the PDF and
+/// without a recording's sound, `project.online`), fetches what changed online or is new there (keeping this iPad's PDF,
+/// `project.pulled`), and resolves a change on both (`project.resolve`, with no copy both last agreed on, so the merge
+/// removes nothing, 0026 S4). A piece the player deletes on this iPad stays online. A piece that is only a PDF stays here
+/// (0026 C3). The library runs it when it opens, comes back to the screen, after a piece closes and on sign-in, never
+/// inside a piece. Where the app may not write (Main in a version build, `OnlineProjects.writable`) a pass only fetches:
+/// it sends nothing and leaves a piece changed on both sides as it is here, to be resolved once writing is allowed.
 struct CloudSync {
     /// The Settings switch (`account.saveOnline`), on until the player turns it off (0014 item 13 as 0.2 amends it).
     static let onKey = "account.saveOnline"
@@ -207,12 +209,12 @@ struct CloudSync {
         return changed
     }
 
-    /// One piece, one entry (version 0.6.1, #582 item 1), as the web app does it (Account/CloudSync.cs): the project files
-    /// here that are the same piece by the files they were made from (`pieceKeys`, grouped by `project.same`), such as the
-    /// same PDF added on the web and on this iPad, become one when one of them carries nothing of the player's own
-    /// (`project.join`, music-core's `SamePiece`). The other is written in place with its PDF and details, and the copy that
-    /// joined it is deleted here and online, so no device fetches it again; where the app may not write online, what this
-    /// iPad knows of that online copy stays, so this iPad does not fetch it again either. A copy whose bytes are kept beside
+    /// One piece, one entry (version 0.6.1, #582 item 1): the project files here that are the same piece by the files they
+    /// were made from (`pieceKeys`, grouped by `project.same`), such as the same PDF added on another iPad and on this one,
+    /// become one when one of them carries nothing of the player's own (`project.join`, music-core's `SamePiece`). The
+    /// other is written in place with its PDF and details, and the copy that joined it is deleted here and online, so no
+    /// device fetches it again; where the app may not write online, what this iPad knows of that online copy stays, so this
+    /// iPad does not fetch it again either. A copy whose bytes are kept beside
     /// its file on this iPad (a linked PDF, a copy for playing offline, a recording's sound) stays, though another may join
     /// it. Answers the ids of the projects that went.
     private func join(_ records: inout [String: SyncRecord]) async -> [String] {

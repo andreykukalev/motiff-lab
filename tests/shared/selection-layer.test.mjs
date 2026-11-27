@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dragStartOf, handleTakes, menuPlace, ordered } from "../../src/shared/wwwroot/js/score/selection-layer.js";
+import { dragStartOf, handleTakes } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
+import { menuPlace } from "../../src/shared/wwwroot/js/score/selection-menu.js";
+import { ordered } from "../../src/shared/wwwroot/js/score/selection-boxes.js";
 import { barLines, beatAt, keyLines, nearestLine, spanOf, stepEdge } from "../../src/shared/wwwroot/js/score/selection-beats.js";
 import { BRACKET_LIFT } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 

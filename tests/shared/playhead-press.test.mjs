@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { PlayheadDrag } from "../../src/shared/wwwroot/js/playback/playhead-drag.js";
 import { PlayheadPress, pressPlaces } from "../../src/shared/wwwroot/js/playback/playhead-press.js";
-import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 
 /** Timers run by hand: `run()` fires every one due. */
 function handTimers() {

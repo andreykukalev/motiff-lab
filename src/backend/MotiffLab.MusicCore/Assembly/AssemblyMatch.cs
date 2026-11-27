@@ -156,33 +156,6 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
     public static bool IsSame(int matched, int total) =>
         matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare);
 
-    /// <summary>Where a stretch of the source lands in the player's notes and how alike it is there: «Похоже на такты 15–16 · частично».</summary>
-    public (TickSpan Span, MatchKind Kind)? Similar(TickSpan inSource)
-    {
-        MatchBar[] bars = [.. Bars.Where(bar => bar.Target is not null && Overlaps(bar, inSource))];
-        Tick start = Alignment.TickAt(inSource.Onset.Value * 1000);
-        Tick end = Alignment.TickAt(inSource.End.Value * 1000);
-        if (bars.Length == 0 || end <= start)
-        {
-            return null;
-        }
-
-        return (TickSpan.FromBounds(start, end), Worst(bars.Select(bar => bar.Kind)));
-    }
-
-    /// <summary>Where a stretch of the player's notes lies in the source: «Найти похожее» the other way.</summary>
-    public TickSpan? InSource(TickSpan inNotes)
-    {
-        if (Alignment.Anchors.Count == 0)
-        {
-            return null;
-        }
-
-        long start = Alignment.MicrosecondsAt(inNotes.Onset) / 1000;
-        long end = Alignment.MicrosecondsAt(inNotes.End) / 1000;
-        return end > start && start >= 0 ? TickSpan.FromBounds(new Tick(start), new Tick(end)) : null;
-    }
-
     /// <summary>
     /// The places «Принять совпавшее» takes: runs of bars that match but are not identical and land bar for bar on the
     /// player's notes, as source spans with where they go. Bars that only partly match or differ are left to the player.
@@ -259,15 +232,6 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
         return string.Join(" ", sentences);
     }
 
-    /// <summary>The kind in a word: «совпадает», «частично», «отличается», «не найдено».</summary>
-    public static string Word(MatchKind kind, Words words) => kind switch
-    {
-        MatchKind.Same => words.T("matches", "совпадает"),
-        MatchKind.Partly => words.T("partly", "частично"),
-        MatchKind.Differs => words.T("differs", "отличается"),
-        _ => words.T("not found", "не найдено"),
-    };
-
     private void AddSentence(List<string> sentences, MatchKind kind, string start, Words words)
     {
         MatchSegment[] runs = [.. Segments.Where(segment => segment.Kind == kind)];
@@ -276,33 +240,18 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
             return;
         }
 
-        string bars = words.Joined([.. runs.Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}")]);
+        string bars = words.Joined([.. runs.Select(run => Words.Range(run.First, run.Last))]);
         bool one = runs.Length == 1 && runs[0].First == runs[0].Last;
         sentences.Add(kind == MatchKind.NotFound
-            ? words.T($"{start} {(one ? "bar" : "bars")} {bars}.", $"{start} {(one ? "такт" : "такты")} {bars}.")
-            : words.T($"{start} {(one ? "bar" : "bars")} {bars}.", $"{start} {(one ? "такте" : "тактах")} {bars}."));
+            ? $"{start} {words.Bars(bars, one)}."
+            : $"{start} {words.BarsPrepositional(bars, one)}.");
     }
 
     private IReadOnlyList<int> CorrectedBars(SourceMusic source) =>
         [.. Bars.Where(bar => bar.Kind == MatchKind.Same && !bar.Identical && bar.Clean).Select(bar => source.NumberOf(bar.Index))];
 
-    private static string BarList(IReadOnlyList<int> bars, Words words)
-    {
-        List<string> runs = [];
-        for (int i = 0; i < bars.Count; i++)
-        {
-            int first = bars[i];
-            while (i + 1 < bars.Count && bars[i + 1] == bars[i] + 1)
-            {
-                i++;
-            }
-
-            runs.Add(first == bars[i] ? $"{first}" : $"{first}–{bars[i]}");
-        }
-
-        string list = string.Join(", ", runs);
-        return words.T(bars.Count == 1 ? $"bar {list}" : $"bars {list}", bars.Count == 1 ? $"такт {list}" : $"такты {list}");
-    }
+    private static string BarList(IReadOnlyList<int> bars, Words words) =>
+        words.Bars(string.Join(", ", Words.Runs(bars).Select(run => Words.Range(run.First, run.Last))), bars.Count == 1);
 
     private static IReadOnlyList<MatchSegment> RunsOf(SourceMusic source, IReadOnlyList<MatchBar> bars)
     {
@@ -337,8 +286,4 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
 
         return null;
     }
-
-    private static bool Overlaps(MatchBar bar, TickSpan inSource) => bar.Span.Overlaps(inSource);
-
-    private static MatchKind Worst(IEnumerable<MatchKind> kinds) => kinds.DefaultIfEmpty(MatchKind.NotFound).Max();
 }

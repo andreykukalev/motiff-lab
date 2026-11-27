@@ -1,5 +1,5 @@
 // The selection gesture on the roll's strips (#511 sections 2 and 6.3): the bar numbers and, with the lanes, the loop strip,
-// in the drawer and in Expand alike, follow the score's rules (score/selection-gesture.ts). A press inside the selection
+// in the drawer and in Expand alike, follow the score's rules (selection/selection-gesture.ts). A press inside the selection
 // that moves moves the nearer edge as far as the pointer goes; a press outside held still takes the selection away, and a
 // move after that selects anew from the press, except while the music plays, when a hold leaves the selection (#521 16.4);
 // a move before the hold leaves the selection alone: a finger moves the roll, another pointer is told to hold. A tap does
@@ -18,7 +18,7 @@ import {
     nextGestureId,
     pressGesture,
     snapEdge,
-} from "../score/selection-gesture.js";
+} from "../selection/selection-gesture.js";
 
 /** A bar of the roll by its number, [onset, end) in ticks. */
 export interface NumberedBar {

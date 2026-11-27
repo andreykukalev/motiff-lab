@@ -5,7 +5,7 @@ import { MAX_ROW, ROW_AT_100 } from "./roll-model.js";
 import { CLICK_SLOP } from "./roll-press.js";
 import { GUTTER, MAX_ZOOM, READING_MIN_ROW, type RollViewport } from "./roll-viewport.js";
 import { pinchStep } from "./roll-zoom.js";
-import { staleGesture } from "../score/selection-gesture.js";
+import { staleGesture } from "../selection/selection-gesture.js";
 import type { InputHost } from "./roll-input.js";
 
 /**

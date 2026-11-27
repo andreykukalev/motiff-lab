@@ -6,7 +6,7 @@ new file needs no project edit. `Account.json` and the asset catalogues (`AppIco
 `tools/icons/build.mjs`) stay at its top. A folder's own interface texts are `<Folder>/Words/<Folder>.{en,ru}.json`;
 what the pages or several folders say is in `src/shared/wwwroot/i18n` (`UIText`, `platform.md`). The score and the roll
 are the shared TS modules in a WKWebView (`Web/score.html` over `src/shared/Scripts/score/ipad-page`; `src/shared/Scripts/score`,
-`roll`: `score.md`, `roll.md`).
+`roll`, `selection`: `score.md`, `roll.md`, `selection.md`).
 Tests: `tests/ipad/MotiffLabTests` (XCTest, run by the `iPad` workflow on macOS, not CI), with the UX baseline's cases
 in `tests/ipad/Baseline` (the same test target; changed only with Andrei's label). There too, the workspace's scenarios
 (blueprint 5.3 step 3): `WorkspaceSession` takes a `ScoreWorkspace` over the real music-core and controllers through a
@@ -35,7 +35,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Insights/` | [insights](ipad/insights.md) | Insights, the piece's map (DNA), the circle of fifths |
 | `Reference/` | [reference](ipad/reference.md) | the reference sheet |
 | `Assistant/` | [assistant](ipad/assistant.md) | the assistant, its field and dictation |
-| `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings, About |
+| `Account/` | [account](ipad/account.md) | sign-in, environments, online copies, Settings' account and profile, About |
 
 Which folder may use which (blueprint 5.2): `Platform` uses nothing above it; a feature uses `Platform` and, where the
 blueprint's table says so, reads Selection; only `Workspace` knows several features. The `dependencies` check enforces

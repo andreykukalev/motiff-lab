@@ -67,8 +67,8 @@ internal sealed class SourcesSession
             int[] bars = [.. Unfit.Select(static mark => mark.Bar).Distinct().Order()];
             if (bars.Length > 0)
             {
-                string where = string.Join(", ", bars);
-                parts.Add(words.T($"not used, in Check: {Unfit.Count} ({(bars.Length == 1 ? "bar" : "bars")} {where})", $"не учтено, в «Проверить»: {Unfit.Count} ({(bars.Length == 1 ? "такт" : "такты")} {where})"));
+                string where = words.Bars(string.Join(", ", bars), bars.Length == 1);
+                parts.Add(words.T($"not used, in Check: {Unfit.Count} ({where})", $"не учтено, в «Проверить»: {Unfit.Count} ({where})"));
             }
 
             return parts.Count == 0 ? null : string.Join(" · ", parts);

@@ -21,7 +21,7 @@ import { RollRulePress } from "./roll-rule-press.js";
 import { RollNotePress } from "./roll-note-press.js";
 import { RollPointers, type PointerRules } from "./roll-pointer-rules.js";
 import type { InteractionMode } from "../score/score-modes.js";
-import { nextGestureId, type SelectionChange } from "../score/selection-gesture.js";
+import { nextGestureId, type SelectionChange } from "../selection/selection-gesture.js";
 import type { Handle } from "../playback/playback-model.js";
 import type { PlayheadDrag } from "../playback/playhead-drag.js";
 

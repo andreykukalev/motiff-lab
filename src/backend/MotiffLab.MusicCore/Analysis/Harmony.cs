@@ -373,9 +373,9 @@ internal static partial class HarmonyAnalyzer
             int first = meter.BarAt(held[0].Span.Onset).Number;
             int last = meter.BarAt(new Tick(held[^1].Span.End.Value - 1)).Number;
             string pitch = spelling.Spell(held[0].Pitch.MidiNumber);
-            string bars = first == last ? w.T($"bar {first}", $"такте {first}") : w.T($"bars {first}–{last}", $"тактах {first}–{last}");
-            text += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
-            brief += w.T($" It stays on {pitch} in {bars}.", $" В {bars} бас держится на {pitch}.");
+            string inBars = w.InBars(first, last);
+            text += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
+            brief += w.T($" It stays on {pitch} {inBars}.", $" {Words.Capitalize(inBars)} бас держится на {pitch}.");
             places.Add(FactPlace.Of(w.T($"stays on {pitch}", $"на {pitch}"), held));
         }
 
@@ -454,11 +454,11 @@ internal static partial class HarmonyAnalyzer
         string Named((ChordSpan Chord, Note Low, Note High) spread) => $"{spread.Chord.Symbol(spelling)}, {From(spread.Chord.Span.Onset, meter, w)}";
         string text = spreads.Length == 1 || Size(widest) == Size(narrowest)
             ? w.T(
-                $"From bass to top, {(spreads.Length == 1 ? "the chord spans" : "every chord spans")} {Article(MotifAnalyzer.IntervalName(Size(widest), w))}: {(Size(widest) > 12 ? "open" : "close")} voicing.",
-                $"От баса до верхнего звука {(spreads.Length == 1 ? "аккорд занимает" : "каждый аккорд занимает")} {MotifAnalyzer.IntervalName(Size(widest), w)}: {(Size(widest) > 12 ? "широкое" : "тесное")} расположение.")
+                $"From bass to top, {(spreads.Length == 1 ? "the chord spans" : "every chord spans")} {w.IntervalBy(Size(widest))}: {(Size(widest) > 12 ? "open" : "close")} voicing.",
+                $"От баса до верхнего звука {(spreads.Length == 1 ? "аккорд занимает" : "каждый аккорд занимает")} {w.IntervalName(Size(widest))}: {(Size(widest) > 12 ? "широкое" : "тесное")} расположение.")
             : w.IsRussian
-                ? $"От баса до верхнего звука аккорды занимают от {MotifAnalyzer.IntervalName(Size(narrowest), w)} ({Named(narrowest)}) до {MotifAnalyzer.IntervalName(Size(widest), w)} ({Named(widest)}); в широком расположении, шире октавы, — {open} {w.OutOf(spreads.Length, "", "", "аккорда", "аккордов")}."
-                : $"From bass to top, the chords span from {Article(MotifAnalyzer.IntervalName(Size(narrowest), w))} ({Named(narrowest)}) to {Article(MotifAnalyzer.IntervalName(Size(widest), w))} ({Named(widest)}); {open} of {spreads.Length} are open, wider than an octave.";
+                ? $"От баса до верхнего звука аккорды занимают от {w.IntervalName(Size(narrowest))} ({Named(narrowest)}) до {w.IntervalName(Size(widest))} ({Named(widest)}); в широком расположении, шире октавы, — {open} {w.OutOf(spreads.Length, "", "", "аккорда", "аккордов")}."
+                : $"From bass to top, the chords span from {w.IntervalBy(Size(narrowest))} ({Named(narrowest)}) to {w.IntervalBy(Size(widest))} ({Named(widest)}); {open} of {spreads.Length} are open, wider than an octave.";
         return new MotifFact("harmony.voicing", FactLens.Harmony, FactCertainty.Inferred, text, w.T(
             "Measured from the lowest to the highest note sounding in each chord the finder read.",
             "Измерено от самой низкой до самой высокой ноты, звучащей в каждом прочитанном аккорде."))
@@ -515,10 +515,6 @@ internal static partial class HarmonyAnalyzer
                     .Select(static note => note.Id)]))],
         };
     }
-
-    /// <summary>"a minor 3rd", "an octave", "2 octaves".</summary>
-    private static string Article(string interval) =>
-        char.IsDigit(interval[0]) ? interval : interval.StartsWith("octave", StringComparison.Ordinal) ? $"an {interval}" : $"a {interval}";
 
     /// <summary>The key's scale as pitch classes: major, or natural minor with its leading tone.</summary>
     private static int[] Scale(MusicalKey key)

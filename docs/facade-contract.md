@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-27, v1.5 i-7):** contract 16 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-27, v1.6 c-13):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -162,6 +162,7 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `performances` | piece | OpenFirst |
 | `phrases` | piece | Showing, OpenFirst |
 | `phrases.edit` | piece |  |
+| `phrases.reattach` | piece |  |
 | `piece` | piece | Showing, OpenFirst |
 | `pieces.find` | piece |  |
 | `pieces.save` | piece |  |
@@ -222,7 +223,13 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 
 ## History
 
+### 17
+
+17 removes "level" and "levels" from the phrases answer (version 1.6, c-13, the 1.6 plan's decision 18), and so from every answer that carries the phrases (phrases.edit, phrases.reattach): the level shown, always "phrase" since 14, and the three levels with "available" and "count", which no app read. "units" (each with its "level"), "edits", "evidence", "own", "sections" and the anchors answer as before; a request may still ask for the units of a level with "level". A change of what a call answers; the project file stays version 18.
+
 ### 16
+
+Also within 16 (version 1.6, c-14d, #318, 0026 C1): a phrase is an object of the project, a stored anchor `ph_` (32 hex digits of the SHA-256 of "phrase|{onset}|{end}", taken when it is minted, so two devices mint one id for one phrase; it never changes). idea.keep attaches the idea to the anchor of its phrase (`Observation.Home`), resume.save a point open in phrase focus on a phrase to that phrase's, each minted when the phrase has none; ideas and resume points answer "anchor" (null when attached to none). phrases.edit carries the anchors with the player's boundaries (a moved start takes its phrase with it; two anchors on one phrase become one, the smaller id kept) and a point in phrase focus with its phrase; each step answers "step", its number in this opening, and a "restore" (Undo, Redo) that sends it back puts the anchors back as that step found them (when the edits now are those it left) or left them (when they are those it found); with no "step", one of an earlier opening or one past the latest 100, the anchors follow the edits as any other's, and the answer's "step" is null. The phrases answer says each phrase's "anchor" (null while nothing is attached to it), "anchors" (each with "id", "onset", "end" and "phrase", the number of the phrase it is, null when the notes or their analysis changed so it is no phrase any more) and "unmatched", how many are null; the new call phrases.reattach attaches all of those again, each to the phrase that holds its start, else that it overlaps most, as one step, answering the phrases with "reattached". A call and fields added; the project file stays version 18 (`phrases.anchors`, an idea's and a resume point's `anchor`).
 
 Also within 16 (version 1.6, c-14c, #317, 0026 S3 and C4): the ids of what a piece makes (motifs, variations, ideas, resume points, bookmarks of the notes and of a PDF's pages, categories, margin notes, highlights, drafts with their places and variants, groups of steps, Notes after the first, versions compared, every original but the first PDF) come from the facade's `IdSource`: the native build's is random ("b_" and 32 hex digits, `IdSource.Random`), a facade made without one numbers them as before ("b_0002", `IdSource.Numbered`), so the answers of the fixtures do not change; drafts.bridge, drafts.carry, sources.notes.hear and sources.notes.recognise answer the ids the change made. `open` takes "onlineIds", the ids of the app's projects saved online: a project file whose id is numbered ("p_0003") and not among them opens re-keyed to the C4 id (`ProjectIds.Rekeyed`), its project answering the new id and "formerIds" (the ids it had, oldest first; left out when none), and is saved so; without "onlineIds", for a piece saved online or a file of a later version, the id stays. Fields added; the project file stays version 18 ("formerIds").
 

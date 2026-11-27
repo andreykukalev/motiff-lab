@@ -178,7 +178,7 @@ public class MusicCoreFacadeTests
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
 
-        Assert.Equal(16, MusicCoreFacade.Contract);
+        Assert.Equal(17, MusicCoreFacade.Contract);
         Assert.Equal(MusicCoreFacade.Contract, version.GetProperty("contract").GetInt32());
         Assert.Equal(ProjectFile.Version, version.GetProperty("projectFile").GetInt32());
         Assert.Contains(".NET", version.GetProperty("runtime").GetString());
@@ -298,13 +298,12 @@ public class MusicCoreFacadeTests
 
         JsonElement phrases = Call(facade, "phrases");
 
-        Assert.Equal("phrase", phrases.GetProperty("level").GetString());
-        Assert.Equal(["short", "phrase", "sentence"], phrases.GetProperty("levels").EnumerateArray().Select(level => level.GetProperty("id").GetString()!).ToArray());
-        Assert.All(phrases.GetProperty("levels").EnumerateArray(), level => Assert.True(level.GetProperty("available").GetBoolean()));
+        // Contract 17: the answer no longer names the level shown nor lists the levels; its units are the phrases.
+        Assert.False(phrases.TryGetProperty("level", out _));
+        Assert.False(phrases.TryGetProperty("levels", out _));
         JsonElement[] found = [.. phrases.GetProperty("units").EnumerateArray()];
         Assert.True(found.Length > 1);
-        Assert.Equal(found.Length, phrases.GetProperty("levels")[1].GetProperty("count").GetInt32());
-        Assert.Equal("phrase", found[0].GetProperty("level").GetString());
+        Assert.All(found, unit => Assert.Equal("phrase", unit.GetProperty("level").GetString()));
         Assert.Equal("phrase", found[0].GetProperty("name").GetString());
         foreach (string field in new[] { "number", "firstBar", "lastBar", "onset", "end", "selectable", "long", "parent", "start" })
         {
@@ -334,7 +333,7 @@ public class MusicCoreFacadeTests
         Assert.True(sentences.GetProperty("units").GetArrayLength() <= phrases);
         Assert.All(shorts.GetProperty("units").EnumerateArray(), unit => Assert.Equal("short", unit.GetProperty("level").GetString()));
         // Asking for a level does not change the one shown, and no call shows another (contract 14).
-        Assert.Equal("phrase", Call(facade, "phrases").GetProperty("level").GetString());
+        Assert.All(Call(facade, "phrases").GetProperty("units").EnumerateArray(), unit => Assert.Equal("phrase", unit.GetProperty("level").GetString()));
         Assert.Equal("unknownCall", Error(facade, 1, "phrases.level", """{"level": "sentence"}"""));
 
         // The level once remembered is no setting any more (version 18): a piece always opens in phrases.
@@ -343,7 +342,7 @@ public class MusicCoreFacadeTests
         Assert.DoesNotContain("phrases.granularity", saved, StringComparison.Ordinal);
         var again = new MusicCoreFacade();
         again.Open("fur-elise" + ProjectFile.Extension, System.Text.Encoding.UTF8.GetBytes(saved));
-        Assert.Equal("phrase", Call(again, "phrases").GetProperty("level").GetString());
+        Assert.All(Call(again, "phrases").GetProperty("units").EnumerateArray(), unit => Assert.Equal("phrase", unit.GetProperty("level").GetString()));
         Assert.Equal(saved, again.Call(1, "project.save", """{"now": "2026-11-01T12:00:00Z"}"""));
     }
 

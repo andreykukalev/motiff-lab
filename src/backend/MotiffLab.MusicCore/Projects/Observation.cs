@@ -1,4 +1,5 @@
 using MotiffLab.MusicCore.Analysis;
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Export;
 using MotiffLab.MusicCore.Motifs;
@@ -124,28 +125,13 @@ public sealed record Observation(
     /// most; null when it overlaps none. So after the level changes an idea shows under the phrase that
     /// contains its beginning, a merge keeps it and a split leaves it on the first part.
     /// </summary>
-    public TickSpan? Home(IEnumerable<TickSpan> phrases)
-    {
-        ArgumentNullException.ThrowIfNull(phrases);
-        TickSpan? best = null;
-        long bestOverlap = 0;
-        foreach (TickSpan phrase in phrases)
-        {
-            if (phrase.Contains(Phrase.Span.Onset))
-            {
-                return phrase;
-            }
+    public TickSpan? Home(IEnumerable<TickSpan> phrases) => PhraseMap.HomeOf(Phrase.Span, phrases);
 
-            long overlap = Math.Min(phrase.End.Value, Phrase.Span.End.Value) - Math.Max(phrase.Onset.Value, Phrase.Span.Onset.Value);
-            if (overlap > bestOverlap)
-            {
-                best = phrase;
-                bestOverlap = overlap;
-            }
-        }
-
-        return best;
-    }
+    /// <summary>
+    /// The phrase anchor the idea is attached to (0026 C1, #318), as <see cref="Project.Anchors"/> names it; null for an
+    /// idea of a file without anchors until something attaches it (<see cref="ProjectAnchors.Attached(Project, Observation, PhraseMap)"/>).
+    /// </summary>
+    public string? Anchor { get; init; }
 
     /// <summary>
     /// An observation from what the player kept. The name and note are trimmed, and a blank note
@@ -264,8 +250,7 @@ public sealed record Observation(
         TickSpan span = (Variation ?? throw new InvalidOperationException("This observation keeps a note, not a variation.")).Passage.Span;
         int first = meter.BarAt(span.Onset).Number;
         int last = meter.BarAt(new Tick(span.End.Value - 1)).Number;
-        string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
-        return MidiExporter.FileName(Path.GetFileNameWithoutExtension(projectFileName), bars, Name);
+        return MidiExporter.FileName(Path.GetFileNameWithoutExtension(projectFileName), Words.English.Bars(first, last), Name);
     }
 
     private static string Trimmed(string name)

@@ -7,7 +7,7 @@
 // tap inside zooms to it. A finger beside the
 // stylus scrolls; held still on a bar it selects that bar (the way back for a finger), and moved after the hold it draws
 // from where it pressed, as the stylus does (Andrei, 2026-11-17). One rule for the score and the
-// roll (Scripts/roll imports it). Pure; nothing here touches the DOM.
+// roll (Scripts/score and Scripts/roll import it). Pure; nothing here touches the DOM.
 
 import { DRAG_DISTANCE, HOLD_SLOP, type SelectionChange, type TickRange, editedRange } from "./selection-gesture.js";
 

@@ -416,6 +416,7 @@
      "at": 0,
      "bar": 0,
      "passage": null,
+     "anchor": null,
      "focused": false,
      "overlays": [],
      "tempoPercent": 100,
@@ -431,6 +432,7 @@
       "at": 0,
       "bar": 0,
       "passage": null,
+      "anchor": null,
       "focused": false,
       "overlays": [],
       "tempoPercent": 100,
@@ -484,6 +486,7 @@
        "hand": "left"
       }
      },
+     "anchor": null,
      "focused": true,
      "overlays": [
       "pianoRoll",
@@ -514,6 +517,7 @@
         "hand": "left"
        }
       },
+      "anchor": null,
       "focused": true,
       "overlays": [
        "pianoRoll",
@@ -551,6 +555,7 @@
         "hand": "left"
        }
       },
+      "anchor": null,
       "focused": true,
       "overlays": [
        "pianoRoll",
@@ -3051,6 +3056,7 @@
        },
        "filter": {}
       },
+      "anchor": "ph_0ae79b0f91d37a91f2a1cafe6635740d",
       "experiment": null,
       "factId": null,
       "hasVariation": true,
@@ -3082,6 +3088,7 @@
        },
        "filter": {}
       },
+      "anchor": "ph_0ae79b0f91d37a91f2a1cafe6635740d",
       "experiment": null,
       "factId": null,
       "hasVariation": true,

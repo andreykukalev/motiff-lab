@@ -7,7 +7,8 @@
 // phrases' marks stand over its bars as over the pages (page-phrases.ts), only to read, with each motif's small comma,
 // which a tap selects (page-taps.ts).
 import { cardLayout } from "../phrase-card.js";
-import { ScoreGeometry, readPage, staffFrames, type PageGeometry, type Playhead } from "../score-geometry.js";
+import { readPage, staffFrames, type PageGeometry } from "../page-reader.js";
+import { ScoreGeometry, type Playhead } from "../score-geometry.js";
 import { ScoreTimeline } from "../score-timeline.js";
 import { ScoreBeats } from "../selection-beats.js";
 import { beatUnder } from "../score-modes.js";

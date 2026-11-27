@@ -41,9 +41,6 @@ internal static class MidiIssueCodes
     public const string UnknownChunk = "midi.unknown-chunk";
     public const string DataAfterEndOfTrack = "midi.data-after-end-of-track";
 
-    /// <summary>The issue in plain English, as <see cref="ImportIssue.Message"/> keeps it.</summary>
-    public static string Describe(string code, int count) => Describe(code, count, Words.English);
-
     /// <summary>The issue in the language (0018, preparation item 13).</summary>
     public static string Describe(string code, int count, Words words) => code switch
     {
@@ -51,7 +48,7 @@ internal static class MidiIssueCodes
             $"{Notes(count)} had timing rounded to the 480-per-quarter grid, by at most half a tick at each end.",
             $"Нот, время которых округлено до сетки 480 на четверть (не более чем на полтика с каждого конца): {count}."),
         MetaRounded => words.T(
-            $"{Plural(count, "tempo, time or key signature change", "tempo, time or key signature changes")} rounded to the 480-per-quarter grid.",
+            $"{Words.EnglishCount(count, "tempo, time or key signature change", "tempo, time or key signature changes")} rounded to the 480-per-quarter grid.",
             $"Смен темпа, размера или тональности, округлённых до сетки 480 на четверть: {count}."),
         TempoDefault => words.T(
             "The file sets no tempo at its start, so the piece plays at 80 BPM until the first tempo change or until you set its tempo.",
@@ -66,13 +63,13 @@ internal static class MidiIssueCodes
             $"{Notes(count)} started while the same key was already sounding; note-offs were paired in order (first on, first off).",
             $"Нот, взятых, пока та же клавиша ещё звучала: {count}; снятия сопоставлены по порядку (первой взята — первой снята)."),
         TempoOutsideFirstTrack => words.T(
-            $"{Plural(count, "tempo change", "tempo changes")} found outside the first track were applied to the whole piece.",
+            $"{Words.EnglishCount(count, "tempo change", "tempo changes")} found outside the first track were applied to the whole piece.",
             $"Смен темпа вне первой дорожки, применённых ко всей пьесе: {count}."),
         Format0WithManyTracks => words.T(
             "The file says it is type 0 but has more than one track; every track was read.",
             "Файл объявлен как тип 0, но в нём больше одной дорожки; прочитаны все дорожки."),
         HandsInferred => words.T(
-            $"The file has both hands on one track, so the hand of {Plural(count, "note was", "notes were")} inferred from pitch and continuity; you can reassign any note.",
+            $"The file has both hands on one track, so the hand of {Words.EnglishCount(count, "note was", "notes were")} inferred from pitch and continuity; you can reassign any note.",
             $"В файле обе руки на одной дорожке, поэтому рука выведена по высоте и связности (нот: {count}); любую ноту можно переназначить."),
         ZeroLengthWidened => words.T(
             $"{Notes(count)} ended at the same tick they started and were widened to one tick.",
@@ -93,40 +90,40 @@ internal static class MidiIssueCodes
             "The file ends with stray bytes after its last track; they were ignored.",
             "После последней дорожки в файле лишние байты; они пропущены."),
         DrumsExcluded => words.T(
-            $"{Plural(count, "note on the drum channel (10) was", "notes on the drum channel (10) were")} left out.",
+            $"{Words.EnglishCount(count, "note on the drum channel (10) was", "notes on the drum channel (10) were")} left out.",
             $"Пропущено нот на канале ударных (10): {count}."),
         NoteOffUnmatched => words.T(
-            $"{Plural(count, "note-off had", "note-offs had")} no matching note-on and were left out.",
+            $"{Words.EnglishCount(count, "note-off had", "note-offs had")} no matching note-on and were left out.",
             $"Пропущено снятий (note-off) без парного нажатия: {count}."),
         ControllersIgnored => words.T(
-            $"{Plural(count, "controller message was", "controller messages were")} left out.",
+            $"{Words.EnglishCount(count, "controller message was", "controller messages were")} left out.",
             $"Пропущено сообщений контроллеров: {count}."),
         PitchBendIgnored => words.T(
-            $"{Plural(count, "pitch bend message was", "pitch bend messages were")} left out.",
+            $"{Words.EnglishCount(count, "pitch bend message was", "pitch bend messages were")} left out.",
             $"Пропущено сообщений изменения высоты (pitch bend): {count}."),
         AftertouchIgnored => words.T(
-            $"{Plural(count, "aftertouch message was", "aftertouch messages were")} left out.",
+            $"{Words.EnglishCount(count, "aftertouch message was", "aftertouch messages were")} left out.",
             $"Пропущено сообщений послекасания (aftertouch): {count}."),
         SysExIgnored => words.T(
-            $"{Plural(count, "system exclusive message was", "system exclusive messages were")} left out.",
+            $"{Words.EnglishCount(count, "system exclusive message was", "system exclusive messages were")} left out.",
             $"Пропущено системных сообщений (SysEx): {count}."),
         MetaIgnored => words.T(
-            $"{Plural(count, "text, marker or other meta event was", "text, marker or other meta events were")} left out.",
+            $"{Words.EnglishCount(count, "text, marker or other meta event was", "text, marker or other meta events were")} left out.",
             $"Пропущено текстов, маркеров и других метасобытий: {count}."),
         MetaInvalid => words.T(
-            $"{Plural(count, "tempo, time or key signature event had", "tempo, time or key signature events had")} invalid values and were left out.",
+            $"{Words.EnglishCount(count, "tempo, time or key signature event had", "tempo, time or key signature events had")} invalid values and were left out.",
             $"Пропущено событий темпа, размера или тональности с недопустимыми значениями: {count}."),
         TempoSuperseded => words.T(
-            $"{Plural(count, "tempo change was", "tempo changes were")} replaced by a later one at the same position.",
+            $"{Words.EnglishCount(count, "tempo change was", "tempo changes were")} replaced by a later one at the same position.",
             $"Заменено более поздними на том же месте смен темпа: {count}."),
         MeterSuperseded => words.T(
-            $"{Plural(count, "time signature was", "time signatures were")} replaced by a later one at the same position.",
+            $"{Words.EnglishCount(count, "time signature was", "time signatures were")} replaced by a later one at the same position.",
             $"Заменено более поздними на том же месте размеров: {count}."),
         KeySuperseded => words.T(
-            $"{Plural(count, "key signature was", "key signatures were")} replaced by a later one at the same position.",
+            $"{Words.EnglishCount(count, "key signature was", "key signatures were")} replaced by a later one at the same position.",
             $"Заменено более поздними на том же месте тональностей: {count}."),
         UnknownChunk => words.T(
-            $"{Plural(count, "chunk of an unknown type was", "chunks of an unknown type were")} skipped.",
+            $"{Words.EnglishCount(count, "chunk of an unknown type was", "chunks of an unknown type were")} skipped.",
             $"Пропущено блоков неизвестного типа: {count}."),
         DataAfterEndOfTrack => words.T(
             "The track has data after its end-of-track marker; it was ignored.",
@@ -134,7 +131,5 @@ internal static class MidiIssueCodes
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unknown MIDI issue code."),
     };
 
-    private static string Notes(int count) => Plural(count, "note", "notes");
-
-    private static string Plural(int count, string one, string many) => count == 1 ? $"1 {one}" : $"{count} {many}";
+    private static string Notes(int count) => Words.EnglishCount(count, "note", "notes");
 }

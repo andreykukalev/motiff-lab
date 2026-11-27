@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-13, c-14b3):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-14, c-14b3):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -48,6 +48,19 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   a file only in iCloud is downloaded first), and when it cannot be read the sheet's danger line says why in the same
   words («Файл не прочитался.», no connection, the file gone) · as `OriginalsController` does (lead's decision); before,
   it was read on the main thread, a file only in iCloud failed, and nothing was said · v1.6 i-13
+- `E-settings-1` · Two settings changed in a row in the Settings sheet (or a switch turned off and on again) before
+  music-core has answered the first · each change waits for the one before it and starts from the values it kept, so
+  every change is kept and a switch ends as last set; before, the second answer dropped the first change, and a switch
+  turned off and on at once stayed off · a control shows what was last chosen (HIG); as the score's calls go one after
+  another (`DeviceSettings.queueChange`) · v1.6 i-14
+- `E-settings-2` · «Сохранить» of the profile tapped again while the first save is on its way (before the button
+  shows as off) · one save; the second tap does nothing · as Keep tapped twice keeps one idea (`E-insights-3`) and the
+  button is off while it saves (`ProfileController.save`) · v1.6 i-14
+- `E-settings-3` · The profile's photo chosen again, or removed, while one picked before still loads; the same photo
+  picked again after «Убрать фото» · the latest choice shows: a photo that loads after a later choice or a removal is
+  left, and a photo picked again is read again; before, the slower one won, and the same photo picked again did nothing
+  (the picker kept it selected) · a control shows what was last chosen (HIG), as the plan's latest ask wins
+  (`Account.refreshPlan`) · v1.6 i-14
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over

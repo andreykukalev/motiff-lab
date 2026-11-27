@@ -41,9 +41,11 @@ only (`SourceLayers.views(showing:)`); the piece's first notes open it again as 
 
 `PdfController`: the document, page, last page, page count, bookmarks, strokes, the pen and its history, the problem
 line, the family (written by the screen's `.task` and a split made). `PieceSplitter`: the rows, the playlist, the split
-in progress (`making`, set before the collection is saved, so the button is off meanwhile), what was made.
+in progress (`making`, set before the collection is saved, so the button is off meanwhile), what was made. Rule (#675):
+`PdfPages` writes none of the controller's published values while SwiftUI makes or updates it; the pen's attach and
+the page in view (PDFKit's notifications) are told on the next turn of the main queue, as `ScoreWebView` shows a piece.
 
 ## Baseline entries that protect it
 
 UX baseline: `VIEW-01`, `VIEW-02` (switching PDF | Notes). Quality ratchet: `PdfController.swift`'s nine Ink edges (the
-pen's state on the model), `PiecePartsSheet.swift` (`FieldLook`).
+pen's state on the model); `PiecePartsSheet.swift`'s to `FieldLook` went with it to Platform (v1.6 i-14).

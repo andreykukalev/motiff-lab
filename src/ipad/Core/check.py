@@ -57,7 +57,7 @@ def main() -> int:
 
     started = time.perf_counter()
     phrases = call("phrases")
-    check("phrases", [level.get("id") for level in phrases.get("levels", [])] == ["short", "phrase", "sentence"], phrases, started)
+    check("phrases", list(phrases.get("edits", {})) == ["short", "phrase", "sentence"] and bool(phrases.get("units")), phrases, started)
     started = time.perf_counter()
     selected = call("select", '{"bars": {"first": 1, "last": 2}}')
     check("select", "selection" in selected, selected, started)

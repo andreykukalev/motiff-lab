@@ -14,8 +14,7 @@ internal static partial class OperationTemplates
     /// </summary>
     private static string? Repatterned(MotifTexture before, MotifTexture after, MeterMap meter, Words w)
     {
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
-        if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        if (!MelodyHeld(before, after))
         {
             return null;
         }
@@ -39,12 +38,10 @@ internal static partial class OperationTemplates
         int last = was.Keys.Max();
         if (w.IsRussian)
         {
-            string inBars = first == last ? $"В такте {first}" : $"В тактах {first}–{last}";
-            return $"{inBars} аккомпанемент сохраняет высоты и играет их в новом ритме или порядке; мелодия не изменилась.";
+            return $"{Words.Capitalize(w.InBars(first, last))} аккомпанемент сохраняет высоты и играет их в новом ритме или порядке; мелодия не изменилась.";
         }
 
-        string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
-        return $"In {bars} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
+        return $"In {w.Bars(first, last)} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
     }
 
     /// <summary>
@@ -53,8 +50,7 @@ internal static partial class OperationTemplates
     /// </summary>
     private static string? Rebassed(MotifTexture before, MotifTexture after, MeterMap meter, MusicalKey? key, Words w)
     {
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
-        if (!before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+        if (!MelodyHeld(before, after))
         {
             return null;
         }
@@ -68,7 +64,7 @@ internal static partial class OperationTemplates
             return null;
         }
 
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = Spelling(key);
         string Names(Note[] line) => string.Join(" ", line.Take(HarmonyAnalyzer.MaxNamedBassNotes).Select(note => spelling.Spell(note.Pitch.MidiNumber))) + (line.Length > HarmonyAnalyzer.MaxNamedBassNotes ? " …" : "");
         string unchanged = w.T("the melody and the notes over the bass are unchanged", "мелодия и голоса над басом не изменились");
         if (now.All(note => note.Pitch == now[0].Pitch))
@@ -118,9 +114,8 @@ internal static partial class OperationTemplates
         }
 
         int up = moved.Count(static change => change.After.Pitch.MidiNumber > change.Before.Pitch.MidiNumber);
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
         return Transposed(moved, up, before.Notes.Count, w)
-            ?? (before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)) ? Rechorded(moved.Length, up, before, after, key, meter, w) : null);
+            ?? (MelodyHeld(before, after) ? Rechorded(moved.Length, up, before, after, key, meter, w) : null);
     }
 
     /// <summary>V3, the whole passage an octave higher or lower: all <paramref name="count"/> notes moved by the same octave.</summary>
@@ -154,8 +149,8 @@ internal static partial class OperationTemplates
     private static string Rechorded(int moved, int up, MotifTexture before, MotifTexture after, MusicalKey? key, MeterMap meter, Words w)
     {
         int down = moved - up;
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
-        var span = TickSpan.FromBounds(before.Notes.Min(static note => note.Span.Onset), before.Notes.Max(static note => note.Span.End));
+        MusicalKey spelling = Spelling(key);
+        TickSpan span = SpanOf(before);
         string[] was = [.. HarmonyAnalyzer.FindChords(before.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
         string[] now = [.. HarmonyAnalyzer.FindChords(after.Notes, meter, span, key).Select(chord => chord.Symbol(spelling))];
         string how = up > 0 && down > 0
@@ -237,15 +232,14 @@ internal static partial class OperationTemplates
     /// </summary>
     private static string? Reharmonised(IReadOnlyList<NoteChange> changes, MotifTexture before, MotifTexture after, MusicalKey? key, MeterMap meter, Words w)
     {
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
         NoteChange[] moved = [.. changes.Where(static change => change.PitchChanged)];
         if (moved.Length == 0 || changes.Count != before.Notes.Count || changes.Any(static change => change.OnsetChanged || change.DurationChanged)
-            || !before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape)))
+            || !MelodyHeld(before, after))
         {
             return null;
         }
 
-        var span = TickSpan.FromBounds(before.Notes.Min(static note => note.Span.Onset), before.Notes.Max(static note => note.Span.End));
+        TickSpan span = SpanOf(before);
         IReadOnlyList<ChordSpan> was = HarmonyAnalyzer.FindChords(before.Notes, meter, span, key);
         IReadOnlyList<ChordSpan> now = HarmonyAnalyzer.FindChords(after.Notes, meter, span, key);
         if (was.Count == 0 || now.Count == 0)
@@ -253,7 +247,7 @@ internal static partial class OperationTemplates
             return null;
         }
 
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = Spelling(key);
         string Symbols(IReadOnlyList<ChordSpan> chords) => string.Join(" ", chords.Select(chord => chord.Symbol(spelling)));
         return w.IsRussian
             ? $"По нотам аккорды меняются: были {Symbols(was)}, стали {Symbols(now)}; мелодия и ритм не изменились, а {w.Count(moved.Length, "", "", "нота", "ноты", "нот")} аккомпанемента {Words.RussianForm(moved.Length, "переходит", "переходят", "переходят")} в звуки новых аккордов."

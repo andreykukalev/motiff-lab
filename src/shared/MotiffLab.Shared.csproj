@@ -2,7 +2,7 @@
 
   <!--
     The shared score layer (docs/repository-structure.md): the TypeScript modules the iPad's score page and roll run
-    (Scripts/score, roll, layout, storage, playback), compiled to wwwroot/js/ (tsconfig.json, not committed), with the
+    (Scripts/score, roll, selection, layout, storage, playback), compiled to wwwroot/js/ (tsconfig.json, not committed), with the
     interface words, the piano and the example piece the iPad bundles (src/ipad/App/project.yml). No C#: the project is
     in the solution so that `dotnet build` compiles the TypeScript, as the web app's project did before it was archived.
   -->

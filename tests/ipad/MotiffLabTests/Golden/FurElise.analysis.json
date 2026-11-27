@@ -9,24 +9,6 @@
     "level": "short"
    },
    "answer": {
-    "level": "short",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -1079,7 +1061,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -1089,24 +1073,6 @@
     "level": "phrase"
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -1166,7 +1132,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -1213,7 +1180,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -1260,7 +1228,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -1307,7 +1276,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -1354,7 +1324,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -1401,7 +1372,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -1440,7 +1412,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -1479,7 +1452,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -1526,7 +1500,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -1565,7 +1540,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -1612,7 +1588,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -1659,7 +1636,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -1698,7 +1676,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -1753,7 +1732,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -1808,7 +1788,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -1863,7 +1844,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -1902,7 +1884,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -1941,7 +1924,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -1988,7 +1972,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -2035,7 +2020,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -2082,7 +2068,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -2186,7 +2173,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -2196,24 +2185,6 @@
     "level": "sentence"
    },
    "answer": {
-    "level": "sentence",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -2420,7 +2391,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -6740,24 +6713,6 @@
     "level": "short"
    },
    "answer": {
-    "level": "short",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -7810,7 +7765,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -7820,24 +7777,6 @@
     "level": "phrase"
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -7897,7 +7836,8 @@
         "bar": 2,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 2,
@@ -7944,7 +7884,8 @@
         "bar": 6,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 3,
@@ -7991,7 +7932,8 @@
         "bar": 12,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 4,
@@ -8038,7 +7980,8 @@
         "bar": 17,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 5,
@@ -8085,7 +8028,8 @@
         "bar": 21,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 6,
@@ -8132,7 +8076,8 @@
         "bar": 28,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 7,
@@ -8171,7 +8116,8 @@
         "bar": 32,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 8,
@@ -8210,7 +8156,8 @@
         "bar": 36,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 9,
@@ -8257,7 +8204,8 @@
         "bar": 41,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 10,
@@ -8296,7 +8244,8 @@
         "bar": 43,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 11,
@@ -8343,7 +8292,8 @@
         "bar": 50,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 12,
@@ -8390,7 +8340,8 @@
         "bar": 55,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 13,
@@ -8429,7 +8380,8 @@
         "bar": 57,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 14,
@@ -8484,7 +8436,8 @@
         "bar": 67,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 15,
@@ -8539,7 +8492,8 @@
         "bar": 75,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 16,
@@ -8594,7 +8548,8 @@
         "bar": 81,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 17,
@@ -8633,7 +8588,8 @@
         "bar": 84,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 18,
@@ -8672,7 +8628,8 @@
         "bar": 87,
         "beat": 3
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 19,
@@ -8719,7 +8676,8 @@
         "bar": 94,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 20,
@@ -8766,7 +8724,8 @@
         "bar": 99,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      },
      {
       "number": 21,
@@ -8813,7 +8772,8 @@
         "bar": 103,
         "beat": 1
        }
-      ]
+      ],
+      "anchor": null
      }
     ],
     "own": 0,
@@ -8917,7 +8877,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {
@@ -8927,24 +8889,6 @@
     "level": "sentence"
    },
    "answer": {
-    "level": "sentence",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 39
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 21
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 4
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -9151,7 +9095,9 @@
       "bar": 84,
       "beat": 1
      }
-    ]
+    ],
+    "anchors": [],
+    "unmatched": 0
    }
   },
   {

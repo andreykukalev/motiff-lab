@@ -83,9 +83,6 @@ public sealed class NoteDoubt
         return new NoteDoubt(doubtful, words);
     }
 
-    /// <summary>Whether a note is doubtful.</summary>
-    public bool Contains(string noteId) => _notes.ContainsKey(noteId);
-
     /// <summary>The bars of the doubtful notes among <paramref name="noteIds"/>, in order; empty when none is doubtful.</summary>
     public IReadOnlyList<int> BarsOf(IEnumerable<string> noteIds)
     {
@@ -108,10 +105,10 @@ public sealed class NoteDoubt
             return null;
         }
 
-        string list = _words.Joined([.. bars.Select(static bar => bar.ToString(System.Globalization.CultureInfo.InvariantCulture))]);
+        string where = _words.Bars(_words.Joined([.. bars.Select(static bar => bar.ToString(System.Globalization.CultureInfo.InvariantCulture))]), bars.Count == 1);
         return _words.T(
-            $"Rests on recognised notes still to check in {(bars.Count == 1 ? "bar" : "bars")} {list}.",
-            $"Опирается на распознанные ноты, которые ещё нужно проверить: {(bars.Count == 1 ? "такт" : "такты")} {list}.");
+            $"Rests on recognised notes still to check in {where}.",
+            $"Опирается на распознанные ноты, которые ещё нужно проверить: {where}.");
     }
 
     /// <summary>

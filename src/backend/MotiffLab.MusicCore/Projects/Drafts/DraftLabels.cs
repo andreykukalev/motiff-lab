@@ -119,7 +119,7 @@ internal static class DraftLabels
     public static string Key(KeySignature key, Words words)
     {
         ArgumentNullException.ThrowIfNull(key);
-        return key.Mode is { } mode ? new MusicalKey(key.Fifths, mode).NameIn(words) : KeyReference.CountOf(key.Fifths, words);
+        return key.Mode is { } mode ? new MusicalKey(key.Fifths, mode).NameIn(words) : words.AccidentalsLabel(key.Fifths);
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ internal static class DraftLabels
     private static string NameNumbered(int number, Words words) => string.Create(CultureInfo.InvariantCulture, $"{words.T("Draft", "Черновик")} {number}");
 
     /// <summary>The bars a variant was copied from, after a space: " 9–16", " 9"; none when it does not say.</summary>
-    private static string Bars(DraftVariant variant) => variant.From.Bars is var (from, to) ? from == to ? $" {from}" : $" {from}–{to}" : "";
+    private static string Bars(DraftVariant variant) => variant.From.Bars is var (from, to) ? $" {Words.Range(from, to)}" : "";
 
     /// <summary>The number in a circle, ① to ⑳; past 20 in brackets.</summary>
     internal static string Circled(int number) =>

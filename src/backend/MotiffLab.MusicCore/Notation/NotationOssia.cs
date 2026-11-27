@@ -21,10 +21,6 @@ internal readonly record struct BarRange
 
     public int LastBar { get; }
 
-    public int BarCount => LastBar - FirstBar + 1;
-
-    public bool Contains(int bar) => bar >= FirstBar && bar <= LastBar;
-
     /// <summary>The bars a span touches: from the bar that holds its onset to the bar that holds its last tick.</summary>
     public static BarRange Of(MeterMap meter, TickSpan span)
     {

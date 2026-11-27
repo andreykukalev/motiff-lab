@@ -110,7 +110,7 @@ internal sealed record FoundSection(int Number, TickSpan Span, int FirstBar, int
     public string PieceTitleIn(Words words) => Title ?? Heading ?? words.T($"Piece {Number}", $"Пьеса {Number}");
 
     /// <summary>"bars 41–80"; "такты 41–80".</summary>
-    public string BarsIn(Words words) => Bookmark.Bars(FirstBar, LastBar, words);
+    public string BarsIn(Words words) => words.Bars(FirstBar, LastBar);
 
     /// <summary>Why it was proposed, facts only: "double bar line, key changes to D minor"; after a move, where from.</summary>
     public string ReasonIn(Words words)
@@ -166,9 +166,6 @@ internal sealed class FoundSections
         HashSet<int> marked = [.. bookmarks.Select(bookmark => _meter.BarAt(bookmark.Span.Onset).Number)];
         return [.. Items.Where(section => !marked.Contains(section.FirstBar))];
     }
-
-    /// <summary>The section with this number, or null.</summary>
-    public FoundSection? Find(int number) => Items.FirstOrDefault(section => section.Number == number);
 
     /// <summary>Whether the section's start can move to the bar: after the start of the one before it and before the start of the one after.</summary>
     public bool CanMove(int number, int bar)

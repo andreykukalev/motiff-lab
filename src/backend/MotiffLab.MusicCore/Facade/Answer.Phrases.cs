@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Analysis.Phrasing;
+using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -14,32 +15,21 @@ namespace MotiffLab.MusicCore.Facade;
 internal static partial class Answer
 {
     /// <summary>
-    /// The three levels (0018, section 3; contract 3): the level shown, every level with its count, the edits per level and
-    /// the units of the level shown, a phrase with its mark (<see cref="Unit"/>); then "own", the player's boundaries as
-    /// «Ваших границ: N» counts them (<see cref="PhraseMap.OwnCount"/>), and "sections", where each section of the form
-    /// starts (the letter in its box): the section as Piece DNA writes it, with the phrase and the bar and beat it starts at.
+    /// The three levels (0018, section 3; contract 3): the edits per level and the units of the level shown, a phrase with
+    /// its mark (<see cref="Unit"/>; since contract 17 not the level shown nor every level with its count, which no app
+    /// read); then "own", the player's boundaries as «Ваших границ: N» counts them (<see cref="PhraseMap.OwnCount"/>), and
+    /// "sections", where each section of the form starts (the letter in its box): the section as Piece DNA writes it, with
+    /// the phrase and the bar and beat it starts at; and the phrase anchors (#318, <see cref="Anchors"/>).
     /// </summary>
-    public static void Phrases(Utf8JsonWriter json, PhraseLevels levels, IReadOnlyList<DnaSection> sections, PhraseLevel shown, Words words, MeterMap meter)
+    public static void Phrases(Utf8JsonWriter json, PhraseLevels levels, IReadOnlyList<DnaSection> sections, PhraseLevel shown, Words words, MeterMap meter, IReadOnlyList<PhraseAnchor> anchors)
     {
-        json.WriteString("level", PhraseLevels.Name(shown));
-        json.WriteStartArray("levels");
-        foreach (PhraseLevel level in PhraseLevels.All)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", PhraseLevels.Name(level));
-            json.WriteBoolean("available", true);
-            json.WriteNumber("count", levels.Units(level).Count);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
         json.WriteString("evidence", JsonWrite.Name(levels.Phrases.Evidence));
         LevelEdits(json, "edits", levels.Edits);
 
         json.WriteStartArray("units");
         foreach (PhraseUnit unit in levels.Units(shown))
         {
-            Unit(json, levels, unit, words, meter);
+            Unit(json, levels, unit, words, meter, anchors);
         }
 
         json.WriteEndArray();
@@ -64,6 +54,39 @@ internal static partial class Answer
         }
 
         json.WriteEndArray();
+        Anchors(json, levels.Phrases, anchors);
+    }
+
+    /// <summary>
+    /// "anchors" (#318, within contract 16): each phrase anchor something is attached to, its id and span, and "phrase",
+    /// the number of the phrase it is, or null when the notes or their analysis changed so that it is no phrase any more
+    /// (phrases.reattach attaches those again); then "unmatched", how many are null.
+    /// </summary>
+    private static void Anchors(Utf8JsonWriter json, PhraseMap phrases, IReadOnlyList<PhraseAnchor> anchors)
+    {
+        int unmatched = 0;
+        json.WriteStartArray("anchors");
+        foreach (PhraseAnchor anchor in anchors)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", anchor.Id);
+            json.WriteNumber("onset", anchor.Span.Onset.Value);
+            json.WriteNumber("end", anchor.Span.End.Value);
+            if (phrases.WithSpan(anchor.Span) is { } phrase)
+            {
+                json.WriteNumber("phrase", phrase.Number);
+            }
+            else
+            {
+                json.WriteNull("phrase");
+                unmatched++;
+            }
+
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+        json.WriteNumber("unmatched", unmatched);
     }
 
     /// <summary>
@@ -87,7 +110,8 @@ internal static partial class Answer
         json.WriteEndArray();
     }
 
-    public static void Unit(Utf8JsonWriter json, PhraseLevels levels, PhraseUnit unit, Words words, MeterMap meter)
+    /// <summary>A unit; a phrase with "anchor", the id of the anchor it is (#318), or null while nothing is attached to it.</summary>
+    private static void Unit(Utf8JsonWriter json, PhraseLevels levels, PhraseUnit unit, Words words, MeterMap meter, IReadOnlyList<PhraseAnchor> anchors)
     {
         json.WriteStartObject();
         json.WriteNumber("number", unit.Number);
@@ -122,6 +146,7 @@ internal static partial class Answer
         if (unit.Level == PhraseLevel.Phrase)
         {
             Motifs(json, levels, unit, meter);
+            json.WriteString("anchor", anchors.FirstOrDefault(anchor => anchor.Span == unit.Span)?.Id);
         }
 
         json.WriteEndObject();

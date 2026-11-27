@@ -136,10 +136,11 @@ public class AssistantFacadeTests
     }
 
     [Fact]
-    public void The_contract_is_16()
+    public void The_contract_is_17()
     {
         // The assistant's calls came within 12; 13 is the merge calls removed (version 1.1, ADR 0034 section 8), 14 phrases.level,
-        // 15 reference.explorer's chosen tempo renamed "chosenTempo" (version 1.4), 16 bookmark.structure removed (version 1.5).
-        Assert.Equal(16, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());
+        // 15 reference.explorer's chosen tempo renamed "chosenTempo" (version 1.4), 16 bookmark.structure removed (version 1.5),
+        // 17 the phrases answer's "level" and "levels" removed (version 1.6).
+        Assert.Equal(17, Json(MusicCoreFacade.Version()).GetProperty("contract").GetInt32());
     }
 }

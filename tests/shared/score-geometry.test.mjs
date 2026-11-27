@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { BRACKET_LIFT, RING_GROWTH, ScoreGeometry, placeInBar, readPage } from "../../src/shared/wwwroot/js/score/score-geometry.js";
+import { readPage } from "../../src/shared/wwwroot/js/score/page-reader.js";
+import { BRACKET_LIFT, RING_GROWTH, ScoreGeometry, placeInBar } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 import { A4_LAYOUT, titleBlock } from "../../src/shared/wwwroot/js/score/score-page.js";
 import { ScoreTimeline } from "../../src/shared/wwwroot/js/score/score-timeline.js";
 import createVerovioModule from "../../src/shared/wwwroot/lib/verovio/verovio-module.mjs";
