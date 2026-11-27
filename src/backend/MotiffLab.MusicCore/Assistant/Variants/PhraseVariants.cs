@@ -169,7 +169,7 @@ internal static class PhraseVariants
         {
             DraftEditKind.Remove => new HandEditParameters(HandEditKind.Remove, edit.NoteId, null),
             DraftEditKind.Change => new HandEditParameters(HandEditKind.Change, edit.NoteId, edit.After!.Value),
-            _ => HandEditParameters.Add(edit.NoteId, edit.After!.Value),
+            _ => new HandEditParameters(HandEditKind.Add, edit.NoteId, edit.After!.Value),
         }))];
     }
 

@@ -56,6 +56,8 @@ public class VariationChainTests
         Assert.Null(accepted.Pending);
         Assert.Single(accepted.Steps);
         Assert.Equal(proposed.Result.Notes, accepted.Current);
+        Assert.Throws<InvalidOperationException>(() => Start().Accept());
+        Assert.Throws<InvalidOperationException>(accepted.Accept);
     }
 
     [Fact]

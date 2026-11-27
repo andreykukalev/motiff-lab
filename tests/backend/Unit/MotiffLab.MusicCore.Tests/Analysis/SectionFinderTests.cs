@@ -166,8 +166,8 @@ public class SectionFinderTests
 
         FoundSection second = Assert.Single(found.Items, section => section.Number > 1);
         Assert.Equal(21, second.FirstBar);
-        Assert.StartsWith("4 s of silence before, ", second.ReasonIn(Words.English), StringComparison.Ordinal);
-        Assert.StartsWith("перед этим 4 с тишины, ", second.ReasonIn(Words.Russian), StringComparison.Ordinal);
+        Assert.Equal("4 s of silence before, only a pause: the key and the tempo stay the same", second.ReasonIn(Words.English));
+        Assert.Equal("перед этим 4 с тишины, только пауза: тональность и темп те же", second.ReasonIn(Words.Russian));
         Assert.Equal("начало записи", found.Items[0].ReasonIn(Words.Russian));
     }
 
