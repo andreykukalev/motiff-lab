@@ -156,7 +156,7 @@ internal static class KeyReference
 
     /// <summary>The fifteen key signatures in the order the lookup offers them: none, one to seven sharps, one to seven flats.</summary>
     public static IReadOnlyList<SignatureChoice> Signatures(Words words = default) =>
-        [.. Enumerable.Range(0, 8).Concat(Enumerable.Range(1, 7).Select(flats => -flats)).Select(fifths => new SignatureChoice(fifths, Label(fifths), CountOf(fifths, words)))];
+        [.. Enumerable.Range(0, 8).Concat(Enumerable.Range(1, 7).Select(flats => -flats)).Select(fifths => new SignatureChoice(fifths, Label(fifths), words.AccidentalsLabel(fifths)))];
 
     /// <summary>"0", "5♯", "2♭", as the circle's sectors write a signature.</summary>
     public static string Label(int fifths) => fifths switch
@@ -175,7 +175,7 @@ internal static class KeyReference
         int[] staff = fifths >= 0 ? s_sharpStaff : s_flatStaff;
         int count = Math.Abs(fifths);
         string[] accidentals = [.. steps.Take(count).Select(step => new SpelledName(step, Math.Sign(fifths)).Name(naming))];
-        return new SignatureCard(fifths, Label(fifths), CountOf(fifths, words), accidentals, [.. staff.Take(count)]);
+        return new SignatureCard(fifths, Label(fifths), words.AccidentalsLabel(fifths), accidentals, [.. staff.Take(count)]);
     }
 
     /// <summary>The card of a key.</summary>
@@ -323,12 +323,4 @@ internal static class KeyReference
         int other = key.Fifths - (12 * Math.Sign(key.Fifths));
         return Math.Abs(other) <= 7 ? new MusicalKey(other, key.Mode) : null;
     }
-
-    /// <summary>A key signature in words: «5 диезов», «1 бемоль», «без знаков»; "5 sharps", "1 flat", "no sharps or flats".</summary>
-    internal static string CountOf(int fifths, Words words) => fifths switch
-    {
-        0 => words.T("no sharps or flats", "без знаков"),
-        > 0 => words.Count(fifths, "sharp", "sharps", "диез", "диеза", "диезов"),
-        _ => words.Count(-fifths, "flat", "flats", "бемоль", "бемоля", "бемолей"),
-    };
 }

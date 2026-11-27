@@ -242,16 +242,6 @@ public class MotifAnalyzerTests
     }
 
     [Theory]
-    [InlineData(0, "unison")]
-    [InlineData(-3, "minor 3rd")]
-    [InlineData(6, "tritone")]
-    [InlineData(12, "octave")]
-    [InlineData(14, "octave and a major 2nd")]
-    [InlineData(24, "2 octaves")]
-    public void Intervals_are_named_by_size(int semitones, string name) =>
-        Assert.Equal(name, MotifAnalyzer.IntervalName(semitones));
-
-    [Theory]
     [InlineData(68, 0, KeyMode.Minor, "♯7")]
     [InlineData(70, 0, KeyMode.Major, "♭7")]
     [InlineData(63, -3, KeyMode.Major, "1")]

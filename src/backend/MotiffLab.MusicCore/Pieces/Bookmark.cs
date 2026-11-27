@@ -26,9 +26,5 @@ public sealed record Bookmark(string Id, string Title, string CategoryId, TickSp
     /// other working notes).
     /// </summary>
     internal static string BarsTitle(MeterMap meter, TickSpan span, Words words) =>
-        Bars(meter.BarAt(span.Onset).Number, meter.BarAt(new Tick(span.End.Value - 1)).Number, words);
-
-    /// <summary>"bar 3" / "такт 3", or "bars 1–8" / "такты 1–8".</summary>
-    internal static string Bars(int first, int last, Words words) =>
-        first == last ? words.T($"bar {first}", $"такт {first}") : words.T($"bars {first}–{last}", $"такты {first}–{last}");
+        words.Bars(meter.BarAt(span.Onset).Number, meter.BarAt(new Tick(span.End.Value - 1)).Number);
 }

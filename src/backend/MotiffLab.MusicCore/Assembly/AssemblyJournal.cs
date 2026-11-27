@@ -167,8 +167,7 @@ internal static class AssemblyJournal
             return words.T("nothing", "ничего");
         }
 
-        string list = string.Join(", ", runs.Select(run => run.First == run.Last ? $"{run.First}" : $"{run.First}–{run.Last}"));
-        return runs.Count == 1 && runs[0].First == runs[0].Last ? words.T($"bar {list}", $"такт {list}") : words.T($"bars {list}", $"такты {list}");
+        return words.Bars(string.Join(", ", runs.Select(run => Words.Range(run.First, run.Last))), runs.Count == 1 && runs[0].First == runs[0].Last);
     }
 
     /// <summary>The apply dialog's lines: one for each carry and change still applied, with where it came from.</summary>

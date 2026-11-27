@@ -108,10 +108,10 @@ public sealed class NoteDoubt
             return null;
         }
 
-        string list = _words.Joined([.. bars.Select(static bar => bar.ToString(System.Globalization.CultureInfo.InvariantCulture))]);
+        string where = _words.Bars(_words.Joined([.. bars.Select(static bar => bar.ToString(System.Globalization.CultureInfo.InvariantCulture))]), bars.Count == 1);
         return _words.T(
-            $"Rests on recognised notes still to check in {(bars.Count == 1 ? "bar" : "bars")} {list}.",
-            $"Опирается на распознанные ноты, которые ещё нужно проверить: {(bars.Count == 1 ? "такт" : "такты")} {list}.");
+            $"Rests on recognised notes still to check in {where}.",
+            $"Опирается на распознанные ноты, которые ещё нужно проверить: {where}.");
     }
 
     /// <summary>

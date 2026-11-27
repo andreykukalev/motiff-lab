@@ -97,7 +97,7 @@ public sealed record ReadingMark(ReadingMarkKind Kind, int Bar, int Last, int? S
     {
         string bars = Kind is ReadingMarkKind.Meter or ReadingMarkKind.Key
             ? words.T($"from bar {Bar}", $"с такта {Bar}")
-            : Last == Bar ? words.T($"bar {Bar}", $"такт {Bar}") : words.T($"bars {Bar}–{Last}", $"такты {Bar}–{Last}");
+            : words.Bars(Bar, Last);
         string staff = Staff switch
         {
             1 => words.T("upper staff", "верхний стан"),
@@ -117,16 +117,7 @@ public sealed record ReadingMark(ReadingMarkKind Kind, int Bar, int Last, int? S
         return $"{what}, {bars}";
     }
 
-    private string KeyText(Words words)
-    {
-        int fifths = Fifths;
-        return fifths switch
-        {
-            0 => words.T("no sharps or flats", "без знаков"),
-            > 0 => words.Count(fifths, "sharp", "sharps", "диез", "диеза", "диезов"),
-            _ => words.Count(-fifths, "flat", "flats", "бемоль", "бемоля", "бемолей"),
-        };
-    }
+    private string KeyText(Words words) => words.AccidentalsLabel(Fifths);
 
     private static bool Valid(ReadingMarkKind kind, string? value) => kind switch
     {
