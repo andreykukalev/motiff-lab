@@ -132,7 +132,6 @@
   "originals.changed": "The original has changed",
   "originals.offline": "The file did not load: Files cannot reach iCloud Drive or Google Drive now. Try again when there is a connection.",
   "originals.unreadable": "The file could not be read.",
-  "edits.off": "Corrections are off: the notes are as they were recognised. Turn them on to correct notes.",
 
 
   "folderImport.awayTitle": "The PDF is not on this iPad",

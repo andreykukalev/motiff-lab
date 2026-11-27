@@ -310,11 +310,11 @@ struct RollEditTools: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             SegmentedChoice(options: ["move", "add", "delete"].map { ($0, text["edit.\($0)"]) }, chosen: editor.tool, label: text["edit.tool"]) {
-                score.chooseNoteEditTool($0)
+                score.checkModel.chooseNoteEditTool($0)
             }
             .help(text["edit.\(editor.tool)Hint"])
             Button {
-                score.undoNoteEdit()
+                score.checkModel.undoNoteEdit()
             } label: {
                 Icon(name: "undo", size: CGFloat.ds("icon-s")).frame(width: CGFloat.ds("h-compact"), height: CGFloat.ds("h-compact"))
             }
@@ -323,7 +323,7 @@ struct RollEditTools: View {
             .accessibilityLabel(text["edit.undo"])
             if !compact {
                 Button(text["edit.reset"]) {
-                    score.resetNotes()
+                    score.checkModel.resetNotes()
                 }
                 .buttonStyle(DSItemStyle())
                 .disabled(!editor.canReset)
@@ -344,11 +344,11 @@ struct RollEditFinish: View {
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
             Button(text["edit.cancel"]) {
-                score.cancelNoteEdit()
+                score.checkModel.cancelNoteEdit()
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             Button {
-                score.saveNoteEdit()
+                score.checkModel.saveNoteEdit()
             } label: {
                 HStack(spacing: 6) {
                     Icon(name: "check", size: CGFloat.ds("icon-s"))
@@ -366,10 +366,10 @@ extension RollController {
     /// Chooses a mode on the roll's switch: Edit notes opens the note editor; Navigate closes it unless it holds changes,
     /// which wait for Cancel or Save (RollMode.choose).
     func choose(_ mode: RollMode, score: ScoreController) {
-        let editor = score.noteEditor
+        let editor = score.checkModel.noteEditor
         let action = RollMode.choose(mode, editorOpen: editor != nil, changed: editor?.changed ?? false)
-        if action.openEditor { score.beginNoteEdit() }
-        if action.closeEditor { score.cancelNoteEdit() }
+        if action.openEditor { score.checkModel.beginNoteEdit() }
+        if action.closeEditor { score.checkModel.cancelNoteEdit() }
         self.mode = mode
     }
 }

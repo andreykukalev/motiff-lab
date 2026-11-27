@@ -104,16 +104,16 @@ struct EditsLayerState: Equatable, Sendable {
 /// «Мои правки» in More: the switch, its one line, and while on, the notes whose corrections no longer fit, each with
 /// «Убрать». The switch waits while the roll's note editor holds a draft (music-core refuses it then).
 struct EditsLayerSection: View {
-    @ObservedObject var score: ScoreController
+    @ObservedObject var checkModel: CheckModel
     let text: UIText
     /// The notes listed at most; the others come up as these are taken out.
     static let listed = 4
 
     var body: some View {
-        if let edits = score.editsLayer, edits.shows {
-            let editing = score.noteEditor != nil
+        if let edits = checkModel.editsLayer, edits.shows {
+            let editing = checkModel.noteEditor != nil
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
-                Toggle(text["edits.title"], isOn: Binding(get: { edits.on }, set: { score.switchEdits(on: $0) }))
+                Toggle(text["edits.title"], isOn: Binding(get: { edits.on }, set: { checkModel.switchEdits(on: $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
@@ -151,7 +151,7 @@ struct EditsLayerSection: View {
                 .foregroundStyle(Color.ds("ink"))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: CGFloat.ds("s-2"))
-            Button(text["edits.drop"]) { score.dropUnfitEdits([note.id]) }
+            Button(text["edits.drop"]) { checkModel.dropUnfitEdits([note.id]) }
                 .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
                 .disabled(editing)
                 .accessibilityHint(text["edits.dropHint"])
