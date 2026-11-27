@@ -41,15 +41,30 @@ internal sealed class SelectionSession
     public string MotifId { get; private set; } = "m_0001";
 
     /// <summary>
+    /// The id the working variation is saved under: its own when the working motif opened on one or keeps one hidden, else
+    /// one no variation of the file has; null for the one named after the motif.
+    /// </summary>
+    private string? _variationId;
+
+    /// <summary>
     /// The working motif's variation that could not be made again over the notes shown (the layer off, or a correction that
-    /// no longer fits): saving keeps it until the player picks another passage, idea or chip.
+    /// no longer fits): saving writes it until the player picks another passage, idea or chip, and then leaves it as saved.
     /// </summary>
     public SavedVariation? HiddenVariation { get; private set; }
 
     /// <summary>The working motif's variation as the project file keeps it: the chain's when it has a result, else the hidden one.</summary>
     public SavedVariation? WorkingVariation => Chain is { Result: not null } chain
-        ? SavedVariation.Create(MotifId.Replace("m_", "v_", StringComparison.Ordinal), MotifId, chain)
+        ? SavedVariation.Create(VariationId, MotifId, chain)
         : HiddenVariation;
+
+    /// <summary>
+    /// The id the working variation is saved under (#821: a save writes over only the working chain's own earlier save, made
+    /// before any other chain was shown, never another saved variation): the one named after the motif (v_0002 for m_0002)
+    /// unless <see cref="_variationId"/> says.
+    /// </summary>
+    private string VariationId => _variationId ?? VariationIdOf(MotifId);
+
+    private static string VariationIdOf(string motifId) => motifId.Replace("m_", "v_", StringComparison.Ordinal);
 
     /// <summary>The selection when it holds notes: what the analyses of the piece read about it.</summary>
     private MotifSelection? NotedSelection => Current is { NoteIds.Count: > 0 } selection ? selection : null;
@@ -60,34 +75,73 @@ internal sealed class SelectionSession
     /// <summary>The selection, refused when there is none.</summary>
     public MotifSelection Required() => Current ?? throw FacadeException.NoSelection();
 
-    /// <summary>The working motif a saved project opens on: its selection, and its variation when it keeps one.</summary>
-    public void Start(Motif motif, VariationChain? chain)
+    /// <summary>The working motif a saved project opens on: its selection, and its variation (<paramref name="saved"/>, made again as <paramref name="chain"/>) when it keeps one.</summary>
+    public void Start(SessionPiece piece, Motif motif, SavedVariation? saved, VariationChain? chain)
     {
         MotifId = motif.Id;
+        if (saved is null)
+        {
+            SaveVariationBeside(piece);
+        }
+        else
+        {
+            _variationId = saved.Id;
+        }
+
         Current = motif.Selection;
         Kind = motif.Kind;
         Chain = chain;
     }
 
-    /// <summary>Every saved motif is hidden: the passage picked from now on is saved beside them, never over one.</summary>
+    /// <summary>
+    /// No saved motif is worked on: the passage picked from now on is saved beside them, never over one, under an id no motif
+    /// of the file has, known to this build or not (a later build's motif and its variations are never replaced), and its
+    /// variation under one no variation has.
+    /// </summary>
     public void SaveBeside(SessionPiece piece)
     {
+        Project project = piece.Project;
+        HashSet<string> taken = [.. project.Motifs.Select(static motif => motif.Id), .. Project.UnknownIds(project.Unknown, "motifs")];
         int number = 1;
-        while (piece.Project.Motifs.Any(motif => motif.Id == $"m_{number:D4}"))
+        while (taken.Contains($"m_{number:D4}"))
         {
             number++;
         }
 
         MotifId = $"m_{number:D4}";
+        SaveVariationBeside(piece);
     }
 
-    /// <summary>The working motif's variation left out when the piece opened (<paramref name="hidden"/>), kept for saving while no chain is shown.</summary>
-    public void HideLeftOut(SessionPiece piece, IReadOnlyList<string> hidden) =>
-        HiddenVariation = Chain is null ? piece.Project.Variations.FirstOrDefault(variation => variation.MotifId == MotifId && hidden.Contains(variation.Id)) : null;
-
-    /// <summary>The selection is now <paramref name="selection"/>: what was understood, the chip, the chain and the hidden variation go.</summary>
-    public void Select(MotifSelection selection, MotifSelectionKind kind)
+    /// <summary>
+    /// The working variation is saved from now on under an id no variation of the file has, known to this build or not: the
+    /// one named after the motif when it is free, else the next. What was saved before stays as it was (#821).
+    /// </summary>
+    private void SaveVariationBeside(SessionPiece piece)
     {
+        List<string> taken = [.. piece.Project.Variations.Select(static variation => variation.Id), .. Project.UnknownIds(piece.Project.Unknown, "variations")];
+        _variationId = null;
+        if (taken.Contains(VariationId))
+        {
+            _variationId = Project.NextId("v_", taken);
+        }
+    }
+
+    /// <summary>The working motif's variation left out when the piece opened (<paramref name="hidden"/>), kept for saving while no chain is shown, under its own id.</summary>
+    public void HideLeftOut(SessionPiece piece, IReadOnlyList<string> hidden)
+    {
+        HiddenVariation = Chain is null ? piece.Project.Variations.FirstOrDefault(variation => variation.MotifId == MotifId && hidden.Contains(variation.Id)) : null;
+        _variationId = HiddenVariation?.Id ?? _variationId;
+    }
+
+    /// <summary>
+    /// The selection is now <paramref name="selection"/>: what was understood, the chip, the chain and the hidden variation go
+    /// from the session while their saved copy stays in the file (#821), and on another passage than the working motif's saved
+    /// one the working motif moves beside it (<see cref="KeepBeside"/>).
+    /// </summary>
+    public void Select(SessionPiece piece, MotifSelection selection, MotifSelectionKind kind)
+    {
+        KeepBeside(piece, selection, kind);
+        SaveVariationBeside(piece);
         Current = selection;
         Kind = kind;
         _understood = null;
@@ -98,10 +152,13 @@ internal sealed class SelectionSession
 
     /// <summary>
     /// An idea brought back: its passage as the selection and its variation, when it keeps one, as the chain, which no Try
-    /// chip started here (the chip of an earlier try goes).
+    /// chip started here (the chip of an earlier try goes), saved beside the working motif's saved variations; on another
+    /// passage the working motif moves beside as on select.
     /// </summary>
-    public void Open(MotifSelection selection, VariationChain? chain)
+    public void Open(SessionPiece piece, MotifSelection selection, VariationChain? chain)
     {
+        KeepBeside(piece, selection, MotifSelectionKind.Range);
+        SaveVariationBeside(piece);
         Current = selection;
         Kind = MotifSelectionKind.Range;
         _understood = null;
@@ -111,30 +168,40 @@ internal sealed class SelectionSession
     }
 
     /// <summary>
+    /// Another passage chosen while the working motif has variations saved: the motif stays in the file as it was, with all of
+    /// them, and the passage is saved beside it (#821, the lead's decision: a save never loses a saved variation). The same
+    /// passage again stays the working motif.
+    /// </summary>
+    private void KeepBeside(SessionPiece piece, MotifSelection selection, MotifSelectionKind kind)
+    {
+        Project project = piece.Project;
+        if (project.Motifs.FirstOrDefault(motif => motif.Id == MotifId) is { } saved
+            && project.Variations.Any(variation => variation.MotifId == MotifId)
+            && !(saved.Kind == kind && saved.Span == selection.Span && saved.NoteIds.SequenceEqual(selection.NoteIds, StringComparer.Ordinal)))
+        {
+            SaveBeside(piece);
+        }
+    }
+
+    /// <summary>
     /// The notes changed (a correction, the layer switched, a correction dropped): the selection keeps its passage over
     /// them, none when no note is left there unless it held none to begin with (a passage of time, v0.6.4); the chain made
-    /// from the old notes and its chip go.
+    /// from the old notes and its chip go, while its saved copy stays in the file (#821).
     /// </summary>
     public void FollowNotes(SessionPiece piece)
     {
-        if (Current is { } selection)
-        {
-            MotifSelection again = MotifSelector.Select(piece.Notes, piece.Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
-            Current = again.NoteIds.Count > 0 || selection.NoteIds.Count == 0 ? again : null;
-        }
-
-        Chain = null;
-        Chip = null;
+        FollowPassage(piece);
+        SaveVariationBeside(piece);
     }
 
     /// <summary>
     /// The corrections' layer was switched: the selection follows the notes as <see cref="FollowNotes"/> says, and the
-    /// working variation <paramref name="working"/> (<see cref="WorkingVariation"/> before the switch) is made again over it,
-    /// kept hidden when it no longer fits.
+    /// working variation <paramref name="working"/> (<see cref="WorkingVariation"/> before the switch) is made again over it
+    /// under the same id, kept hidden when it no longer fits.
     /// </summary>
     public void FollowLayer(SessionPiece piece, SavedVariation? working)
     {
-        FollowNotes(piece);
+        FollowPassage(piece);
         HiddenVariation = null;
         if (working is not null && Current is { } selection)
         {
@@ -147,6 +214,19 @@ internal sealed class SelectionSession
                 HiddenVariation = working;
             }
         }
+    }
+
+    /// <summary>The selection keeps its passage over the notes as they are now (<see cref="FollowNotes"/>); the chain and its chip go.</summary>
+    private void FollowPassage(SessionPiece piece)
+    {
+        if (Current is { } selection)
+        {
+            MotifSelection again = MotifSelector.Select(piece.Notes, piece.Piece.Meter, selection.Span, selection.Filter, MotifSelection.MaxStructureBars);
+            Current = again.NoteIds.Count > 0 || selection.NoteIds.Count == 0 ? again : null;
+        }
+
+        Chain = null;
+        Chip = null;
     }
 
     /// <summary>What was understood is read again at the next call: the notes, the language, the phrases or the tempo changed.</summary>
@@ -208,11 +288,16 @@ internal sealed class SelectionSession
         return piece.Doubt().On(PieceDna.Build(piece.Notes, imported.Meter, imported.Keys, imported.End, NotedSelection, NotedSelection is null ? null : Understood(piece).Structure, piece.Words, piece.Structure, musicalIdeas));
     }
 
-    /// <summary>try: the chip <paramref name="chipId"/> sounded (0018, section 7), one accepted step over the selection with its Keep preset, as the chain.</summary>
+    /// <summary>
+    /// try: the chip <paramref name="chipId"/> sounded (0018, section 7), one accepted step over the selection with its Keep
+    /// preset, as the chain; the chain or hidden variation it replaces keeps its saved copy, and the new one is saved beside
+    /// it (#821), under the same id as long as nothing was saved under it.
+    /// </summary>
     public VariationChain Try(SessionPiece piece, string chipId)
     {
         TryChip chip = TryChips.Find(chipId) ?? throw FacadeException.BadRequest($"There is no chip \"{chipId}\".");
         VariationChain chain = TryChips.Start(chip, Understood(piece), out string? reason) ?? throw FacadeException.Unavailable(reason ?? "The chip cannot run on this selection.");
+        SaveVariationBeside(piece);
         Chain = chain;
         Chip = chip;
         HiddenVariation = null;
@@ -222,11 +307,12 @@ internal sealed class SelectionSession
     /// <summary>The chain, refused when there is none.</summary>
     public VariationChain Variation() => Chain ?? throw FacadeException.NoVariation();
 
-    /// <summary>variation.clear: the chain and its chip go.</summary>
-    public void Clear()
+    /// <summary>variation.clear: the chain and its chip go, while its saved copy stays in the file (#821).</summary>
+    public void Clear(SessionPiece piece)
     {
         Chain = null;
         Chip = null;
+        SaveVariationBeside(piece);
     }
 
     /// <summary>The variation the player sees and hears: the pending step's result, else the accepted chain's.</summary>
@@ -238,9 +324,10 @@ internal sealed class SelectionSession
 
     /// <summary>
     /// The motifs and variations project.save writes: the project's, with the selection as the working motif and its
-    /// variation first; with the corrections off (<paramref name="layerOff"/>) the project's as they were (version 0.5), since
-    /// the selection is over notes they would change. A pick of one note, or of more than a motif of single notes holds (the
-    /// iPad, v0.6.2), is saved as no selection is.
+    /// variation first, written over its own earlier save and no other saved variation (#821); with the corrections off
+    /// (<paramref name="layerOff"/>) the project's as they were (version 0.5), since the selection is over notes they would
+    /// change. A pick of one note, or of more than a motif of single notes holds (the iPad, v0.6.2), is saved as no selection
+    /// is: the working motif's saved passage stays only while variations of it do, which cannot open without it.
     /// </summary>
     public (IReadOnlyList<SavedMotif> Motifs, IReadOnlyList<SavedVariation> Variations) Saved(SessionPiece piece, bool layerOff)
     {
@@ -250,15 +337,21 @@ internal sealed class SelectionSession
             return ([.. project.Motifs], [.. project.Variations]);
         }
 
-        var motifs = project.Motifs.Where(motif => motif.Id != MotifId).ToList();
-        var variations = project.Variations.Where(variation => variation.MotifId != MotifId).ToList();
-        if (NotedSelection is { } selection && Motif.Holds(selection, Kind))
+        MotifSelection? selection = NotedSelection is { } noted && Motif.Holds(noted, Kind) ? noted : null;
+        SavedVariation? working = selection is null ? null : WorkingVariation;
+        // Only the working variation's own earlier save is written over; every other saved variation stays as it was.
+        var variations = project.Variations.Where(variation => variation.Id != working?.Id).ToList();
+        if (selection is null)
         {
-            motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, Kind, MotifMode.Discovery, piece.Notes)));
-            if (WorkingVariation is { } working)
-            {
-                variations.Insert(0, working);
-            }
+            bool kept = variations.Any(variation => variation.MotifId == MotifId);
+            return ([.. project.Motifs.Where(motif => kept || motif.Id != MotifId)], variations);
+        }
+
+        var motifs = project.Motifs.Where(motif => motif.Id != MotifId).ToList();
+        motifs.Insert(0, SavedMotif.From(Motif.Create(MotifId, 1, selection, Kind, MotifMode.Discovery, piece.Notes)));
+        if (working is not null)
+        {
+            variations.Insert(0, working);
         }
 
         return (motifs, variations);

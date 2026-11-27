@@ -789,9 +789,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     func undoAssistantDraft(_ draft: AssistantDraftOffer) async -> String? {
         guard editsOn else { return text["edits.off"] }
         guard let piece else { return "" }
-        let bar = draft.firstBar ?? 1
         variantChoice.edited()
-        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, "{\"bar\": \(bar)}")
+        let answer = await PieceCore(piece: piece.id).corrections(.undoDraft, facadeRequest(EditsLayerState.correctionsRequest([:], bar: draft.firstBar)))
         guard let read = answer.value else { return FacadeAnswer.problem(answer.text) }
         readEdits(read)
         await notesDidChange()
@@ -916,10 +915,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore {
     private func noteEditCall(_ call: PieceCore.Correction, _ fields: [String: Any], notes: Bool = false, then: (@MainActor () -> Void)? = nil) {
         guard let piece else { return }
         if notes { variantChoice.edited() }
-        var request = fields
         // The corrections answer with a bar's notes; the editor needs only what the answer says about the draft.
-        request["bar"] = selectionModel.selection?.firstBar ?? 1
-        let body = facadeRequest(request)
+        let body = facadeRequest(EditsLayerState.correctionsRequest(fields, bar: selectionModel.selection?.firstBar))
         Task {
             let answer = await PieceCore(piece: piece.id).corrections(call, body)
             guard let read = answer.value else {

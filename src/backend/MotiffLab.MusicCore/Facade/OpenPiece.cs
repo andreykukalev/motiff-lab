@@ -151,8 +151,9 @@ internal sealed partial class OpenPiece
     }
 
     /// <summary>
-    /// A saved project, with its first motif back as the selection and that motif's variation; the corrections laid over
-    /// the notes as <paramref name="layer"/> says (version 0.5), strictly by default.
+    /// A saved project, with its first motif back as the selection and that motif's variation (with no motif opened, the
+    /// passage picked is saved beside the saved ones); the corrections laid over the notes as <paramref name="layer"/> says
+    /// (version 0.5), strictly by default.
     /// </summary>
     /// <param name="asTheFileSays">The corrections are left out when the file says the player turned them off ("editsOff"), whatever <paramref name="layer"/> says.</param>
     public static OpenPiece Open(byte[] projectFile, Words words, EditsLayer layer = EditsLayer.Strict, bool asTheFileSays = false)
@@ -173,7 +174,12 @@ internal sealed partial class OpenPiece
         if (opened.Motifs.Count > 0)
         {
             Motif motif = opened.Motifs[0];
-            result.Selection.Start(motif, opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id).Chain);
+            (SavedVariation? saved, VariationChain? chain) = opened.Variations.FirstOrDefault(variation => variation.Saved.MotifId == motif.Id);
+            result.Selection.Start(result.State, motif, saved, chain);
+        }
+        else
+        {
+            result.Selection.SaveBeside(result.State);
         }
 
         result.StartLayer(opened);

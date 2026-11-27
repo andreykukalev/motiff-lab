@@ -454,9 +454,10 @@ struct CorrectionsAnswer: Decodable, Sendable {
     }
 }
 
-/// «Мои правки» as music-core answers it: "count", the corrections in the edit log, and with a layer (`LayerFields` in
-/// OpenPiece.EditsLayer.cs) "layer" ("on" or "off"), "moved" and "unfit"; a piece opened strictly writes none of these
-/// three. In every corrections answer, and as the open answer's "edits" (`OpenedEdits`).
+/// «Мои правки» as music-core answers it: "count", the corrections in the edit log, and with a layer (`CorrectionsSession`'s
+/// `LaidCorrections`, written by `Answer.Layer` in Answer.Corrections.cs) "layer" ("on" or "off"), "moved" and "unfit"; a
+/// piece opened strictly writes none of these three. In every corrections answer, and as the open answer's "edits"
+/// (`OpenedEdits`).
 struct EditsLayerAnswer: Decodable, Sendable {
     /// A correction laid on a near note of its pitch, not on the one it names.
     struct Moved: Decodable, Sendable {
