@@ -407,7 +407,7 @@ struct PdfScreen: View {
                 PhotoReadingPanel(reader: photos, pdf: pdf, address: scanAddress, text: text) { read in
                     ScanServer.jobs ? readPanel(readNotes, pdf: pdf.original) : readPanel(read, heading: text["photos.readHeading"], keeps: text["photos.readKeeps"], line: "photos.readLine")
                 } open: { musicXml, engine, pages, reports in
-                    await fill(musicXml, engine: engine, pages: pages, reports: reports)
+                    await fill(DocumentRead.request(musicXml: musicXml, engine: engine, pages: pages, reports: reports, language: text.language, now: Date()))
                 }
                 .presentationDetents([.large])
             } else {
@@ -672,8 +672,7 @@ struct PdfScreen: View {
         switch await ScanServer.recognise(fileName: pdf.fileName, data: data, address: address, account: account) {
         case .failure(let problem): return problem.text(text)
         case .success(let read):
-            let reports = read.reports
-            return await fill(read.musicXml, engine: read.engine, pages: max(1, pdf.pageCount), reports: reports)
+            return await fill(DocumentRead.request(read, pages: max(1, pdf.pageCount), language: text.language, now: Date()))
         }
     }
 
@@ -696,11 +695,11 @@ struct PdfScreen: View {
         )
     }
 
-    /// The notes read from the pages into this same piece, which then opens as notes: answers why not, or nil. The page
-    /// reports (v0.4), one per page of the notes, are kept with them, or left out when music-core refuses them.
-    private func fill(_ musicXml: Data, engine: String, pages: Int, reports: [String]?) async -> String? {
+    /// The notes read from the pages (`DocumentRead.request`) into this same piece, which then opens as notes: answers why
+    /// not, or nil. The page reports (v0.4), one per page of the notes, are kept with them, or left out when music-core
+    /// refuses them, and so are the pages no engine read (project file 18).
+    private func fill(_ request: [String: Any]) async -> String? {
         guard let openRead else { return text["pdf.readNone"] }
-        let request = DocumentRead.request(musicXml: musicXml, engine: engine, pages: pages, reports: reports, language: text.language, now: Date())
         let answer = await DocumentRead.call(piece: piece.id, request)
         guard let object = facadeObject(answer) else { return text["pdf.readNone"] }
         if object["error"] != nil { return object["message"] as? String ?? text["pdf.readNone"] }

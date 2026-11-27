@@ -204,6 +204,12 @@ enum DocumentRead {
         return request
     }
 
+    /// The request for what a scan server read from the PDF, by whichever flow (the library's recognition or the PDF's own
+    /// panel): its reports, and the pages no engine read with those the notes have (project file 18).
+    static func request(_ scanned: ScanResult, pages: Int, language: String, now: Date) -> [String: Any] {
+        request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: scanned.reports, language: language, now: now, unread: scanned.unread, read: scanned.read)
+    }
+
     /// music-core's answer to the request on the PDF piece, sent again without the reports when it refused them.
     @MainActor
     static func call(piece: Int32, _ request: [String: Any]) async -> String {

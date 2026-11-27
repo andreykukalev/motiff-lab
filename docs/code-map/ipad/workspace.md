@@ -6,7 +6,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 `DraftAnchorCard`, `DraftAssistant`, `DraftBridgeCard`, `DraftMap`, `DraftPlaceCard`, `DraftSeamCard`, `DraftStructureControls`, `DraftVisitPieces`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreColouring`,
 `ScoreController`, `ScoreUnreadPages` (v1.5 i-7: a scanned PDF's pages no engine read, their marks among the Check flags; v1.6 c-14a: from the project file's `unreadPages` when the queue has no item), `ScoreDraftPlaces`, `ScoreDraftViews`, `ScorePhraseEdits`, `ScorePhraseMarks`, `ScorePractice`, `ScoreScreen`, `ScoreScreenViews`, `ScoreWorkspace`, `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`, `ScoreWorkspaceSources`,
-`TopBar` (`.swift`).
+`TopBar` (`.swift`; v1.6 c-14a: the read-only line hung under it, from the `readOnlyLine` environment value).
 
 - `PanelState.swift`: `PanelState`, a pure value: which panel is open (roll, Insights, Contents, Check, Sources,
   Settings, Reference, More), what More opened, what Expand and Sources keep. `asked(_:)` is what an action writes (an
@@ -14,7 +14,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Workspace`.
 
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
   `ScoreScreen`; `reopen` opens the piece's own project file again in its place, `openFile` another (v1.2, collage).
-  It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix).
+  It follows `RecognitionQueue` and puts `Platform/BackgroundReading` in its screens' environment (1.3 hotfix), and
+  `readOnlyLine` for a project a newer version saved (v1.6 c-14a), which every view's `TopBar` shows.
 - `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
   line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is not here,
   or here and unreadable), `RecordingViewCapsule` under it;

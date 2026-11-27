@@ -493,7 +493,7 @@ final class RecognitionQueue: ObservableObject {
             guard let into = await current() else { return .failure(RecognitionFailure(reason: text["pdf.unreadable"])) }
             // The pages' reports are kept with the notes, as the PDF's and the photos' own panels keep them (v1.5 i-7: photos
             // go by job now), so Check tells each page's quality; music-core's refusal of them leaves them out (DocumentRead.call).
-            let request = DocumentRead.request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: scanned.reports, language: text.language, now: Date(), unread: scanned.unread, read: scanned.read)
+            let request = DocumentRead.request(scanned, pages: pages, language: text.language, now: Date())
             let answer = await DocumentRead.call(piece: into, request)
             if into != piece { _ = await MusicCore.run { MusicCore.close(piece: into) } }
             guard let read = facadeObject(answer), read["error"] == nil, let file = read["file"] as? String else {

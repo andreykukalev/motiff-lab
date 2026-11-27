@@ -668,10 +668,6 @@ extension ScoreScreenContent {
             DraftElsewhereToast(owner: owner, text: text, open: openElsewhere)
         }
         PhraseEditToast(selectionModel: selectionModel, score: score, text: text)
-        // A project a newer version saved opens read-only (project file 18): nothing done here is saved.
-        if piece.own?.readOnly == true {
-            Text(text["piece.newerReadOnly"]).dsType(.caption).foregroundStyle(Color.ds("warning")).fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     /// «Открыть» on that toast: the other piece opens in this one's place, its screen showing that draft's view, handed over
