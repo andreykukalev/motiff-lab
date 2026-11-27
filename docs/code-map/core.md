@@ -49,7 +49,9 @@ through the facade; the API references it.
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
   records apart (`ProjectSummary`, `SavedMotif`, …); new entity ids from the caller's `IdSource` (`Random` on the iPad, `Numbered` in tests, #317) and a numbered project id re-keyed by `ProjectIds.Rekeyed` (kept in `Project.FormerIds`); the phrase anchors `ph_` (#318: `PhraseAnchor`, `Project.Anchors`, `ProjectAnchors`: an idea and a resume point in phrase focus attached on keeping, carried by the player's boundary edits, `AnchorsFollowed`, told when they no longer match and attached again, `Reattached`; put back by a phrases step's Undo and Redo from the `AnchorState` the open piece keeps per step, `OpenPiece.Phrases`; ids by `IdSource.Hashed`); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
   ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
-  (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
+  (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync` (its `Resolve` merges two copies per
+  entity by `ProjectMerge` over the file's JSON, with `SourcesMerge` for Notes, corrections, versions and drafts, and records
+  `MergeConflict`s; `MergeRules` says how each part of the file merges, `MergeCheck` is the merge's self-check, c-17a), `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
   read-only since version 18) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
   keeps the unknown fields of workspace entities, `Legacy`); `ScanOrigin` keeps the PDF pages no engine read (`Unread`,

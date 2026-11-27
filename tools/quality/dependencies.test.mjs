@@ -84,6 +84,17 @@ test('type-only imports are erased, value and side-effect imports load', () => {
     ['./b.js:3', './d.js:4', './f.js:6', './g.js:7']);
 });
 
+test('a dynamic import by a template literal without an interpolation loads; one with an interpolation is not named', () => {
+  const text = 'const a = await import(`./a.js`);\nconst b = await import( `../roll/b.js` );\nconst c = await import(`./${name}.js`);\n';
+  assert.deepEqual(runtimeImports(text).map((i) => `${i.spec}:${i.line}`), ['./a.js:1', '../roll/b.js:2']);
+});
+
+test('an import after another statement on the same line counts', () => {
+  const text = 'const n = 1; import { a } from "./a.js";\nexport const m = 2; import "./b.js";\nlet t; import type { T } from "./t.js";\n';
+  assert.deepEqual(runtimeImports(text).map((i) => `${i.spec}:${i.line}`).sort(), ['./a.js:1', './b.js:2']);
+  assert.deepEqual(moduleImports(text).map((i) => `${i.spec}:${i.line}`).sort(), ['./a.js:1', './b.js:2', './t.js:3']);
+});
+
 test('the iPad page may reach only the bundled folders, through every module it loads', () => {
   const files = {
     'src/ipad/App/Web/score.js': 'import { s } from "../score/s.js";\n',

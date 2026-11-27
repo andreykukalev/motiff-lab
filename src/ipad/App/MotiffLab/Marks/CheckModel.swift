@@ -10,6 +10,8 @@ protocol CheckScore: AnyObject {
     var pieceId: Int32? { get }
     /// A passage selected, and brought into view.
     func showSpan(_ span: Range<Double>)
+    /// Whole bars selected through music-core, as the roll picks them (a mark «что не так» names its bars only).
+    func selectBars(_ first: Int, _ last: Int, extend: Bool, gesture: String?)
     /// The open bars drawn on the score as amber flags (`CheckModel.flags`).
     func drawChecks() async
     /// The page hides what it should now: Check's flags show while its drawer is open (`CheckModel.drawerOpen`).
@@ -68,6 +70,9 @@ final class CheckModel: ObservableObject {
     /// Whether scans go as jobs to the server's engines on this iPad (`ScanServer.jobs`, Import's).
     private let scanJobs: @MainActor () -> Bool
     private let text = UIText.current
+    /// Where each bar starts, by the playback score, read while the notes have marks «что не так»: a mark names its bars
+    /// only, and its flag needs where it lies (`readBars`).
+    private var barStarts: [Int: Double] = [:]
 
     /// `scanJobs`: whether this iPad sends scans as jobs, so it keeps their bars' variants and crops (`ScanServer.jobs`).
     init(selection: SelectionModel, scanJobs: @escaping @MainActor () -> Bool) {
@@ -87,7 +92,14 @@ final class CheckModel: ObservableObject {
         check = CheckShelf(answer: await MusicCore.run { PieceCore(piece: piece).send(.check) }) ?? CheckShelf()
         variantChoice.notesRead(check.fingerprint)
         if check.fingerprint != before || scanJobs() != (scanReview != nil) { await loadScanReview() }
+        await readBars(of: piece, marks: check.marks)
         await score?.drawChecks()
+    }
+
+    /// Where the bars start, from the playback score, while the notes have `marks`; nothing is read without one.
+    private func readBars(of piece: Int32, marks: [ReadingMarkEntry]) async {
+        guard !marks.isEmpty, let playback = await PieceCore(piece: piece).playback().value else { return }
+        barStarts = Dictionary(playback.bars.map { ($0.number, $0.onset) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// What this iPad kept of the working notes' scan and its crops, read from the device off the main thread (v1.3 i-2).
@@ -107,43 +119,87 @@ final class CheckModel: ObservableObject {
         scanCrops = kept.1.compactMapValues { UIImage(data: $0) }
     }
 
-    /// The open bars as amber flags on the score, each labelled with its reasons, as the page draws them.
+    /// The open bars as amber flags on the score, each labelled with its reasons, as the page draws them, and each mark
+    /// «что не так» at its first bar the same way, in music-core's words (v1.6 c-14b3, E-scan-12).
     func flags(_ text: UIText) -> [[String: Any]] {
-        check.openBars.compactMap { bar in
+        let open: [[String: Any]] = check.openBars.compactMap { bar in
             guard let span = bar.span else { return nil }
             return ["bar": bar.bar, "tick": span.lowerBound, "label": text.format("check.flagLabel", String(bar.bar), CheckShelf.reasonNames(bar.flags, text))]
         }
+        return Self.adding(check.marks.compactMap { mark in barStarts[mark.bar].map { (bar: mark.bar, tick: $0, label: mark.text) } }, to: open)
+    }
+
+    /// `flags` with a flag at each bar of `marks`: its own, or its words added to the label of the flag that bar has
+    /// already, so two never lie on one another (E-scan-1, E-scan-12). A tap opens Check, which lists both.
+    nonisolated static func adding(_ marks: [(bar: Int, tick: Double, label: String)], to flags: [[String: Any]]) -> [[String: Any]] {
+        var all = flags
+        for mark in marks {
+            if let index = all.firstIndex(where: { $0["bar"] as? Int == mark.bar }) {
+                all[index]["label"] = "\(all[index]["label"] as? String ?? "") · \(mark.label)"
+            } else {
+                all.append(["bar": mark.bar, "tick": mark.tick, "label": mark.label])
+            }
+        }
+        return all
     }
 
     // MARK: - Check
 
     /// Show: the bar is selected, so it can be looped and compared with the page or the recording, and comes into view.
     func showCheckBar(_ bar: Int) {
-        // A bar of a flag, or of notes whose length is uncertain (#352).
-        guard let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span
-            ?? check.lengths.first(where: { $0.bar == bar })?.span else { return }
-        score?.showSpan(span)
+        // A bar of a flag, of notes whose length is uncertain (#352), or of a mark «что не так» (v1.6 c-14b3).
+        if let span = check.flags.first(where: { $0.bar == bar && $0.span != nil })?.span ?? check.lengths.first(where: { $0.bar == bar })?.span {
+            score?.showSpan(span)
+        } else if let mark = check.marks.first(where: { $0.bar == bar }) {
+            showMark(mark)
+        }
     }
 
     /// Looks right, or Check again: every flag on the bar resolved or open again, kept with the piece.
     func resolveCheck(_ bar: Int, _ resolved: Bool) {
-        resolveChecks(["bar": bar, "resolved": resolved])
+        changeCheck(.checkResolve, ["bar": bar, "resolved": resolved])
     }
 
     /// Looks right for a whole piece of the pieces layer (version 0.5, Check by piece): every flagged bar from `first` to
     /// `last` resolved, in one change music-core makes, kept with the piece.
     func resolveCheckPiece(first: Int, last: Int) {
-        resolveChecks(["bars": ["first": first, "last": last], "resolved": true])
+        changeCheck(.checkResolve, ["bars": ["first": first, "last": last], "resolved": true])
     }
 
-    private func resolveChecks(_ fields: [String: Any]) {
+    // MARK: - Marks «что не так» (v1.6 c-14b3, the 1.6 plan's decision 15)
+
+    /// «Что не так?»: what the page prints over the bars `first` to `last` (a meter or key at `first`), kept with the working
+    /// notes by music-core (`check.mark`) for their next reading, and flagged on the score; `told` says so over the pill,
+    /// for a mark made from the selection menu (E-scan-15).
+    func mark(_ choice: ReadingMarkChoice, first: Int, last: Int, told: Bool = false) {
+        changeCheck(.checkMark, choice.fields(first: first, last: last)) { [weak self] in
+            if told { self?.score?.showNotice("whatsWrong.markedNotice") }
+        }
+    }
+
+    /// «Убрать» on a mark: music-core takes it away (`check.unmark`), and its flag goes.
+    func unmark(_ mark: ReadingMarkEntry) {
+        changeCheck(.checkUnmark, mark.unmarkFields)
+    }
+
+    /// «Показать» on a mark: its bars are selected, as Check selects a photo's or an unread page's bars.
+    func showMark(_ mark: ReadingMarkEntry) {
+        score?.selectBars(mark.bar, mark.last, extend: false, gesture: nil)
+    }
+
+    /// A call that changes what Check asks about and answers as `check` does (`check.resolve`, `check.mark`,
+    /// `check.unmark`): Check as it answers, the flags drawn again, then `then`; music-core's words when it refuses.
+    private func changeCheck(_ call: PieceCore.Call, _ fields: [String: Any], then: (@MainActor () -> Void)? = nil) {
         guard let piece = score?.pieceId else { return }
         let request = facadeRequest(fields)
         Task {
-            let answer = await MusicCore.run { PieceCore(piece: piece).send(.checkResolve, request) }
+            let answer = await MusicCore.run { PieceCore(piece: piece).send(call, request) }
             if let shelf = CheckShelf(answer: answer) {
+                // The bars first, so a mark shows with its flag.
+                await readBars(of: piece, marks: shelf.marks)
                 check = shelf
                 await score?.drawChecks()
+                then?()
             } else {
                 score?.showProblem(FacadeAnswer.message(answer))
             }

@@ -40,6 +40,11 @@ struct PieceCore: Sendable {
         await typed("roll", request)
     }
 
+    /// `ideas`: the ideas kept with the project, each with the phrase anchor it is attached to (#318).
+    func ideas(isolation: isolated (any Actor)? = #isolation) async -> Answer<IdeasAnswer> {
+        await typed("ideas", nil)
+    }
+
     /// `sources.layers`: the piece's sources by the layers of decision record 0030 as the request's "device" sees them,
     /// with "here", the originals whose bytes the app keeps on this device.
     func sourceLayers(_ request: String, isolation: isolated (any Actor)? = #isolation) async -> Answer<SourceLayersAnswer> {

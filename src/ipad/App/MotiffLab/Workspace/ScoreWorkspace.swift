@@ -28,6 +28,8 @@ final class ScoreWorkspace: ObservableObject {
     let originals: OriginalsController
     /// The piece's sources by layers and the switch of all its views (version 0.6, 0030).
     let sources: SourcesController
+    /// «Распознать заново с отметками» (v1.6 c-14b3): the working notes' marked pages read again, while they are.
+    let markedReading = MarkedReading()
     /// Which panels are open, and what they give back (PanelState): written only by `change` and `apply`.
     @Published private(set) var panels: PanelState
     /// The resume point this visit brings up to date (#327), so the piece keeps one for it rather than one for each save.
@@ -88,6 +90,8 @@ final class ScoreWorkspace: ObservableObject {
         insights.scaleStop = { [weak self] in self?.scaleStop() }
         insights.variationReady = { [weak self] notes, end in self?.variationReady(notes, end: end) }
         insights.variationLeft = { [weak self] in self?.variationLeft() }
+        insights.ideaKept = { [weak self] in self?.ideaKept() }
+        insights.keepsIdeas = !piece.shownOnly
         wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak self] edit in self?.noteEdited(edit) }
@@ -190,6 +194,13 @@ final class ScoreWorkspace: ObservableObject {
         if let range = score.focusModel.playRange?.range {
             player.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
         }
+    }
+
+    /// An idea kept is attached to its phrase's anchor, minted for it when the phrase had none (#318): the phrases are read
+    /// again so the stream shows it on that phrase; their marks do not change.
+    func ideaKept() {
+        let id = piece.id
+        Task { [weak score] in await score?.selectionModel.loadPhrases(of: id) }
     }
 
     /// Left, the original sounds again.

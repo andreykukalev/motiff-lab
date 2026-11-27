@@ -90,11 +90,6 @@ struct MarksShelf: Equatable, Sendable {
     }
 }
 
-/// "bars 9–12", or "bar 9".
-func barsText(_ first: Int, _ last: Int, _ text: UIText) -> String {
-    first == last ? text.format("bars.one", String(first)) : text.format("bars.range", String(first), String(last))
-}
-
 /// The note card over the selection (the web app's `.note-card`): the player's words about the bars, Done, and Delete for
 /// a note already written. Emptying the words and choosing Done deletes the note.
 struct NoteCard: View {
@@ -180,7 +175,7 @@ struct LayersList: View {
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
-            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: checkModel.check.hasFlags)
+            let extra = marksModel.pieceExtra(hasVersions: hasVersions, hasFlags: checkModel.check.hasFlags || !checkModel.check.marks.isEmpty)
             if extra.isEmpty {
                 Text(text["extra.none"])
                     .dsType(.caption)

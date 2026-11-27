@@ -274,7 +274,7 @@ final class SelectionModelTests: XCTestCase {
 
     /// «Вся фраза» (the phrases spec, decision 5): only for a selection inside one phrase that is not that phrase exactly.
     func testTheWholePhraseIsOfferedOnlyInsideOnePhrase() throws {
-        let answer = #"{"units": [{"number": 1, "onset": 0, "end": 1920}, {"number": 2, "onset": 1920, "end": 3840}]}"#
+        let answer = #"{"units": [{"number": 1, "onset": 0, "end": 1920}, {"number": 2, "onset": 1920, "end": 3840}], "anchors": [], "unmatched": 0}"#
         let phrases = try XCTUnwrap(PiecePhrases(answer: answer))
         let inside = ScoreSelection(onset: 480, end: 960, firstBar: 1, lastBar: 1)
         XCTAssertEqual(phrases.unit(enclosing: inside)?.number, 1)
