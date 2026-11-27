@@ -364,3 +364,15 @@ score's screen composes the features, so it moved to `Workspace/` with `HearingS
 no longer observes `ScoreController`, which it did not read; `FlowLayout`, used by five folders, moved to Platform. In
 the quality baseline 13 folder edges went and 2 were re-keyed with the code they serve (the controller hands the player
 the piece with the variation in place, `PlaybackNote` and `PlaybackScore`).
+
+## Note (W2.12, Sources on its model, controller and views, v1.6 i-13)
+
+Sources keeps its model, `SourceLayers` (music-core's `sources.layers`), beside `SourcesModel` (the score's versions,
+section 3), which it does not join: the controller serves the PDF's and the recording's screens too, which have no
+score. `SourcesController.swift`, at the 600-line limit, keeps the controller's state and the one path of each
+operation; what it handed to the next screen (`SourcesToast`, `SourcesHandover`) and the readers of recognising, which
+write no state (the scan server's pages, the recording heard, `SourcesRecognising.swift`), are in their own files, and
+the recording's sound (`RecordingListening`) left the capsules' view file. The sheet composes the controller with the
+versions, the originals, the account, the scan server and Import's camera, as the screens compose the features, so it
+moved to `Workspace/` and makes the photos' PDF there; `SegmentedChoice`, used by eight folders, moved to Platform. In
+the quality baseline 21 folder edges went and 5 were re-keyed with the readers of recognising, 16 fewer in all.

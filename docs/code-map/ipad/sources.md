@@ -5,8 +5,11 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
 ## Files
 
 `DeleteOriginalDialog`, `DraftAnchors`, `DraftSeams`, `DraftSheet`, `DraftStructure`, `DraftTechniques`, `KeptCopies`, `Originals`, `OriginalsController`,
-`OriginalsViews`, `OtherPieceDrafts`, `PerformancePlayer`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`, `SourcesModel`,
-`SourcesRecognise`, `SourcesRows`, `SourcesSheet`, `SourcesSwitch`, `Versions` (`.swift`).
+`OriginalsViews`, `OtherPieceDrafts`, `PerformancePlayer`, `RecordingListening`, `SourceLayers`, `SourcesController`, `SourcesDialogs`, `SourcesDrafts`,
+`SourcesHandover`, `SourcesModel`, `SourcesRecognise`, `SourcesRecognising`, `SourcesRows`, `SourcesSwitch`, `Versions` (`.swift`). The sheet is
+`Workspace/SourcesSheet.swift` since v1.6 i-13 (W2.12): it composes the controller with the versions, the account, the
+scan server and Import. Model: `SourceLayers` (and `SourcesModel` for the score's versions); controller:
+`SourcesController`; views: the sheet, rows, dialogs, «Распознать», the switch, the capsules.
 
 - Drafts (v1.1, ADR 0034): `SourceLayers.drafts`, the view of kind "draft" (its `name` its word); `SourcesDrafts.swift`
   (`addToDraft`, `renameDraft`, `removeDraft` with Undo, `openDraft` by `drafts.open`; the steps `take`, `leave`,
@@ -35,12 +38,13 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   original with its Notes, which the sheet shows in one card, v0.9) and `looseNotes` (Notes of no original).
 - `PerformancePlayer.swift` (v0.10 s-2, finding 24): `PerformanceCapsule`, the recording heard over the view shown
   (`SourcesController.performance`) under the bar of `ScoreScreen` and `PdfScreen`, or of a screen over the piece
-  (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`), `RecordingListening`:
+  (`heardOver`, also the drafts' owner there); `RecordingViewCapsule` (✕ only with `close`). `RecordingListening.swift`
+  (out of it in v1.6 i-13): `RecordingListening`:
   `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
   `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`;
   a call, the background or the headphones gone pause it (`EngineKeeper` with no engine, v1.5 a-2, answer 30).
-- `SourcesSheet.swift` (from `Workspace/ScoreScreen` with its `SourcesModel` as `versions`, `Workspace/PdfScreen`): header, add menu, groups and loose Notes, picking files
-  (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
+- `Workspace/SourcesSheet.swift` (from `ScoreScreen` with its `SourcesModel` as `versions`, `PdfScreen`, `RecordingScreen`): header, add menu, groups and loose Notes, picking files
+  (`SourcesRow.Picking`, `take`; the file read by `SourcesController.read(picked:)`, E-sources-2), camera (the photos' PDF made here); owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.
 - `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (from the sheet: the view shown, the scan server and whether hosted, the
   actions; a row opens no view since s-2), `SourcesGroupCard`, `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯
@@ -50,16 +54,19 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`; `hearLine`:
   beside the working notes, or the piece's own notes when it has none, v1.1), Send →
   `SourcesController.recognise`; with no scan server set it says how to set one up (`SourcesController.noScanServer`, as
-  the PDF's `ReadNotesPanel`, v1.5 r-2b).
+  the PDF's `ReadNotesPanel`, v1.5 r-2b); while another original is recognised it says which (`readingOther`, E-sources-1).
 - `SourcesDialogs.swift` (v0.10 s-1): the sheet's dialogs in one modifier: deleting an original (`DeleteOriginalDialog`)
   or Notes, a version's new name (v1.1), an original picked kept where it lies or copied.
+- `SourcesHandover.swift` (v1.6 i-13): `SourcesToast`, `SourcesHandover` (what the next screen of the file is handed).
+- `SourcesRecognising.swift` (v1.6 i-13): the readers of `recognise`, which write no state: `readPages` (the scan
+  server), `hearRecording` (its progress told back), `hearFields`, `gridHint`, `hint`, `jobPlanLine`, `readingOther`
+  (one original at a time, E-sources-1), `Recognised`, `Refusal`, `noScanServer`, `toastText`.
 - `SourcesController.swift`: `refresh` reads `sources.layers` through `PieceCore`; the sheet's operations
   (`sources.view.hide`, `.original.add`, `.original.remove`, `.notes.remove`, `.notes.recognise`) answer the same layers.
   Recognising is one path: `canRecognise` (pages kept here with working notes, or a recording's sound here, also on a
   piece with no notes yet, v1.1), then
-  `recognise` builds a `Recognised` (fields, the field dropped on "badRequest", toast): `readPages`, or `hearRecording`
-  (`RecordingHearing.hear`; `hearFields`: "tempo": "live" and the "hint" of `gridHint`, none without working notes,
-  dropped when refused); `keepRecognised` keeps it under the literal
+  `recognise` (one at a time) builds a `Recognised` by the readers (`SourcesRecognising.swift`; the hint dropped when
+  refused); `keepRecognised` keeps it under the literal
   call name (`sources.notes.recognise`, `sources.notes.hear`, read by the facade-calls contract test): layers,
   `fresh`, save, toast (with music-core's line of the corrections carried to notes read again, `toastText`, v1.5
   c-11); the first notes of a piece that had none are its working notes, and the piece opens again on

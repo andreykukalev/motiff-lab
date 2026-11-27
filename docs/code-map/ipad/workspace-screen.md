@@ -10,6 +10,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   ([`insights.md`](insights.md)): the stream with the selection it names, what sounds while a variation is there and
   the assistant's foot; `HearingSwitch` (Original | Variation | Alternate, or Notes | Version | Alternate) is
   Expand's bar's (`FocusBar`) too.
+- `SourcesSheet.swift` (from Sources, v1.6 i-13): the Sources sheet ([`sources.md`](sources.md)), which composes the
+  piece's sources with the versions, the originals, the account, the scan server and Import's camera and recordings.
 - `LibraryView.swift`, `LibraryOnline.swift` (v1.6 i-11b): the library's screen ([`library.md`](library.md)): `LibraryModel`
   with the account, the imports, the Reference and `PieceScreen`; `LibraryOnline` syncs and lists the copies online.
 - `PieceScreen.swift`: the screen the library opens, by what the piece is: `PdfScreen`, `RecordingScreen`, else
