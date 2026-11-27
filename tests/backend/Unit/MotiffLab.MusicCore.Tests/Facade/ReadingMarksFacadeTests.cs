@@ -5,6 +5,7 @@ using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
+using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
@@ -112,6 +113,31 @@ public class ReadingMarksFacadeTests
         ImportedPiece after = PieceImporter.Import("a.musicxml", working.Source).Piece!;
         Assert.Equal(Hands(before, 2).Select(Swapped), Hands(after, 2));
         Assert.Equal(Hands(before, 5), Hands(after, 5));
+    }
+
+    [Fact]
+    public void A_mark_whose_bars_music_starts_no_bar_in_the_new_reading_is_flagged_where_its_music_lies()
+    {
+        MusicCoreFacade facade = Opened();
+        ImportedPiece before = PieceImporter.Import("a.musicxml", ScanRepair.Repair(Scanned())).Piece!;
+        int bar = before.Meter.ToPosition(before.MusicXml!.Measures[2].Span.Onset).Bar;
+        Call(facade, "check.mark", $$"""{"kind": "hands", "bar": {{bar}}}""");
+        // The marked bar's music starts a sixteenth late in the new reading (8 divisions a quarter): it lies off the bar's start.
+        string xml = Encoding.UTF8.GetString(Scanned());
+        int second = xml.IndexOf("<measure number=\"3\">", StringComparison.Ordinal) + "<measure number=\"3\">".Length;
+        byte[] late = Encoding.UTF8.GetBytes(xml.Insert(second, "<forward><duration>2</duration></forward>"));
+        ImportedPiece after = PieceImporter.Import("a.musicxml", ScanRepair.Repair(late)).Piece!;
+        int expected = after.Meter.BarAt(new ReadingMatch(before, after).Place(before.Meter.GetBar(bar).Span.Onset, end: false).At).Number;
+        string request = JsonSerializer.Serialize(new { original = "src_pdf", musicXml = Convert.ToBase64String(late), engine = "homr 0.8.0", pages = 1, now = "2026-11-27T10:00:00Z" });
+
+        JsonElement marked = Call(facade, "sources.notes.recognise", request).GetProperty("marked");
+
+        Assert.Equal((0, 1), (marked.GetProperty("used").GetInt32(), marked.GetProperty("unfit").GetInt32()));
+        Assert.Equal([expected], marked.GetProperty("bars").EnumerateArray().Select(static each => each.GetInt32()));
+        Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
+        Project working = Saved(facade);
+        Assert.Equal(expected, Assert.Single(working.Scan!.Marks).Bar);
+        Assert.Contains(working.Check!, flag => flag.Bar == expected && flag.Reason == CheckReason.MarkUnfit);
     }
 
     [Fact]

@@ -233,7 +233,8 @@ internal sealed class SourcesSession
 
         ReadingMatch match = new(piece.Piece, read.Piece);
         int first = piece.Piece.Meter.BarAt(Tick.Zero).Number;
-        List<ReadingMark> moved = [], lost = [];
+        List<ReadingMark> moved = [];
+        HashSet<int> lost = [];
         foreach (ReadingMark mark in scan.Marks)
         {
             Bar earlier = piece.Piece.Meter.GetBar(Math.Max(first, mark.Bar));
@@ -245,8 +246,8 @@ internal sealed class SourcesSession
 
             // Where the bar's music lies in the new reading, as a correction not carried is flagged there.
             ReadingMark there = mark.At(read.Piece.Meter.BarAt(match.Place(earlier.Span.Onset, end: false).At).Number);
+            lost.Add(moved.Count);
             moved.Add(there);
-            lost.Add(there);
         }
 
         MarkedReading marked = ReadingMarks.Apply(read.MusicXml, read.Piece, moved, lost);

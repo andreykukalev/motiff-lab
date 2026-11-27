@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
@@ -61,7 +63,7 @@ internal static class ScanPageInsert
 
         IReadOnlyList<PageReport> reports = Reports(project.Scan!.Pages, page, report, score);
         // Everything else the scan keeps goes with it, its unread pages too (version 18), its marks moved on with the bars: scan.insert's "pdfPage" marks one read.
-        ScanOrigin scan = project.Scan!.WithConfirmed(project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))) with { Pages = reports, Marks = MarksMovedOn(project.Scan.Marks, first, bars) };
+        ScanOrigin scan = project.Scan!.WithConfirmed(project.Scan.ConfirmedBars.Select(bar => MovedOn(bar, first, bars))) with { Pages = reports, Marks = MarksMovedOn(project.Scan.Marks, first, bars), UnknownMarks = UnknownMarksMovedOn(project.Scan.UnknownMarks, first, bars) };
         IEnumerable<CheckFlag> own = CheckFlag.FromScan(scan.CheckOf(after), scan.ConfirmedBars).Where(flag => flag.Bar >= first && flag.Bar < first + bars);
         // The player's work in ticks moves on with the bars after the page, by one rule (v1.5 i-7, r-2b); nothing else is there to move (CanInsertPage).
         if (FollowedWork.Inserted(project, before.Meter, after.Meter, at, length, ids) is not { } followed)
@@ -96,6 +98,26 @@ internal static class ScanPageInsert
 
     /// <summary>A bar number from <paramref name="first"/> on moved on by <paramref name="bars"/>; an earlier one as it is.</summary>
     private static int MovedOn(int bar, int first, int bars) => bar < first ? bar : bar + bars;
+
+    /// <summary>A later build's marks with the bars after the page: their "bar" and "last", where they are whole numbers, moved on as the marks this build knows are.</summary>
+    private static IReadOnlyList<string> UnknownMarksMovedOn(IReadOnlyList<string> marks, int first, int bars) =>
+        [.. marks.Select(kept =>
+        {
+            if (JsonNode.Parse(kept) is not JsonObject mark)
+            {
+                return kept;
+            }
+
+            foreach (string name in (string[])["bar", "last"])
+            {
+                if (mark[name] is JsonValue value && value.TryGetValue(out int bar))
+                {
+                    mark[name] = MovedOn(bar, first, bars);
+                }
+            }
+
+            return mark.ToJsonString();
+        })];
 
     /// <summary>The marks «что не так» with the bars after the page (version 18): each end moved on, so a mark across the page's place takes it in.</summary>
     private static IReadOnlyList<ReadingMark> MarksMovedOn(IReadOnlyList<ReadingMark> marks, int first, int bars) =>

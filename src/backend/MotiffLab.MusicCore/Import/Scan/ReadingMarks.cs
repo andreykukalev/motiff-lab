@@ -80,10 +80,10 @@ internal static class ReadingMarks
 
     /// <summary>
     /// <paramref name="score"/>, the reading <paramref name="read"/> was imported from, with <paramref name="marks"/> put in
-    /// (their bars <paramref name="read"/>'s), but those of <paramref name="unplaced"/>, whose music has no bar there, which
+    /// (their bars <paramref name="read"/>'s), but those whose index in <paramref name="marks"/> is <paramref name="unplaced"/>, whose music has no bar there, which
     /// are only placed; the same array when no mark changes it.
     /// </summary>
-    public static MarkedReading Apply(byte[] score, ImportedPiece read, IReadOnlyList<ReadingMark> marks, IReadOnlyCollection<ReadingMark>? unplaced = null)
+    public static MarkedReading Apply(byte[] score, ImportedPiece read, IReadOnlyList<ReadingMark> marks, IReadOnlySet<int>? unplaced = null)
     {
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(read);
@@ -97,8 +97,9 @@ internal static class ReadingMarks
 
         List<XElement>? parts = root is null ? null : [.. root.Elements("part")];
         int count = parts is not { Count: > 0 } ? measureOf.Count : parts.Min(static part => part.Elements("measure").Count());
-        PlacedMark[] placed = [.. marks.OrderBy(static mark => s_order.Contains(mark.Kind) ? Array.IndexOf(s_order, mark.Kind) : s_order.Length).ThenBy(static mark => mark.Bar)
-            .Select(mark => Place(mark, marks, unplaced?.Contains(mark) == true, parts, measureOf, count))];
+        PlacedMark[] placed = [.. marks.Select(static (mark, index) => (Mark: mark, Index: index))
+            .OrderBy(static each => s_order.Contains(each.Mark.Kind) ? Array.IndexOf(s_order, each.Mark.Kind) : s_order.Length).ThenBy(static each => each.Mark.Bar)
+            .Select(each => Place(each.Mark, marks, unplaced?.Contains(each.Index) == true, parts, measureOf, count))];
         PlacedMark[] applied = [.. placed.Where(static mark => mark.Outcome == MarkOutcome.Applied)];
         if (root is null || applied.Length == 0)
         {
