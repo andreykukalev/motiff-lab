@@ -266,10 +266,7 @@ struct SourcesSheet: View {
         case .same(let original) where original.isRecording:
             await sources.addRecording(url)
         case .pdf, .score, .same:
-            let lent = url.startAccessingSecurityScopedResource()
-            let data = try? Data(contentsOf: url)
-            if lent { url.stopAccessingSecurityScopedResource() }
-            guard let data else { return }
+            guard let data = sources.read(picked: url) else { return }
             if picked == .score {
                 await versions?.addVersion(fileName: url.lastPathComponent, data: data)
                 await sources.refresh()

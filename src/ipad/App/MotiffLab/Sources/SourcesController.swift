@@ -164,6 +164,19 @@ final class SourcesController: ObservableObject {
         }
     }
 
+    /// A file picked in Files (a PDF, the same file as a deleted original, a score's file as a version), read once inside its
+    /// security scope and never changed; nil, with why in `status`, when it cannot be read. E-sources-2: before, such a
+    /// file was dropped and the sheet said nothing.
+    func read(picked url: URL) -> Data? {
+        let lent = url.startAccessingSecurityScopedResource()
+        defer { if lent { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url) else {
+            status = text["originals.unreadable"]
+            return nil
+        }
+        return data
+    }
+
     /// A recording added as an original without hearing it: its sound copied here (kept "device"), its description in the
     /// project file. The same recording as a deleted one comes back with its id, as music-core knows it by its bytes.
     func addRecording(_ picked: URL) async {

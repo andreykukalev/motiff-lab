@@ -38,6 +38,9 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   nothing; once it is done, the panel offers Send again · as the library recognises one piece at a time (Andrei,
   2026-11-25) and the panel already waits for it; before, both went to the server, and the first, coming back, cleared
   the second's progress and gave its Send back (`SourcesController.reading` holds one original) · v1.6 i-13
+- `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
+  original) that cannot be read · the sheet's danger line says «Файл не прочитался.» · as a file picked for «Привязать
+  оригинал» says it (`OriginalsController`); before, nothing happened and nothing was said · v1.6 i-13
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over

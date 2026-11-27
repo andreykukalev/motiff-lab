@@ -143,6 +143,19 @@ final class OriginalsTests: XCTestCase {
         XCTAssertNil(SourcesController(layers: layers).readingOther(than: peters), "nothing is being recognised")
     }
 
+    /// E-sources-2 (v1.6 i-13): a file picked in Files for Sources that cannot be read says so on the sheet, as a picked
+    /// original does in «Привязать оригинал», instead of nothing; a readable one is read as it is.
+    @MainActor
+    func testAPickedFileThatCannotBeReadSaysSo() throws {
+        let sources = SourcesController()
+        XCTAssertNil(sources.read(picked: folder.appendingPathComponent("Gone.pdf")))
+        XCTAssertEqual(sources.status, UIText.current["originals.unreadable"])
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("Etude.pdf")
+        try Data([1, 2, 3]).write(to: file)
+        XCTAssertEqual(sources.read(picked: file), Data([1, 2, 3]))
+    }
+
     /// v1.5 r-2b: pages recognised in Sources with no scan server set (scanning off) say how to set one up, as the PDF's own
     /// panel does, and send nothing; before, they said the server found no notes, which no server had been asked.
     @MainActor
