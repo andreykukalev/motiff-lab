@@ -98,14 +98,20 @@ internal static class JsonRead
     /// </summary>
     internal static ProjectFileException Unknown<T>(string name, string text)
         where T : struct, Enum
+        => Marked(Damaged(name), typeof(T).Name, text);
+
+    /// <summary>
+    /// <paramref name="reason"/> marked as a value of <paramref name="type"/> this build does not know when the value is a
+    /// name (ASCII letters and digits, from a letter), so a tolerant read can keep the entity that holds it (S6).
+    /// </summary>
+    internal static ProjectFileException Marked(ProjectFileException reason, string type, string text)
     {
-        ProjectFileException damaged = Damaged(name);
-        if (char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit))
+        if (text.Length > 0 && char.IsAsciiLetter(text[0]) && text.All(char.IsAsciiLetterOrDigit))
         {
-            damaged.Data[UnknownEnumKey] = typeof(T).Name;
+            reason.Data[UnknownEnumKey] = type;
         }
 
-        return damaged;
+        return reason;
     }
 
     /// <summary>An enum by its exact name; numbers are not names.</summary>

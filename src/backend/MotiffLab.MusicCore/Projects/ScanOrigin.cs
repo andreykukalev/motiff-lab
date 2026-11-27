@@ -33,6 +33,83 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     /// </summary>
     public IReadOnlyList<PageReport> Pages { get; init; } = [];
 
+    /// <summary>
+    /// The pages of the PDF, from 1, that no engine read, so the notes lack them (version 18; v1.5 i-7 kept them only in the
+    /// iPad's recognition queue): the app marks each at its place and offers to read it again. Empty when every page was read.
+    /// </summary>
+    public IReadOnlyList<int> Unread { get; init; } = [];
+
+    /// <summary>The pages of the PDF, from 1, that the notes have, in order (version 18), where a page read again goes among them; empty with <see cref="Unread"/>.</summary>
+    public IReadOnlyList<int> ReadPages { get; init; } = [];
+
+    /// <summary>
+    /// The player's marks «что не так» on these notes (version 18; «Как напечатано», step 3), by bar, then kind, then staff:
+    /// what the page prints where the reading went wrong, used by the next reading of the same pages and carried to it
+    /// (<see cref="ReadingMarks"/>). Empty when the player marked nothing.
+    /// </summary>
+    public IReadOnlyList<ReadingMark> Marks { get; init; } = [];
+
+    /// <summary>
+    /// A later build's marks of a kind this build does not know, each its JSON as the file had it (version 18, S6): written
+    /// back as they were, never put into a reading.
+    /// </summary>
+    public IReadOnlyList<string> UnknownMarks { get; init; } = [];
+
+    /// <summary>
+    /// The origin with <paramref name="mark"/> among its marks, so each bar takes a mark of a kind (and staff) once: it takes
+    /// the place of one of its kind at the same place (<see cref="ReadingMark.SamePlace"/>); over bars, it joins the marks of
+    /// its kind, staff and value it overlaps (their bars and its), and takes its bars from those that say otherwise.
+    /// </summary>
+    public ScanOrigin WithMark(ReadingMark mark)
+    {
+        List<ReadingMark> kept = [];
+        ReadingMark put = mark;
+        foreach (ReadingMark other in Marks.Where(other => !other.SamePlace(mark)))
+        {
+            bool over = !ReadingMark.FromBarOn(mark.Kind) && other.Kind == mark.Kind && other.Staff == mark.Staff && other.Bar <= mark.Last && other.Last >= mark.Bar;
+            if (!over)
+            {
+                kept.Add(other);
+            }
+            else if (other.Value == mark.Value)
+            {
+                put = new ReadingMark(mark.Kind, Math.Min(put.Bar, other.Bar), Math.Max(put.Last, other.Last), mark.Staff, mark.Value);
+            }
+            else
+            {
+                kept.AddRange(other.Outside(mark));
+            }
+        }
+
+        return this with { Marks = Ordered([.. kept, put]) };
+    }
+
+    /// <summary>The origin without the mark of <paramref name="kind"/> at <paramref name="bar"/> (on <paramref name="staff"/>); as it was when there is none.</summary>
+    public ScanOrigin WithoutMark(ReadingMarkKind kind, int bar, int? staff) =>
+        this with { Marks = [.. Marks.Where(kept => !(kept.Kind == kind && kept.Bar == bar && kept.Staff == staff))] };
+
+    /// <summary>Marks in the order the file keeps them: by bar, then kind, then staff.</summary>
+    public static IReadOnlyList<ReadingMark> Ordered(IEnumerable<ReadingMark> marks) =>
+        [.. marks.OrderBy(static mark => mark.Bar).ThenBy(static mark => mark.Kind).ThenBy(static mark => mark.Staff ?? 0)];
+
+    /// <summary>
+    /// The origin with the PDF's pages no engine read and those the notes have (version 18), each a page from 1, once and in
+    /// order; none unread leaves both empty.
+    /// </summary>
+    /// <exception cref="ArgumentException">A page below 1, or one both unread and read.</exception>
+    public ScanOrigin WithUnread(IEnumerable<int> unread, IEnumerable<int> read)
+    {
+        int[] missing = [.. unread.Distinct().Order()];
+        int[] have = [.. read.Distinct().Order()];
+        return missing.Concat(have).Any(static page => page < 1) || missing.Intersect(have).Any()
+            ? throw new ArgumentException("Pages count from 1, and a page is either read or not.", nameof(unread))
+            : this with { Unread = missing, ReadPages = missing.Length == 0 ? [] : have };
+    }
+
+    /// <summary>The origin once the PDF's page <paramref name="page"/> no engine read is in the notes (scan.insert): read now; as it was when the page was not kept as unread.</summary>
+    public ScanOrigin WithPageRead(int page) =>
+        Unread.Contains(page) ? WithUnread(Unread.Where(unread => unread != page), [.. ReadPages, page]) : this;
+
     /// <summary>A scan just read, with no bar checked yet.</summary>
     public static ScanOrigin Read(string engine) => new(engine, []);
 
@@ -47,14 +124,18 @@ public sealed record ScanOrigin(string Engine, IReadOnlyList<int> ConfirmedBars)
     public ScanCheck CheckOf(ImportedPiece piece) => ScanCheck.Of(piece, Pages.Count > 0 ? Pages : null);
 
     /// <summary>The origin with the bars added to the confirmed ones.</summary>
-    public ScanOrigin Confirm(IEnumerable<int> bars) => new(Engine, [.. ConfirmedBars, .. bars]) { From = From, At = At, Pages = Pages };
+    public ScanOrigin Confirm(IEnumerable<int> bars) => WithConfirmed([.. ConfirmedBars, .. bars]);
 
     /// <summary>The origin with the bar taken out of the confirmed ones, so its notes are detected again.</summary>
-    public ScanOrigin Unconfirm(int bar) => new(Engine, [.. ConfirmedBars.Where(confirmed => confirmed != bar)]) { From = From, At = At, Pages = Pages };
+    public ScanOrigin Unconfirm(int bar) => WithConfirmed(ConfirmedBars.Where(confirmed => confirmed != bar));
+
+    /// <summary>The origin with these confirmed bars and everything else it keeps (the reports, the unread pages and the marks, version 18).</summary>
+    public ScanOrigin WithConfirmed(IEnumerable<int> bars) => new(Engine, [.. bars]) { From = From, At = At, Pages = Pages, Unread = Unread, ReadPages = ReadPages, Marks = Marks, UnknownMarks = UnknownMarks };
 
     public bool Equals(ScanOrigin? other) =>
         other is not null && Engine == other.Engine && ConfirmedBars.SequenceEqual(other.ConfirmedBars) && From == other.From && At == other.At
-        && Pages.SequenceEqual(other.Pages);
+        && Pages.SequenceEqual(other.Pages) && Unread.SequenceEqual(other.Unread) && ReadPages.SequenceEqual(other.ReadPages)
+        && Marks.SequenceEqual(other.Marks) && UnknownMarks.SequenceEqual(other.UnknownMarks);
 
     public override int GetHashCode() => ConfirmedBars.Aggregate(Engine.GetHashCode(StringComparison.Ordinal), HashCode.Combine);
 }

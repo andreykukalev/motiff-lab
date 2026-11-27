@@ -113,4 +113,3 @@ extension PdfScreen {
         sourcesOpen.toggle()
     }
 }
-}

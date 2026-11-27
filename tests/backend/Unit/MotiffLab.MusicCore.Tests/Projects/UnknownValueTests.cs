@@ -22,7 +22,7 @@ public class UnknownValueTests
     private static readonly HashSet<string> s_inWorkspace = ["motifs", "variations", "observations", "marks", "bookmarks", "resumePoints", "settings"];
 
     internal static JsonObject Worked() =>
-        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v17-worked.motiff.json")))!.AsObject();
+        JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v18-worked.motiff.json")))!.AsObject();
 
     private static JsonObject Worked15() =>
         JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v15-worked.motiff.json")))!.AsObject();
@@ -73,16 +73,31 @@ public class UnknownValueTests
     }
 
     [Fact]
-    public void An_unknown_setting_or_variation_operation_is_still_refused_as_before()
+    public void An_unknown_setting_or_variation_operation_is_kept_and_written_back_unchanged()
     {
-        // Criterion 4 of #313: settings and operations are the next task.
-        JsonObject value = With(Worked(), "settings/phrases.granularity", UnknownValue);
+        // #314 (version 18): a setting this build does not have, a value it does not allow and an operation it does not have.
+        JsonObject value = With(Worked(), "settings/layers.ink", UnknownValue);
         JsonObject setting = With(Worked(), "settings/future.setting", "on");
         JsonObject operation = With(Worked(), "variations/1/steps/0/operation", "V99");
 
-        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(value))).Message);
-        Assert.Equal("This project file is damaged: its settings cannot be read.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(setting))).Message);
-        Assert.Equal("A variation uses an operation (V99) this version of Motiff Lab does not have.", Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Bytes(operation))).Message);
+        foreach (JsonObject file in (JsonObject[])[value, setting, operation])
+        {
+            Project project = ProjectFile.Read(Bytes(file));
+            Assert.True(JsonNode.DeepEquals(file, JsonNode.Parse(ProjectFile.Write(project))), "the file is written back as it was");
+            Assert.False(project.SettingOverrides.ContainsKey("future.setting"));
+            Assert.False(project.SettingOverrides.ContainsKey("layers.ink"));
+        }
+
+        // The variation of the unknown operation is kept whole with its motif, made by a later build: it is never played.
+        Project newer = ProjectFile.Read(Bytes(operation));
+        UnknownEntity kept = Assert.Single(newer.Unknown, entity => entity.Enum is not null);
+        Assert.Equal(("variations", "v_0002", UnknownEntity.NewerOperation), (kept.List, kept.Id, kept.Enum));
+        Assert.DoesNotContain(newer.Variations, variation => variation.MotifId == "m_0001");
+
+        // The player setting it here takes the place of the kept value; clearing it leaves none.
+        Project set = ProjectFile.Read(Bytes(value)).OverrideSetting("layers.ink", "on");
+        Assert.Equal("on", JsonNode.Parse(ProjectFile.Write(set))!["workspace"]!["settings"]!["layers.ink"]!.GetValue<string>());
+        Assert.False(JsonNode.Parse(ProjectFile.Write(set.OverrideSetting("layers.ink", null)))!["workspace"]!["settings"]!.AsObject().ContainsKey("layers.ink"));
     }
 
     [Fact]

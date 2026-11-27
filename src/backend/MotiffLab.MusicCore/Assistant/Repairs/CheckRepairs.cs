@@ -65,6 +65,12 @@ internal static partial class CheckRepairs
             CheckReason.EnginesDisagree => ([], w.T(
                 "The engines read this bar in different ways, and no rule tells which reading is right. Compare the bar with the page.",
                 "Движки распознавания прочитали этот такт по-разному, и никакое правило не скажет, какое прочтение верно. Сверьте такт со страницей.")),
+            CheckReason.ReadAgain => ([], w.T(
+                "Only you can tell which engine read this bar right: compare it with the page, and put in another reading or correct it with «Fix notes».",
+                "Какой движок прочитал этот такт верно, можете сказать только вы: сверьте его со страницей и возьмите другое чтение или исправьте его через «Исправить ноты».")),
+            CheckReason.MarkUnfit => ([], w.T(
+                "The reading could not take your mark here: compare the bar with the page and correct it with «Fix notes».",
+                "Чтение не смогло учесть вашу отметку здесь: сверьте такт со страницей и исправьте его через «Исправить ноты».")),
             CheckReason.CorrectionUnfit => ([], w.T(
                 "Only you know which reading of this note is right: correct it with «Fix notes», or take the earlier reading in Sources.",
                 "Какое чтение этой ноты верно, знаете только вы: исправьте её через «Исправить ноты» или возьмите прежнее чтение в «Источниках».")),

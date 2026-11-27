@@ -128,7 +128,7 @@ public class VariantRecordTests
 
         byte[] written = ProjectFile.Write(project);
         Assert.Equal(written, ProjectFile.Write(project));
-        GoldenFiles.AssertIs("v17-variants.motiff.json", written, ["v16-variants.motiff.json"]);
+        GoldenFiles.AssertIs("v18-variants.motiff.json", written, ["v16-variants.motiff.json", "v17-variants.motiff.json"]);
 
         Project read = ProjectFile.Read(written);
         OpenedProject again = OpenedProject.Open(read);

@@ -183,7 +183,8 @@ public class ProjectFileTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("{\"format\":\"something-else\"}", "not a Motiff Lab project file")]
-    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":18}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":19}", "newer version")]
+    [InlineData("{\"format\":\"motiff-lab-project\",\"version\":18,\"minReader\":19}", "newer version")]
     [InlineData("{\"format\":\"motiff-lab-project\",\"version\":1,\"source\":\"!!\"}", "source")]
     public void Unreadable_files_get_a_plain_reason(string json, string reason)
     {
@@ -243,7 +244,8 @@ public class ProjectFileTests
     [Fact]
     public void An_unknown_operation_is_reported()
     {
-        string json = Encoding.UTF8.GetString(ProjectFile.Write(Worked())).Replace("\"V1\"", "\"V99\"", StringComparison.Ordinal);
+        // In a file of an earlier layout an unknown operation is still damage; in this one it is kept (#314, UnknownValueTests).
+        string json = Encoding.UTF8.GetString(Projects.LegacyFile.Bytes(ProjectFile.Write(Worked()), 15)).Replace("\"V1\"", "\"V99\"", StringComparison.Ordinal);
 
         var exception = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json)));
 

@@ -73,6 +73,8 @@ internal static class ProjectSync
         ["fileName"] = FieldClass.Import,
         ["createdAt"] = FieldClass.Bookkeeping,
         ["lastOpened"] = FieldClass.Bookkeeping,
+        // Version 18: the oldest build that reads the file, this build's (0026 S6).
+        ["minReader"] = FieldClass.Bookkeeping,
         ["source"] = FieldClass.Import,
         ["document"] = FieldClass.Import,
         ["documentPages"] = FieldClass.Import,

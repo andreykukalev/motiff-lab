@@ -211,5 +211,6 @@
   "sources.sheet.looseNotesCount": "Notes without an original · {0}",
   "sources.sheet.originalsCount": "Originals · {0}",
   "sources.sheet.photosFile": "Photos of pages",
-  "drafts.group": "Drafts · {0}"
+  "drafts.group": "Drafts · {0}",
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
 }

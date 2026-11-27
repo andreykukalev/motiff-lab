@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Facade.Sessions;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Import.Vector;
@@ -36,22 +37,37 @@ internal static partial class ScanRequest
     /// "pitch", "length" (ticks), "name"}]}]}], the other readings of its staves to check, and "crop": {"box": [left, top,
     /// right, bottom], "width", "height", "rotated"} in the page image's pixels, or null. "fingerprint" names the score as
     /// the Notes made from it keep it (`check` answers the working notes' own), so the app can keep these beside them.
+    /// Within contract 16 (version 1.6, c-14b2, «Как напечатано» step 3; fields added): a page of "replace" may instead be
+    /// {"page", "readings", "evidence" (optional), "bad": [bars, as "score" numbers them, the player marked as read badly]},
+    /// merged as a page of "pages" is, each bad bar taking another engine's reading than "score" has there where one read it
+    /// otherwise, marked read again and to check (<see cref="ScanBefore"/>); with "file" (the piece's project file) and
+    /// "original" (the id of the PDF read, its PDF by default), the bars, the check and "fingerprint" are those of the notes
+    /// with the working notes' marks put in, as sources.notes.recognise makes them from "score".
     /// </summary>
     public static string Join(Request fields)
     {
         Dictionary<int, ScanMergedPage> merged = [];
-        byte[] score = Score(fields, merged);
+        (Func<byte[], ReadScore> notesOf, bool marks) = NotesOf(fields);
+        Func<byte[], ReadScore> repaired = bytes => SourcesSession.Read("notes.musicxml", bytes, Words.For(fields.Text("language")));
+        byte[] score = Score(fields, merged, marks ? [repaired, notesOf] : [repaired]);
         IReadOnlyList<byte[]> pages = ScanJoin.Split(score);
         IReadOnlyList<PageReport>? reports = Reports(fields, pages.Count);
-        ImportedPiece piece = PieceImporter.Import("scan.musicxml", score) is { Piece: { } read }
-            ? read
-            : throw FacadeException.BadRequest("The joined pages could not be read as music.");
+        (ImportedPiece piece, byte[] notes) = marks && notesOf(score) is { } marked
+            ? (marked.Piece, marked.MusicXml)
+            : PieceImporter.Import("scan.musicxml", score) is { Piece: { } read }
+                ? (read, ScanRepair.Repair(score))
+                : throw FacadeException.BadRequest("The joined pages could not be read as music.");
         ScanCheck check = ScanCheck.Of(piece, reports);
         PageMap map = PageMap.Of(piece, pages.Count);
+        if (marks)
+        {
+            MarkVariants(merged, score, piece, map, notesOf);
+        }
+
         return Answer.Write(json =>
         {
             json.WriteString("score", Encoding.UTF8.GetString(score));
-            json.WriteString("fingerprint", PieceOriginal.Fingerprint(ScanRepair.Repair(score)));
+            json.WriteString("fingerprint", PieceOriginal.Fingerprint(notes));
             json.WriteStartArray("pages");
             for (int page = 1; page <= pages.Count; page++)
             {
@@ -242,20 +258,24 @@ internal static partial class ScanRequest
     }
 
     /// <summary>The joined score; the pages sent as readings are merged first, and their merges kept in <paramref name="merged"/> by page.</summary>
-    private static byte[] Score(Request fields, Dictionary<int, ScanMergedPage> merged)
+    private static byte[] Score(Request fields, Dictionary<int, ScanMergedPage> merged, IReadOnlyList<Func<byte[], ReadScore>> asNotes)
     {
         try
         {
             if (fields.Has("score"))
             {
+                byte[] score = Encoding.UTF8.GetBytes(fields.Required("score"));
                 Dictionary<int, byte[]> replaced = [];
                 foreach (JsonElement element in fields.Elements("replace"))
                 {
                     Request page = Request.Of(element);
-                    replaced[page.Int("page") ?? throw FacadeException.BadRequest("Each page to replace needs \"page\".")] = Encoding.UTF8.GetBytes(page.Required("musicxml"));
+                    int number = page.Int("page") ?? throw FacadeException.BadRequest("Each page to replace needs \"page\".");
+                    replaced[number] = page.Has("readings")
+                        ? Read(element, number, merged, Before(score, number, page.Ints("bad"), asNotes))
+                        : Encoding.UTF8.GetBytes(page.Required("musicxml"));
                 }
 
-                return ScanJoin.Replace(Encoding.UTF8.GetBytes(fields.Required("score")), replaced);
+                return ScanJoin.Replace(score, replaced);
             }
 
             IReadOnlyList<JsonElement> pages = fields.Elements("pages");
@@ -273,7 +293,7 @@ internal static partial class ScanRequest
     /// One page of "pages": its MusicXML, or its readings [{"engine", "musicxml"}] merged, or {"readings": those, "evidence":
     /// the page's evidence as the scan server gives it (optional)} merged with the evidence (<see cref="ScanEvidence"/>).
     /// </summary>
-    private static byte[] Read(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged)
+    private static byte[] Read(JsonElement page, int number, Dictionary<int, ScanMergedPage> merged, ScanBefore? before = null)
     {
         if (page.ValueKind == JsonValueKind.String)
         {
@@ -292,9 +312,48 @@ internal static partial class ScanRequest
             .Select(reading => new ScanReading(reading.Required("engine"), Encoding.UTF8.GetBytes(reading.Required("musicxml"))))];
         ScanMergedPage merge = ScanMerge.Merge(
             readings.Count > 0 ? readings : throw FacadeException.BadRequest($"Page {number} has no reading."),
-            evidence is { } found ? ScanEvidence.Parse(found.GetRawText()) : null);
+            evidence is { } found ? ScanEvidence.Parse(found.GetRawText()) : null,
+            before);
         merged[number] = merge;
         return merge.MusicXml;
+    }
+
+    /// <summary>
+    /// Page <paramref name="number"/> of the joined <paramref name="score"/> (the working notes' music) as read before, with
+    /// its measures at the <paramref name="bad"/> bars (as the score numbers them) the player marked as read badly; null when
+    /// none is marked. A reading is the one taken before when the score with the page merged so gives the bar's notes as
+    /// they are once made into notes either way of <paramref name="asNotes"/>: repaired, or repaired with the marks put in,
+    /// as the working notes were read before or after the player marked them.
+    /// </summary>
+    /// <exception cref="FacadeException">A bar is not on the page ("badRequest").</exception>
+    private static ScanBefore? Before(byte[] score, int number, IReadOnlyList<int> bad, IReadOnlyList<Func<byte[], ReadScore>> asNotes)
+    {
+        if (bad.Count == 0)
+        {
+            return null;
+        }
+
+        IReadOnlyList<byte[]> pages = ScanJoin.Split(score);
+        if (number < 1 || number > pages.Count || PieceImporter.Import("scan.musicxml", score).Piece is not { MusicXml: { } import } piece)
+        {
+            throw FacadeException.BadRequest($"Page {number} of the score cannot be read again.");
+        }
+
+        PageMap map = PageMap.Of(piece, pages.Count);
+        MusicXmlMeasure[] measures = [.. import.Measures.Where(measure => map.PageOf(measure.Span.Onset) == number)];
+        HashSet<int> indices = [];
+        foreach (int bar in bad)
+        {
+            int index = Array.FindIndex(measures, measure => piece.Meter.ToPosition(measure.Span.Onset).Bar == bar);
+            indices.Add(index >= 0 ? index : throw FacadeException.BadRequest($"Bar {bar} is not on page {number}."));
+        }
+
+        int offset = measures[0].Index;
+        return new ScanBefore(pages[number - 1], indices, (page, at, earlier) =>
+        {
+            byte[] chosen = ScanJoin.Replace(score, new Dictionary<int, byte[]> { [number] = page });
+            return asNotes.Any(notesOf => Differing(piece, offset + earlier, notesOf(chosen).Piece, offset + at).Length == 0);
+        });
     }
 
     private static IReadOnlyList<PageReport>? Reports(Request fields, int pages)

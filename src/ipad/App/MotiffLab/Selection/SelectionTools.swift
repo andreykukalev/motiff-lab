@@ -127,7 +127,7 @@ extension ScoreController {
         switch undoOwner {
         case .ink: penModel.undo()
         case .selection: undoSelection()
-        case .noteEdits: if noteEditor?.canUndo == true { undoNoteEdit() }
+        case .noteEdits: if checkModel.noteEditor?.canUndo == true { checkModel.undoNoteEdit() }
         case .nothing: break
         }
     }

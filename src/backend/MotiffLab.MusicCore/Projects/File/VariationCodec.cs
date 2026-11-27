@@ -19,6 +19,17 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// </summary>
 internal static class VariationCodec
 {
+    /// <summary>The fields of a motif and of a variation this build reads; a file's others are kept (version 18).</summary>
+    private static readonly HashSet<string> s_motifFields = new(StringComparer.Ordinal) { "id", "name", "kind", "mode", "onset", "duration", "filter", "noteIds", "notes" };
+
+    private static readonly HashSet<string> s_variationFields = new(StringComparer.Ordinal) { "id", "motifId", "steps", "pending", "keep", "key" };
+
+    /// <summary>
+    /// The value a tolerant read names for a variation step of an operation this build does not have (0026 S6, #314): its
+    /// variation, or idea, is kept whole as unknown, made by a later build (<see cref="UnknownEntity.Enum"/>).
+    /// </summary>
+    internal const string NewerOperation = UnknownEntity.NewerOperation;
+
     internal static void WriteMotifsAndVariations(Utf8JsonWriter json, Project project)
     {
         List<UnknownEntity> unknownMotifs = KeptUnknown(project.Unknown, "motifs", project.Motifs.Select(static motif => motif.Id), null, out HashSet<string> replacedMotifs);
@@ -36,6 +47,7 @@ internal static class VariationCodec
                 json.WriteString("notes", notes);
             }
 
+            WriteUnknownFields(json, project.UnknownFieldsAt(FieldsPath("motifs", motif.Id)));
             json.WriteEndObject();
         });
 
@@ -47,6 +59,7 @@ internal static class VariationCodec
             json.WriteString("motifId", variation.MotifId);
             WriteChain(json, variation.Steps, variation.Pending, variation.Keep);
             WriteKey(json, variation.Key);
+            WriteUnknownFields(json, project.UnknownFieldsAt(FieldsPath("variations", variation.Id)));
             json.WriteEndObject();
         });
     }
@@ -79,8 +92,8 @@ internal static class VariationCodec
     /// </summary>
     internal static List<SavedMotif> ReadMotifs(JsonElement root, int version, Unknowns unknowns, out List<SavedVariation> variations)
     {
-        var motifs = ReadEntries(Property(root, "motifs", JsonValueKind.Array), "motifs", ReadMotif, unknowns);
-        var read = ReadEntries(Property(root, "variations", JsonValueKind.Array), "variations", variation => ReadVariation(variation, version), unknowns, "motifId");
+        var motifs = ReadEntries(Property(root, "motifs", JsonValueKind.Array), "motifs", ReadMotif, unknowns, fields: s_motifFields);
+        var read = ReadEntries(Property(root, "variations", JsonValueKind.Array), "variations", variation => ReadVariation(variation, version), unknowns, "motifId", s_variationFields);
         HashSet<string> unknown = [.. Project.UnknownIds(unknowns.Kept, "motifs"), .. unknowns.Kept.Where(static entity => entity.List == "variations" && entity.Owner is not null).Select(static entity => entity.Owner!)];
         variations = Known(read, "variations", static variation => variation.MotifId, unknown, "motifId", unknowns);
         return Known(motifs, "motifs", static motif => motif.Id, unknown, null, unknowns);
@@ -323,7 +336,7 @@ internal static class VariationCodec
                 : throw Damaged("variation parameters"),
             PassingNotes.OperationId => new PassingNotesParameters(Name<PassingNoteKind>(parameters, "kind"), ReadIntervals(parameters)),
             Reharmonise.OperationId => new ReharmoniseParameters(Name<ReharmoniseKind>(parameters, "kind")),
-            _ => throw new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."),
+            _ => throw Marked(new ProjectFileException($"A variation uses an operation ({operation}) this version of Motiff Lab does not have."), NewerOperation, operation),
         };
         OperationScope scope = parameters.TryGetProperty("scope", out _) ? Name<OperationScope>(parameters, "scope") : OperationScope.All;
         return new SavedStep(operation, read with { Scope = scope });
