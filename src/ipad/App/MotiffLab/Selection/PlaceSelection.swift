@@ -2,7 +2,7 @@ import UIKit
 import WebKit
 
 /// Selection by the place of the touch (v0.6.2, #601, the selection study's sections C-F): in Select the place a press
-/// lands decides what it does, never how long it is held (the page's rule, Scripts/score/selection-places.ts, the same for
+/// lands decides what it does, never how long it is held (the page's rule, Scripts/selection/selection-places.ts, the same for
 /// the score and the roll). Since v0.6.3 (#608, the lead's decision 1, Andrei's spec «как на макете») it is how Select
 /// works on the iPad, with no switch (the experiment `experimental.placeSelection` that once chose it is gone). The
 /// selection is one object (Andrei, 2026-11-15): a span by beats, narrowed to a hand (`ScoreSelection.hand`, music-core's

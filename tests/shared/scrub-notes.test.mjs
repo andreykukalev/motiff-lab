@@ -6,7 +6,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ScoreGeometry, readPage } from "../../src/shared/wwwroot/js/score/score-geometry.js";
+import { readPage } from "../../src/shared/wwwroot/js/score/page-reader.js";
+import { ScoreGeometry } from "../../src/shared/wwwroot/js/score/score-geometry.js";
 import { ScoreTimeline } from "../../src/shared/wwwroot/js/score/score-timeline.js";
 import createVerovioModule from "../../src/shared/wwwroot/lib/verovio/verovio-module.mjs";
 import { VerovioToolkit } from "../../src/shared/wwwroot/lib/verovio/verovio.mjs";

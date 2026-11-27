@@ -6,7 +6,7 @@
 // iPad and on the web; nothing here touches the DOM, so Node tests it, and the timers are the host's.
 
 import type { PlayheadDrag } from "./playhead-drag.js";
-import { HOLD_MS, HOLD_SLOP } from "../score/selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../selection/selection-gesture.js";
 
 /**
  * Whether a long press of this pointer puts the black playhead: the host's rule where it gives one (the iPad's InputRules,

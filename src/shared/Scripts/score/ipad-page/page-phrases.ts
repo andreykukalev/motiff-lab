@@ -8,7 +8,8 @@
 // (page-card.ts hands them its surface, `placeCardPhrases`), only to read, and each motif of a phrase as a small comma
 // without a number (decision 2), whose tap names it to Swift (page-taps.ts); a motif at its phrase's start is marked by the
 // phrase's comma, which takes its tap. Nothing here changes the selection.
-import type { Rect, ScoreGeometry } from "../score-geometry.js";
+import type { Rect } from "../page-reader.js";
+import type { ScoreGeometry } from "../score-geometry.js";
 import type { PageCommands, PagePhraseMark, PageSectionMark } from "../page-contract.js";
 import type { BarBeatPlace } from "../phrase-drag.js";
 import { type MarkSpot, type MarkStart, type PlacedMark, commaOf, markStarts, phraseAt, placeMarks } from "../phrase-marks.js";
