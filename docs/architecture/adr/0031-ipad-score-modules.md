@@ -275,3 +275,16 @@ show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `Not
 to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
 (`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
 (`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
+
+## Note (S7 part 1, the score's screen by concern, v1.6 i-9)
+
+`ScoreScreen.swift` keeps `ScoreScreen`, the state only `ScoreScreenContent` keeps, `body`, `page` and `layers` (the
+chain of the layers, each layer's content a function beside it). Section 4's files are extensions of
+`ScoreScreenContent`, by the app's naming without `+`: `ScoreScreenBars` (the bar and what hangs under it, the transport),
+`ScoreScreenPanels` (the sheet over the right, the Contents), `ScoreScreenRoll` (the roll's drawer), `ScoreScreenSources`
+(the switch of views, Sources, the «В черновик» sheet) and `ScoreScreenReactions` (the covers and the reactions, in the
+order the code map pins; Expand and playback have no wiring of their own left in the view since `ScoreWorkspace`). The
+view's state they share is internal, no longer private. The view types are in their own files; the bar (`ScoreBar`) and
+the pill (`Pill`) are handed what they show and the actions they call, so the screen can place them elsewhere without
+touching what they do: the pill names no controller, and the bar holds `ScoreController` only to hand it to the modes,
+Practice, the layers list and More. `ScoreController` itself is step i-10.
