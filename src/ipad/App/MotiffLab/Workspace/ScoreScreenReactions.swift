@@ -84,7 +84,7 @@ extension ScoreScreenContent {
                 ReferenceSheet(text: text, settings: settings, piece: piece.id)
             }
             .sheet(isPresented: panel(.settings)) {
-                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: marksModel.pieceOverrides, clearPiece: { score.clearPieceOverrides() },
+                SettingsSheet(settings: settings, account: account, text: text, pieceOverrides: marksModel.pieceOverrides, clearPiece: { marksModel.clearOverrides() },
                               back: panels.fromMore.contains(.settings) ? (label: text["bar.more"], action: { backToMore(.settings) }) : nil)
             }
             .onChange(of: settings.values) { _, _ in workspace.settingsChanged() }

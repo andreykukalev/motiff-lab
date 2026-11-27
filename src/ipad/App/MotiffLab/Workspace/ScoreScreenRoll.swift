@@ -27,7 +27,7 @@ extension ScoreScreenContent {
         }
         if penModel.penOn { penModel.penOn = false }
         change(.expandFromDrawer)
-        score.expandRoll()
+        focusModel.expandRoll()
     }
 
     /// The drawer's share of the screen's height: as the player left it in this orientation, 40% in landscape and 30% in

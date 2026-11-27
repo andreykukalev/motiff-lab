@@ -14,7 +14,7 @@ import WebKit
 /// (ScoreSelecting, ScoreMarks, ScoreFocus, ScoreInput, ScorePageLayout, ScorePlayheads, ScoreVersions and the others the
 /// code map `workspace-controller.md` lists).
 @MainActor
-final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, SourcesScore {
+final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, SourcesScore, FocusScore, MarksScore {
     enum Tool: Equatable {
         case pen(Ink)
         case highlighter
@@ -62,14 +62,15 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
     var playheadsShown = ""
     /// The selection, its history, toast and hold hint, the menu's place and the phrases shown (Selection/SelectionModel.swift).
     let selectionModel: SelectionModel
-    /// Expand, the card's roll and options, the version in focus and the play range (Playback/FocusModel.swift).
+    /// Expand opened and left, the card engraved with its roll, options and ossia, the version in focus and the play range
+    /// (Playback/FocusModel.swift, through `FocusScore`).
     let focusModel: FocusModel
     /// The other versions, the version's words, the marker tapped and the score as last engraved (Sources/SourcesModel.swift).
     let sourcesModel: SourcesModel
     /// The pen, the bar's Pen, the pencil palette, the Pen's Undo and Redo, the eraser and the ink queue (Ink/PenModel.swift).
     let penModel: PenModel
-    /// The marks, the note being written, the layers hidden, the piece's own settings and the bookmark gone to
-    /// (Marks/MarksModel.swift).
+    /// The marks drawn and changed, the note being written, the layers hidden and what the page hides, the piece's own
+    /// settings and the bookmarks drawn and gone to (Marks/MarksModel.swift, through `MarksScore`).
     let marksModel: MarksModel
     /// Check of the notes read: the flags, the drawer, the scan's variants, Fix notes, «Мои правки» and the roll's note
     /// editor (Marks/CheckModel.swift).
@@ -112,10 +113,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
     /// (v0.6.4, spec 9); and the time its controls hide.
     @Published var practice = PracticeView.saved()
     var practiceTimer: Task<Void, Never>?
-    /// The name of the variation being tried, which the card in focus shows as an ossia above the phrase; nil for none.
-    var ossia: String? {
-        didSet { if oldValue != ossia, focusModel.focused { Task { await engraveCard() } } }
-    }
     /// A Check flag tapped on the score: the screen opens the Check drawer on its bar.
     var checkPicked: (@MainActor (Int) -> Void)?
 
@@ -193,6 +190,8 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
         penModel.score = self
         checkModel.score = self
         sourcesModel.score = self
+        focusModel.score = self
+        marksModel.score = self
         webView.configuration.userContentController.add(MessageRelay(self), name: "score")
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -360,10 +359,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
             // A tap away from the bars puts the sheet away, and leaves the selection as it is (#338).
             blankTapped?()
         case .leave:
-            leaveFocus()
+            focusModel.leave()
         case .cardLayout(let options):
-            focusModel.takeCardOptions(facadeRequest(options))
-            Task { await engraveCard() }
+            focusModel.engraveCard(options: facadeRequest(options))
         case let .coloured(start, end):
             penModel.colour(start, end)
         case .markMoved, .markAway:
@@ -391,9 +389,9 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
     private func markTapped(_ event: PageEvent) {
         switch event {
         case .bookmark(let id):
-            goToBookmark(id)
+            marksModel.goToBookmark(id)
         case .noteMarker(let id):
-            openNote(id)
+            marksModel.openNote(id)
         case .checkFlag(let bar):
             checkModel.showCheckBar(bar)
             checkPicked?(bar)
@@ -466,7 +464,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
             self.piece = OpenPiece(id: id, title: title, pages: engraving.pages, timemap: engraving.timemap, file: piece.file, other: piece.other, draft: piece.draft, shownOnly: piece.shownOnly)
             sourcesModel.keepEngraved(SourcesModel.Engraved(even: even, appWrittenBars: engraving.appWrittenBars))
             await render()
-            if focusModel.focused { await engraveCard() }
+            await focusModel.engraveCard()
         case .failure(let error):
             problem = error.message
         }
@@ -530,13 +528,13 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
             await sendPlayheadsNow()
             await sendVisibilities()
             let marks = await MusicCore.run { PieceCore(piece: piece.id).send(.marks) }
-            await draw(marks)
+            await marksModel.draw(marks)
             ProbeCounts.shared.mark("marks")
             await loadPhrases(piece)
-            await drawBookmarks()
+            await marksModel.drawBookmarks()
             await checkModel.load(in: piece.id)
             await marksModel.loadSettings(of: piece.id)
-            await applyLayers()
+            await marksModel.applyLayers()
             await draftModel.load(piece.draft, on: piece.id)
             await seamsModel.load(piece.draft, on: piece.id)
             anchorsModel.keep(piece.draft)

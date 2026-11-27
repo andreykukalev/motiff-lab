@@ -27,7 +27,7 @@ struct SelectionMenu: View {
     var body: some View {
         Group {
             if marksModel.noteDraft != nil {
-                NoteCard(score: score, marksModel: marksModel, text: text)
+                NoteCard(marksModel: marksModel, text: text)
                     .frame(width: 320)
                     .padding(CGFloat.ds("s-3"))
                     .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-l")))
@@ -153,7 +153,7 @@ struct SelectionMenu: View {
             }
             if !penModel.penOn {
                 // Expand into focus: two arrows to the corners, unlike Insights' magnifier (#511 section 9).
-                iconItem("expand", text["focus.enter"], on: false) { score.enterFocus() }
+                iconItem("expand", text["focus.enter"], on: false) { focusModel.enter() }
                     .accessibilityHint(text["focus.enterHint"])
             }
             // Note before Bookmark, as the kit's menu; a sheet of paper, not the kit's speech bubble, which read as the

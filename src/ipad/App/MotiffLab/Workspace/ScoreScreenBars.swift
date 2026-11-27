@@ -13,7 +13,7 @@ extension ScoreScreenContent {
             } else {
                 ScoreBar(title: piece.title, pages: score.pages, text: text, mode: $score.mode, penModel: penModel, marksModel: marksModel, checkModel: checkModel,
                          practice: PracticeButton(score: score, focusModel: focusModel, text: text),
-                         layers: LayersList(score: score, marksModel: marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions), panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { score.toggleExtra() }, openReference: { change(.open(.reference)) },
+                         layers: LayersList(score: score, marksModel: marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions), panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { marksModel.toggleExtra() }, openReference: { change(.open(.reference)) },
                          problem: player.problem ?? score.problem, askAboutPiece: askAboutPiece, sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                          viewNote: sourcesModel.engraved.note(text), width: width) { dismiss() }
             }
@@ -63,7 +63,7 @@ extension ScoreScreenContent {
         // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
         // The pill always shows (the playback model, v0.5.2, #479 item 22): it is where the music plays.
         if score.practiceChrome.transport {
-            Pill(player: player, selectionModel: selectionModel, focusModel: focusModel, draftModel: score.draftModel, text: text, passage: score.expandPassage, step: { score.step($0) }, setPieceTempo: setPieceTempo,
+            Pill(player: player, selectionModel: selectionModel, focusModel: focusModel, draftModel: score.draftModel, text: text, passage: score.expandPassage, step: { focusModel.step($0) }, setPieceTempo: setPieceTempo,
                  rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
                 workspace.assistantPressed()
             }

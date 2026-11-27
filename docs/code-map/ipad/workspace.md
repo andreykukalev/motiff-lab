@@ -50,7 +50,7 @@ them, and the order inside each:
    `showRollPosition` while it is shown); `playRange` (the player first, then `syncPlayheads`). 5. `body`:
    `assistant.panelOpen` (`.assistantOpened`); `panels.sheetOpen` (`assistant.close()`).
 
-An order in actions: `expandFromDrawer` asks `.expandFromDrawer` before `score.expandRoll()` (the other, «Открыть в
+An order in actions: `expandFromDrawer` asks `.expandFromDrawer` before `focusModel.expandRoll()` (the other, «Открыть в
 черновике» leaving Expand and opening Sources in one update, left with the merge in v1.1). A reaction
 may act twice in a frame at most (SwiftUI drops a third), which is why the rules are not one reaction. A rule or
 reaction moved, merged or reordered changes what a player sees for a frame or more: change `panel-states.txt` first.

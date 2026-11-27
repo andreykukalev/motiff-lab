@@ -8,8 +8,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 `Practice`, `PracticeView`, `Tempo` (`.swift`).
 
 - `FocusModel.swift` (S3, ADR 0031 section 3): Expand's state (whether it is open, the way back, the card as a roll,
-  its options, the version in focus) and the play range, reading `SelectionModel`; the views observe it (S7b, S7c).
-  Tests: `MotiffLabTests/FocusModelTests`.
+  its options and ossia, the version in focus) and the play range, reading `SelectionModel`; the views observe it (S7b,
+  S7c). Since v1.6 i-10b it opens and leaves Expand on the page (`enter`, `expandRoll`, `leave`), steps (`step`), engraves
+  the card (`engraveCard`, `showOssia`) and keeps the version in focus (`updateVersion`) through `FocusScore` (the page,
+  the piece, the Pen on, the version shown as a `VersionEntry`, the page held still, a passage selected and revealed,
+  the problem line). Tests: `MotiffLabTests/FocusModelTests` (fake score); the protected baseline drives it by its old
+  names through `MotiffLabTests/FocusBaselineNames`.
 - `PositionTransport.swift`: the pill's one Play; `PlaybackScope`: the one model everywhere (the modes,
   `ScoreController.mode` never nil since v0.6.5), Expand over its passage (`expandPassage`); the page's selection and
   Цикл only out of it (`holdsSelection`). The card's black playhead: `ipad-page/page-card.ts` `drawCardHeads`/`cardGrabs` (v0.6.4 spec 8);
@@ -33,8 +37,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 
 ## The contract others may rely on
 
-`FocusModel`: its state changes only through its methods (`open`, `close`, `showAsRoll`, `takeCardOptions`,
-`showVersion`, `updatePlayRange`); the play range is the selection's span, nil without one; `unit` is the phrase that is
+`FocusModel`: its state changes only through its methods (`enter`, `expandRoll`, `leave`, `showAsRoll`, `showOssia`,
+`engraveCard(options:)`, `updateVersion`, `updatePlayRange`); it opens only on a selection, on pages drawn and with the Pen
+off (`ExpandRules.opens`), and holds the page still until the way back; the play range is the selection's span, nil without one; `unit` is the phrase that is
 selected exactly, or the one that holds the selection's start.
 
 `PlaybackModel` follows the shared case file above, but for the iPad's own cases (`Golden/playback-model-ipad.json`): a
@@ -44,7 +49,7 @@ taps stay `seek` (T12, Цикл off outside the selection). The rest: not record
 
 ## The state it owns
 
-`FocusModel`: whether Expand is open (`focused`, since S7c), `entry`, `asRoll`, the card's options, `version`,
+`FocusModel`: whether Expand is open (`focused`, since S7c), `entry`, `asRoll`, the card's options and ossia, `version`,
 `playRange` and the version's notes to hear ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes
 of S3 and S7c).
 

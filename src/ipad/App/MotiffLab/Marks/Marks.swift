@@ -98,7 +98,6 @@ func barsText(_ first: Int, _ last: Int, _ text: UIText) -> String {
 /// The note card over the selection (the web app's `.note-card`): the player's words about the bars, Done, and Delete for
 /// a note already written. Emptying the words and choosing Done deletes the note.
 struct NoteCard: View {
-    @ObservedObject var score: ScoreController
     @ObservedObject var marksModel: MarksModel
     let text: UIText
     @FocusState private var focused: Bool
@@ -120,7 +119,7 @@ struct NoteCard: View {
                 HStack(spacing: CGFloat.ds("s-2")) {
                     if let id = draft.id {
                         Button {
-                            score.deleteNote(id)
+                            marksModel.deleteNote(id)
                         } label: {
                             HStack(spacing: 6) {
                                 Icon(name: "trash", size: CGFloat.ds("icon-s"))
@@ -132,7 +131,7 @@ struct NoteCard: View {
                     Spacer(minLength: 0)
                     Button(text["bookmark.cancel"]) { marksModel.noteDraft = nil }
                         .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
-                    Button(text["bookmark.done"]) { score.saveNote() }
+                    Button(text["bookmark.done"]) { marksModel.saveNote() }
                         .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
                 }
             }
@@ -149,7 +148,7 @@ struct NoteCard: View {
 /// with its own switch; then the layers of the player's own marks, each hidden for a clean page or all at once; those
 /// kept with the piece.
 struct LayersList: View {
-    /// Shows and hides the layers.
+    /// The phrases and their reset to the boundaries found (the layers shown and hidden are MarksModel's).
     @ObservedObject var score: ScoreController
     @ObservedObject var marksModel: MarksModel
     /// Whether Check has flags.
@@ -164,7 +163,7 @@ struct LayersList: View {
         VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
             Text(text["extra.title"]).overline()
             // The phrases' marks (the phrases spec, v1.2): shown by default, whatever the switch below; kept on this device.
-            Toggle(text["extra.phrases"], isOn: Binding(get: { !marksModel.phraseMarksHidden }, set: { score.showPhraseMarks($0) }))
+            Toggle(text["extra.phrases"], isOn: Binding(get: { !marksModel.phraseMarksHidden }, set: { marksModel.showPhraseMarks($0) }))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
@@ -177,7 +176,7 @@ struct LayersList: View {
                 .padding(.leading, CGFloat.ds("s-3"))
             }
             let extraOn = !marksModel.hiddenLayers.contains("extra")
-            Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { score.showLayers(["extra"], $0) }))
+            Toggle(text["extra.show"], isOn: Binding(get: { extraOn }, set: { marksModel.showLayers(["extra"], $0) }))
                 .dsType(.label)
                 .foregroundStyle(Color.ds("ink"))
                 .tint(Color.ds("accent"))
@@ -188,7 +187,7 @@ struct LayersList: View {
                     .foregroundStyle(Color.ds("ink-2"))
             }
             ForEach(extra, id: \.self) { item in
-                Toggle(marksModel.layerName(item), isOn: Binding(get: { !marksModel.hiddenLayers.contains(item) }, set: { score.showLayers([item], $0) }))
+                Toggle(marksModel.layerName(item), isOn: Binding(get: { !marksModel.hiddenLayers.contains(item) }, set: { marksModel.showLayers([item], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
@@ -198,7 +197,7 @@ struct LayersList: View {
             Rectangle().fill(Color.ds("hairline")).frame(height: 1)
             Text(text["extra.yours"]).overline()
             ForEach(marksModel.pieceLayers, id: \.self) { layer in
-                Toggle(marksModel.layerName(layer), isOn: Binding(get: { !marksModel.hiddenLayers.contains(layer) }, set: { score.showLayers([layer], $0) }))
+                Toggle(marksModel.layerName(layer), isOn: Binding(get: { !marksModel.hiddenLayers.contains(layer) }, set: { marksModel.showLayers([layer], $0) }))
                     .dsType(.label)
                     .foregroundStyle(Color.ds("ink"))
                     .tint(Color.ds("accent"))
@@ -206,7 +205,7 @@ struct LayersList: View {
             let layers = marksModel.pieceLayers
             let allHidden = layers.allSatisfy { marksModel.hiddenLayers.contains($0) }
             Button(allHidden ? text["layers.showAll"] : text["layers.hideAll"]) {
-                score.showLayers(layers, allHidden)
+                marksModel.showLayers(layers, allHidden)
             }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
         }
@@ -237,7 +236,7 @@ struct NotesList: View {
                 heading(text["contents.marginNotes"], marks.notes.count, ink: "amber")
                 ForEach(marks.notes) { note in
                     entry(numbered: marks.number(of: note), title: MarksShelf.firstWords(note.text, 80), detail: barsText(note.firstBar, note.lastBar, text)) {
-                        score.openNote(note.id)
+                        marksModel.openNote(note.id)
                     }
                 }
             }

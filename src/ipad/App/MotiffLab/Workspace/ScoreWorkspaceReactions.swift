@@ -126,7 +126,7 @@ extension ScoreWorkspace {
     /// The device's settings changed in the sheet: the score and the roll follow at once. The reaction on
     /// `settings.values`.
     func settingsChanged() {
-        score.settingsChanged()
+        score.marksModel.deviceSettingsChanged()
         roll.settingsChanged()
     }
 
