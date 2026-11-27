@@ -7,7 +7,7 @@ here the folder's files and the rules that hold across them.
 
 ## Files
 
-Screen ([screen](workspace-screen.md)): `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreScreen`,
+Screen ([screen](workspace-screen.md)): `LibraryOnline`, `LibraryView`, `PanelState`, `PieceScreen`, `RecordingScreen`, `RecordingWave`, `ScoreScreen`,
 `ScoreScreenBars`, `ScoreScreenPanels`, `ScoreScreenReactions`, `ScoreScreenRoll`, `ScoreScreenSources`, `ScoreBar`,
 `Pill`, `PillItems`, `SelectionMenu`, `FocusBar`, `MorePanel`, `ScoreWebView`, `TopBar`, `ScoreWorkspace`,
 `ScoreWorkspaceDrafts`, `ScoreWorkspaceFollowing`, `ScoreWorkspaceLife`, `ScoreWorkspaceReactions`,

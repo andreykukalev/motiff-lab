@@ -17,7 +17,7 @@ extension ScoreWorkspace {
 
     /// Whether the circle's scale sounds now, which its button in Insights shows (the reaction on `player.hearingAlone`).
     func hearingAloneChanged(_ alone: Bool) {
-        insights.scaleHeard = alone
+        insights.hearingAloneChanged(alone)
     }
 
     /// Room under the last page for whatever covers the bottom of the score; `height` is what the view measured.

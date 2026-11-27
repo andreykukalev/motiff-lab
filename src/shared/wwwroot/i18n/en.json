@@ -71,8 +71,6 @@
   "check.title": "Check",
   "check.toReview.one": "{0} bar to review",
   "check.toReview.many": "{0} bars to review",
-  "reference.open": "Circle",
-  "reference.openHint": "Circle of fifths and keys",
   "parts.pdf.failedNoWord": "music-core did not answer.",
 
   "dna.title": "Piece DNA",

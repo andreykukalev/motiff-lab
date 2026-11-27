@@ -166,3 +166,42 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
         }
     }
 }
+
+/// What a long press on a piece offers, on a line of the list and on a session's card: its properties, and Delete, which
+/// asks once more. A line of the list offers the same under a swipe to the left (`LineSwipe`, #479).
+struct PieceActions: ViewModifier {
+    let text: UIText
+    let edit: () -> Void
+    let delete: () -> Void
+    /// On a line of the list: whether its swiped actions are uncovered; nil on a card, which has no swipe.
+    var swiped: Binding<Bool>?
+    @State private var confirming = false
+
+    func body(content: Content) -> some View {
+        Group {
+            if let swiped {
+                menu(content).modifier(LineSwipe(text: text, open: swiped, edit: edit) { confirming = true })
+            } else {
+                menu(content)
+            }
+        }
+        .confirmationDialog(text["home.deleteForGood"], isPresented: $confirming, titleVisibility: .hidden) {
+            Button(text["home.deleteForGood"], role: .destructive, action: delete)
+            Button(text["home.keep"], role: .cancel) {}
+        }
+    }
+
+    private func menu(_ content: Content) -> some View {
+        content
+            .contextMenu {
+                Button(action: edit) {
+                    Text(text["library.properties"])
+                }
+                Button(role: .destructive) {
+                    confirming = true
+                } label: {
+                    Text(text["home.delete"])
+                }
+            }
+    }
+}

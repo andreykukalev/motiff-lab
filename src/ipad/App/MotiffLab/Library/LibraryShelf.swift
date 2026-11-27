@@ -398,3 +398,26 @@ enum LibrarySource: CaseIterable, Equatable, Sendable {
         }
     }
 }
+
+extension LibraryEntry {
+    /// The line of a project file: the title the player set or the one the score names, else the file's name; the composer
+    /// the player set or the score names; the player's tags and playlists; and whether there is work on it to come back to.
+    static func of(_ entry: ProjectFiles.Entry, _ summary: PieceSummary?) -> LibraryEntry {
+        var line = LibraryEntry(
+            url: entry.url,
+            title: summary?.shownTitle(else: entry.title) ?? entry.title,
+            composer: summary?.composer,
+            tags: summary?.tags ?? [],
+            playlists: summary?.playlists ?? [],
+            modified: entry.modified,
+            inSession: summary.map { !$0.hasNotes || $0.latest != nil } ?? false
+        )
+        line.originalAway = OriginalAway.of(summary)
+        line.sources = LibrarySource.of(summary)
+        if let summary, !summary.hasNotes, summary.document || AwayPdf.isAway(summary) {
+            line.withoutNotes = true
+            line.pages = max(1, summary.originals.first(where: \.isDocument)?.pages ?? summary.documentPages.count)
+        }
+        return line
+    }
+}
