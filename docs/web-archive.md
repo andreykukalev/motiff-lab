@@ -90,7 +90,11 @@ Andrei decides it (product concept, `governance/README.md` decision 1), as a sep
    design kit's tokens, fonts and icons into its `wwwroot` again, and move the web halves of the node tests back into
    `tests/shared` (`design`, `i18n`, `stylesheets`, `pencil-marks`). The 17 modules archived in v0.7 (A6, table above) go
    back to `src/shared/Scripts/<folder>` and their 12 test files to `tests/shared`, where both run unchanged; web code that
-   took `parseSvg`, `parseTransform`, `viewBoxOf` or `num` from `svg-to-pdf.js` takes them from `svg-parse.js`. The
+   took `parseSvg`, `parseTransform`, `viewBoxOf` or `num` from `svg-to-pdf.js` takes them from `svg-parse.js`. Since
+   v1.6 (i-15) the pure selection rules are in `Scripts/selection` (`selection-gesture`, `selection-places`,
+   `selection-rect`, `selection-grid`; `docs/code-map/selection.md`), `readPage`, `staffFrames` and `Rect` in
+   `score/page-reader.ts`, and `SelectionLayer` no longer re-exports `menuClear`, `menuPlace`, `dragStartOf`,
+   `handleTakes` or `ordered`: web code and tests that took them from the old modules take them from these. The
    iPad's case file `tests/ipad/MotiffLabTests/Golden/scrub.json` has had no node reader since then: `scrub-rule` runs
    the web's engine on it again. The words archived then (`archive/web/src/MotiffLab.Web/wwwroot/i18n/{en,ru}.json`) are
    merged back into `src/shared/wwwroot/i18n/{en,ru}.json` before the web's `i18n` test runs (no key is in both). Since

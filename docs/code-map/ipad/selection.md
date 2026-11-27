@@ -21,6 +21,16 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Selection`.
   `phraseOffer`, the card after an edit changed the phrase selected exactly, gone with the next selection). Tests:
   `MotiffLabTests/SelectionModelTests`.
 
+## The page's messages and music-core
+
+- `receivedPlace` (`chosen` with `places` → `chosenByPlace`, `picked`, `zoomSelection`); a refusal puts the band back
+  and says `selection.tooLong` / `selection.noNotes` (`softlyRefused`). `ScoreController.select(request:...)` (music-core
+  `select`); `selectSpan`, `selectRollSpan`, `RollController.sharePlaces` (span and tuplets between the views).
+- `InputRules.page` tells the page who selects; the Pencil's «switch to previous»: `StylusRules.selectTurn`,
+  `toolBeforeSelect`. Kept on the device: `SelectionSpanKept` (`ViewStates`, optional fields).
+- music-core's `select` with `"picked": true` (the iPad only) takes one note or more; a pick a motif of single notes
+  cannot hold (1, or over 32) is saved as no selection is (`Motif.Holds`), so no project file changes shape.
+
 ## The contract others may rely on
 
 `menuDragHandle()` (`SelectionTools.swift`, with `MenuDrag`): a card in the selection menu that marks a handle is

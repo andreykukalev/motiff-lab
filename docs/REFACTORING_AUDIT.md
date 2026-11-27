@@ -681,10 +681,10 @@ W2.13 (the score page in TypeScript), because both cut the same layers.
 
 | Step | What | Guard |
 | --- | --- | --- |
-| W3.11 | `Scripts/selection/` for the pure selection rules and the hold timing (`HOLD_MS`, `HOLD_SLOP`); breaks `score` ↔ `playback`; the allowed folder edges in the `dependencies` check (L7) | node tests; the check |
+| W3.11 | `Scripts/selection/` for the pure selection rules and the hold timing (`HOLD_MS`, `HOLD_SLOP`); breaks `score` ↔ `playback`; the allowed folder edges in the `dependencies` check (L7). Done (v1.6 i-15): `selection-gesture`, `selection-places`, `selection-rect`, `selection-grid` in `Scripts/selection` (`docs/code-map/selection.md`), bundled by `project.yml`; `SCRIPT_FOLDER_USES` and the rule `script-folder` in `tools/quality/dependencies.mjs` | node tests; the check |
 | W3.12 | `PianoRoll` into its collaborators (viewport, painter, editor, legend, input router) one a step, behind the `RollApi` of W2.14; the selection generations W0.6 found unused removed in their own pull request. Part 1 done (v1.4 i-1): the viewport (`roll-viewport.ts`) and the painter (`roll-painter.ts`, `roll-keys-draw.ts`, `roll-palette.ts`) are out, `piano-roll.ts` 4,070 → about 3,100 lines, its three drawing baseline entries gone; part 2 done (v1.4 i-2): the editor (`roll-editor.ts`), the legend (`roll-legend.ts`) and the input router (`roll-input.ts` over `roll-press.ts`, with `roll-fingers.ts`, `roll-head-press.ts`, `roll-rule-press.ts`, `roll-note-press.ts`, `roll-pointer-rules.ts`) are out, `piano-roll.ts` about 3,100 → 1,912 lines, the `onPointerMove` complexity entry gone; the C6 pointer scenarios were kept on the code before the move | C6; C5 |
-| W3.13 | `score-geometry.ts` into `page-reader.ts` and `ScoreGeometry`; `svg-to-pdf.ts` keeps only its SVG parser (the PDF half left in W0.6) | node tests; C5 |
-| W3.14 | `selection-layer.ts`, `selection-place-layer.ts`: drawing apart from input and reporting | node tests; C5 |
+| W3.13 | `score-geometry.ts` into `page-reader.ts` and `ScoreGeometry`; `svg-to-pdf.ts` keeps only its SVG parser (the PDF half left in W0.6). Done (v1.6 i-15): `page-reader.ts` (`readPage` as a `PageReader` walk, `staffFrames`, the page types), `score-geometry.ts` 710 → 459 lines, its five baseline entries gone; the parser half was `svg-parse.ts` already | node tests; C5 |
+| W3.14 | `selection-layer.ts`, `selection-place-layer.ts`: drawing apart from input and reporting. Done (v1.6 i-15): v0.6.1's press in `selection-press.ts` (the layer 596 → 290 lines), the place layer's edges and overlays in `selection-place-draw.ts` (567 → 470) | node tests; C5 |
 
 ### Decisions (taken by Andrei, 2026-11-16, 21:29 UTC: all three as recommended)
 
