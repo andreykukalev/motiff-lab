@@ -128,7 +128,7 @@ internal static partial class ScanMerge
                 .Where(pair => pair.Pairs[measure] is not null)
                 .Select(pair => (pair.Reading, pair.Pairs[measure]!.Value))];
             List<Choice> choices = [.. backbone.Staves().Select(each => Vote(candidates, measure, each.Part, each.Staff, backbone, page))];
-            List<Choice>? another = earlier?.Another(candidates, measure);
+            List<Choice>? another = earlier?.Another(candidates, measure, (at, variant) => Merged(readings, evidence, null, (at, variant)).MusicXml);
             taken.AddRange(chosen is { } variant && variant.Measure == measure ? Chosen(candidates, another ?? choices, variant.Variant) : another ?? choices);
             bars.Add(another is not null
                 ? new ScanMergedBar(ScanLevel.Check, Sources(another)) { Variants = Variants(candidates, another, all: true), Crop = page?.CropOf(measure), ReadAgain = true }
