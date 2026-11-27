@@ -18,7 +18,7 @@ internal static class ReadingMarkRequest
     /// check.mark: {"kind": "meter", "key", "clef", "octave", "triplets", "hands" or "badlyRead", "bar", "last" (optional,
     /// the bar itself by default; a meter or key mark has none), "staff" (a clef or octave mark's, from 1), "value" (a meter's
     /// "5/4", a key's sharps or flats "-7" to "7", a clef's "treble" or "bass", an octave's "8va" or "8vb", triplets' "yes"
-    /// or "no")}: the mark kept with the working notes, in the place of one of its kind at that bar and staff. Refused
+    /// or "no")}: the mark kept with the working notes as <see cref="ScanOrigin.WithMark"/> keeps it (in the place of one of its kind at that bar and staff, joined with those it overlaps). Refused
     /// ("unavailable") on notes not read from a PDF or photos; "badRequest" for bars outside the piece or a value its kind
     /// cannot say.
     /// </summary>

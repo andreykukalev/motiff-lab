@@ -4,6 +4,7 @@ using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Projects.Drafts;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade.Sessions;
 
@@ -220,7 +221,7 @@ internal sealed class SourcesSession
     /// The working notes' marks «что не так» put into <paramref name="read"/>, the notes read again from the original
     /// <paramref name="original"/> («Как напечатано», step 3, <see cref="ReadingMarks"/>), when the working notes are a reading
     /// of it with marks; each mark first placed on the bar of the new reading its bar's music starts (<see cref="ReadingMatch"/>),
-    /// a mark whose bar has no such place not put in; <paramref name="fileName"/> names the reading as it is imported. Answers
+    /// a mark whose bar has no such place placed where its music lies and not put in; <paramref name="fileName"/> names the reading as it is imported. Answers
     /// the reading with the marks in and what became of them; the reading as it was and null with no marks.
     /// </summary>
     public static (ReadScore Read, MarksCarried? Marks) Marked(SessionPiece piece, string original, string fileName, ReadScore read)
@@ -231,30 +232,38 @@ internal sealed class SourcesSession
         }
 
         ReadingMatch match = new(piece.Piece, read.Piece);
-        List<ReadingMark> placed = [], lost = [];
+        int first = piece.Piece.Meter.BarAt(Tick.Zero).Number;
+        List<ReadingMark> moved = [], lost = [];
         foreach (ReadingMark mark in scan.Marks)
         {
-            if (match.Moved(piece.Piece.Meter.GetBar(mark.Bar)) is { } bar)
+            Bar earlier = piece.Piece.Meter.GetBar(Math.Max(first, mark.Bar));
+            if (match.Moved(earlier) is { } bar)
             {
-                placed.Add(mark.At(bar.Number));
+                moved.Add(mark.At(bar.Number));
+                continue;
             }
-            else
-            {
-                lost.Add(mark);
-            }
+
+            // Where the bar's music lies in the new reading, as a correction not carried is flagged there.
+            ReadingMark there = mark.At(read.Piece.Meter.BarAt(match.Place(earlier.Span.Onset, end: false).At).Number);
+            moved.Add(there);
+            lost.Add(there);
         }
 
-        MarkedReading marked = ReadingMarks.Apply(read.MusicXml, read.Piece, placed);
-        IReadOnlyList<ReadingMark> carried = ScanOrigin.Ordered([.. placed, .. lost]);
-        if (ReferenceEquals(marked.Score, read.MusicXml))
-        {
-            return (read, new MarksCarried(carried, [], [.. marked.Unfit, .. lost]));
-        }
-
+        MarkedReading marked = ReadingMarks.Apply(read.MusicXml, read.Piece, moved, lost);
         // Imported as marked, not repaired again: the engines' rules would take a meter the player marked back to the bars' median.
-        return PieceImporter.Import(fileName, marked.Score).Piece is { } again
-            ? (new ReadScore(marked.Score, again), new MarksCarried(carried, marked.Applied, [.. marked.Unfit, .. lost]))
-            : (read, new MarksCarried(carried, [], [.. placed, .. lost]));
+        ReadScore? again = ReferenceEquals(marked.Score, read.MusicXml) ? read
+            : PieceImporter.Import(fileName, marked.Score).Piece is { } made ? new ReadScore(marked.Score, made) : null;
+        if (again is null)
+        {
+            (again, marked) = (read, marked with { Score = read.MusicXml, Marks = [.. marked.Marks.Select(static each => each with { Outcome = MarkOutcome.Unfit })] });
+        }
+
+        // Numbered by the bars of the notes made, which a meter mark may number otherwise than the reading did.
+        IReadOnlyList<(ReadingMark Mark, MarkOutcome Outcome)> numbered = marked.Numbered(again.Piece);
+        return (again, new MarksCarried(
+            ScanOrigin.Ordered(numbered.Select(static each => each.Mark)),
+            [.. numbered.Where(static each => each.Outcome == MarkOutcome.Applied).Select(static each => each.Mark)],
+            [.. numbered.Where(static each => each.Outcome == MarkOutcome.Unfit).Select(static each => each.Mark)]));
     }
 
     /// <summary>

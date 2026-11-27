@@ -7,12 +7,49 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
+/// <summary>What became of a mark put into a reading: put in, not put in (Check flags it), or kept for a later step to use.</summary>
+internal enum MarkOutcome
+{
+    Applied,
+    Unfit,
+    Waiting,
+}
+
+/// <summary>A mark as a reading took it: the measures (by index in each part) it lies on, null where the reading has none, and its outcome.</summary>
+internal sealed record PlacedMark(ReadingMark Mark, int? First, int? Last, MarkOutcome Outcome);
+
 /// <summary>
-/// A reading with the player's marks «что не так» put in (<see cref="ReadingMarks.Apply"/>): its MusicXML, the marks that
-/// changed it or found it as marked, and those that could not be put in (their bars are not in the reading, or it has no
-/// such staff or clef), which the notes flag in Check.
+/// A reading with the player's marks «что не так» put in (<see cref="ReadingMarks.Apply"/>): its MusicXML and each mark with
+/// the measures it lies on and its outcome, so the marks are numbered by the bars of the notes the MusicXML gives
+/// (<see cref="Numbered"/>), which a meter mark may number otherwise than the reading did.
 /// </summary>
-internal sealed record MarkedReading(byte[] Score, IReadOnlyList<ReadingMark> Applied, IReadOnlyList<ReadingMark> Unfit);
+internal sealed record MarkedReading(byte[] Score, IReadOnlyList<PlacedMark> Marks)
+{
+    /// <summary>
+    /// The marks on <paramref name="piece"/>'s bars (the notes imported from <see cref="Score"/>), each with its outcome: a
+    /// mark on measures numbered by the bars they start, one the reading has no measure for kept within the piece's bars.
+    /// </summary>
+    public IReadOnlyList<(ReadingMark Mark, MarkOutcome Outcome)> Numbered(ImportedPiece piece)
+    {
+        IReadOnlyList<MusicXmlMeasure> measures = piece.MusicXml?.Measures ?? [];
+        int first = piece.Meter.BarAt(Tick.Zero).Number;
+        int end = piece.Meter.BarAt(new Tick(Math.Max(0, piece.End.Value - 1))).Number;
+        int BarOf(int index) => piece.Meter.ToPosition(measures[Math.Min(index, measures.Count - 1)].Span.Onset).Bar;
+        return [.. Marks.Select(placed =>
+        {
+            ReadingMark mark = placed.Mark;
+            if (placed.First is not { } at || measures.Count == 0)
+            {
+                int bar = Math.Clamp(mark.Bar, first, Math.Max(first, end));
+                return (mark.At(bar), placed.Outcome);
+            }
+
+            int from = BarOf(at);
+            int to = ReadingMark.FromBarOn(mark.Kind) ? from : Math.Max(from, BarOf(placed.Last ?? at));
+            return (new ReadingMark(mark.Kind, from, to, mark.Staff, mark.Value), placed.Outcome);
+        })];
+    }
+}
 
 /// <summary>
 /// Puts the player's marks into a new reading of the pages they were made on («Как напечатано», step 3; concept 3.1), after
@@ -22,7 +59,7 @@ internal sealed record MarkedReading(byte[] Score, IReadOnlyList<ReadingMark> Ap
 /// <remarks>
 /// <para>
 /// Hands swapped: the notes of the bars change staves 1 and 2, in parts with two. A clef: the notes of the staff are read
-/// again under the printed clef instead of the one the reading wrote, a step for a step on the staff. An octave sign: the
+/// again under the printed clef instead of the one the reading wrote, a step for a step on the staff, and the printed clef is written at its first bar, the reading's own after its last. An octave sign: the
 /// staff's notes an octave up (8va) or down (8vb). A key signature: from its bar to the next key mark, the reading's key
 /// signatures say it and its notes take its sharps or flats. A time signature: from its bar to the next meter mark, the
 /// reading's time signatures say it, and a bar that comes out in its length with the split moments put back is re-timed
@@ -43,55 +80,55 @@ internal static class ReadingMarks
 
     /// <summary>
     /// <paramref name="score"/>, the reading <paramref name="read"/> was imported from, with <paramref name="marks"/> put in
-    /// (their bars <paramref name="read"/>'s); the same array when no mark changes it.
+    /// (their bars <paramref name="read"/>'s), but those of <paramref name="unplaced"/>, whose music has no bar there, which
+    /// are only placed; the same array when no mark changes it.
     /// </summary>
-    public static MarkedReading Apply(byte[] score, ImportedPiece read, IReadOnlyList<ReadingMark> marks)
+    public static MarkedReading Apply(byte[] score, ImportedPiece read, IReadOnlyList<ReadingMark> marks, IReadOnlyCollection<ReadingMark>? unplaced = null)
     {
         ArgumentNullException.ThrowIfNull(score);
         ArgumentNullException.ThrowIfNull(read);
         ArgumentNullException.ThrowIfNull(marks);
-        ReadingMark[] ours = [.. marks.Where(static mark => s_order.Contains(mark.Kind))];
-        if (ours.Length == 0)
-        {
-            return new MarkedReading(score, [], []);
-        }
-
-        if (ScanRepair.Parse(score) is not { } root || read.MusicXml is not { } import)
-        {
-            return new MarkedReading(score, [], ours);
-        }
-
+        XElement? root = marks.Any(static mark => s_order.Contains(mark.Kind)) ? ScanRepair.Parse(score) : null;
         Dictionary<int, int> measureOf = [];
-        foreach (MusicXmlMeasure measure in import.Measures)
+        foreach (MusicXmlMeasure measure in read.MusicXml?.Measures ?? [])
         {
             measureOf.TryAdd(read.Meter.ToPosition(measure.Span.Onset).Bar, measure.Index);
         }
 
-        List<XElement> parts = [.. root.Elements("part")];
-        int count = parts.Count == 0 ? 0 : parts.Min(static part => part.Elements("measure").Count());
-        List<ReadingMark> applied = [], unfit = [];
-        foreach (ReadingMark mark in ours.OrderBy(mark => Array.IndexOf(s_order, mark.Kind)).ThenBy(static mark => mark.Bar))
+        List<XElement>? parts = root is null ? null : [.. root.Elements("part")];
+        int count = parts is not { Count: > 0 } ? measureOf.Count : parts.Min(static part => part.Elements("measure").Count());
+        PlacedMark[] placed = [.. marks.OrderBy(static mark => s_order.Contains(mark.Kind) ? Array.IndexOf(s_order, mark.Kind) : s_order.Length).ThenBy(static mark => mark.Bar)
+            .Select(mark => Place(mark, marks, unplaced?.Contains(mark) == true, parts, measureOf, count))];
+        PlacedMark[] applied = [.. placed.Where(static mark => mark.Outcome == MarkOutcome.Applied)];
+        if (root is null || applied.Length == 0)
         {
-            bool done = measureOf.TryGetValue(mark.Bar, out int first) && first < count
-                && Put(parts, mark, first, LastMeasure(mark, ours, measureOf, first, count));
-            (done ? applied : unfit).Add(mark);
+            return new MarkedReading(score, placed);
         }
 
-        if (applied.Count == 0)
-        {
-            return new MarkedReading(score, [], unfit);
-        }
-
-        ScanRepair.Say(root, "Motiff Lab reading marks, the player's: " + string.Join("; ", applied.Select(mark => mark.Text(Words.English))) + ".");
+        ScanRepair.Say(root, "Motiff Lab reading marks, the player's: " + string.Join("; ", applied.Select(static mark => mark.Mark.Text(Words.English))) + ".");
         byte[] marked = Encoding.UTF8.GetBytes("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n" + root.ToString(SaveOptions.DisableFormatting));
-        return new MarkedReading(marked, applied, unfit);
+        return new MarkedReading(marked, placed);
+    }
+
+    /// <summary>
+    /// The mark on the measures of its bars, put into <paramref name="parts"/> (null: the reading is no MusicXML) unless
+    /// <paramref name="unplaced"/> or of a kind a later step puts in.
+    /// </summary>
+    private static PlacedMark Place(ReadingMark mark, IReadOnlyList<ReadingMark> marks, bool unplaced, List<XElement>? parts, Dictionary<int, int> measureOf, int count)
+    {
+        int? first = measureOf.TryGetValue(mark.Bar, out int found) && found < count ? found : null;
+        int? last = first is { } at ? LastMeasure(mark, marks, measureOf, at, count) : null;
+        MarkOutcome outcome = !s_order.Contains(mark.Kind) ? unplaced ? MarkOutcome.Unfit : MarkOutcome.Waiting
+            : unplaced || parts is null || first is null ? MarkOutcome.Unfit
+            : Put(parts, mark, first.Value, last!.Value) ? MarkOutcome.Applied : MarkOutcome.Unfit;
+        return new PlacedMark(mark, first, last, outcome);
     }
 
     /// <summary>
     /// The last measure a mark puts in: for a meter or key mark, the one before the next mark of its kind (else the last);
     /// for the others, that of its last bar, or the last before it when the reading has none.
     /// </summary>
-    private static int LastMeasure(ReadingMark mark, ReadingMark[] marks, Dictionary<int, int> measureOf, int first, int count)
+    private static int LastMeasure(ReadingMark mark, IReadOnlyList<ReadingMark> marks, Dictionary<int, int> measureOf, int first, int count)
     {
         if (ReadingMark.FromBarOn(mark.Kind))
         {
@@ -136,7 +173,7 @@ internal static class ReadingMarks
             int staff = StaffOf(note);
             if (staff is 1 or 2)
             {
-                note.SetElementValue("staff", (3 - staff).ToString(CultureInfo.InvariantCulture));
+                SetStaff(note, 3 - staff);
             }
         }
 
@@ -164,7 +201,42 @@ internal static class ReadingMarks
 
             return (StaffPitch.Middle(sign, line, 0) - StaffPitch.Middle(read.Sign, read.Line, 0), state.Fifths);
         });
+        if (fits)
+        {
+            // The clef as printed over the bars, and the reading's own again after them, where it did not write one there.
+            (char Sign, int Line)? after = ReadState.After(measures, last).ClefOf(staff);
+            foreach (XElement measure in measures.Skip(first + 1).Take(last - first))
+            {
+                measure.Elements("attributes").Elements("clef").Where(clef => ((int?)clef.Attribute("number") ?? 1) == staff).Remove();
+            }
+
+            PutClef(measures[first], staff, (sign, line));
+            if (last + 1 < measures.Count && after is { } restored
+                && !measures[last + 1].Elements("attributes").Elements("clef").Any(clef => ((int?)clef.Attribute("number") ?? 1) == staff))
+            {
+                PutClef(measures[last + 1], staff, restored);
+            }
+        }
+
         return fits;
+    }
+
+    /// <summary>The measure's clef of <paramref name="staff"/>, in the place of one it writes, in MusicXML's order among its attributes.</summary>
+    private static void PutClef(XElement measure, int staff, (char Sign, int Line) clef)
+    {
+        XElement attributes = AttributesOf(measure);
+        attributes.Elements("clef").Where(written => ((int?)written.Attribute("number") ?? 1) == staff).Remove();
+        XElement made = new("clef", new XAttribute("number", staff), new XElement("sign", clef.Sign.ToString()), new XElement("line", clef.Line.ToString(CultureInfo.InvariantCulture)));
+        string[] before = ["footnote", "level", "divisions", "key", "time", "staves", "part-symbol", "instruments"];
+        if (attributes.Elements().LastOrDefault(element => before.Contains(element.Name.LocalName)
+            || (element.Name.LocalName == "clef" && ((int?)element.Attribute("number") ?? 1) < staff)) is { } previous)
+        {
+            previous.AddAfterSelf(made);
+        }
+        else
+        {
+            attributes.AddFirst(made);
+        }
     }
 
     /// <summary>The staff's notes an octave up or down; false when the part has no such staff.</summary>
@@ -213,7 +285,7 @@ internal static class ReadingMarks
         SetTime(AttributeOf(measures[first], "time"), meter);
         QuarterFraction length = new(meter.Numerator * 4L, meter.Denominator);
         foreach (ScanRepair.Bar bar in ScanRepair.Bars(part).Skip(first).Take(last - first + 1)
-            .Where(bar => bar.Retimed is not null && bar.RetimedLength == length && bar.Length != length))
+            .Where(bar => bar.RetimesTo(length)))
         {
             bar.WriteOnsets(bar.Retimed!);
         }
@@ -280,6 +352,18 @@ internal static class ReadingMarks
 
         public int Fifths { get; private set; }
 
+        /// <summary>The clefs and key in force at the end of measure <paramref name="last"/>.</summary>
+        public static ReadState After(List<XElement> measures, int last)
+        {
+            ReadState state = new();
+            foreach (XElement attributes in measures.Take(last + 1).SelectMany(static measure => measure.Elements("attributes")))
+            {
+                state.Read(attributes);
+            }
+
+            return state;
+        }
+
         public (char Sign, int Line)? ClefOf(int staff) => _clefs.TryGetValue(staff, out (char Sign, int Line) clef) ? clef : null;
 
         public void Read(XElement attributes)
@@ -304,6 +388,24 @@ internal static class ReadingMarks
     private static int Staves(List<XElement> measures) =>
         (int)(measures.SelectMany(static measure => measure.Elements("attributes").Elements("staves")).Select(Number).FirstOrDefault(static staves => staves is not null) ?? 1);
 
+    /// <summary>The note's staff, a <c>staff</c> made where it has none in MusicXML's order: before its beams, notations and lyrics.</summary>
+    private static void SetStaff(XElement note, int staff)
+    {
+        string value = staff.ToString(CultureInfo.InvariantCulture);
+        if (note.Element("staff") is { } written)
+        {
+            written.Value = value;
+        }
+        else if (note.Elements().FirstOrDefault(static element => element.Name.LocalName is "beam" or "notations" or "lyric" or "play" or "listen") is { } after)
+        {
+            after.AddBeforeSelf(new XElement("staff", value));
+        }
+        else
+        {
+            note.Add(new XElement("staff", value));
+        }
+    }
+
     private static int StaffOf(XElement note) => Number(note.Element("staff")) is { } staff and >= 1 ? (int)staff : 1;
 
     private static void SetFifths(XElement key, int fifths)
@@ -318,23 +420,10 @@ internal static class ReadingMarks
         time.Add(new XElement("beats", meter.Numerator.ToString(CultureInfo.InvariantCulture)), new XElement("beat-type", meter.Denominator.ToString(CultureInfo.InvariantCulture)));
     }
 
-    /// <summary>The measure's first attributes' element <paramref name="name"/> ("key" or "time"), made in its place where missing, with the attributes before the first note.</summary>
+    /// <summary>The measure's first attributes' element <paramref name="name"/> ("key" or "time"), made in its place where missing.</summary>
     private static XElement AttributeOf(XElement measure, string name)
     {
-        XElement? attributes = measure.Element("attributes");
-        if (attributes is null)
-        {
-            attributes = new XElement("attributes");
-            if (measure.Elements().FirstOrDefault(static element => element.Name.LocalName is "note" or "backup" or "forward") is { } music)
-            {
-                music.AddBeforeSelf(attributes);
-            }
-            else
-            {
-                measure.Add(attributes);
-            }
-        }
-
+        XElement attributes = AttributesOf(measure);
         if (attributes.Element(name) is { } found)
         {
             return found;
@@ -349,6 +438,27 @@ internal static class ReadingMarks
         else
         {
             attributes.AddFirst(made);
+        }
+
+        return made;
+    }
+
+    /// <summary>The measure's first attributes, made before its first note where it has none.</summary>
+    private static XElement AttributesOf(XElement measure)
+    {
+        if (measure.Element("attributes") is { } attributes)
+        {
+            return attributes;
+        }
+
+        XElement made = new("attributes");
+        if (measure.Elements().FirstOrDefault(static element => element.Name.LocalName is "note" or "backup" or "forward") is { } music)
+        {
+            music.AddBeforeSelf(made);
+        }
+        else
+        {
+            measure.Add(made);
         }
 
         return made;

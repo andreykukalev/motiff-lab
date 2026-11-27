@@ -66,7 +66,7 @@ public class ReadingMarksFacadeTests
     }
 
     [Fact]
-    public void The_file_keeps_the_marks_and_a_file_without_them_reads_as_before()
+    public void The_file_keeps_the_marks_a_later_builds_too_and_a_file_without_them_reads_as_before()
     {
         MusicCoreFacade facade = Opened();
         Assert.False(Json(facade.Call(1, "project.save")).GetProperty("notes")[0].GetProperty("scan").TryGetProperty("marks", out _));
@@ -78,7 +78,13 @@ public class ReadingMarksFacadeTests
         Assert.Equal(new ReadingMark(ReadingMarkKind.Octave, 2, 3, 1, "8vb"), Assert.Single(again.Scan!.Marks));
         Assert.Equal(file, ProjectFile.Write(again));
         string later = Encoding.UTF8.GetString(file).Replace("\"octave\"", "\"fingering\"", StringComparison.Ordinal);
-        Assert.Empty(ProjectFile.Read(Encoding.UTF8.GetBytes(later)).Scan!.Marks);
+        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(later));
+        Assert.Empty(kept.Scan!.Marks);
+        Assert.Single(kept.Scan.UnknownMarks);
+        Assert.Equal(Json(later).GetProperty("notes")[0].GetProperty("scan").GetProperty("marks").GetRawText(),
+            Json(Encoding.UTF8.GetString(ProjectFile.Write(kept))).GetProperty("notes")[0].GetProperty("scan").GetProperty("marks").GetRawText());
+        string noName = Encoding.UTF8.GetString(file).Replace("\"octave\"", "\"8va mark\"", StringComparison.Ordinal);
+        Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(noName)));
         string damaged = Encoding.UTF8.GetString(file).Replace("\"8vb\"", "\"15ma\"", StringComparison.Ordinal);
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(damaged)));
     }

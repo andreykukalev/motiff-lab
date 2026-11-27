@@ -1,9 +1,12 @@
 using System.Text;
+using System.Xml.Linq;
 
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Scan;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects;
+using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 
@@ -52,8 +55,7 @@ public class ReadingMarksTests
         Assert.Equal([66, 73, 65, 65], Pitches(piece, 1, Hand.Right));
         Assert.Equal([66, 66, 66, 66], Pitches(piece, 2, Hand.Right));
         Assert.Contains("<fifths>1</fifths>", Encoding.UTF8.GetString(marked.Score), StringComparison.Ordinal);
-        Assert.Single(marked.Applied);
-        Assert.Empty(marked.Unfit);
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
     }
 
     [Fact]
@@ -64,8 +66,17 @@ public class ReadingMarksTests
         // G2 on the bass staff's bottom line is E4 under a treble clef; bar 2 keeps its G2.
         Assert.Equal([64], Pitches(piece, 1, Hand.Left));
         Assert.Equal([43], Pitches(piece, 2, Hand.Left));
-        Assert.Single(marked.Applied);
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+
+        // The printed clef is written at the mark's first bar and the reading's own again after its last.
+        XElement[] measures = [.. XDocument.Parse(Encoding.UTF8.GetString(marked.Score)).Root!.Element("part")!.Elements("measure")];
+        Assert.Equal("G2", Clef(measures[0], 2));
+        Assert.Equal("F4", Clef(measures[1], 2));
     }
+
+    private static string? Clef(XElement measure, int staff) =>
+        measure.Elements("attributes").Elements("clef").Where(clef => (int?)clef.Attribute("number") == staff)
+            .Select(static clef => $"{clef.Element("sign")!.Value}{clef.Element("line")!.Value}").SingleOrDefault();
 
     [Fact]
     public void An_octave_sign_marked_moves_the_staffs_notes_an_octave_in_its_bars()
@@ -108,8 +119,58 @@ public class ReadingMarksTests
         MarkedReading marked = ReadingMarks.Apply(score, read, [beyond, staff, triplets, badly]);
 
         Assert.Same(score, marked.Score);
-        Assert.Empty(marked.Applied);
-        Assert.Equal([beyond, staff], marked.Unfit.OrderBy(static mark => mark.Kind == ReadingMarkKind.Hands ? 0 : 1));
+        Assert.Equal([(beyond, MarkOutcome.Unfit), (staff, MarkOutcome.Unfit), (triplets, MarkOutcome.Waiting), (badly, MarkOutcome.Waiting)],
+            marked.Marks.Select(static mark => (mark.Mark, mark.Outcome)));
+    }
+
+    [Fact]
+    public void A_bar_the_marked_meter_fits_once_its_split_moments_are_put_back_is_re_timed()
+    {
+        byte[] score = ScanRepairTests.Score(2, "4", ScanRepairTests.Whole(), ScanRepairTests.Split());
+        ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
+
+        MarkedReading marked = ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Meter, 1, 1, null, "4/4")]);
+
+        // E1 under the split bar's left hand starts with the bar once re-timed, an eighth late as read.
+        Assert.Equal(240, LowestOnset(read));
+        Assert.Equal(0, LowestOnset(PieceImporter.Import("a.musicxml", marked.Score).Piece!));
+    }
+
+    private static long LowestOnset(ImportedPiece piece)
+    {
+        TickSpan bar = piece.MusicXml!.Measures[1].Span;
+        return piece.Notes.Where(note => bar.Contains(note.Span.Onset)).MinBy(static note => note.Pitch.MidiNumber)!.Span.Onset.Value - bar.Onset.Value;
+    }
+
+    [Fact]
+    public void Marks_are_numbered_by_the_bars_of_the_notes_made_when_a_meter_mark_makes_a_pickup()
+    {
+        static string Bar(int quarters) => string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 2, 1), quarters)) + ScanRepairTests.Backup(2 * quarters) + ScanRepairTests.Note("C", 3, 2 * quarters, 2);
+        byte[] score = ScanRepairTests.Score(2, "3", Bar(3), Bar(4), Bar(4));
+        ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
+        Assert.Equal(1, read.Meter.BarAt(Tick.Zero).Number);
+
+        MarkedReading marked = ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Meter, 1, 1, null, "4/4"), new ReadingMark(ReadingMarkKind.Hands, 2, 2, null, null)]);
+        ImportedPiece made = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        // The first bar is a pickup under 4/4: the meter mark is on bar 0, the hands on bar 1, where the hands are swapped.
+        Assert.Equal(0, made.Meter.BarAt(Tick.Zero).Number);
+        Assert.Equal(["Hands:1-1", "Meter:0-0"], marked.Numbered(made).Select(static each => $"{each.Mark.Kind}:{each.Mark.Bar}-{each.Mark.Last}").Order());
+        Assert.Equal([48], Pitches(made, 1, Hand.Right));
+    }
+
+    [Fact]
+    public void Marks_of_a_kind_overlapping_join_or_give_way_so_each_bar_takes_one()
+    {
+        ScanOrigin scan = ScanOrigin.Read("homr")
+            .WithMark(new ReadingMark(ReadingMarkKind.Hands, 3, 4, null, null))
+            .WithMark(new ReadingMark(ReadingMarkKind.Hands, 4, 5, null, null))
+            .WithMark(new ReadingMark(ReadingMarkKind.Octave, 2, 4, 1, "8va"))
+            .WithMark(new ReadingMark(ReadingMarkKind.Octave, 3, 3, 1, "8vb"))
+            .WithMark(new ReadingMark(ReadingMarkKind.Octave, 3, 3, 2, "8va"));
+
+        Assert.Equal(["Octave 2-2 1 8va", "Octave 3-3 1 8vb", "Octave 3-3 2 8va", "Hands 3-5  ", "Octave 4-4 1 8va"],
+            scan.Marks.Select(static mark => $"{mark.Kind} {mark.Bar}-{mark.Last} {mark.Staff} {mark.Value}"));
     }
 
     [Fact]

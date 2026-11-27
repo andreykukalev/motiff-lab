@@ -75,6 +75,20 @@ public sealed record ReadingMark(ReadingMarkKind Kind, int Bar, int Last, int? S
     /// <summary>Whether <paramref name="other"/> marks the same thing at the same place (kind, first bar, staff), so one takes the other's place.</summary>
     public bool SamePlace(ReadingMark other) => other.Kind == Kind && other.Bar == Bar && other.Staff == Staff;
 
+    /// <summary>The parts of this mark's bars outside <paramref name="other"/>'s, each the same mark over them: none, one or two.</summary>
+    internal IEnumerable<ReadingMark> Outside(ReadingMark other)
+    {
+        if (Bar < other.Bar)
+        {
+            yield return new ReadingMark(Kind, Bar, Math.Min(Last, other.Bar - 1), Staff, Value);
+        }
+
+        if (Last > other.Last)
+        {
+            yield return new ReadingMark(Kind, Math.Max(Bar, other.Last + 1), Last, Staff, Value);
+        }
+    }
+
     /// <summary>The mark on other bars (the notes read again): <paramref name="bar"/> on, as many bars as it had.</summary>
     internal ReadingMark At(int bar) => new(Kind, bar, bar + (Last - Bar), Staff, Value);
 
