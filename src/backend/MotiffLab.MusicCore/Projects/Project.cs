@@ -39,6 +39,16 @@ public sealed partial record Project(
     /// </summary>
     public IReadOnlyList<UnknownEntity> Unknown { get; init; } = [];
 
+    /// <summary>
+    /// Set when the project was read from a file of a later version whose "minReader" lets this build read it (0026 S6,
+    /// #315): it opens read-only, is never kept (<see cref="ProjectFile.Save"/>) and is written again only with its own
+    /// version and "minReader"; null for a file this build may save.
+    /// </summary>
+    public NewerFile? Newer { get; init; }
+
+    /// <summary>Whether the project opens read-only: read from a later version (<see cref="Newer"/>).</summary>
+    public bool IsReadOnly => Newer is not null;
+
     /// <summary>The player's corrections of the imported notes, oldest first (S1-I7).</summary>
     public NoteEditLog Edits { get; init; } = NoteEditLog.Empty;
 

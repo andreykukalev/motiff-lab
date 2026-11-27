@@ -54,7 +54,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   summaries, other pieces' drafts), `PieceSummary.shownTitle` (a library line's title); the projects' folder, `save`, `saveNew` (a new piece saved to a new file and closed: photos, a
   JPEG or PNG, a recording); `newURL(for:)`, the one way a new project file is named, by the work's title as the library
   shows it (v1.5 r-2b: a piece from Files, a folder import, a project kept from online), made safe by `fileName(for:)`
-  (no character a name cannot hold, no dot first, at most `nameBytes` of UTF-8 cut between letters), numbered when taken; `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording).
+  (no character a name cannot hold, no dot first, at most `nameBytes` of UTF-8 cut between letters), numbered when taken; `PieceSummary` (`isRecordingOnly`: no notes, no PDF, a recording; `readOnly`: a file of a later version, v1.6 c-14a).
 - `OriginalSounds.swift` (moved from `Sources/` in v1.1 so Add piece shares it): a recording's sound kept beside the
   project file on this iPad (`keep`, `file`, `folder`), and a recording picked read once (`picked`: its name, length and
   bytes for the fingerprint, up to `fingerprintLimit`).

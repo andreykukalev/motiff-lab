@@ -18,7 +18,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class EditsAndMetersFormatTests
 {
-    private const string Golden = "v17-edits-meters.motiff.json";
+    private const string Golden = "v18-edits-meters.motiff.json";
 
     /// <summary>The same project as version 0.5 wrote it, in version 15.</summary>
     private const string Earlier = "v15-edits-meters.motiff.json";
@@ -80,7 +80,7 @@ public class EditsAndMetersFormatTests
 
     [Fact]
     public void The_file_written_is_the_golden_reads_back_unchanged_and_is_what_the_file_of_version_0_5_becomes() =>
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Heard()), [Earlier, Version16]);
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Heard()), [Earlier, Version16, "v17-edits-meters.motiff.json"]);
 
     [Fact]
     public void The_golden_holds_each_new_field_and_opens_with_its_bars_and_without_its_corrections()

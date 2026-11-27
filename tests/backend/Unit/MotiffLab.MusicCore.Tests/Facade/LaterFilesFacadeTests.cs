@@ -19,6 +19,14 @@ public class LaterFilesFacadeTests
 {
     private static byte[] Golden(string name) => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", name));
 
+    /// <summary>Today's future file with a "minReader" above this build (#315 criterion 4): one this build refuses.</summary>
+    private static byte[] Refused()
+    {
+        JsonObject file = JsonNode.Parse(Golden("v19-future.motiff.json"))!.AsObject();
+        file["minReader"] = ProjectFile.Version + 1;
+        return Encoding.UTF8.GetBytes(file.ToJsonString());
+    }
+
     private static MusicCoreFacade Opened(JsonNode file)
     {
         var facade = new MusicCoreFacade();
@@ -34,7 +42,7 @@ public class LaterFilesFacadeTests
     [InlineData("en", "This project was saved by a newer version of Motiff Lab. Update the app and try again.")]
     public void A_file_of_a_newer_version_is_refused_in_the_players_language(string language, string message)
     {
-        JsonElement answer = Json(new MusicCoreFacade().Open("v18-future" + ProjectFile.Extension, Golden("v18-future.motiff.json"), $$"""{"language": "{{language}}"}"""));
+        JsonElement answer = Json(new MusicCoreFacade().Open("v18-future" + ProjectFile.Extension, Refused(), $$"""{"language": "{{language}}"}"""));
 
         Assert.Equal(("import", message, "damaged"), (answer.GetProperty("error").GetString(), answer.GetProperty("message").GetString(), answer.GetProperty("reason").GetString()));
     }
@@ -47,7 +55,7 @@ public class LaterFilesFacadeTests
     [InlineData("project.metadata", null, "This project was saved by a newer version of Motiff Lab. Update the app and try again.")]
     public void A_file_of_a_newer_version_read_without_opening_it_is_refused_in_the_players_language(string call, string? language, string message)
     {
-        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(Golden("v18-future.motiff.json")), language });
+        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(Refused()), language });
 
         JsonElement answer = Json(new MusicCoreFacade().Call(0, call, request));
 
@@ -57,11 +65,36 @@ public class LaterFilesFacadeTests
     [Fact]
     public void The_scan_inserts_refusal_of_a_newer_file_is_in_the_players_language()
     {
-        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(Golden("v18-future.motiff.json")), page = 1, language = "ru" });
+        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(Refused()), page = 1, language = "ru" });
 
         JsonElement answer = Json(new MusicCoreFacade().Call(0, "scan.insert", request));
 
         Assert.Equal(("badRequest", "Этот проект сохранён более новой версией Motiff Lab. Обновите приложение и попробуйте ещё раз."), (answer.GetProperty("error").GetString(), answer.GetProperty("message").GetString()));
+    }
+
+    /// <summary>
+    /// Read-only opening (0026 S6, #315): a file of a later version whose "minReader" is this build's opens, says so in its
+    /// project ("readOnly", and the variations of an operation it does not have, #314), plays and answers as any piece, but
+    /// every call that answers a file to keep refuses it ("readOnly"), in the player's language for the app's own line.
+    /// </summary>
+    [Fact]
+    public void A_file_of_a_newer_version_this_build_may_read_opens_read_only_and_is_never_saved()
+    {
+        var facade = new MusicCoreFacade();
+        byte[] future = Golden("v19-future.motiff.json");
+
+        JsonElement opened = Json(facade.Open("piece" + ProjectFile.Extension, future, """{"language": "en"}"""));
+
+        Assert.True(opened.GetProperty("project").GetProperty("readOnly").GetBoolean());
+        Assert.Equal(["v_0002"], opened.GetProperty("project").GetProperty("newerVariations").EnumerateArray().Select(static id => id.GetString()));
+        Assert.False(Json(facade.Call(1, "phrases")).TryGetProperty("error", out _));
+        JsonElement saved = Json(facade.Call(1, "project.save"));
+        Assert.Equal("readOnly", saved.GetProperty("error").GetString());
+        Assert.StartsWith("This project was saved by a newer version of Motiff Lab: it opens read-only here", saved.GetProperty("message").GetString(), StringComparison.Ordinal);
+        string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(future), title = "Another" });
+        Assert.Equal("readOnly", Json(new MusicCoreFacade().Call(0, "project.metadata", request)).GetProperty("error").GetString());
+        // A file this build writes says nothing of the kind.
+        Assert.False(Json(new MusicCoreFacade().Open("piece" + ProjectFile.Extension, Golden("v18-worked.motiff.json"))).GetProperty("project").TryGetProperty("readOnly", out _));
     }
 
     [Theory]

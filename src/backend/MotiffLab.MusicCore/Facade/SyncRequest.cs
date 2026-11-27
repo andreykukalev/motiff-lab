@@ -146,7 +146,7 @@ internal static class SyncRequest
 
     private static Project Read(string file) => ProjectFile.Read(Encoding.UTF8.GetBytes(file));
 
-    private static string Text(Project project) => Encoding.UTF8.GetString(ProjectFile.Write(project));
+    private static string Text(Project project) => Encoding.UTF8.GetString(ProjectFile.Save(project));
 
     private static bool Flag(Request fields, string name) => fields.Bool(name) ?? false;
 
