@@ -425,9 +425,9 @@ internal static class PhraseBoundaryFinder
     }
 
     /// <summary>
-    /// Adds the boundaries the player set (S1-A2). A player boundary where the source already has
-    /// one confirms it and keeps its evidence; anywhere else it is a new boundary with no source
-    /// evidence, marked user-edited. Either way the player's word makes it certain.
+    /// The boundaries found, less those the player took away, with those they set where <paramref name="allows"/> lets
+    /// them (S1-A2). A player boundary where the source already has one confirms it and keeps its evidence; anywhere else
+    /// it is a new boundary with no source evidence, marked user-edited. Either way the player's word makes it certain.
     /// </summary>
     internal static IReadOnlyList<PhraseBoundary> WithPlayerBoundaries(IEnumerable<PhraseBoundary> found, PhraseEdits edits, Func<Tick, bool> allows) =>
         edits.AppliedTo(
