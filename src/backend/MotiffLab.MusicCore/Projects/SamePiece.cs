@@ -45,7 +45,7 @@ internal static class SamePiece
         static (to, from) => to with { Variations = from.Variations },
         static (to, from) => to with { Observations = from.Observations },
         static (to, from) => to with { Edits = from.Edits },
-        static (to, from) => to with { Phrases = from.Phrases, ShortPhrases = from.ShortPhrases, Sentences = from.Sentences },
+        static (to, from) => to with { Phrases = from.Phrases, ShortPhrases = from.ShortPhrases, Sentences = from.Sentences, MintedAnchors = from.MintedAnchors },
         static (to, from) => to with { Marks = from.Marks },
         static (to, from) => to with { Bookmarks = from.Bookmarks, Categories = from.Categories },
         static (to, from) => to with { ResumePoints = from.ResumePoints },

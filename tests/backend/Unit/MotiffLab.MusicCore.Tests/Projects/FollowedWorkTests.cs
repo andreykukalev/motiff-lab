@@ -62,6 +62,23 @@ public class FollowedWorkTests
     }
 
     [Fact]
+    public void A_phrase_anchor_moves_with_its_bars_and_keeps_its_id_when_nothing_else_would_follow()
+    {
+        PhraseAnchor anchor = PhraseAnchor.Mint(Bars(2, 2), []);
+        Project project = Piece("E4 F4 G4 A4 | B4 C5 D5 E5", "C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5") with
+        {
+            MintedAnchors = [anchor],
+            ResumePoints = [ResumePoint.Start("r_0001", s_now) with { Anchor = anchor.Id }],
+        };
+
+        Project swapped = project.MakeWorking("n_2", out FollowedWork? followed);
+
+        Assert.NotNull(followed);
+        Assert.Equal([anchor with { Span = Bars(3, 3) }], swapped.Anchors);
+        Assert.Equal([anchor], swapped.MakeWorking("n_1", out _).Anchors);
+    }
+
+    [Fact]
     public void A_bookmark_in_a_bar_the_new_notes_have_not_is_kept_by_the_music_before_it_and_told()
     {
         Project project = Bookmarked(Piece("E4 F4 G4 A4 | B4 C5 D5 E5 | F5 G5 A5 B5", "E4 F4 G4 A4 | F5 G5 A5 B5"), Bars(2, 2), Bars(3, 3));

@@ -162,6 +162,7 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `performances` | piece | OpenFirst |
 | `phrases` | piece | Showing, OpenFirst |
 | `phrases.edit` | piece |  |
+| `phrases.reattach` | piece |  |
 | `piece` | piece | Showing, OpenFirst |
 | `pieces.find` | piece |  |
 | `pieces.save` | piece |  |
@@ -223,6 +224,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ## History
 
 ### 16
+
+Also within 16 (version 1.6, c-14d, #318, 0026 C1): a phrase is an object of the project, a stored anchor `ph_` (32 hex digits of the SHA-256 of "phrase|{onset}|{end}", taken when it is minted, so two devices mint one id for one phrase; it never changes). idea.keep attaches the idea to the anchor of its phrase (`Observation.Home`), resume.save a point open in phrase focus on a phrase to that phrase's, each minted when the phrase has none; ideas and resume points answer "anchor" (null when attached to none). phrases.edit carries the anchors with the player's boundaries (a moved start takes its phrase with it; two anchors on one phrase become one, the smaller id kept) and a point in phrase focus with its phrase. The phrases answer says each phrase's "anchor" (null while nothing is attached to it), "anchors" (each with "id", "onset", "end" and "phrase", the number of the phrase it is, null when the notes or their analysis changed so it is no phrase any more) and "unmatched", how many are null; the new call phrases.reattach attaches all of those again, each to the phrase that holds its start, else that it overlaps most, as one step, answering the phrases with "reattached". A call and fields added; the project file stays version 18 (`phrases.anchors`, an idea's and a resume point's `anchor`).
 
 Also within 16 (version 1.6, c-14c, #317, 0026 S3 and C4): the ids of what a piece makes (motifs, variations, ideas, resume points, bookmarks of the notes and of a PDF's pages, categories, margin notes, highlights, drafts with their places and variants, groups of steps, Notes after the first, versions compared, every original but the first PDF) come from the facade's `IdSource`: the native build's is random ("b_" and 32 hex digits, `IdSource.Random`), a facade made without one numbers them as before ("b_0002", `IdSource.Numbered`), so the answers of the fixtures do not change; drafts.bridge, drafts.carry, sources.notes.hear and sources.notes.recognise answer the ids the change made. `open` takes "onlineIds", the ids of the app's projects saved online: a project file whose id is numbered ("p_0003") and not among them opens re-keyed to the C4 id (`ProjectIds.Rekeyed`), its project answering the new id and "formerIds" (the ids it had, oldest first; left out when none), and is saved so; without "onlineIds", for a piece saved online or a file of a later version, the id stays. Fields added; the project file stays version 18 ("formerIds").
 

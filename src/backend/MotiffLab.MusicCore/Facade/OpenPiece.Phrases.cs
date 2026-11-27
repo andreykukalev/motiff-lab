@@ -3,6 +3,7 @@ using System.Text.Json;
 using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
+using MotiffLab.MusicCore.Projects;
 using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Facade;
@@ -27,8 +28,9 @@ internal sealed partial class OpenPiece
     /// ("remove", a phrase start), «Вернуть найденную» ("putBack", a start of the player's), «Вернуть найденные границы»
     /// ("resetAll": the phrases as found, the other levels as they are, answering "replaced", how many of the player's
     /// boundaries went) or Undo and Redo ("restore", the edits a "previous" gave, with "expected", the "edits" it left).
-    /// The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>).
-    /// Bookmarks stay where they are (the phrases spec: a bookmark never moves with a phrase boundary).
+    /// The answer is the phrases with what the edit changed (<see cref="Answer.PhraseEdit"/>). What is attached to a phrase
+    /// goes with it (#318, <see cref="ProjectAnchors.AnchorsFollowed"/>); bookmarks stay where they are (the phrases spec: a bookmark
+    /// never moves with a phrase boundary).
     /// </summary>
     private string EditPhrases(Request request)
     {
@@ -44,16 +46,34 @@ internal sealed partial class OpenPiece
         }
 
         Structure = Structure.With(Levels.With(edits));
-        Project = Project.WithPhraseLevels(Levels.Edits);
+        Project = Project.WithPhraseLevels(Levels.Edits).AnchorsFollowed(before.Phrases, Phrases);
         Selection.ForgetUnderstanding();
         return Answer.Write(json =>
         {
-            Answer.Phrases(json, Levels, Structure.Sections, Level, Words, Piece.Meter);
+            PhrasesAnswer(json, Level);
             Answer.PhraseEdit(json, before, Levels);
             if (request.Bool("resetAll") == true)
             {
                 json.WriteNumber("replaced", before.Phrases.OwnCount);
             }
+        });
+    }
+
+    /// <summary>The phrases answer (<see cref="Answer.Phrases"/>) at <paramref name="level"/>, with the project's phrase anchors.</summary>
+    private void PhrasesAnswer(Utf8JsonWriter json, PhraseLevel level) => Answer.Phrases(json, Levels, Structure.Sections, level, Words, Piece.Meter, Project.Anchors);
+
+    /// <summary>
+    /// phrases.reattach (#318, 0026 C1): every phrase anchor that no longer matches the phrases, after the notes or their
+    /// analysis changed, attached again with what is attached to it, as one group (<see cref="ProjectAnchors.Reattached"/>); the
+    /// answer is the phrases with "reattached", how many anchors were. Nothing else changes, the selection neither.
+    /// </summary>
+    private string ReattachPhrases()
+    {
+        (Project, int reattached) = Project.Reattached(Phrases);
+        return Answer.Write(json =>
+        {
+            PhrasesAnswer(json, Level);
+            json.WriteNumber("reattached", reattached);
         });
     }
 

@@ -14,8 +14,9 @@ internal sealed partial class OpenPiece
         [
             new("piece", static (piece, _) => Answer.Write(json => Answer.Piece(json, piece.Piece, piece.Notes, withNotes: true, piece.Words)), CallFlags.Showing | CallFlags.OpenFirst),
             new("language", static (piece, request) => piece.Language(request), CallFlags.Showing),
-            new("phrases", static (piece, request) => Answer.Write(json => Answer.Phrases(json, piece.Levels, piece.Structure.Sections, LevelOf(request) ?? piece.Level, piece.Words, piece.Piece.Meter)), CallFlags.Showing | CallFlags.OpenFirst),
+            new("phrases", static (piece, request) => Answer.Write(json => piece.PhrasesAnswer(json, LevelOf(request) ?? piece.Level)), CallFlags.Showing | CallFlags.OpenFirst),
             new("phrases.edit", static (piece, request) => piece.EditPhrases(request)),
+            new("phrases.reattach", static (piece, _) => piece.ReattachPhrases()),
             new("notation", static (piece, request) => piece.Notation(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("playback", static (piece, request) => piece.Playback(request), CallFlags.Showing | CallFlags.OpenFirst),
             new("tempo.set", static (piece, request) => piece.SetTempo(request)),

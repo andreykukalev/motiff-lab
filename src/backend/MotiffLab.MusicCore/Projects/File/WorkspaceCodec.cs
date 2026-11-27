@@ -41,7 +41,7 @@ internal static class WorkspaceCodec
     /// <summary>The fields of an idea this build reads; a file's others are kept (version 18).</summary>
     private static readonly HashSet<string> s_observationFields = new(StringComparer.Ordinal)
     {
-        "id", "name", "factId", "note", "createdAt", "phrase", "experiment", "variation", "notes", "provenance",
+        "id", "name", "factId", "note", "createdAt", "phrase", "anchor", "experiment", "variation", "notes", "provenance",
     };
 
     internal static void WriteWorkspace(Utf8JsonWriter json, Project project)
@@ -153,6 +153,11 @@ internal static class WorkspaceCodec
         json.WriteStartObject("phrase");
         WriteRange(json, observation.Phrase.Span, observation.Phrase.Filter);
         json.WriteEndObject();
+        if (observation.Anchor is { } anchor)
+        {
+            json.WriteString("anchor", anchor);
+        }
+
         if (observation is { ExperimentId: { } experiment, Alternative: { } alternative })
         {
             json.WriteStartObject("experiment");
@@ -198,7 +203,52 @@ internal static class WorkspaceCodec
         JsonWrite.Numbers(json, "added", project.Sentences.Added.Select(static tick => tick.Value));
         JsonWrite.Numbers(json, "removed", project.Sentences.Removed.Select(static tick => tick.Value));
         json.WriteEndObject();
+        WriteAnchors(json, project.Anchors);
         json.WriteEndObject();
+    }
+
+    /// <summary>"anchors" (version 18, #318): each phrase anchor something is attached to, {id, onset, duration}; left out while there is none.</summary>
+    private static void WriteAnchors(Utf8JsonWriter json, IReadOnlyList<PhraseAnchor> anchors)
+    {
+        if (anchors.Count == 0)
+        {
+            return;
+        }
+
+        json.WriteStartArray("anchors");
+        foreach (PhraseAnchor anchor in anchors)
+        {
+            json.WriteStartObject();
+            json.WriteString("id", anchor.Id);
+            WriteSpan(json, anchor.Span);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
+    }
+
+    /// <summary>
+    /// The project with the phrase anchors of a file of version 18, and an idea or a resume point naming one the file does
+    /// not keep attached to none (<see cref="Project.WithKnownAnchors"/>).
+    /// </summary>
+    private static Project WithAnchorsIn(this Project project, JsonElement work, int version) =>
+        (version >= 18 ? project with { MintedAnchors = ReadAnchors(Property(work, "phrases", JsonValueKind.Object)) } : project).WithKnownAnchors();
+
+    /// <summary>The phrase anchors (version 18); none when "anchors" is absent. Two with one id, or a span that is no span, is damage.</summary>
+    private static List<PhraseAnchor> ReadAnchors(JsonElement phrases)
+    {
+        if (!phrases.TryGetProperty("anchors", out JsonElement list))
+        {
+            return [];
+        }
+
+        List<PhraseAnchor> anchors = [.. Elements(list, "phrase anchors").Select(anchor =>
+        {
+            Expect(anchor, JsonValueKind.Object, "phrase anchors");
+            string id = Text(anchor, "id");
+            return !string.IsNullOrWhiteSpace(id) ? new PhraseAnchor(id, ReadSpan(anchor, "phrase anchor")) : throw Damaged("phrase anchors");
+        })];
+        return anchors.Select(static anchor => anchor.Id).Distinct(StringComparer.Ordinal).Count() == anchors.Count ? anchors : throw Damaged("phrase anchors");
     }
 
     /// <summary>
@@ -242,7 +292,7 @@ internal static class WorkspaceCodec
             Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
             HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? DistinctTexts(hidden, "hiddenViews") : [],
-        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work);
+        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work).WithAnchorsIn(work, version);
     }
 
     private static Observation ReadObservation(JsonElement observation, int version)
@@ -269,6 +319,7 @@ internal static class WorkspaceCodec
             return Observation.Create(id, new SavedPassage(phrase, phraseFilter), variation, name, note, createdAt, experiment) with
             {
                 FactId = factId,
+                Anchor = observation.TryGetProperty("anchor", out _) ? Text(observation, "anchor") : null,
                 Notes = version >= 16 && variation is not null && observation.TryGetProperty("notes", out _) ? Text(observation, "notes") : null,
                 Provenance = version >= 16 && observation.TryGetProperty("provenance", out JsonElement provenance) ? ReadProvenance(provenance) : null,
             };

@@ -1,3 +1,4 @@
+using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Time;
 
@@ -54,10 +55,16 @@ public sealed record ResumePoint(
         ? TempoPercent
         : throw new ArgumentOutOfRangeException(nameof(TempoPercent), TempoPercent, $"The tempo is {MinTempoPercent} to {MaxTempoPercent} percent.");
 
+    /// <summary>
+    /// The phrase anchor the point's passage is attached to (0026 C1, #318) while it is open in phrase focus on a phrase, as
+    /// <see cref="Project.Anchors"/> names it; null otherwise. A boundary the player moves carries the passage with its phrase.
+    /// </summary>
+    public string? Anchor { get; init; }
+
     /// <summary>A resume point for a piece just opened at its start, with the tempo as written and both hands.</summary>
     public static ResumePoint Start(string id, DateTimeOffset now, string? name = null) => new(id, name, Tick.Zero, null, false, [], 100, null, false, now, now);
 
-    /// <summary>The resume point as the player left it at <paramref name="now"/>.</summary>
+    /// <summary>The resume point as the player left it at <paramref name="now"/>, attached to no phrase until it is again (<see cref="ProjectAnchors.Attached(Project, ResumePoint, PhraseMap)"/>).</summary>
     public ResumePoint Touch(Tick at, SavedPassage? passage, bool focused, IEnumerable<Overlay> overlays, int tempoPercent, Hand? hands, bool loop, DateTimeOffset now) =>
         new(Id, Name, at, passage, focused, [.. overlays ?? throw new ArgumentNullException(nameof(overlays))], tempoPercent, hands, loop, CreatedAt, now);
 
@@ -65,12 +72,12 @@ public sealed record ResumePoint(
     public ResumePoint Touch(SavedPassage? passage, DateTimeOffset now) => this with { Passage = passage, At = passage?.Span.Onset ?? At, LastActive = now };
 
     /// <summary>The resume point under another name; blank takes the name away.</summary>
-    public ResumePoint Rename(string? name) => new(Id, name, At, Passage, Focused, Overlays, TempoPercent, Hands, Loop, CreatedAt, LastActive);
+    public ResumePoint Rename(string? name) => new(Id, name, At, Passage, Focused, Overlays, TempoPercent, Hands, Loop, CreatedAt, LastActive) { Anchor = Anchor };
 
     public bool Equals(ResumePoint? other) =>
         other is not null && Id == other.Id && Name == other.Name && At == other.At && Passage == other.Passage && Focused == other.Focused
         && TempoPercent == other.TempoPercent && Hands == other.Hands && Loop == other.Loop && CreatedAt == other.CreatedAt && LastActive == other.LastActive
-        && Overlays.SequenceEqual(other.Overlays);
+        && Anchor == other.Anchor && Overlays.SequenceEqual(other.Overlays);
 
     public override int GetHashCode() => HashCode.Combine(Id, At, LastActive);
 }

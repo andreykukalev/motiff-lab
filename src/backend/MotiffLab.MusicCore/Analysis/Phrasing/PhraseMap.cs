@@ -103,6 +103,34 @@ public sealed class PhraseMap
         .FirstOrDefault() ?? At(span.Onset);
 
     /// <summary>
+    /// The phrase <paramref name="span"/> belongs to among <paramref name="phrases"/> (0018, section 3; V16): the one it
+    /// starts in; failing that, the one it overlaps most, the earliest of equals; null when it overlaps none. An idea's home
+    /// (<c>Observation.Home</c>) and the phrase an anchor that no longer matches is attached to again.
+    /// </summary>
+    internal static TickSpan? HomeOf(TickSpan span, IEnumerable<TickSpan> phrases)
+    {
+        ArgumentNullException.ThrowIfNull(phrases);
+        TickSpan? best = null;
+        long bestOverlap = 0;
+        foreach (TickSpan phrase in phrases)
+        {
+            if (phrase.Contains(span.Onset))
+            {
+                return phrase;
+            }
+
+            long overlap = Math.Min(phrase.End.Value, span.End.Value) - Math.Max(phrase.Onset.Value, span.Onset.Value);
+            if (overlap > bestOverlap)
+            {
+                best = phrase;
+                bestOverlap = overlap;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
     /// The edits that make <paramref name="span"/> one phrase: boundaries at its start and end
     /// (unless those are the start or end of the piece), and none inside it. Moving an edge of a
     /// phrase and splitting one are both done this way. An edge less than a beat from a boundary

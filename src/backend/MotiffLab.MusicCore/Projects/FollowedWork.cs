@@ -10,7 +10,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// The player's work kept in ticks with the piece, following the music when other Notes become the working ones (v1.4 plan,
 /// answer 5 of 2026-11-25: «Фразы и закладки при смене рабочих Нот переносятся по сопоставлению тактов сами»): the
-/// bookmarks (and a title still by their bars), the phrase boundaries set or taken away at every level, the resume points, the
+/// bookmarks (and a title still by their bars), the phrase boundaries set or taken away at every level, the phrase anchors
+/// (#318; one no phrase found in the new notes matches is told and attached again by the player), the resume points, the
 /// ideas kept with a note alone, and the versions compared with the notes (their anchors, the bars dismissed and their Check
 /// flags; lead, 2026-11-26: nothing stays in stale ticks), each placed by bars in the new working notes as the two are
 /// matched (<see cref="ReadingMatch"/>, the match of the corrections carried over). A place in a bar with no match is kept
@@ -125,6 +126,7 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
             Phrases = follow.Edits(made.Phrases, Told.Phrase),
             ShortPhrases = follow.Edits(made.ShortPhrases, Told.None),
             Sentences = follow.Edits(made.Sentences, Told.None),
+            MintedAnchors = [.. made.Anchors.Select(anchor => anchor with { Span = follow.Span(anchor.Span, Told.None) })],
             Bookmarks = [.. made.Bookmarks.Select(follow.Placed)],
             ResumePoints = [.. made.ResumePoints.Select(point => point with
             {
@@ -142,7 +144,7 @@ internal sealed record FollowedWork(Project Project, int Bookmarks, int Phrases,
 
     /// <summary>Whether the project keeps work in its working notes' ticks or bars that would follow them.</summary>
     private static bool Placed(Project project) =>
-        !project.Phrases.IsEmpty || !project.ShortPhrases.IsEmpty || !project.Sentences.IsEmpty || project.Bookmarks.Count > 0
+        !project.Phrases.IsEmpty || !project.ShortPhrases.IsEmpty || !project.Sentences.IsEmpty || project.Anchors.Count > 0 || project.Bookmarks.Count > 0
         || project.ResumePoints.Any(static point => point.At != Tick.Zero || point.Passage is not null)
         || project.Observations.Any(static observation => observation.Variation is null) || project.Performances.Count > 0;
 

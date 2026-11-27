@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace MotiffLab.MusicCore.Projects;
 
@@ -25,6 +26,27 @@ public abstract class IdSource
     /// same on every read (a variation kept hidden, a carried note).
     /// </summary>
     public static IdSource Numbered { get; } = new NumberedIds();
+
+    /// <summary>
+    /// An id two devices make alike from the same <paramref name="key"/> (0026 C1 and C4): <paramref name="prefix"/> and the
+    /// first 32 hex digits of the SHA-256 of the key in UTF-8; when one of <paramref name="taken"/> is that id already, of
+    /// the key, "|" and 2, then 3, and so on, the first that none is.
+    /// </summary>
+    internal static string Hashed(string prefix, string key, IEnumerable<string> taken)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        ArgumentNullException.ThrowIfNull(key);
+        HashSet<string> used = [.. taken];
+        string id = Hash(prefix, key);
+        for (int more = 2; used.Contains(id); more++)
+        {
+            id = Hash(prefix, string.Create(CultureInfo.InvariantCulture, $"{key}|{more}"));
+        }
+
+        return id;
+    }
+
+    private static string Hash(string prefix, string key) => prefix + PieceOriginal.Fingerprint(Encoding.UTF8.GetBytes(key))[..32];
 
     /// <summary>A new id with <paramref name="prefix"/> that none of <paramref name="taken"/> is.</summary>
     /// <param name="digits">The least digits of a numbered id: 4 for most, 1 where builds before 1.6 wrote "n_2".</param>
