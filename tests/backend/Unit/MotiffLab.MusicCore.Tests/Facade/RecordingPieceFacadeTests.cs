@@ -24,7 +24,7 @@ public class RecordingPieceFacadeTests
     private const string Request = """{"id": "p_rec", "now": "2026-11-19T23:30:00Z", "language": "en", "recording": {"durationMs": 183500}}""";
 
     /// <summary>The notes a transcription heard in the whole recording, as the app sends them.</summary>
-    private static string Heard(string original)
+    internal static string Heard(string original)
     {
         var piece = PieceImporter.Import("fur-elise.musicxml", Fixture("fur-elise-original.musicxml")).Piece!;
         string midi = Convert.ToBase64String(MidiExporter.Export(piece.Notes, [], piece.Meter, "heard"));

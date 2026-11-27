@@ -27,7 +27,7 @@ internal static class DraftRecordingRequest
     public static string Find(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        IReadOnlyList<Found> found = Search(owner.Project, draft, draft.FindPlace(placeId)!, draft.CreatedAt, null, null);
+        IReadOnlyList<Found> found = Search(owner.Project, owner.Ids, draft, draft.FindPlace(placeId)!, draft.CreatedAt, null, null);
         return Answer.Write(json =>
         {
             json.WriteString("draft", draft.Id);
@@ -50,7 +50,7 @@ internal static class DraftRecordingRequest
         Draft draft = DraftRequest.Started(owner, from, request);
         DraftPlace place = draft.Places[0];
         string? own = Own(owner, from);
-        IReadOnlyList<Found> found = Search(owner.Project, draft, place, draft.CreatedAt, null, own);
+        IReadOnlyList<Found> found = Search(owner.Project, owner.Ids, draft, place, draft.CreatedAt, null, own);
         return Answer.Write(json =>
         {
             json.WriteNumber("recordings", Recordings(owner.Project, null, own).Count());
@@ -67,7 +67,7 @@ internal static class DraftRecordingRequest
     internal static (Draft Draft, string Variant) WithStretch(OpenPiece owner, FragmentOrigin from, Draft draft, string notes)
     {
         DraftPlace place = draft.Places[0];
-        Found chosen = Search(owner.Project, draft, place, draft.CreatedAt, notes, Own(owner, from)).FirstOrDefault()
+        Found chosen = Search(owner.Project, owner.Ids, draft, place, draft.CreatedAt, notes, Own(owner, from)).FirstOrDefault()
             ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of the music selected.", "На записи нет выделенной музыки."));
         return (draft.With(chosen.Variant, DraftDrop.Variant, place.Id), chosen.Variant.Id);
     }
@@ -129,7 +129,7 @@ internal static class DraftRecordingRequest
     public static string Add(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, request.Now(), request.Text("notes"), null).FirstOrDefault()
+        Found chosen = Search(owner.Project, owner.Ids, draft, draft.FindPlace(placeId)!, request.Now(), request.Text("notes"), null).FirstOrDefault()
             ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of this place's music.", "На записи нет музыки этого места."));
         if (chosen.Already is not null)
         {
@@ -139,7 +139,7 @@ internal static class DraftRecordingRequest
         return DraftRequest.Restructured(owner, request, draft, placeId, chosen.Variant.Id, each => each.With(chosen.Variant, DraftDrop.Variant, placeId), (json, _) => json.WriteNumber("percent", chosen.Match.Percent));
     }
 
-    /// <summary>What the search found on one recording: the variant it would put in (its id the draft's next, added at <c>at</c>), how much is found, and the place's variant of that stretch already.</summary>
+    /// <summary>What the search found on one recording: the variant it would put in (its id from the source, added at <c>at</c>), how much is found, and the place's variant of that stretch already.</summary>
     private sealed record Found(DraftVariant Variant, PlaceMatch Match, string? Already);
 
     /// <summary>
@@ -147,7 +147,7 @@ internal static class DraftRecordingRequest
     /// never the Notes <paramref name="except"/>) that is the music of <paramref name="place"/>, the most found first, then
     /// in the Sources' order.
     /// </summary>
-    private static IReadOnlyList<Found> Search(Project project, Draft draft, DraftPlace place, DateTimeOffset at, string? only, string? except)
+    private static IReadOnlyList<Found> Search(Project project, IdSource ids, Draft draft, DraftPlace place, DateTimeOffset at, string? only, string? except)
     {
         if (place.Bridge)
         {
@@ -162,7 +162,7 @@ internal static class DraftRecordingRequest
                 continue;
             }
 
-            DraftVariant variant = DraftFragment.Variant(draft.NextVariantId(), at, music, span, DraftPart.All, notes.Id, notes.Provenance, null, DraftFragment.Heard(heard, HeardClock.Of(heard, piece), span));
+            DraftVariant variant = DraftFragment.Variant(draft.NextVariantId(ids), at, music, span, DraftPart.All, notes.Id, notes.Provenance, null, DraftFragment.Heard(heard, HeardClock.Of(heard, piece), span));
             string? already = place.Variants.FirstOrDefault(each => each.From is { Project: null, Part: DraftPart.All } from && from.Notes == notes.Id && from.Span == span)?.Id;
             found.Add(new Found(variant, match, already));
         }

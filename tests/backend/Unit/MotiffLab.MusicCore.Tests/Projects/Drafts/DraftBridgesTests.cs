@@ -38,7 +38,7 @@ public class DraftBridgesTests
     public void Where_the_keys_are_the_same_no_bridge_is_offered()
     {
         Assert.Empty(Candidates(Collage(fifths: 0)));
-        Assert.Throws<InvalidOperationException>(() => DraftBridges.Put(Collage(fifths: 0), "pl_2", At));
+        Assert.Throws<InvalidOperationException>(() => DraftBridges.Put(Collage(fifths: 0), "pl_2", At, Ids));
     }
 
     [Fact]
@@ -121,13 +121,13 @@ public class DraftBridgesTests
         static string Notes(Draft draft) => string.Join(" ", draft.Places[1].Variants.SelectMany(static variant => variant.Music.Notes)
             .Select(static note => $"{note.Id}:{note.Pitch.MidiNumber}@{note.Span.Onset.Value}+{note.Span.Duration}"));
 
-        Assert.Equal(Notes(DraftBridges.Put(Collage(), "pl_2", At)), Notes(DraftBridges.Put(Collage(), "pl_2", At)));
+        Assert.Equal(Notes(DraftBridges.Put(Collage(), "pl_2", At, Ids)), Notes(DraftBridges.Put(Collage(), "pl_2", At, Ids)));
     }
 
     [Fact]
     public void Put_between_the_two_places_as_a_bridge_place_its_first_candidate_the_base()
     {
-        Draft draft = DraftBridges.Put(Collage(), "pl_2", At);
+        Draft draft = DraftBridges.Put(Collage(), "pl_2", At, Ids);
 
         Assert.Equal(["pl_1", "pl_0003", "pl_2"], draft.Places.Select(static place => place.Id));
         DraftPlace bridge = draft.Places[1];
@@ -144,7 +144,7 @@ public class DraftBridgesTests
     [Fact]
     public void A_bridge_place_is_offered_nothing_its_register_unsaid_and_no_bridge_is_offered_next_to_one()
     {
-        IReadOnlyList<DraftSeam> seams = DraftSeams.Of(DraftBridges.Put(Collage(semitones: 36), "pl_2", At));
+        IReadOnlyList<DraftSeam> seams = DraftSeams.Of(DraftBridges.Put(Collage(semitones: 36), "pl_2", At, Ids));
 
         Assert.True(seams[0].KeyChanges);
         Assert.Equal((null, null, null, 0), (seams[0].Semitones, seams[0].Tempo, seams[0].Octave, seams[0].Register));
@@ -155,7 +155,7 @@ public class DraftBridgesTests
     [Fact]
     public void Chosen_a_candidate_is_the_base_and_left_the_place_goes_with_its_steps()
     {
-        Draft draft = DraftBridges.Put(Collage(), "pl_2", At);
+        Draft draft = DraftBridges.Put(Collage(), "pl_2", At, Ids);
         Draft chosen = DraftSeams.Transpose(draft.WithBase("pl_0003", "v_0005"), "pl_0003", 12, At);
 
         Assert.Equal(BridgeKind.BassWalk, DraftBridges.KindOf(chosen.FindPlace("pl_0003")!.BaseVariant));
@@ -163,8 +163,8 @@ public class DraftBridgesTests
         Assert.Equal(["pl_1", "pl_2"], left.Places.Select(static place => place.Id));
         Assert.Empty(left.Steps);
         Assert.Throws<ArgumentException>(() => DraftBridges.Leave(left, "pl_2"));
-        Assert.Throws<ArgumentException>(() => DraftBridges.Put(left, "pl_1", At));
+        Assert.Throws<ArgumentException>(() => DraftBridges.Put(left, "pl_1", At, Ids));
     }
 
-    private static DraftPlace Bridge(Draft draft) => DraftBridges.Put(draft, "pl_2", At).Places[1];
+    private static DraftPlace Bridge(Draft draft) => DraftBridges.Put(draft, "pl_2", At, Ids).Places[1];
 }

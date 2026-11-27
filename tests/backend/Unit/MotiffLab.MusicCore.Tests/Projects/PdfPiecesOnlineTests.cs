@@ -35,7 +35,7 @@ public class PdfPiecesOnlineTests
         (Project.CreateDocument("p_9c3d4e5f6a7b4c8d9e0f1a2b3c4d5e6f", "Chopin - Nocturne Op. 9 No. 2.pdf", s_pdf, s_now) with
         {
             Metadata = new PieceMetadata("Nocturne Op. 9 No. 2", "Chopin", ["Шопен"], ["Концерт в мае"]),
-            DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now),
+            DocumentMarks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now, IdSource.Numbered),
         }).MarkHeld(PieceOriginal.DocumentId, HoldingDevice.Ipad, held: true, s_now);
 
     private static Project RoundTrip(Project project) => ProjectFile.Read(ProjectFile.Write(project));

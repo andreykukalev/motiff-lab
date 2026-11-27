@@ -64,7 +64,7 @@ internal static class PerformancesSession
         }
 
         PerformanceAlignment alignment = PerformanceAlignment.Align(printed, played);
-        SavedPerformance performance = new(piece.Project.NextPerformanceId(), name, source, midi, start, alignment.Anchors)
+        SavedPerformance performance = new(piece.Project.NextPerformanceId(piece.Ids), name, source, midi, start, alignment.Anchors)
         {
             Engine = engine,
         };

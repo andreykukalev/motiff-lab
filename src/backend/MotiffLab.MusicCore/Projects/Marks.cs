@@ -310,11 +310,11 @@ public sealed record Marks(
     /// <summary>The marks without a finger on the note; nothing changes when there was none.</summary>
     public Marks RemoveFingering(string noteId) => this with { Fingering = [.. Fingering.Where(kept => kept.NoteId != noteId)] };
 
-    /// <summary>"n_0004": one more than the highest note number, so ids stay stable for the life of the project.</summary>
-    public string NextNoteId() => Project.NextId("n_", Notes.Select(note => note.Id));
+    /// <summary>A new margin note's id from <paramref name="ids"/>, one no note has; it stays for the life of the project.</summary>
+    public string NextNoteId(IdSource ids) => ids.Next("n_", Notes.Select(note => note.Id));
 
-    /// <summary>"h_0004": one more than the highest highlight number.</summary>
-    public string NextHighlightId() => Project.NextId("h_", Highlights.Select(highlight => highlight.Id).Concat(Project.UnknownIds(Unknown, "marks.highlights")));
+    /// <summary>A new highlight's id from <paramref name="ids"/>, one no highlight of the file has.</summary>
+    public string NextHighlightId(IdSource ids) => ids.Next("h_", Highlights.Select(highlight => highlight.Id).Concat(Project.UnknownIds(Unknown, "marks.highlights")));
 
     public bool Equals(Marks? other) =>
         other is not null && Ink.SequenceEqual(other.Ink) && Notes.SequenceEqual(other.Notes) && Highlights.SequenceEqual(other.Highlights) && Fingering.SequenceEqual(other.Fingering);

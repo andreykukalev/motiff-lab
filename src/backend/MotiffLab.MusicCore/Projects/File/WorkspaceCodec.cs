@@ -241,7 +241,7 @@ internal static class WorkspaceCodec
             Assembly = version >= 15 ? ReadAssembly(work) : PieceAssembly.Empty,
             Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
-            HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? ReadHiddenViews(hidden) : [],
+            HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? DistinctTexts(hidden, "hiddenViews") : [],
         }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work);
     }
 
@@ -339,12 +339,12 @@ internal static class WorkspaceCodec
     /// <summary>The piece's phrase level of versions 12 to 17 (0018 section 3), gone since the score shows phrases only (version 1.2).</summary>
     private const string RemovedGranularity = "phrases.granularity";
 
-    /// <summary>"hiddenViews": the ids of the views hidden from the switch, each a text that is not blank.</summary>
-    private static List<string> ReadHiddenViews(JsonElement hidden)
+    /// <summary>A list of ids, such as "hiddenViews" (the views hidden from the switch) or "formerIds": distinct texts that are not blank.</summary>
+    internal static List<string> DistinctTexts(JsonElement list, string what)
     {
-        Expect(hidden, JsonValueKind.Array, "hiddenViews");
-        List<string> ids = [.. hidden.EnumerateArray().Select(static id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged("hiddenViews"))];
-        return ids.Distinct(StringComparer.Ordinal).Count() == ids.Count ? ids : throw Damaged("hiddenViews");
+        Expect(list, JsonValueKind.Array, what);
+        List<string> ids = [.. list.EnumerateArray().Select(id => id.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(id.GetString()) ? id.GetString()! : throw Damaged(what))];
+        return ids.Distinct(StringComparer.Ordinal).Count() == ids.Count ? ids : throw Damaged(what);
     }
 
     /// <summary>The project with the place in its collection its file keeps (<see cref="ReadPartOf"/>).</summary>

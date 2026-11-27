@@ -175,7 +175,7 @@ public class SourcesFormatTests
     [Fact]
     public void A_removed_original_is_written_as_its_tombstone_with_its_marks_and_read_back_apart_from_the_piece()
     {
-        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now);
+        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Reprise", s_now, IdSource.Numbered);
         var book = new PieceOriginal("src_book", OriginalKind.Pdf, "Songbook.pdf", OriginalKept.Device, s_now) { Sha256 = new string('b', 64), Pages = 24 };
         Project project = FurElise() with { Sources = new SourcesLayer { Removed = [new RemovedOriginal(book, s_now.AddHours(1)) { Marks = marks }] } };
 

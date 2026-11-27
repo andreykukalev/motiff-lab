@@ -161,13 +161,14 @@ internal static class DraftRequest
     {
         (Draft? draft, _, string? place, DraftVariant variant) = Fragment(owner.Project, from, request);
         return draft is null
-            ? Draft.Start(owner.Project.NextDraftId(), request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words), variant.AddedAt, place!, variant)
+            ? Draft.Start(owner.Project.NextDraftId(owner.Ids), request.Text("name") ?? DraftLabels.NewName(owner.Project, owner.Words), variant.AddedAt, place!, variant)
             : throw FacadeException.BadRequest("A new draft is asked for without \"draft\".");
     }
 
     /// <summary>
     /// The fragment selected in <paramref name="from"/> as «Добавить» takes it into the drafts of <paramref name="into"/>:
-    /// the draft "draft" (null for a new one), where "drop" puts it, the place it goes to (null on the shelf) and the variant.
+    /// the draft "draft" (null for a new one), where "drop" puts it, the place it goes to (null on the shelf) and the variant,
+    /// new ids from the facade's source.
     /// </summary>
     private static (Draft? Draft, DraftDrop Drop, string? Place, DraftVariant Variant) Fragment(Project into, FragmentOrigin from, Request request)
     {
@@ -181,11 +182,12 @@ internal static class DraftRequest
             throw FacadeException.BadRequest("A new draft starts with the fragment as its first place.");
         }
 
-        string variantId = draft?.NextVariantId() ?? "v_0001";
-        string? place = draft is null ? "pl_0001" : drop switch
+        IdSource ids = from.Open.Ids;
+        string variantId = draft?.NextVariantId(ids) ?? ids.Next("v_", []);
+        string? place = draft is null ? ids.Next("pl_", []) : drop switch
         {
             DraftDrop.Variant => request.Required("place"),
-            DraftDrop.Place => draft.NextPlaceId(),
+            DraftDrop.Place => draft.NextPlaceId(ids),
             _ => null,
         };
         string? project = from.Project == into.Id ? null : from.Project;
@@ -232,7 +234,7 @@ internal static class DraftRequest
         string? place = drop switch
         {
             DraftDrop.Variant => request.Required("place"),
-            DraftDrop.Place => draft.NextPlaceId(),
+            DraftDrop.Place => draft.NextPlaceId(owner.Ids),
             _ => null,
         };
         return Restructured(owner, request, draft, place, variant, each => each.Placed(variant, drop, place));
@@ -387,7 +389,14 @@ internal static class DraftRequest
     /// the sources with the ids (no "variant" when <paramref name="variant"/> is null), "dropped", the numbers of the steps
     /// the change took out of the journal, and what <paramref name="more"/> writes of the draft changed.
     /// </summary>
-    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, Func<Draft, Draft> change, Action<Utf8JsonWriter, Draft>? more = null)
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, string? place, string? variant, Func<Draft, Draft> change, Action<Utf8JsonWriter, Draft>? more = null) =>
+        Restructured(owner, request, draft, _ => (place, variant), change, more);
+
+    /// <summary>
+    /// The draft's structure changed by <paramref name="change"/>, as the other <c>Restructured</c>, the ids answered read by
+    /// <paramref name="made"/> from the draft changed: a place or a variant the change made, its id from the source.
+    /// </summary>
+    internal static string Restructured(OpenPiece owner, Request request, Draft draft, Func<Draft, (string? Place, string? Variant)> made, Func<Draft, Draft> change, Action<Utf8JsonWriter, Draft>? more = null)
     {
         Draft changed = draft;
         string answer = owner.Changed(
@@ -395,6 +404,7 @@ internal static class DraftRequest
             piece => piece.ChangeDraft(draft.Id, each => changed = Refused(() => change(each))),
             json =>
             {
+                (string? place, string? variant) = made(changed);
                 Added(json, draft.Id, place, variant);
                 JsonWrite.Numbers(json, "dropped", [.. draft.Steps.Select(static step => step.Number).Except(changed.Steps.Select(static step => step.Number))]);
                 more?.Invoke(json, changed);
