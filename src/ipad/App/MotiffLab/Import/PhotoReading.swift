@@ -98,24 +98,27 @@ final class PhotoReader: ObservableObject {
 }
 
 /// Check's part about a scan's pages (v0.4, with «Фото страниц» on): each page in doubt as the server's page reports kept
-/// with the notes tell it (`check` "pages"), and its bars to look at. Pages are numbered as they are in the notes.
+/// with the notes tell it (`check` "pages"), and its bars to look at, which `show` selects on the score. Pages are numbered
+/// as they are in the notes.
 struct PhotoPagesCheck: View {
-    @ObservedObject var score: ScoreController
+    /// The scan's pages as Check counts them (`CheckModel.check`), from the drawer that observes it.
+    let pages: [CheckPageEntry]
     let text: UIText
+    let show: (ClosedRange<Int>) -> Void
 
     var body: some View {
-        let pages = score.check.pages.filter { PageSummaryLine.of($0, text).unsure }
-        if !pages.isEmpty {
+        let unsure = pages.filter { PageSummaryLine.of($0, text).unsure }
+        if !unsure.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["check.pagesHeading"]).overline()
                 Text(text["check.pagesHint"]).dsType(.caption).foregroundStyle(Color.ds("ink-2")).fixedSize(horizontal: false, vertical: true)
-                ForEach(pages) { page in
+                ForEach(unsure) { page in
                     HStack(alignment: .firstTextBaseline, spacing: CGFloat.ds("s-2")) {
                         Tag(text: text.format("photos.page", String(page.page)), kind: .warn)
                         Text(PageSummaryLine.of(page, text).text).dsType(.caption).foregroundStyle(Color.ds("ink")).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                         if let bars = page.barRange {
-                            Button(text["scanCheck.show"]) { score.selectBars(bars.lowerBound, bars.upperBound, extend: false) }
+                            Button(text["scanCheck.show"]) { show(bars) }
                                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                         }
                     }

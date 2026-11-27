@@ -148,7 +148,6 @@ enum VersionFiles {
 /// A marker tapped on the score (testing item 33): how the bar differs, heard as the version plays it, and the way to the
 /// version in Sources; nothing is taken from the score here. Its card at the marker is `DraftCardAtMark`'s (v1.4 a-1).
 struct MarkerPopover: View {
-    @ObservedObject var score: ScoreController
     @ObservedObject var sourcesModel: SourcesModel
     let text: UIText
     let pick: SourcesModel.MarkerPick
@@ -161,11 +160,11 @@ struct MarkerPopover: View {
                 Text(bar.marker).dsType(.label).foregroundStyle(Color.ds("ink"))
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button { score.hearMarkerVersion() } label: {
+                Button { sourcesModel.hearMarkerVersion() } label: {
                     Label { Text(text["merge.asInVersion"]) } icon: { Icon(name: "play", size: CGFloat.ds("icon-s")) }
                 }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                Button(text["sources.title"]) { score.openSourcesFromMarker() }
+                Button(text["sources.title"]) { sourcesModel.openSourcesFromMarker() }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }
         }
