@@ -11,9 +11,9 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Tests.Import.Scan;
 
 /// <summary>
-/// The player's marks «что не так» put into a new reading of the pages («Как напечатано», step 3, c-14b1): hands, a clef,
-/// an octave sign, a key and a time signature, each on synthetic MusicXML of two bars on two staves, and the marks that
-/// cannot go in or wait for a later step.
+/// The player's marks «что не так» put into a new reading of the pages («Как напечатано», step 3, c-14b1, c-14b2): hands, a
+/// clef, an octave sign, a key, a time signature and triplets, each on synthetic MusicXML of bars on two staves, a bar read
+/// badly, and the marks that cannot go in.
 /// </summary>
 public class ReadingMarksTests
 {
@@ -119,7 +119,7 @@ public class ReadingMarksTests
     }
 
     [Fact]
-    public void A_mark_the_reading_cannot_take_is_unfit_and_triplets_and_a_bar_read_badly_wait()
+    public void A_mark_the_reading_cannot_take_is_unfit_and_a_bar_read_badly_only_where_the_merge_read_it_again()
     {
         byte[] score = Encoding.UTF8.GetBytes(Score());
         ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
@@ -130,9 +130,126 @@ public class ReadingMarksTests
 
         MarkedReading marked = ReadingMarks.Apply(score, read, [beyond, staff, triplets, badly]);
 
+        // Bars that add up as read, with no triplet, are not in triplets; no merge read bar 1 again.
         Assert.Same(score, marked.Score);
-        Assert.Equal([(beyond, MarkOutcome.Unfit), (staff, MarkOutcome.Unfit), (triplets, MarkOutcome.Waiting), (badly, MarkOutcome.Waiting)],
+        Assert.Equal([(beyond, MarkOutcome.Unfit), (staff, MarkOutcome.Unfit), (triplets, MarkOutcome.Unfit), (badly, MarkOutcome.Unfit)],
             marked.Marks.Select(static mark => (mark.Mark, mark.Outcome)));
+
+        string again = Score().Replace("<measure number=\"1\">", $"<measure number=\"1\"><direction><direction-type><other-direction print-object=\"no\">{MusicXmlImport.ReadAgainMark}</other-direction></direction-type></direction>", StringComparison.Ordinal);
+        byte[] bytes = Encoding.UTF8.GetBytes(again);
+        Assert.Equal([MarkOutcome.Applied], ReadingMarks.Apply(bytes, PieceImporter.Import("a.musicxml", bytes).Piece!, [badly]).Marks.Select(static mark => mark.Outcome));
+    }
+
+    /// <summary>A 4/4 bar: twelve eighths on staff 1 (as an engine that lost the triplets reads them: half as long again as the bar), a whole note on staff 2.</summary>
+    private static byte[] Eighths() => ScanRepairTests.Score(2, "4",
+        string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12))
+        + ScanRepairTests.Backup(12) + ScanRepairTests.Note("C", 3, 8, 2));
+
+    private static (long Onset, long Length)[] Timing(ImportedPiece piece, Hand hand) =>
+        [.. piece.Notes.Where(note => note.Hand?.Value == hand).OrderBy(static note => note.Span.Onset).Select(static note => (note.Span.Onset.Value, note.Span.Duration))];
+
+    [Fact]
+    public void Triplets_marked_re_time_a_staff_half_as_long_again_as_its_bar_in_3_in_the_time_of_2_exactly()
+    {
+        byte[] score = Eighths();
+        ImportedPiece read = PieceImporter.Import("a.musicxml", score).Piece!;
+
+        MarkedReading marked = ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        // Triplet eighths, 160 ticks each, in the divisions made three times finer; the whole note on staff 2 is kept.
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        Assert.Equal(Enumerable.Range(0, 12).Select(static i => ((long)i * 160, 160L)), Timing(piece, Hand.Right));
+        Assert.Equal([(0L, 1920L)], Timing(piece, Hand.Left));
+        Assert.Equal(1920, piece.MusicXml!.Measures[0].Span.Duration);
+        string text = Encoding.UTF8.GetString(marked.Score);
+        Assert.Equal(12, text.Split("<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>").Length - 1);
+        Assert.Contains("<divisions>6</divisions>", text, StringComparison.Ordinal);
+        Assert.Equal(marked.Score, ReadingMarks.Apply(score, read, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]).Score);
+    }
+
+    [Fact]
+    public void Triplets_marked_write_the_tuplets_and_re_time_only_the_voice_half_as_long_again()
+    {
+        // Staff 1: voice 1 twelve straight eighths, voice 2 two halves, which fit the bar as read.
+        static string Voice2(string note) => note.Replace("<voice>1</voice>", "<voice>2</voice>", StringComparison.Ordinal);
+        byte[] score = ScanRepairTests.Score(2, "4",
+            string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12)) + ScanRepairTests.Backup(12)
+            + Voice2(ScanRepairTests.Note("E", 4, 4, 1)) + Voice2(ScanRepairTests.Note("E", 4, 4, 1)) + ScanRepairTests.Backup(8) + ScanRepairTests.Note("C", 3, 8, 2));
+
+        MarkedReading marked = ReadingMarks.Apply(score, PieceImporter.Import("a.musicxml", score).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        (long Onset, long Length)[] upper = Timing(piece, Hand.Right);
+        Assert.Equal(Enumerable.Range(0, 12).Select(static i => ((long)i * 160, 160L)), upper.Where(static note => note.Length == 160));
+        Assert.Equal([(0L, 960L), (960L, 960L)], upper.Where(static note => note.Length == 960));
+        // One bracket a quarter: three triplet eighths, started on the first and stopped on the third.
+        string text = Encoding.UTF8.GetString(marked.Score);
+        Assert.Equal(4, text.Split("<tuplet type=\"start\" />").Length - 1);
+        Assert.Equal(4, text.Split("<tuplet type=\"stop\" />").Length - 1);
+    }
+
+    [Fact]
+    public void A_note_with_no_length_in_a_voice_re_timed_takes_no_tuplet_and_the_others_their_brackets()
+    {
+        byte[] score = ScanRepairTests.Score(2, "4", ScanRepairTests.Note("D", 5, 0, 1)
+            + string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12)) + ScanRepairTests.Backup(12) + ScanRepairTests.Note("C", 3, 8, 2));
+
+        MarkedReading marked = ReadingMarks.Apply(score, PieceImporter.Import("a.musicxml", score).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        string text = Encoding.UTF8.GetString(marked.Score);
+        Assert.Equal(4, text.Split("<tuplet type=\"start\" />").Length - 1);
+        Assert.Equal(4, text.Split("<tuplet type=\"stop\" />").Length - 1);
+        Assert.DoesNotContain("<duration>0</duration><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><voice>1</voice><staff>1</staff><notations>", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Triplets_marked_over_bars_keep_chords_and_ties_and_leave_the_other_bars_exact_in_the_finer_divisions()
+    {
+        string[] eighths = [.. Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12)];
+        string tieStart = eighths[^1].Replace("<voice>", "<tie type=\"start\"/><voice>", StringComparison.Ordinal);
+        string tieStop = eighths[0].Replace("<voice>", "<tie type=\"stop\"/><voice>", StringComparison.Ordinal);
+        string lower = ScanRepairTests.Backup(12) + ScanRepairTests.Note("C", 3, 8, 2);
+        string first = eighths[0] + ScanRepairTests.Note("E", 5, 1, 1, chord: true) + string.Concat(eighths[1..^1]) + tieStart + lower;
+        string second = tieStop + string.Concat(eighths[1..]) + lower;
+        string third = string.Concat(eighths[..8]) + ScanRepairTests.Backup(8) + ScanRepairTests.Note("C", 3, 8, 2);
+        byte[] score = ScanRepairTests.Score(2, "4", first, second, third);
+
+        // As read, each bar of twelve eighths runs into the next bar of 4/4: the second measure starts bar 3.
+        MarkedReading marked = ReadingMarks.Apply(score, PieceImporter.Import("a.musicxml", score).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 3, null, "yes")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        Assert.Equal([0L, 1920, 3840, 5760], piece.MusicXml!.Measures.Select(static measure => measure.Span.Onset.Value).Append(piece.MusicXml.Measures[^1].Span.End.Value));
+        Note chord = Assert.Single(piece.Notes, static note => note.Pitch.MidiNumber == 76);
+        Assert.Equal((0L, 160L), (chord.Span.Onset.Value, chord.Span.Duration));
+        // The tied eighths are one note across the bar line, a triplet eighth on each side.
+        Assert.Contains(piece.Notes, static note => note.Pitch.MidiNumber == 72 && note.Span.Onset.Value == 1760 && note.Span.Duration == 320);
+        Assert.Equal(Enumerable.Range(0, 8).Select(static i => (3840 + (long)i * 240, 240L)), Timing(piece, Hand.Right).Where(static note => note.Onset >= 3840));
+    }
+
+    [Fact]
+    public void No_triplets_marked_take_a_staff_written_in_triplets_out_of_them_and_a_bar_they_do_not_fit_stays_as_read()
+    {
+        // Eight triplet eighths come to two thirds of the bar: read as straight eighths, they fill it.
+        string tuplet = "<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>";
+        byte[] triplets = ScanRepairTests.Score(3, "4",
+            string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1).Replace("<voice>", tuplet + "<voice>", StringComparison.Ordinal), 8))
+            + ScanRepairTests.Backup(8) + ScanRepairTests.Note("C", 3, 12, 2));
+        MarkedReading marked = ReadingMarks.Apply(triplets, PieceImporter.Import("a.musicxml", triplets).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "no")]);
+        ImportedPiece piece = PieceImporter.Import("a.musicxml", marked.Score).Piece!;
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        Assert.Equal(Enumerable.Range(0, 8).Select(static i => ((long)i * 240, 240L)), Timing(piece, Hand.Right));
+        Assert.DoesNotContain("time-modification", Encoding.UTF8.GetString(marked.Score), StringComparison.Ordinal);
+
+        // Thirteen eighths add up to neither the bar nor half as long again: every note as read.
+        byte[] over = ScanRepairTests.Score(2, "4", string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 13)) + ScanRepairTests.Backup(13) + ScanRepairTests.Note("C", 3, 8, 2));
+        MarkedReading unfit = ReadingMarks.Apply(over, PieceImporter.Import("a.musicxml", over).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+        Assert.Same(over, unfit.Score);
+        Assert.Equal([MarkOutcome.Unfit], unfit.Marks.Select(static mark => mark.Outcome));
     }
 
     [Fact]

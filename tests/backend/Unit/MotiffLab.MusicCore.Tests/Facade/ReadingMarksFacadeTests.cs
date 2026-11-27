@@ -100,13 +100,15 @@ public class ReadingMarksFacadeTests
 
         JsonElement marked = Call(facade, "sources.notes.recognise", Recognise()).GetProperty("marked");
 
-        Assert.Equal((1, 1), (marked.GetProperty("used").GetInt32(), marked.GetProperty("unfit").GetInt32()));
-        Assert.Equal([3], marked.GetProperty("bars").EnumerateArray().Select(static bar => bar.GetInt32()));
-        Assert.Equal("1 mark used · not used, in Check: 1 (bar 3)", marked.GetProperty("text").GetString());
+        // The bar read badly is not read by another engine here: one reading, sent whole, so the mark is not used.
+        Assert.Equal((1, 2), (marked.GetProperty("used").GetInt32(), marked.GetProperty("unfit").GetInt32()));
+        Assert.Equal([3, 4], marked.GetProperty("bars").EnumerateArray().Select(static bar => bar.GetInt32()));
+        Assert.Equal("1 mark used · not used, in Check: 2 (bars 3, 4)", marked.GetProperty("text").GetString());
         Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
         Project working = Saved(facade);
         Assert.Equal([ReadingMarkKind.Hands, ReadingMarkKind.Clef, ReadingMarkKind.BadlyRead], working.Scan!.Marks.Select(static mark => mark.Kind));
         Assert.Contains(working.Check!, static flag => flag.Bar == 3 && flag.Reason == CheckReason.MarkUnfit && !flag.Resolved);
+        Assert.Contains(working.Check!, static flag => flag.Bar == 4 && flag.Reason == CheckReason.MarkUnfit);
         Assert.Equal("Отметка не учтена", CheckFlag.NameOf(CheckReason.MarkUnfit, Words.Russian));
 
         ImportedPiece before = PieceImporter.Import("a.musicxml", ScanRepair.Repair(Scanned())).Piece!;

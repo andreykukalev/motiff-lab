@@ -134,7 +134,7 @@ internal sealed partial class OpenPiece
     {
         string original = request.Required("original");
         (ReadScore read, SourcesSession.MarksCarried? marks) = SourcesSession.Marked(
-            State, original, "notes.musicxml", SourcesSession.Read("notes.musicxml", SourceRequest.Base64(request.Required("musicXml"), "musicXml"), Words));
+            Project, Piece, original, "notes.musicxml", SourcesSession.Read("notes.musicxml", SourceRequest.Base64(request.Required("musicXml"), "musicXml"), Words));
         string id = Project.NextNotesId();
         PageMap pages = SourcesSession.ReadPages(read, request.Int("pages"));
         List<PageReport>? reports = ScanRequest.ReportsIn(request);

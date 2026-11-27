@@ -170,7 +170,7 @@ internal static partial class ScanRepair
     }
 
     /// <summary>The bar length a time signature writes, when it is one plain pair of numbers.</summary>
-    private static QuarterFraction? Written(XElement time) =>
+    internal static QuarterFraction? Written(XElement time) =>
         time.Elements("beats").Count() == 1 && time.Elements("beat-type").Count() == 1
             && int.TryParse(time.Element("beats")!.Value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out int beats)
             && int.TryParse(time.Element("beat-type")!.Value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out int beatType)
