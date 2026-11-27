@@ -100,7 +100,8 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// Saves where the player is: a new resume point, or the one "id" names brought up to date. Fields not sent
     /// keep the point's values; a new point starts at the selection, as written, with both hands. "passage": null
-    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place.
+    /// (#327, within contract 12) says the player left no passage selected: the point keeps only its place. Open in phrase
+    /// focus on a phrase, the point is attached to its anchor (#318), so a boundary the player moves carries it.
     /// </summary>
     private string SaveResumePoint(Request request)
     {
@@ -140,6 +141,7 @@ internal sealed partial class OpenPiece
                 hands,
                 request.Bool("loop") ?? point.Loop,
                 now);
+            (Project, point) = Project.Attached(point, Phrases);
             Project = id is null ? Project.AddResumePoint(point) : Project.ChangeResumePoint(id, _ => point);
         }
         catch (Exception exception) when (exception is ArgumentException or KeyNotFoundException)
@@ -157,7 +159,8 @@ internal sealed partial class OpenPiece
 
     /// <summary>
     /// Keeps the variation heard now, with the fact that offered it ("factId"), as an idea about the selection (0018,
-    /// section 7); with "note" and no variation, keeps the note alone. The name defaults to the steps' operations.
+    /// section 7), attached to the anchor of its phrase (#318); with "note" and no variation, keeps the note alone. The name
+    /// defaults to the steps' operations.
     /// </summary>
     private string KeepIdea(Request request)
     {
@@ -172,14 +175,20 @@ internal sealed partial class OpenPiece
         string name = request.Text("name")
             ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : MarksSession.BarsTitle(State, selection.Span));
         string? factId = request.Text("factId");
-        return Ideas(project => project.Keep(Observation.Create(
-            project.NextObservationId(Ids),
-            SavedPassage.Of(selection),
-            chain is null ? null : KeptVariation.Create(chain, selection.Filter),
-            name,
-            note,
-            request.Now()) with
-        { FactId = factId }));
+        return Ideas(project =>
+        {
+            (Project attached, Observation idea) = project.Attached(
+                Observation.Create(
+                    project.NextObservationId(Ids),
+                    SavedPassage.Of(selection),
+                    chain is null ? null : KeptVariation.Create(chain, selection.Filter),
+                    name,
+                    note,
+                    request.Now()) with
+                { FactId = factId },
+                Phrases);
+            return attached.Keep(idea);
+        });
     }
 
     /// <summary>Brings an idea back: its phrase as the selection and its variation, when it keeps one, as the chain.</summary>
