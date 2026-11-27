@@ -64,6 +64,19 @@ final class ScanPartsTests: XCTestCase {
         XCTAssertEqual(ScanServer.problem(URLError(.cannotConnectToHost), address: server), .unreachable(server))
     }
 
+    /// v1.5 r-2b, review: a photo page the server did not answer in time fails only that page, as the server's own words on
+    /// it do, so the photos after it are still sent and joined (`PhotoReader.send`); a server that is not there, or a sign-in,
+    /// would meet every page after and stops them.
+    func testATimedOutPageDoesNotStopTheOthers() throws {
+        let server = try XCTUnwrap(ScanServer.parse("http://192.168.1.20:8000"))
+        XCTAssertTrue(ScanServer.problem(URLError(.timedOut), address: server).failsOnlyItsPage)
+        XCTAssertTrue(ScanProblem.server("The page is empty.").failsOnlyItsPage)
+        XCTAssertFalse(ScanServer.problem(URLError(.cannotConnectToHost), address: server).failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.notAScanServer.failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.signIn.failsOnlyItsPage)
+        XCTAssertFalse(ScanProblem.needsPro.failsOnlyItsPage)
+    }
+
     func testTheIPadSendsAPageARequest() {
         XCTAssertEqual(ScanParts.pagesARequest, 1)
         XCTAssertEqual(ScanParts.plan(pages: 3, maxPages: ScanParts.pagesARequest), [1...1, 2...2, 3...3])

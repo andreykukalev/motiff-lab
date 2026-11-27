@@ -151,7 +151,7 @@ final class ScanServer: ObservableObject {
     static func recognise(fileName: String, data: Data, address: URL, account: Account, progress: ScanProgressListener? = nil) async -> Result<ScanResult, ScanProblem> {
         let report = progress ?? ScanProgress.listener
         // A file PDFKit cannot open goes whole, as before: the server says what is wrong with it.
-        guard data.starts(with: Data("%PDF".utf8)), let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else {
+        guard let document = OpenPiece.readablePdf(data) else {
             return await whole(fileName: fileName, data: data, address: address, account: account, report: report)
         }
         let pages = document.pageCount
@@ -292,6 +292,15 @@ enum ScanProblem: Error, Equatable {
         case .tooManyPages(let pages): text.format("scan.tooManyPages", String(pages), String(ScanParts.mostPages))
         case .server(let message): message
         case .stopped: ""
+        }
+    }
+
+    /// Whether only the page that met it failed, so the pages after it are sent on: the server's own words on that page, or
+    /// no answer in time (v1.5 r-2b: a page that timed out stopped the photos after it); every page after would meet the rest.
+    var failsOnlyItsPage: Bool {
+        switch self {
+        case .server, .slow: true
+        case .notAScanServer, .unreachable, .signIn, .needsPro, .tooLarge, .tooManyPages, .stopped: false
         }
     }
 

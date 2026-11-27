@@ -46,7 +46,7 @@ struct OpenPiece: Identifiable, Sendable {
     static func open(fileName: String, data: Data, language: String, title given: String? = nil, asPdf: Bool = false, pdf: Data? = nil) async -> Result<OpenPiece, EngraveError> {
         // E-library-2: a PDF this iPad cannot show is refused before it becomes a piece, as a damaged MusicXML is: its
         // screen would only say it cannot be read, and the library would keep a piece that never opens.
-        if isUnreadablePdf(data) { return .failure(EngraveError(message: UIText.of(language)["pdf.unreadable"])) }
+        if data.starts(with: pdfStart), readablePdf(data) == nil { return .failure(EngraveError(message: UIText.of(language)["pdf.unreadable"])) }
         let fields = openRequest(language: language, asPdf: asPdf, pdf: pdf)
         let request = facadeRequest(fields)
         let evenBars = await MainActor.run { DeviceSettings.shared.isOn("score.evenBars") }
@@ -82,12 +82,15 @@ struct OpenPiece: Identifiable, Sendable {
         }
     }
 
-    /// Whether the bytes are a PDF (they start as one, as music-core reads them) that this iPad cannot show: broken, with no
-    /// page, or locked with a password, as a folder import finds one unreadable (`FolderScan.facts`).
-    static func isUnreadablePdf(_ data: Data) -> Bool {
-        guard data.starts(with: Data("%PDF".utf8)) else { return false }
-        guard let document = PDFDocument(data: data), !document.isLocked else { return true }
-        return document.pageCount == 0
+    /// How a PDF's bytes start, as music-core tells a PDF.
+    static let pdfStart = Data("%PDF".utf8)
+
+    /// The bytes as a PDF this iPad can show and read page by page: one that starts as a PDF, opens, is not locked with a
+    /// password and has a page; nil for any other. The one test of it: opening a file, sending one a page a request
+    /// (`ScanServer.recognise`) and a folder import's facts (`FolderScan.facts`).
+    static func readablePdf(_ data: Data) -> PDFDocument? {
+        guard data.starts(with: pdfStart), let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else { return nil }
+        return document
     }
 
     /// The open request's fields: the language and "edits": "piece", so a project file lays the player's corrections one

@@ -73,10 +73,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   пометка на ноте перестали бы относиться к тем же нотам»); the rest of the work, also a bookmark or margin note across the
   place, moves on by the page · as a correction across the place refuses the page, nothing dropped (robustness rule); a
   passage of notes is its notes, so it cannot take the page's in as a bookmark's bars do · v1.5 r-2b
-- `E-scan-8` · A piece deleted from the library while the batch reads it · its notes are not written back (the piece
-  stays deleted) and its line says «Пьесы больше нет в библиотеке», its job deleted on the server as one that did not
-  work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not undone by a background
-  job · v1.5 r-2b
+- `E-scan-8` · A piece deleted from the library while the batch reads it, its file's name perhaps taken meanwhile by a
+  new import of the same PDF · its notes are not written back (the piece stays deleted, the new one as it is: the file
+  must still be the project read at the start) and its line says «Пьесы больше нет в библиотеке», its job deleted on the
+  server as one that did not work · as a piece missing when its turn comes (`recognition.failMissing`); a deletion is not
+  undone by a background job · v1.5 r-2b
 - `E-library-1` · A very long title on a Sessions card · two lines at most, cut with an ellipsis; VoiceOver reads it
   whole · as the list's line, which takes one; HIG: truncate rather than let one card grow the grid · v1.5 r-2b
 - `E-library-2` · «Открыть файл» on a PDF this iPad cannot show (broken, no page, locked with a password) · refused with

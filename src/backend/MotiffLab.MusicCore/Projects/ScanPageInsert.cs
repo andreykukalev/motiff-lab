@@ -48,7 +48,7 @@ internal static class ScanPageInsert
         }
 
         if (put.Length == 0 || NoteEditLog.IdsMovedOn(before.Notes, after.Notes, at, length) is not { } ids
-            || project.Edits.CarriedOver(before.Notes, after.Notes, at, length) is not { } edits)
+            || project.Edits.CarriedOver(before.Notes, after.Notes, at, length, ids) is not { } edits)
         {
             return PageInserted.Not(PageRefusal.NotExact);
         }

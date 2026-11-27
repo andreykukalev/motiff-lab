@@ -54,13 +54,13 @@ final class AddPieceTests: XCTestCase {
     /// damaged MusicXML is, rather than saved as a piece whose screen only says it cannot be read.
     func testAPdfThisIPadCannotShowIsRefusedBeforeItBecomesAPiece() async throws {
         let broken = Data("%PDF-1.4 broken".utf8)
-        XCTAssertTrue(OpenPiece.isUnreadablePdf(broken))
+        XCTAssertNil(OpenPiece.readablePdf(broken))
         let document = PDFDocument()
         let page = PDFPage()
         page.setBounds(CGRect(x: 0, y: 0, width: 595, height: 842), for: .mediaBox)
         document.insert(page, at: 0)
-        XCTAssertFalse(OpenPiece.isUnreadablePdf(try XCTUnwrap(document.dataRepresentation())), "a PDF of one page opens")
-        XCTAssertFalse(OpenPiece.isUnreadablePdf(Data("<score-partwise/>".utf8)), "not a PDF: music-core says what it is")
+        XCTAssertNotNil(OpenPiece.readablePdf(try XCTUnwrap(document.dataRepresentation())), "a PDF of one page opens")
+        XCTAssertNil(OpenPiece.readablePdf(Data("<score-partwise/>".utf8)), "not a PDF: the open passes it on to music-core")
 
         let refused = await OpenPiece.open(fileName: "Broken.pdf", data: broken, language: "ru")
         guard case .failure(let why) = refused else { return XCTFail("a broken PDF is no piece") }

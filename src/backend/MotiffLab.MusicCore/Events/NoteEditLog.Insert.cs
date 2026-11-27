@@ -13,12 +13,15 @@ public sealed partial record NoteEditLog
     /// id; a correction of a note across <paramref name="at"/> is not carried (<see cref="Crosses"/>). Exact means: laid on <paramref name="after"/>, the carried log applies, moves and leaves unfit the same corrections
     /// as on <paramref name="before"/>, and every note it changes or adds there it changes or adds here, moved so. The
     /// other notes are the music as read again: a note tied into the page put in sounds as the page now goes on.
+    /// <paramref name="ids"/> is <see cref="IdsMovedOn"/> of the same notes, worked out once by the caller, who also places by
+    /// it what else names a note.
     /// </summary>
-    public NoteEditLog? CarriedOver(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Tick at, long length)
+    public NoteEditLog? CarriedOver(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Tick at, long length, IReadOnlyDictionary<string, string?> ids)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
-        if (length < 0 || Crosses(at) || IdsMovedOn(before, after, at, length) is not { } ids)
+        ArgumentNullException.ThrowIfNull(ids);
+        if (length < 0 || Crosses(at))
         {
             return null;
         }
@@ -49,7 +52,7 @@ public sealed partial record NoteEditLog
     /// its track, with its values moved so), such as one tied into the music put in. Null when <paramref name="after"/> has
     /// fewer notes. What else names a note by its id follows it by this map too (<c>FollowedWork.Inserted</c>).
     /// </summary>
-    internal static Dictionary<string, string?>? IdsMovedOn(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Tick at, long length)
+    internal static IReadOnlyDictionary<string, string?>? IdsMovedOn(IReadOnlyList<Note> before, IReadOnlyList<Note> after, Tick at, long length)
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);

@@ -434,7 +434,7 @@ final class RecognitionQueue: ObservableObject {
             guard let unread, !unread.isEmpty else { return .success(RecognitionRead()) }
             guard let job, let notes else { return .failure(RecognitionFailure(reason: text["pdf.readNone"])) }
             let pages = max(1, summary.originals.first(where: \.isDocument)?.pages ?? summary.documentPages.count)
-            return await readAgain(unread, read: notes, pages: pages, url: url, project: project, to: ScanTarget(address: address, account: account, session: session), text: text, job: job, isOpen: isOpen)
+            return await readAgain(unread, read: notes, pages: pages, url: url, project: project, id: summary.id, to: ScanTarget(address: address, account: account, session: session), text: text, job: job, isOpen: isOpen)
         }
         var pdf: Data?
         if AwayPdf.isAway(summary) {
@@ -458,14 +458,14 @@ final class RecognitionQueue: ObservableObject {
             }
             return again.id
         }
-        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, current: current, isOpen: isOpen, letGo: letGo)
+        let outcome = await read(piece, url: url, id: summary.id, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, current: current, isOpen: isOpen, letGo: letGo)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
     /// `current` gives the piece as its file is when the notes are back: `piece` itself, or the file opened again when it
     /// was saved meanwhile, closed here once the notes are written into it.
-    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, current: () async -> Int32?, isOpen: () -> Bool, letGo: () async -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+    private static func read(_ piece: Int32, url: URL, id: String?, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, current: () async -> Int32?, isOpen: () -> Bool, letGo: () async -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         let document = await MusicCore.run { PieceCore(piece: piece).send(.document) }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
@@ -500,7 +500,7 @@ final class RecognitionQueue: ObservableObject {
                 return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
             }
             if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
-            if let failed = write(file, to: url, text: text) { return .failure(failed) }
+            if let failed = await write(file, to: url, project: id, text: text) { return .failure(failed) }
             // Saved: the job goes from the server now, not after its 10 minutes' grace (lead's decision, version 1.3).
             if let sent { await ScanServer.deleteJob(sent.id, to: target) }
             return .success(RecognitionRead(pages: pages, unread: scanned.unread, read: scanned.read))
@@ -510,7 +510,7 @@ final class RecognitionQueue: ObservableObject {
     /// The pages of a piece with notes no engine read, read again and put into its notes (`ScanPageAgain`, v1.3 i-1b), its
     /// PDF of `pages` pages having `read` in the notes: the file written unless the piece is open on screen now, then the job
     /// deleted; the pages sent, those still unread and why.
-    private static func readAgain(_ unread: [Int], read notes: [Int], pages: Int, url: URL, project: Data, to target: ScanTarget, text: UIText, job: RecognitionJob, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+    private static func readAgain(_ unread: [Int], read notes: [Int], pages: Int, url: URL, project: Data, id: String?, to target: ScanTarget, text: UIText, job: RecognitionJob, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         guard case .success(let open) = await OpenPiece.open(fileName: url.lastPathComponent, data: project, language: text.language, asPdf: true), open.isDocument else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
@@ -527,18 +527,22 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let outcome):
             if isOpen() { return .failure(RecognitionFailure(reason: "", open: true)) }
-            if let failed = write(outcome.file, to: url, text: text) { return .failure(failed) }
+            if let failed = await write(outcome.file, to: url, project: id, text: text) { return .failure(failed) }
             await ScanServer.deleteJob(outcome.job.id, to: target)
             return .success(RecognitionRead(pages: unread.count, unread: outcome.unread, read: outcome.read, why: outcome.why))
         }
     }
 
     /// The piece's project file written with the notes read; why not, or nil. A piece deleted from the library while it was
-    /// read is not written back (v1.5 r-2b: it came back with its notes): the batch says it is no longer in the library, and
-    /// its job goes from the server as a job that did not work does.
-    static func write(_ file: String, to url: URL, text: UIText) -> RecognitionFailure? {
-        // E-scan-8: a piece the player deleted is never made again behind their back.
-        guard FileManager.default.fileExists(atPath: url.path) else { return RecognitionFailure(reason: text["recognition.failMissing"]) }
+    /// read is not written back (v1.5 r-2b: it came back with its notes), nor over another piece's file under its name (a new
+    /// import of the same PDF): the file must still be the project `id` read at the start, when it had one. Else the batch
+    /// says it is no longer in the library, and its job goes from the server as a job that did not work does.
+    static func write(_ file: String, to url: URL, project id: String?, text: UIText) async -> RecognitionFailure? {
+        // E-scan-8: a piece the player deleted is never made again behind their back, nor written over the piece that took
+        // its file's name.
+        let missing = RecognitionFailure(reason: text["recognition.failMissing"])
+        guard FileManager.default.fileExists(atPath: url.path) else { return missing }
+        if let id, await PieceSummary.read(url)?.id != id { return missing }
         do {
             try Data(file.utf8).write(to: url, options: .atomic)
             return nil

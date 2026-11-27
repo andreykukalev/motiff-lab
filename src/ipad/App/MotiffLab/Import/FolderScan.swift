@@ -107,11 +107,11 @@ enum FolderScan {
         var facts = FileFacts(sha256: CloudSync.hash(data))
         let kind = (name as NSString).pathExtension.lowercased()
         if kind == "pdf" {
-            guard let document = PDFDocument(data: data), !document.isLocked else {
+            guard let document = OpenPiece.readablePdf(data) else {
                 facts.unreadable = true
                 return facts
             }
-            facts.pages = document.pageCount > 0 ? document.pageCount : nil
+            facts.pages = document.pageCount
             let attributes = document.documentAttributes ?? [:]
             facts.pdfTitle = clean(attributes[AnyHashable(PDFDocumentAttribute.titleAttribute)])
             facts.pdfAuthor = clean(attributes[AnyHashable(PDFDocumentAttribute.authorAttribute)])
