@@ -61,21 +61,13 @@ internal static partial class MotifAnalyzer
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(context);
 
-        var byId = new Dictionary<string, Note>(StringComparer.Ordinal);
-        foreach (Note note in notes)
-        {
-            byId.TryAdd(note.Id, note);
-        }
-
-        Note[] chosen = [.. selection.NoteIds.Where(byId.ContainsKey).Select(id => byId[id])
-            .OrderBy(note => note.Span.Onset).ThenBy(note => note.Pitch.MidiNumber).ThenBy(note => note.Id, StringComparer.Ordinal)];
+        Note[] chosen = Chosen(notes, selection);
         if (chosen.Length == 0)
         {
             return [];
         }
 
-        IGrouping<Tick, Note>[] onsets = [.. chosen.GroupBy(note => note.Span.Onset)];
-        Hit[] hits = Hits(onsets);
+        Hit[] hits = Hits(chosen.GroupBy(note => note.Span.Onset));
         MusicalKey key = ReadKey(chosen, signature).Key;
         bool offGrid = OffGridCount(chosen, meter) > 0;
 
@@ -86,7 +78,7 @@ internal static partial class MotifAnalyzer
             RegisterFact(MeasureRegister(chosen), chosen, key, words),
             VelocityFact(MeasureVelocity(chosen), chosen, context.FromNotation, words),
             ArticulationFact(MeasureArticulation(chosen, hits), context.FromNotation, words),
-            SyncopationShareFact(Syncopations(chosen, hits, meter, words), hits.Length, offGrid, words),
+            SyncopationShareFact(Syncopations(chosen, hits, meter), hits.Length, offGrid, words),
         };
         if (MeasureTexture(chosen, selection) is { } texture)
         {

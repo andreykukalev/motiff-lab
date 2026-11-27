@@ -28,9 +28,10 @@ through the facade; the API references it.
   `Measure` (into `Measures`: steps and cadence, bass moves and pedal, spreads, changes and shared notes), the motion's
   rules in `Harmony.Motion` (`Numeral`, `FunctionOf`, `CadenceOf`, `Steps`), the sentences in `Harmony.Facts` (also
   `From`, `InversionName`, `FunctionName`); `MusicalIdeas` (each idea measured into `ThemeFound`, `ContrastFound`,
-  `SequenceFound`) and `MusicalIdeas.Facts` (the names, titles and lines); `MotifAnalyzer`'s character lens: `MotifAnalyzer.Character` (`AnalyzeCharacter`, each fact measured into its own
-  record) and `.Texture` (`TextureMeasure`), their sentences in `MotifAnalyzer.Character.Facts` (the melody and rhythm
-  lenses, `MotifAnalyzer`, `.Melody`, `.Rhythm`, still mix both); `.Phrasing`: the phrase levels, one edit algebra
+  `SequenceFound`) and `MusicalIdeas.Facts` (the names, titles and lines); `MotifAnalyzer` by lens: `MotifAnalyzer` (`Analyze`, `Chosen`, `ReadKey`, the note values and grids),
+  `.Melody` and `.Rhythm` (each fact measured into its own record; `Syncopations` as data), `.Character` (`AnalyzeCharacter`)
+  and `.Texture` (`TextureMeasure`), their sentences in `.Melody.Facts`, `.Rhythm.Facts` and `.Character.Facts`, and in
+  `.Facts` the key fact, `WithHand` and `Place`; `.Phrasing`: the phrase levels, one edit algebra
   (`PhraseEdits`, `LevelEditor`; D13); the marks' edits in `PhraseMap` (`Move`, `PutBack`, `Replaced`, `OwnCount`) and
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; `VariationFacts`: the diff, the Keep checks and the

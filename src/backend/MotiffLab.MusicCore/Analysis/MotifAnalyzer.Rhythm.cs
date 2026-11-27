@@ -5,8 +5,9 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>
-/// Rhythm facts beyond lengths, grid and silences (S1-A1): how beats are subdivided, syncopations,
-/// accents where the file marks them, and rhythms that repeat inside the motif.
+/// The rhythm lens measured (S1-A1): lengths, onset grid, silences, how beats are subdivided, syncopations, accents
+/// where the file marks them, and rhythms that repeat inside the motif. Each measure is a record; the sentences are
+/// written from them in <c>MotifAnalyzer.Rhythm.Facts.cs</c>.
 /// </summary>
 /// <remarks>
 /// An onset is where one or more notes of the motif start; notes that start together count once,
@@ -14,18 +15,66 @@ namespace MotiffLab.MusicCore.Analysis;
 /// </remarks>
 internal static partial class MotifAnalyzer
 {
-    /// <summary>A list in a fact names at most this many places, then says how many more there are.</summary>
-    private const int MaxListed = 6;
-
-    private static string PerformanceBasis(Words w) => w.T(
-        " Onsets fall between grid lines, as in a played performance, so this may not match the written rhythm.",
-        " Атаки попадают между линиями сетки, как в живом исполнении, поэтому это может не совпадать с записанным ритмом.");
-
     /// <summary>One onset of the motif and how long its longest note sounds.</summary>
     private readonly record struct Hit(Tick At, Tick End);
 
     /// <summary>A beat of the selection: where it starts and ends, and the bar it is in.</summary>
     private readonly record struct BeatSlot(int Bar, Tick Start, Tick End);
+
+    /// <summary>The notes of each note value, the most common first (the longer on a tie), and the notes of no single value.</summary>
+    private sealed record DurationMeasure(IReadOnlyList<(NoteValue Value, Note[] Notes)> Values, IReadOnlyList<Note> Other);
+
+    /// <summary>
+    /// The onsets against the grids: how many there are, fall on a beat and fall off every grid (with the notes there),
+    /// the grid they fit (<see cref="s_grids"/>' index) and the triplet grid they also use, and where the first is.
+    /// </summary>
+    private sealed record GridMeasure(int Onsets, int OnBeat, int OffGrid, Note[] OffGridNotes, int Grid, int? Triplets, MetricPosition Start, Tick First);
+
+    /// <summary>Each silence between the motif's notes, and the silence the selection opens with, if any.</summary>
+    private sealed record SilenceMeasure(IReadOnlyList<TickSpan> Gaps, TickSpan? Opening);
+
+    /// <summary>The onsets in each beat with its bar, and the most common count (the larger on a tie) with how many beats have it.</summary>
+    private sealed record GroupingMeasure(IReadOnlyList<(int Bar, int Count)> Beats, int Common, int CommonBeats);
+
+    /// <summary>
+    /// A syncopated onset: where it is, whether it is held across the bar line rather than into the next beat, and the
+    /// notes of the onset that sound past the beat or the bar line.
+    /// </summary>
+    private sealed record Syncopation(MetricPosition At, bool AcrossBar, Note[] Notes);
+
+    /// <summary>
+    /// A figure inside one beat: the rest before its first onset (0 for none) and each onset's length to the next onset
+    /// or the end of the beat, a length that is no single note value as -1.
+    /// </summary>
+    private sealed record BeatFigure(long Rest, long[] Lengths)
+    {
+        /// <summary>Two figures are the same figure when their keys are equal.</summary>
+        public string Key => $"{Rest}:{string.Join(",", Lengths)}";
+    }
+
+    /// <summary>The bars wholly inside the selection that share a rhythm, in groups by their first bar; the beat figure that repeats most, with the beats it fills.</summary>
+    private sealed record PatternMeasure(IReadOnlyList<int[]> RepeatedBars, BeatFigure? Figure, IReadOnlyList<BeatSlot> FigureBeats);
+
+    /// <summary>The rhythm facts in display order, each measured and then written.</summary>
+    private static List<MotifFact> RhythmFacts(Note[] chosen, Hit[] hits, MeterMap meter, TickSpan span, MusicalKey key, IEnumerable<AccentMark>? accents, Words w)
+    {
+        bool offGrid = OffGridCount(chosen, meter) > 0;
+        var facts = new List<MotifFact>
+        {
+            DurationsFact(MeasureDurations(chosen), offGrid, w),
+            GridFact(MeasureGrid(chosen, hits, meter), chosen, w),
+            SilenceFact(MeasureSilences(chosen, span), w),
+            GroupingFact(MeasureGrouping(hits, meter, span), offGrid, w),
+            SyncopationFact(Syncopations(chosen, hits, meter), offGrid, w),
+        };
+        if (accents is not null)
+        {
+            facts.Add(AccentFact(MeasureAccents(chosen, accents), chosen.Length, meter, key, w));
+        }
+
+        facts.Add(PatternFact(MeasurePatterns(hits, meter, span), chosen, meter, offGrid, w));
+        return facts;
+    }
 
     private static Hit[] Hits(IEnumerable<IGrouping<Tick, Note>> onsets) =>
         [.. onsets.Select(group => new Hit(group.Key, group.Max(note => note.Span.End))).OrderBy(hit => hit.At)];
@@ -47,161 +96,147 @@ internal static partial class MotifAnalyzer
         return beats;
     }
 
-    private static MotifFact GroupingFact(Hit[] hits, MeterMap meter, TickSpan span, bool offGrid, Words w)
+    private static DurationMeasure MeasureDurations(Note[] notes)
     {
-        List<BeatSlot> beats = Beats(meter, span);
-        int[] counts = [.. beats.Select(beat => hits.Count(hit => hit.At >= beat.Start && hit.At < beat.End))];
-        string perBar = string.Join(" | ", beats
-            .Select((beat, i) => (beat.Bar, Count: counts[i]))
-            .GroupBy(beat => beat.Bar)
-            .Select(bar => string.Join(" ", bar.Select(beat => beat.Count))));
-
-        string text = $"{w.T("Onsets per beat, bar by bar", "Атак на долю, по тактам")}: {perBar}.";
-        IGrouping<int, int> common = counts.GroupBy(count => count).OrderByDescending(group => group.Count()).ThenByDescending(group => group.Key).First();
-        string brief = w.IsRussian ? $"Атак на долю: от {counts.Min()} до {counts.Max()}." : $"From {counts.Min()} to {counts.Max()} onsets per beat.";
-        if (common.Count() == counts.Length && counts.Length > 1)
+        var counts = new List<(NoteValue Value, Note[] Notes)>();
+        var other = new List<Note>();
+        foreach (IGrouping<long, Note> group in notes.GroupBy(note => note.Span.Duration))
         {
-            brief = w.IsRussian ? $"В каждой доле {BeatSplitRussian(common.Key)}." : $"Every beat {BeatSplit(common.Key, plural: false)}.";
-            text += " " + brief;
-        }
-        else if (common.Count() * 2 > counts.Length)
-        {
-            brief = w.IsRussian
-                ? $"В большинстве долей {BeatSplitRussian(common.Key)} ({common.Count()} из {counts.Length})."
-                : $"Most beats {BeatSplit(common.Key, plural: true)} ({common.Count()} of {counts.Length}).";
-            text += " " + brief;
+            int index = Array.FindIndex(s_values, value => value.Ticks == group.Key);
+            if (index < 0)
+            {
+                other.AddRange(group);
+            }
+            else
+            {
+                counts.Add((s_values[index], [.. group]));
+            }
         }
 
-        string basis = w.T(
-            "Counted per beat of the time signature, from the bar lines; notes that start together count as one onset.",
-            "Посчитано по долям размера, от тактовых черт; ноты, начинающиеся вместе, считаются одной атакой.");
-        MotifFact fact = offGrid
-            ? new MotifFact("rhythm.grouping", FactLens.Rhythm, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))
-            : new MotifFact("rhythm.grouping", FactLens.Rhythm, FactCertainty.Detected, text, basis);
-        return counts.Length == 1 ? fact : fact with { Brief = brief };
+        return new DurationMeasure([.. counts.OrderByDescending(value => value.Notes.Length).ThenByDescending(value => value.Value.Ticks)], other);
     }
 
-    private static string BeatSplit(int onsets, bool plural) => (onsets switch
+    private static GridMeasure MeasureGrid(Note[] notes, Hit[] hits, MeterMap meter)
     {
-        0 => "{0} no onset",
-        1 => "{0} one onset",
-        2 => "{1} in two",
-        3 => "{1} in three",
-        4 => "{1} in four",
-        _ => $"{{0}} {onsets} onsets",
-    }).Replace("{0}", plural ? "hold" : "holds", StringComparison.Ordinal).Replace("{1}", plural ? "split" : "splits", StringComparison.Ordinal);
-
-    /// <summary>What a beat holds, after "в каждой доле": "одна атака", "две атаки", "нет атак".</summary>
-    private static string BeatSplitRussian(int onsets) => onsets switch
-    {
-        0 => "нет атак",
-        1 => "одна атака",
-        2 => "две атаки",
-        3 => "три атаки",
-        4 => "четыре атаки",
-        _ => $"{onsets} {Words.RussianForm(onsets, "атака", "атаки", "атак")}",
-    };
-
-    private static string SyncopationBasis(Words w) => w.T(
-        "An onset is syncopated when it starts off the beat and still sounds on the next beat, or starts on a beat other than the first and sounds across the bar line. Tied notes count as one note.",
-        "Атака синкопирована, если она начинается не на долю и ещё звучит на следующей доле, или начинается не на первой доле и звучит через тактовую черту. Ноты с лигой считаются одной нотой.");
-
-    private static MotifFact SyncopationFact(Note[] notes, Hit[] hits, MeterMap meter, bool offGrid, Words w)
-    {
-        List<FactPlace> found = Syncopations(notes, hits, meter, w);
-        string text = found.Count == 0
-            ? w.T(
-                "No syncopation: no onset off the beat is held into the next beat, and no note is held across the bar line from a weak beat.",
-                "Синкоп нет: ни одна атака не на долю не тянется в следующую долю, и ни одна нота со слабой доли не тянется через тактовую черту.")
-            : $"{w.Count(found.Count, "syncopation", "syncopations", "синкопа", "синкопы", "синкоп")}: {w.Listed([.. found.Select(place => place.Label)], MaxListed, "; ", "; ")}.";
-        MotifFact fact = offGrid
-            ? new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Uncertain, text, SyncopationBasis(w) + PerformanceBasis(w))
-            : new MotifFact("rhythm.syncopation", FactLens.Rhythm, FactCertainty.Detected, text, SyncopationBasis(w));
-        return fact with
+        int onBeat = hits.Count(hit => OffsetInBar(meter, hit.At) % meter.SignatureAt(hit.At).BeatTicks == 0);
+        int offGrid = 0;
+        int finestStraight = -1;
+        int finestTriplet = -1;
+        foreach (Hit hit in hits)
         {
-            Places = found,
-            Brief = found.Count == 0
-                ? w.T("No syncopation.", "Синкоп нет.")
-                : $"{Words.Capitalize(w.Count(found.Count, "syncopation", "syncopations", "синкопа", "синкопы", "синкоп"))}.",
+            long offset = OffsetInBar(meter, hit.At);
+            int index = Array.FindIndex(s_grids, grid => offset % grid.Ticks == 0);
+            if (index < 0)
+            {
+                offGrid++;
+            }
+            else if (s_grids[index].Triplet)
+            {
+                finestTriplet = Math.Max(finestTriplet, index);
+            }
+            else
+            {
+                finestStraight = Math.Max(finestStraight, index);
+            }
+        }
+
+        // A triplet grid covers straight onsets that fall on its lines, such as quarters on the eighth-note triplet grid.
+        (int grid, int? triplets) = (finestStraight, finestTriplet) switch
+        {
+            ( < 0, _) => (finestTriplet, (int?)null),
+            (_, < 0) => (finestStraight, null),
+            _ when s_grids[finestStraight].Ticks % s_grids[finestTriplet].Ticks == 0 => (finestTriplet, null),
+            _ => (finestStraight, finestTriplet),
         };
+        Note[] offGridNotes = [.. notes.Where(note => !OnGrid(meter, note.Span.Onset))];
+        return new GridMeasure(hits.Length, onBeat, offGrid, offGridNotes, grid, triplets, meter.ToPosition(hits[0].At), hits[0].At);
+    }
+
+    private static SilenceMeasure MeasureSilences(Note[] notes, TickSpan span)
+    {
+        var gaps = new List<TickSpan>();
+        Tick soundingUntil = notes[0].Span.End;
+        foreach (Note note in notes.Skip(1))
+        {
+            if (note.Span.Onset > soundingUntil)
+            {
+                gaps.Add(TickSpan.FromBounds(soundingUntil, note.Span.Onset));
+            }
+
+            if (note.Span.End > soundingUntil)
+            {
+                soundingUntil = note.Span.End;
+            }
+        }
+
+        return new SilenceMeasure(gaps, notes[0].Span.Onset > span.Onset ? TickSpan.FromBounds(span.Onset, notes[0].Span.Onset) : null);
+    }
+
+    private static GroupingMeasure MeasureGrouping(Hit[] hits, MeterMap meter, TickSpan span)
+    {
+        (int Bar, int Count)[] beats = [.. Beats(meter, span).Select(beat => (beat.Bar, hits.Count(hit => hit.At >= beat.Start && hit.At < beat.End)))];
+        IGrouping<int, int> common = beats.Select(beat => beat.Count).GroupBy(count => count).OrderByDescending(group => group.Count()).ThenByDescending(group => group.Key).First();
+        return new GroupingMeasure(beats, common.Key, common.Count());
     }
 
     /// <summary>
-    /// Each syncopated onset in time order, named where it is, with the notes of the onset that
-    /// sound past the beat or the bar line; shared by the syncopation fact and the syncopation share (S1-A5).
+    /// Each syncopated onset in time order: off the beat and still sounding on the next beat, or on a beat other than
+    /// the first and sounding across the bar line; shared by the syncopation fact and the syncopation share (S1-A5).
     /// </summary>
-    private static List<FactPlace> Syncopations(Note[] notes, Hit[] hits, MeterMap meter, Words w)
+    private static List<Syncopation> Syncopations(Note[] notes, Hit[] hits, MeterMap meter)
     {
-        var found = new List<FactPlace>();
+        var found = new List<Syncopation>();
         foreach (Hit hit in hits)
         {
             Bar bar = meter.BarAt(hit.At);
             MetricPosition position = meter.ToPosition(hit.At);
-            (string Label, Tick Past)? syncopation = null;
+            (bool AcrossBar, Tick Past)? syncopation = null;
             if (position.BeatOffset != 0)
             {
                 Tick nextBeat = hit.At.Offset(bar.Signature.BeatTicks - position.BeatOffset);
                 if (hit.End > nextBeat)
                 {
-                    syncopation = nextBeat >= bar.Span.End
-                        ? (w.T($"bar {position.Bar} after beat {position.Beat}, held across the bar line", $"такт {position.Bar} после доли {position.Beat}, через тактовую черту"), nextBeat)
-                        : (w.T($"bar {position.Bar} after beat {position.Beat}, held into beat {position.Beat + 1}", $"такт {position.Bar} после доли {position.Beat}, до доли {position.Beat + 1}"), nextBeat);
+                    syncopation = (nextBeat >= bar.Span.End, nextBeat);
                 }
             }
             else if (position.Beat != 1 && hit.End > bar.Span.End)
             {
-                syncopation = (w.T($"bar {position.Bar} beat {position.Beat}, held across the bar line", $"такт {position.Bar} доля {position.Beat}, через тактовую черту"), bar.Span.End);
+                syncopation = (true, bar.Span.End);
             }
 
             if (syncopation is { } held)
             {
-                found.Add(FactPlace.Of(held.Label, notes.Where(note => note.Span.Onset == hit.At && note.Span.End > held.Past)));
+                found.Add(new Syncopation(position, held.AcrossBar, [.. notes.Where(note => note.Span.Onset == hit.At && note.Span.End > held.Past)]));
             }
         }
 
         return found;
     }
 
-    private static MotifFact AccentFact(Note[] notes, IEnumerable<AccentMark> accents, MeterMap meter, MusicalKey key, Words w)
+    /// <summary>The motif's notes that carry an accent mark, in order, each with its accent; a strong accent wins over a plain one on the same note.</summary>
+    private static List<(Note Note, AccentKind Kind)> MeasureAccents(Note[] notes, IEnumerable<AccentMark> accents)
     {
         var marks = new Dictionary<string, AccentKind>(StringComparer.Ordinal);
         foreach (AccentMark mark in accents)
         {
-            // A strong accent wins over a plain one written on the same note.
             if (!marks.TryGetValue(mark.NoteId, out AccentKind kind) || mark.Kind > kind)
             {
                 marks[mark.NoteId] = mark.Kind;
             }
         }
 
-        var accented = notes.Where(note => marks.ContainsKey(note.Id)).ToList();
-        FactPlace[] places = [.. accented.Select(note => FactPlace.Of(
-            $"{key.Spell(note.Pitch.MidiNumber)}{w.T(" at ", ", ")}{Place(meter.ToPosition(note.Span.Onset), w)}{(marks[note.Id] == AccentKind.StrongAccent ? w.T(" (strong accent)", " (сильный акцент)") : "")}",
-            [note]))];
-        string text = accented.Count == 0
-            ? w.T("No accents are marked on the motif's notes.", "На нотах мотива акценты не отмечены.")
-            : w.IsRussian
-                ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}: " + w.Listed([.. places.Select(place => place.Label)], MaxListed, "; ", "; ") + "."
-                : $"Accents marked on {accented.Count} of {Words.EnglishCount(notes.Length, "note", "notes")}: " + w.Listed([.. places.Select(place => place.Label)], MaxListed, "; ", "; ") + ".";
-        return new MotifFact("rhythm.accents", FactLens.Rhythm, FactCertainty.Detected, text, w.T(
-            "Read from the accent marks written in the file (> accent, ^ strong accent); loudness in the notes is not counted.",
-            "Прочитано по знакам акцента в файле (> акцент, ^ сильный акцент); громкость нот не учитывается."))
-        {
-            Places = places,
-            Brief = accented.Count == 0
-                ? null
-                : w.IsRussian
-                    ? $"Акценты отмечены на {accented.Count} {w.OutOf(notes.Length, "", "", "ноты", "нот")}."
-                    : $"Accents marked on {accented.Count} of {Words.EnglishCount(notes.Length, "note", "notes")}.",
-        };
+        return [.. notes.Where(note => marks.ContainsKey(note.Id)).Select(note => (note, marks[note.Id]))];
     }
 
-    private static MotifFact PatternFact(Note[] notes, Hit[] hits, MeterMap meter, TickSpan span, bool offGrid, Words w)
+    private static PatternMeasure MeasurePatterns(Hit[] hits, MeterMap meter, TickSpan span)
     {
-        var sentences = new List<string>();
-        var places = new List<FactPlace>();
+        (BeatFigure? figure, BeatSlot[] beats) = RepeatedFigure(hits, meter, span);
+        return new PatternMeasure(RepeatedBars(hits, meter, span), figure, beats);
+    }
 
-        // Bars wholly inside the selection with the same onsets from the bar line.
+    /// <summary>Bars wholly inside the selection with the same onsets from the bar line, in groups ordered by their first bar.</summary>
+    private static int[][] RepeatedBars(Hit[] hits, MeterMap meter, TickSpan span)
+    {
         var bars = new List<(int Number, string Rhythm)>();
         for (Bar bar = meter.BarAt(span.Onset); bar.Span.Onset < span.End; bar = meter.GetBar(bar.Number + 1))
         {
@@ -212,25 +247,21 @@ internal static partial class MotifAnalyzer
             }
         }
 
-        IGrouping<string, (int Number, string Rhythm)>[] repeatedBars = [.. bars
+        return [.. bars
             .GroupBy(bar => bar.Rhythm)
             .Where(group => group.Count() > 1)
-            .OrderBy(group => group.First().Number)];
-        string[] barGroups = [.. repeatedBars.Select(group => w.Joined(group.Select(bar => bar.Number.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList()))];
-        if (barGroups.Length > 0)
-        {
-            sentences.Add(w.IsRussian
-                ? $"У тактов {barGroups[0]} одинаковый ритм" + string.Concat(barGroups.Skip(1).Select(group => $"; у тактов {group} тоже")) + "."
-                : $"Bars {barGroups[0]} have the same rhythm" + string.Concat(barGroups.Skip(1).Select(group => $"; so do bars {group}")) + ".");
+            .OrderBy(group => group.First().Number)
+            .Select(group => group.Select(bar => bar.Number).ToArray())];
+    }
 
-            // Each bar of a group is a place, the bar with the notes that start in it.
-            places.AddRange(repeatedBars.SelectMany(group => group.Select(bar => SlotPlace($"{w.T("bar", "такт")} {bar.Number}", meter.GetBar(bar.Number).Span, notes))));
-        }
-
-        // Figures inside a beat: onsets and how long each lasts until the next one or the end of the beat.
-        // A beat holding one note on the beat is no figure.
-        var figures = new List<string>();
-        var figureBeats = new List<BeatSlot>();
+    /// <summary>
+    /// The figure inside a beat that fills more beats than any other, the first on a tie, with the beats it fills;
+    /// none when no figure repeats. A beat holding one note on the beat is no figure.
+    /// </summary>
+    private static (BeatFigure? Figure, BeatSlot[] Beats) RepeatedFigure(Hit[] hits, MeterMap meter, TickSpan span)
+    {
+        var figures = new List<BeatFigure>();
+        var beats = new List<BeatSlot>();
         foreach (BeatSlot beat in Beats(meter, span))
         {
             Hit[] inBeat = [.. hits.Where(hit => hit.At >= beat.Start && hit.At < beat.End)];
@@ -239,65 +270,24 @@ internal static partial class MotifAnalyzer
                 continue;
             }
 
-            var parts = new List<string>();
-            if (inBeat[0].At > beat.Start)
-            {
-                parts.Add(w.IsRussian ? $"пауза {ValueName(inBeat[0].At.Value - beat.Start.Value, w)}" : $"{ValueName(inBeat[0].At.Value - beat.Start.Value, w)} rest");
-            }
-
-            for (int i = 0; i < inBeat.Length; i++)
-            {
-                Tick until = i + 1 < inBeat.Length ? inBeat[i + 1].At : beat.End;
-                parts.Add(ValueName(until.Value - inBeat[i].At.Value, w));
-            }
-
-            figures.Add(string.Join("–", parts));
-            figureBeats.Add(beat);
+            long rest = inBeat[0].At > beat.Start ? AsNoteValue(inBeat[0].At.Value - beat.Start.Value) : 0;
+            long[] lengths = [.. inBeat.Select((hit, i) => AsNoteValue((i + 1 < inBeat.Length ? inBeat[i + 1].At : beat.End).Value - hit.At.Value))];
+            figures.Add(new BeatFigure(rest, lengths));
+            beats.Add(beat);
         }
 
-        IGrouping<string, string>? figure = figures
-            .GroupBy(name => name)
+        string[] keys = [.. figures.Select(figure => figure.Key)];
+        IGrouping<string, string>? repeated = keys
+            .GroupBy(key => key)
             .Where(group => group.Count() > 1)
             .OrderByDescending(group => group.Count())
-            .ThenBy(group => figures.IndexOf(group.Key))
+            .ThenBy(group => Array.IndexOf(keys, group.Key))
             .FirstOrDefault();
-        if (figure is not null)
-        {
-            sentences.Add(w.IsRussian
-                ? $"Фигура {figure.Key} заполняет {figure.Count()} {Words.RussianForm(figure.Count(), "долю", "доли", "долей")}."
-                : $"The figure {figure.Key} fills {figure.Count()} beats.");
-
-            // Each beat the figure fills is a place, the beat with the notes that start in it.
-            places.AddRange(figureBeats
-                .Where((beat, i) => figures[i] == figure.Key)
-                .Select(beat => SlotPlace($"{figure.Key}, {Place(meter.ToPosition(beat.Start), w)}", TickSpan.FromBounds(beat.Start, beat.End), notes)));
-        }
-
-        string text = sentences.Count == 0
-            ? w.T("No bar rhythm or beat figure repeats within the motif.", "Внутри мотива не повторяется ни ритм такта, ни фигура доли.")
-            : string.Join(" ", sentences);
-        string basis = w.T(
-            "Bars are compared by where their onsets fall from the bar line, counting only bars wholly inside the selection; figures by the onsets inside one beat. A beat holding one note on the beat is not a figure.",
-            "Такты сравниваются по положению атак от тактовой черты, только такты целиком внутри выделения; фигуры — по атакам внутри одной доли. Доля с одной нотой на долю фигурой не считается.");
-        MotifFact fact = offGrid
-            ? new MotifFact("rhythm.patterns", FactLens.Rhythm, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))
-            : new MotifFact("rhythm.patterns", FactLens.Rhythm, FactCertainty.Detected, text, basis);
-        return fact with { Places = places, Brief = sentences.Count > 1 ? sentences[0] : null };
+        return repeated is null
+            ? (null, [])
+            : (figures[Array.IndexOf(keys, repeated.Key)], [.. beats.Where((beat, i) => keys[i] == repeated.Key)]);
     }
 
-    /// <summary>A bar or a beat as a place: its own span, with the notes that start in it.</summary>
-    private static FactPlace SlotPlace(string label, TickSpan slot, Note[] notes) =>
-        new(label, slot, [.. notes.Where(note => slot.Contains(note.Span.Onset)).Select(note => note.Id)]);
-
-    /// <summary>"sixteenth", or "odd length" for a length that is no single note value; "шестнадцатая".</summary>
-    private static string ValueName(long ticks, Words w)
-    {
-        int index = Array.FindIndex(s_values, value => value.Ticks == ticks);
-        return index < 0 ? w.T("odd length", "нестандартная длина") : s_values[index].Name(w);
-    }
-
-    /// <summary>"bar 2 beat 1", or "bar 2 after beat 1" off the beat; "такт 2 доля 1", "такт 2 после доли 1".</summary>
-    private static string Place(MetricPosition position, Words w) => w.IsRussian
-        ? position.BeatOffset == 0 ? $"такт {position.Bar} доля {position.Beat}" : $"такт {position.Bar} после доли {position.Beat}"
-        : position.BeatOffset == 0 ? $"bar {position.Bar} beat {position.Beat}" : $"bar {position.Bar} after beat {position.Beat}";
+    /// <summary>A length in ticks when it is a single note value (<see cref="s_values"/>), otherwise -1.</summary>
+    private static long AsNoteValue(long ticks) => Array.Exists(s_values, value => value.Ticks == ticks) ? ticks : -1;
 }

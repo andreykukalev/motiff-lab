@@ -219,7 +219,7 @@ internal static partial class MotifAnalyzer
                 : w.IsRussian
                     ? $"Регистр: от {key.Spell(low)} до {key.Spell(high)}; {where}."
                     : $"Register: {key.Spell(low)} to {key.Spell(high)}; {where}.",
-            Places = low == high ? ExtremePlaces(notes, key, w) : [.. ExtremePlaces(notes, key, w), FactPlace.Of($"{w.T("middle pitch", "средняя высота")}, {key.Spell(median)}", notes.Where(note => note.Pitch.MidiNumber == median))],
+            Places = low == high ? ExtremePlaces(notes, measure, key, w) : [.. ExtremePlaces(notes, measure, key, w), FactPlace.Of($"{w.T("middle pitch", "средняя высота")}, {key.Spell(median)}", notes.Where(note => note.Pitch.MidiNumber == median))],
         };
     }
 
@@ -296,9 +296,9 @@ internal static partial class MotifAnalyzer
         };
     }
 
-    private static MotifFact SyncopationShareFact(List<FactPlace> places, int onsets, bool offGrid, Words w)
+    private static MotifFact SyncopationShareFact(List<Syncopation> syncopations, int onsets, bool offGrid, Words w)
     {
-        int syncopated = places.Count;
+        int syncopated = syncopations.Count;
         string text = w.IsRussian
             ? $"Доля синкоп: {syncopated} {w.OutOf(onsets, "", "", "атаки", "атак")} ({Percent(syncopated * 100m, onsets)}%)."
             : $"Syncopation share: {syncopated} of {Words.EnglishCount(onsets, "onset", "onsets")} ({Percent(syncopated * 100m, onsets)}%).";
@@ -306,7 +306,7 @@ internal static partial class MotifAnalyzer
         MotifFact fact = offGrid
             ? new MotifFact("character.syncopation", FactLens.Character, FactCertainty.Uncertain, text, basis + PerformanceBasis(w))
             : new MotifFact("character.syncopation", FactLens.Character, FactCertainty.Detected, text, basis);
-        return fact with { Places = places };
+        return fact with { Places = SyncopationPlaces(syncopations, w) };
     }
 
     /// <summary>Quarter notes per minute, to a tenth: "96", "92.3".</summary>
