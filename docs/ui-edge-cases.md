@@ -94,7 +94,9 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-pdf-1` · «Разделить на пьесы» pressed again while the collection's project file is saved, before its first piece
   is made · the split is under way from the press: «Разделяю: 0 из N» shows and the button is off until it ends, so the
   collection is split once (a press then made every piece twice) · a button's action runs once per press while it is
-  under way and shows that it waits (HIG: prevent a repeated submit), as `E-scan-9` · v1.6 i-11
+  under way and shows that it waits (HIG: prevent a repeated submit), as `E-scan-9` · v1.6 i-11. Also while «Предложить»
+  or «Подтвердить пьесы» is under way (it saves the piece's file): «Разделить на пьесы» is off and a press is refused,
+  as those two are off while a split is under way · v1.6 i-11 (review)
 
 ## Drafts and the assistant
 

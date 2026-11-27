@@ -110,7 +110,8 @@ final class PieceSplitter: ObservableObject {
     /// Splits the collection, its PDF as the player added it (`original`): the pieces made, for the PDF's family, or nil
     /// when none was.
     func split(piece: Int32, original: Data, text: UIText) async -> SplitLink? {
-        guard rows.problem == nil, making == nil else { return nil }
+        // Not while «Предложить» or «Подтвердить пьесы» is under way (E-pdf-1), which saves the piece's file.
+        guard rows.problem == nil, making == nil, !layerBusy else { return nil }
         problem = nil
         let list = rows.rows
         // Under way from the press (E-pdf-1): the collection's save can take a while, and a second press meanwhile split

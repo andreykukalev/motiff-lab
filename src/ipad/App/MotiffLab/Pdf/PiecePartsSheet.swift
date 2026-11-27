@@ -122,7 +122,7 @@ struct PiecePartsSheet: View {
                 }
             }
             .buttonStyle(DSButtonStyle(kind: .primary))
-            .disabled(splitter.rows.problem != nil || splitter.making != nil || pdf.original == nil)
+            .disabled(splitter.rows.problem != nil || splitter.making != nil || splitter.layerBusy || pdf.original == nil)
             if let making = splitter.making {
                 ProgressView()
                 Text(text.format("parts.pdf.making", String(making.done), String(making.total)))
