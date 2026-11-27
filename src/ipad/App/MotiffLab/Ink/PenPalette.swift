@@ -96,7 +96,7 @@ private struct PenLayersButton: View {
         .help(text["layers.title"])
         .buttonStyle(DSIconItemStyle(on: open || marksHidden))
         .popover(isPresented: $open) {
-            LayersList(score: score, marksModel: score.marksModel, text: text, hasVersions: hasVersions)
+            LayersList(score: score, marksModel: score.marksModel, checkModel: score.checkModel, text: text, hasVersions: hasVersions)
                 .padding(CGFloat.ds("s-4"))
                 .frame(width: 300, alignment: .leading)
                 .presentationCompactAdaptation(.popover)

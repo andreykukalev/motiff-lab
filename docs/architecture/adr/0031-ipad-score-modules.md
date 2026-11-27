@@ -259,3 +259,32 @@ drawn and the one gone to, and the lists of layers. The views observe the two mo
 or a highlight, going to a bookmark or a note and what the page hides stay in the root, with its page calls, until step
 9. The risk under Consequences holds: SwiftUI's update timing of the views that now observe these models is checked on
 the device at the next version.
+
+## Note (S6, `CheckModel`, v1.6 i-8)
+
+`CheckModel` (`Marks/CheckModel.swift`, reading `SelectionModel`) owns Check: the shelf as music-core answered the last
+`check` call, whether the drawer is open, what this iPad kept of the working notes' scan (variants and crops) and the
+variant chosen last, the bar listed to correct (Fix notes), «Мои правки» and the roll's note editor, with `editsKept`.
+It calls music-core itself and reaches the root through `CheckScore`, as `PenModel` does through `PenScore`: the bar
+selected and shown (`showSpan`), the flags drawn (`drawChecks`, which stays in the root because the pages of a scan no
+engine read are `Workspace`'s), what the page hides (`applyLayers`), the notes changed (`notesDidChange`) and the
+screen's two lines (`showNotice`, `showProblem`). Whether scans go as jobs (`ScanServer.jobs`, Import's) is handed in;
+the assistant's draft comes as its request and first bar, so the model names no Assistant type. The views observe the
+model (`CheckDrawer`, `EditsLayerSection`, `LayersList`, `MorePanel`, `UnreadPagesCheck`); Roll and Import get what they
+show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `NoteEditorState` and `CheckPageEntry` moved
+to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
+(`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
+(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
+
+## Note (S7 part 1, the score's screen by concern, v1.6 i-9)
+
+`ScoreScreen.swift` keeps `ScoreScreen`, the state only `ScoreScreenContent` keeps, `body`, `page` and `layers` (the
+chain of the layers, each layer's content a function beside it). Section 4's files are extensions of
+`ScoreScreenContent`, by the app's naming without `+`: `ScoreScreenBars` (the bar and what hangs under it, the transport),
+`ScoreScreenPanels` (the sheet over the right, the Contents), `ScoreScreenRoll` (the roll's drawer), `ScoreScreenSources`
+(the switch of views, Sources, the «В черновик» sheet) and `ScoreScreenReactions` (the covers and the reactions, in the
+order the code map pins; Expand and playback have no wiring of their own left in the view since `ScoreWorkspace`). The
+view's state they share is internal, no longer private. The view types are in their own files; the bar (`ScoreBar`) and
+the pill (`Pill`) are handed what they show and the actions they call, so the screen can place them elsewhere without
+touching what they do: the pill names no controller, and the bar holds `ScoreController` only to hand it to the modes,
+Practice, the layers list and More. `ScoreController` itself is step i-10.

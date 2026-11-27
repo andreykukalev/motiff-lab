@@ -4,19 +4,24 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 
 ## Files
 
-`BackgroundReading`, `BackgroundTime`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
+`BackgroundReading`, `BackgroundTime`, `CheckPageEntry`, `Design`, `DraftAnswers`, `EngineKeeper`, `Engraver`, `HighlightInk`, `InterfaceLanguage`, `MotiffLabApp`, `MusicCore`,
 `OpenPiece`, `OriginalSounds`, `Recolouring`, `ScanReview`, `PieceAnswers`, `PieceCore`, `PieceCoreCalls`, `ProjectFiles`, `RollPage`, `ScorePage`, `ScreensHook`, `TypingFocus`, `UIText`,
 `ViewStates`, `WebContentWatch` (`.swift`).
 
-- `MusicCore.swift`: facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
+- `MusicCore.swift`: `MusicCore.run` runs every call on the core's one thread (`CoreThread`, 8 MB stack, a FIFO queue,
+  v1.6 i-17) in the order issued: a call is queued in the caller's isolation (`isolation: isolated (any Actor)? =
+  #isolation`) before its first wait. Facade calls through `MusicCore.call(piece:, name, json)`, the request encoded once by
   `facadeRequest` and the answer read by `facadeObject`. `FacadeAnswer.decode` (B5) reads an answer once into its typed
   answer: a refusal is no success; a field music-core always writes, missing, is logged, asserts in Debug and shows
   `.problem` (`broken`); every answer the app reads loudly is typed (the roll's too, B7). `FacadeAnswer.message` is the
   one reading of music-core's words.
+- `CheckPageEntry.swift` (v1.6 i-8, out of `Marks/Check.swift`): a scan's page as `check` counts it, which Check
+  (Marks) and its part about a scan's pages (`Import/PhotoPagesCheck`) read.
 - `ScanReview.swift` (v1.3 i-2): a scan's Check bars kept only on this iPad (`ScanReviewStore`, Application Support/ScanReview/<fingerprint>/: review.json, bar-<n>.png, newest 40), found by `check`'s "fingerprint"; `ScanVariant` as `scan.join` gave it.
 - `PieceCore.swift`: the port to music-core (0031 step 1b, #654), the one way to a call by name. Typed: `select`,
   `playback`, `roll`, `sourceLayers`, `corrections` (`PieceCore.Correction`, raw value the name), `variant`, the drafts'
-  calls, each answered as `PieceCore.Answer` (typed value, text, `message`).
+  calls, each answered as `PieceCore.Answer` (typed value, text, `message`), decoded on the core's thread (`typed`), each
+  taking the caller's isolation to `MusicCore.run` so it keeps its place in the order.
 - `PieceCoreCalls.swift`: the calls not typed yet, cases of `PieceCore.Call` (`send`, open piece) and `PieceCore.NoPiece`
   (`sendWithoutPiece`, piece 0) named by raw value, answering the text inside the caller's `MusicCore.run`. A helper
   takes a case, never a name (`SourcesController.change`, `PdfController.change`, `PenScore.changeMarks`).
@@ -32,7 +37,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
   `PageEvent` decodes its messages; `pageScript` writes a page call for both ports.
 - `RollPage.swift`: the one port to the roll page (0031 step 12, B7): `RollCommand` names `window.roll`'s functions,
   `RollPage` calls each by a typed method and reads its answer (`RollShown`, the colouring, the frame), `RollEvent`
-  decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`). A
+  decodes its messages into the roll's values (`RollRange`, `RollZoom`, `RollSpan`, `RollNotesPick`, `RollNoteEdit`;
+  `NoteEditorState`, the note editor as `Marks/CheckModel` holds it and the roll shows it, v1.6 i-8). A
   message or answer the page never sends goes to `RollEvent.broken` (`FacadeAnswer.loud`: a log line, a Debug assertion);
   what the page sends and the app leaves out stays quiet. `RollEvent.broken` is a hook apart from `FacadeAnswer.broken`:
   silencing one does not silence the other.
@@ -79,6 +85,9 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`.
 - `RollCommand`, `RollEvent` and the examples of each call, answer and message are `tests/contracts/roll-page.json`,
   checked by `tests/shared/roll-page-contract.test.mjs` and `RollPageContractTests`; no other file builds a roll call.
 - Every `language:` sent to music-core or the assistant is `text.language`.
+- music-core's calls run in the order `MusicCore.run` is reached: an async helper around it that would hop off the
+  caller's actor first takes `isolation: isolated (any Actor)? = #isolation` (as `PieceCore` and `ProjectFiles.save`
+  do) where its calls must keep their order with the caller's others. A work never waits for another call.
 
 ## The state it owns
 
