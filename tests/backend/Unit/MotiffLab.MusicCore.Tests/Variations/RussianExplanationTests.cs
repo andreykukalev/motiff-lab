@@ -157,7 +157,7 @@ public partial class RussianExplanationTests
 
         foreach (KeepPreset preset in KeepTable.Presets)
         {
-            AddLatin(found, preset.Id, preset.LabelIn(Words.Russian));
+            AddLatin(found, preset.Id, preset.RussianLabel);
         }
 
         Assert.Empty(found);

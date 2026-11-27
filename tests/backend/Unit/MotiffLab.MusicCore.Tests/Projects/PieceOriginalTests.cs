@@ -148,7 +148,7 @@ public class PieceOriginalTests
         Project linked = online.RelinkDocument(s_pdf, pages)!;
         Assert.Equal(s_pdf, linked.Document);
         Assert.Equal(pages, linked.DocumentPages);
-        Assert.Equal(PieceOriginal.DocumentId, linked.OriginalWithFingerprint(s_pdfSha)!.Id);
+        Assert.Equal(PieceOriginal.DocumentId, linked.Originals.Single(original => original.Matches(s_pdfSha)).Id);
         Assert.Throws<InvalidOperationException>(() => linked.RelinkDocument(s_pdf, pages));
     }
 

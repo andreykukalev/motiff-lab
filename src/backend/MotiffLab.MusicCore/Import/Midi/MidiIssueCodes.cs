@@ -41,9 +41,6 @@ internal static class MidiIssueCodes
     public const string UnknownChunk = "midi.unknown-chunk";
     public const string DataAfterEndOfTrack = "midi.data-after-end-of-track";
 
-    /// <summary>The issue in plain English, as <see cref="ImportIssue.Message"/> keeps it.</summary>
-    public static string Describe(string code, int count) => Describe(code, count, Words.English);
-
     /// <summary>The issue in the language (0018, preparation item 13).</summary>
     public static string Describe(string code, int count, Words words) => code switch
     {

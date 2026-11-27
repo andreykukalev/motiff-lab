@@ -14,7 +14,7 @@ tempo marks: 0
 triplets: 0
 slurs: 0
 pedals: 0
-excerpt: BarRange { FirstBar = 3, LastBar = 9, BarCount = 7 }
+excerpt: BarRange { FirstBar = 3, LastBar = 9 }
 staff: NotationStaff { Number = 5, Track = 0, Clef = Treble, Hand = Right, IsSplitInferred = False }
 staff: NotationStaff { Number = 6, Track = 0, Clef = Bass, Hand = Left, IsSplitInferred = False }
 ossia: Variation ossia- 53 notes, staves NotationStaff { Number = 1, Track = 0, Clef = Treble, Hand = Right, IsSplitInferred = False }, NotationStaff { Number = 2, Track = 0, Clef = Treble, Hand = Left, IsSplitInferred = False }

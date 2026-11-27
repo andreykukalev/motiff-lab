@@ -9,24 +9,6 @@
     "level": "short"
    },
    "answer": {
-    "level": "short",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -1219,24 +1201,6 @@
     "level": "phrase"
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -2365,24 +2329,6 @@
     "level": "sentence"
    },
    "answer": {
-    "level": "sentence",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -7281,24 +7227,6 @@
     "level": "short"
    },
    "answer": {
-    "level": "short",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -8491,24 +8419,6 @@
     "level": "phrase"
    },
    "answer": {
-    "level": "phrase",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {
@@ -9637,24 +9547,6 @@
     "level": "sentence"
    },
    "answer": {
-    "level": "sentence",
-    "levels": [
-     {
-      "id": "short",
-      "available": true,
-      "count": 40
-     },
-     {
-      "id": "phrase",
-      "available": true,
-      "count": 18
-     },
-     {
-      "id": "sentence",
-      "available": true,
-      "count": 1
-     }
-    ],
     "evidence": "partial",
     "edits": {
      "short": {

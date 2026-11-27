@@ -83,9 +83,6 @@ public sealed class NoteDoubt
         return new NoteDoubt(doubtful, words);
     }
 
-    /// <summary>Whether a note is doubtful.</summary>
-    public bool Contains(string noteId) => _notes.ContainsKey(noteId);
-
     /// <summary>The bars of the doubtful notes among <paramref name="noteIds"/>, in order; empty when none is doubtful.</summary>
     public IReadOnlyList<int> BarsOf(IEnumerable<string> noteIds)
     {

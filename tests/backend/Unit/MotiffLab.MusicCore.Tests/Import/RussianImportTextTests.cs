@@ -32,7 +32,7 @@ public class RussianImportTextTests
         {
             string russian = MidiIssueCodes.Describe(code, count, Words.Russian);
             Assert.True(IsRussian(russian), russian);
-            Assert.NotEqual(MidiIssueCodes.Describe(code, count), russian);
+            Assert.NotEqual(MidiIssueCodes.Describe(code, count, Words.English), russian);
         }
     }
 
@@ -44,7 +44,7 @@ public class RussianImportTextTests
         {
             string russian = MusicXmlIssueCodes.Describe(code, count, Words.Russian);
             Assert.True(IsRussian(russian), russian);
-            Assert.NotEqual(MusicXmlIssueCodes.Describe(code, count), russian);
+            Assert.NotEqual(MusicXmlIssueCodes.Describe(code, count, Words.English), russian);
         }
     }
 

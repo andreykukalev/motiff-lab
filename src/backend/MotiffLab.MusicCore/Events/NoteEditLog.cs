@@ -20,8 +20,6 @@ public readonly record struct NoteValues(Pitch Pitch, TickSpan Span, int Velocit
 /// <param name="After">The new values; null when the note was removed.</param>
 public sealed record NoteEdit(string NoteId, NoteValues? Before, NoteValues? After)
 {
-    public bool IsRemoval => After is null;
-
     /// <summary>True when the edit adds a note the piece did not have, such as one a scan missed.</summary>
     public bool IsAddition => Before is null;
 
