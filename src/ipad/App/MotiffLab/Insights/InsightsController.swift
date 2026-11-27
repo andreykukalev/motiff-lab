@@ -68,6 +68,8 @@ final class InsightsController: ObservableObject {
 
     private var understood: ScoreSelection?
     private var piece: Int32 = 0
+    /// Keep is on its way to music-core: a second tap meanwhile keeps nothing more (E-insights-3).
+    private var keeping = false
 
     /// Reads the selection's facts from music-core; again only when the selection is another one.
     func load(piece: Int32, selection: ScoreSelection?) async {
@@ -237,7 +239,9 @@ final class InsightsController: ObservableObject {
 
     /// Keeps the variation being tried as an idea, named after its way and filed with its fact (`idea.keep`).
     func keep() async {
-        guard let trial, !trial.kept else { return }
+        guard let trial, !trial.kept, !keeping else { return }
+        keeping = true
+        defer { keeping = false }
         // E-insights-1, as On the circle.
         problem = nil
         let piece = piece

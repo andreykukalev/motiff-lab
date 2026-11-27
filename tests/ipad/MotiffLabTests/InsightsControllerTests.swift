@@ -123,4 +123,22 @@ final class InsightsControllerTests: XCTestCase {
         XCTAssertEqual(handed, 0, "nothing sounds")
         XCTAssertNotNil(facadeObject(MusicCore.call(piece: piece, "variation"))?["error"], "music-core forgot the variation")
     }
+
+    /// E-insights-3: Keep tapped again while the first tap is on its way keeps one idea.
+    func testKeepTappedTwiceKeepsOneIdea() async throws {
+        let (insights, piece) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        let fact = try XCTUnwrap(understanding.facts.first { !$0.tries.isEmpty })
+        let way = try XCTUnwrap(fact.tries.first)
+        await insights.tryWay(way, of: fact)
+        XCTAssertNotNil(insights.trial, "\(insights.problem ?? "")")
+
+        let first = Task { await insights.keep() }
+        await Task.yield()
+        await insights.keep()
+        await first.value
+        XCTAssertEqual(insights.trial?.kept, true)
+        let ideas = facadeObject(MusicCore.call(piece: piece, "ideas"))?["ideas"] as? [[String: Any]]
+        XCTAssertEqual(ideas?.count, 1, "one idea for two taps")
+    }
 }
