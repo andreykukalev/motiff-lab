@@ -39,7 +39,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
   `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`;
   a call, the background or the headphones gone pause it (`EngineKeeper` with no engine, v1.5 a-2, answer 30).
-- `SourcesSheet.swift` (from `Workspace/ScoreScreen` with its `SourcesModel` as `versions`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
+- `SourcesSheet.swift` (from `Workspace/ScoreScreen` with its `SourcesModel` as `versions`, `Workspace/PdfScreen`): header, add menu, groups and loose Notes, picking files
   (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.
 - `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (from the sheet: the view shown, the scan server and whether hosted, the

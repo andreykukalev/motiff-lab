@@ -326,3 +326,14 @@ composition: its state, the page's events routed to the models, the render order
 per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
 `PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
 extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.
+
+## Note (W2.12, the PDF on its model and views, v1.6 i-11)
+
+`Pdf.swift` is cut by the pattern of this record: `PdfController` (the PDF piece's model over music-core's `document`
+calls and PDFKit, `Pdf/PdfController.swift`, with `keepView`, which sat in the score's `ScoreScreenViews`), the pages'
+view (`PdfPages` beside `BarPdfView` in `PdfPagesView.swift`), More (`PdfMore.swift`), and the screen. The screen
+composes the PDF's model with the pen, the metronome, the Reference, Sources, the scan server and the account, as
+`ScoreScreen` composes the score's, so it moved to `Workspace/` (`PdfScreen.swift`, with `PdfScreenBar`,
+`PdfScreenReading`, `PdfScreenSources` as section 4's extensions), and the 27 folder edges `Pdf/` had for it went;
+the model keeps the nine edges of the pen's state to `Ink/`. «Пьесы в этом файле»'s model (`PieceSplitter.swift`) is
+made from values and answers the pieces made, so it names no `PdfController`; the sheet writes the PDF's family.

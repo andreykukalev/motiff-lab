@@ -170,5 +170,10 @@
   "recognition.unreadBefore": "Page {0} not recognised · its place is before bar {1}",
   "recognition.unreadAfter": "Page {0} not recognised · its place is after bar {1}",
   "recognition.unreadHeading": "Pages not recognised",
+  "pdf.title": "PDF",
+  "pdf.bookmarkPage": "Bookmark this page",
+  "photos.readHeading": "Recognise notes, page by page",
+  "photos.readKeeps": "Each page shows when it is done, and a page can be sent again. Then Open the notes puts them into this same piece, with the bars to check; your photos and marks stay as they are.",
+  "photos.readLine": "Each photo goes on its own to the scan server at {0}, which deletes it once read. The photos stay here as they are.",
   "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
 }
