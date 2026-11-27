@@ -6,7 +6,8 @@ namespace MotiffLab.MusicCore.Projects;
 /// The merge's self-check (0026 C5, #322 criterion 6): whether a merged file holds every change one copy made since the
 /// base to the player's fields (with no base, all of them), by the rules the merge follows (<see cref="MergeRules"/>): each
 /// entity as it is, each value of a list, each field of an object, each Notes' corrections note by note, and every
-/// original by its fingerprint. A field of another class (bookkeeping, derived, an import's) is the copy saved last's.
+/// original by its fingerprint with each mark on its pages. A field of another class (bookkeeping, derived, an import's)
+/// is the copy saved last's.
 /// </summary>
 internal static class MergeCheck
 {
@@ -73,7 +74,7 @@ internal static class MergeCheck
                 return Edits(side as JsonArray, kept as JsonArray, before as JsonArray);
             }
 
-            if (MergeRules.IsObject(path) && side is JsonObject fields)
+            if (MergeRules.ByField(path, hasBase) && side is JsonObject fields)
             {
                 return fields.All(field => Node($"{path}.{field.Key}", field.Value, kept?[field.Key], before?[field.Key], entity));
             }
@@ -100,7 +101,7 @@ internal static class MergeCheck
                     continue;
                 }
 
-                if (!held.TryGetValue(id, out JsonNode? mine) || !Entry(path, id, entry, mine, old))
+                if (!held.TryGetValue(id, out JsonNode? mine) || !Entry(path, entry, mine, old))
                 {
                     return false;
                 }
@@ -109,12 +110,11 @@ internal static class MergeCheck
             return true;
         }
 
-        /// <summary>An entry held: a Notes field by field, an original by its fingerprint alone (its marks of holding merge), any other as it is.</summary>
-        private bool Entry(string path, string id, JsonNode? entry, JsonNode? kept, JsonNode? before) =>
-            path == "originals"
-            || (MergeRules.HasEntryFields(path) && entry is JsonObject fields
-                ? fields.All(field => Node($"{path}.{field.Key}", field.Value, kept?[field.Key], before?[field.Key], id))
-                : JsonNode.DeepEquals(entry, kept));
+        /// <summary>An entry held: a Notes or an original field by field (an original's description is the copy saved last's, its page marks each held), any other as it is.</summary>
+        private bool Entry(string path, JsonNode? entry, JsonNode? kept, JsonNode? before) =>
+            MergeRules.HasEntryFields(path) && entry is JsonObject fields
+                ? fields.All(field => Node($"{path}.{field.Key}", field.Value, kept?[field.Key], before?[field.Key], MergeRules.Key(entry, "id")))
+                : JsonNode.DeepEquals(entry, kept);
 
         /// <summary>Each note's corrections held as the side left them, or carried further along the same ones.</summary>
         private bool Edits(JsonArray? side, JsonArray? kept, JsonArray? before)

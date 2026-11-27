@@ -85,7 +85,8 @@ internal static class SyncRequest
     /// "sendsFile"?: true when the app sends "file" on "upload", false (before c-17b) when it sends "here"} →
     /// {"file": what to keep here, "upload": true when "file" ("here" without "sendsFile") goes online, "copy": the previous copy as a piece of its own, or
     /// null, "readOnly": true when "file" holds a later build's copy (kept here, never sent), "merged": false when the copies
-    /// could not be merged entity by entity, "conflicts": [{"in", "id"}] what of the copy that lost "file" does not hold}
+    /// were not merged entity by entity (the merge failed its self-check, or one is a later build's: "file" is then the online
+    /// copy and "copy" this device's), "conflicts": [{"in", "id"}] what of the copy that lost "file" does not hold}
     /// (<see cref="ProjectSync.Resolve"/>, version 1.6).
     /// </summary>
     public static string Resolve(Request fields)

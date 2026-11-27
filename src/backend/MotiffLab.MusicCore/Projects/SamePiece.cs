@@ -30,7 +30,7 @@ internal static class SamePiece
     public static IReadOnlySet<string> Compared { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         "documentMarks", "tempo", "motifs", "variations", "observations", "edits", "phrases", "marks", "bookmarks", "resumePoints",
-        "settings", "performances", "assembly", "metadata", "notes.name", "notes.fileName", "notes.edits", "notes.performance", "notes.scan.marks", "notes.marks",
+        "settings", "performances", "assembly", "metadata", "notes.name", "notes.fileName", "notes.edits", "notes.performance", "notes.scan.marks", "notes.marks", "originals.marks",
         "workspace", "workspace.working", "workspace.metadata", "workspace.tempo", "workspace.motifs", "workspace.variations",
         "workspace.observations", "workspace.phrases", "workspace.marks", "workspace.bookmarks", "workspace.resumePoints",
         "workspace.assembly", "workspace.drafts", "workspace.settings", "workspace.hiddenViews",

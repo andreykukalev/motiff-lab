@@ -5,8 +5,9 @@ namespace MotiffLab.MusicCore.Projects;
 /// <summary>
 /// How each part of a project file merges, for <see cref="ProjectMerge"/> and its self-check <see cref="MergeCheck"/> alike:
 /// the lists merged entry by entry and the field that names an entry, the lists merged value by value, the objects merged
-/// field by field. Which fields are the player's comes from <see cref="ProjectSync.Fields"/> (0026 S8): a field of another
-/// class is the copy saved last's and never a conflict; a field this build does not know (a later build's) is the player's.
+/// field by field, and the entries whose fields have rules of their own. Which fields are the player's comes from
+/// <see cref="ProjectSync.Fields"/> (0026 S8): a field of another class is the copy saved last's and never a conflict; a
+/// field this build does not know (a later build's) is the player's.
 /// </summary>
 internal static class MergeRules
 {
@@ -30,6 +31,9 @@ internal static class MergeRules
         ["notes.scan.marks"] = static entry => $"{Field(entry, "kind")}|{Field(entry, "bar")}|{Field(entry, "staff")}",
         // An original by its fingerprint, else its id, as PieceOriginals.Merge unites them.
         ["originals"] = static entry => Field(entry, "sha256") ?? Key(entry, "id"),
+        // The marks on a PDF's pages (version 0.4): a stroke by its id, a bookmark by its page, as a page has one.
+        ["originals.marks.ink"] = ById,
+        ["originals.marks.bookmarks"] = static entry => Key(entry, "page"),
     };
 
     /// <summary>The lists merged value by value: the phrase boundaries set and taken away at each level, the views hidden.</summary>
@@ -43,8 +47,15 @@ internal static class MergeRules
     private static readonly HashSet<string> s_objects = new(StringComparer.Ordinal)
     {
         "workspace", "workspace.phrases", "workspace.phrases.short", "workspace.phrases.sentences", "workspace.marks", "workspace.bookmarks",
-        "workspace.settings", "notes.scan",
+        "workspace.settings", "notes.scan", "originals.marks",
     };
+
+    /// <summary>
+    /// The objects merged field by field only against a base: without one they are one value, the copy saved last's, and
+    /// the other's a conflict. The marks on a PDF's pages have one writer (version 0.4), whose own stand unless a base
+    /// shows what another device changed, so a stroke one took away never comes back (S4's union would bring it back).
+    /// </summary>
+    private static readonly HashSet<string> s_wholeWithoutBase = new(StringComparer.Ordinal) { "originals.marks" };
 
     /// <summary>
     /// The player's fields <see cref="SourcesMerge"/> and <see cref="ProjectMerge"/>'s scan marks merge on the project rather
@@ -56,27 +67,29 @@ internal static class MergeRules
         "workspace.drafts", "notes.name", "notes.fileName", "notes.edits", "notes.performance", "notes.scan.marks", "notes.marks",
     };
 
-    /// <summary>Lists whose entries are objects whose fields have rules of their own (a Notes: its name, corrections, marks).</summary>
-    private static readonly HashSet<string> s_entryFields = new(StringComparer.Ordinal) { "notes" };
+    /// <summary>Lists whose entries are objects whose fields have rules of their own (a Notes: its name, corrections, marks; an original: its page marks).</summary>
+    private static readonly HashSet<string> s_entryFields = new(StringComparer.Ordinal) { "notes", "originals" };
+
+    /// <summary>The lists whose entries' fields have rules of their own (<see cref="HasEntryFields"/>).</summary>
+    public static IEnumerable<string> EntryLists => s_entryFields;
 
     /// <summary>The corrections of a Notes, compared note by note: all the corrections of one note together.</summary>
     internal const string EditsPath = "notes.edits";
 
-    /// <summary>The class of the field at <paramref name="path"/> (its own in <see cref="ProjectSync.Fields"/>, else its nearest parent's); the player's when none has one.</summary>
+    /// <summary>
+    /// The class of the field at <paramref name="path"/>: its own in <see cref="ProjectSync.Fields"/>; the player's for a field
+    /// this build does not know (a later build's) where the file's fields are named one by one (the top level, an entry
+    /// whose fields have rules, an object merged field by field); else, for a value within a field (a setting), its field's.
+    /// </summary>
     public static FieldClass Class(string path)
     {
-        for (string at = path; ; at = at[..at.LastIndexOf('.')])
+        if (ProjectSync.Fields.TryGetValue(path, out FieldClass found))
         {
-            if (ProjectSync.Fields.TryGetValue(at, out FieldClass found))
-            {
-                return found;
-            }
-
-            if (!at.Contains('.', StringComparison.Ordinal))
-            {
-                return FieldClass.Player;
-            }
+            return found;
         }
+
+        int dot = path.LastIndexOf('.');
+        return dot < 0 || s_objects.Contains(path[..dot]) || s_entryFields.Contains(path[..dot]) ? FieldClass.Player : Class(path[..dot]);
     }
 
     /// <summary>The key of an entry of the list at <paramref name="path"/>, or null when it is no list merged entry by entry.</summary>
@@ -84,7 +97,8 @@ internal static class MergeRules
 
     public static bool IsSet(string path) => s_sets.Contains(path);
 
-    public static bool IsObject(string path) => s_objects.Contains(path);
+    /// <summary>Whether the object at <paramref name="path"/> is merged field by field: always, or for the page marks only against a base.</summary>
+    public static bool ByField(string path, bool hasBase) => s_objects.Contains(path) && (hasBase || !s_wholeWithoutBase.Contains(path));
 
     public static bool OnProject(string path) => s_onProject.Contains(path);
 

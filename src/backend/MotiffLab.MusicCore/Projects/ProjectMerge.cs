@@ -23,12 +23,13 @@ internal sealed record MergedProject(Project Project, IReadOnlyList<MergeConflic
 /// <summary>
 /// The three-way merge of two copies of one project against the copy both last agreed on (0026 S5, S8, S9, #322), per
 /// entity rather than per file, by <see cref="MergeRules"/>: ideas, bookmarks and their categories, resume points, motifs
-/// and variations, the marks on the score, phrase boundaries and anchors, settings, the scan's marks «что не так», and,
-/// through <see cref="SourcesMerge"/>, Notes, corrections, versions compared and drafts. An entity changed on one side only
-/// takes that side; added on either side, it comes in; removed on one side and unchanged on the other, it goes; changed on
-/// both differently, the copy that won keeps its own and the merge records a <see cref="MergeConflict"/>. Removed on one
-/// side and changed on the other, the change stays, so nothing is lost. Without a base the merge is a union with no
-/// deletions (S4). Fields this build does not know (a later build's, S6) merge as whole values, so they are kept. A field
+/// and variations, the marks on the score and on a PDF's pages, phrase boundaries and anchors, settings, the scan's marks
+/// «что не так», and, through <see cref="SourcesMerge"/>, Notes, corrections, versions compared and drafts. An entity changed
+/// on one side only takes that side; added on either side, it comes in; removed on one side and unchanged on the other, it
+/// goes; changed on both differently, the copy that won keeps its own and the merge records a <see cref="MergeConflict"/>.
+/// Removed on one side and changed on the other, the change stays, so nothing is lost. Without a base the merge is a union
+/// with no deletions (S4), but for the marks on a PDF's pages, the winner's. Fields this build does not know (a later
+/// build's, S6), in the workspace, a Notes or an original, merge as whole values, so they are kept. A field
 /// that is not the player's (bookkeeping, derived, an import's) is the winner's. Pure and deterministic: the same three
 /// copies give the same project and conflicts.
 /// </summary>
@@ -63,6 +64,11 @@ internal static class ProjectMerge
         JsonObject? before = @base is null ? null : Json(@base);
         var merge = new Merge(before is not null, conflicts);
         merged["workspace"] = merge.Node("workspace", merged["workspace"], theirs["workspace"], before?["workspace"]);
+        foreach (string list in MergeRules.EntryLists)
+        {
+            merge.Entries(list, merged, theirs, before);
+        }
+
         merge.Root(merged, theirs, before);
         Referenced(merged, theirs, won);
         if (!MergeCheck.Holds(won, merged, before, []) || !MergeCheck.Holds(theirs, merged, before, conflicts))
@@ -197,8 +203,8 @@ internal static class ProjectMerge
     /// <summary>One merge's state: whether a base is kept, and the conflicts met.</summary>
     private sealed class Merge(bool hasBase, List<MergeConflict> conflicts)
     {
-        /// <summary>The field at <paramref name="path"/> merged by its rule; null when it goes.</summary>
-        public JsonNode? Node(string path, JsonNode? mine, JsonNode? theirs, JsonNode? before)
+        /// <summary>The field at <paramref name="path"/> merged by its rule, of the entry <paramref name="entity"/> names when it is one's; null when it goes.</summary>
+        public JsonNode? Node(string path, JsonNode? mine, JsonNode? theirs, JsonNode? before, string? entity = null)
         {
             // Merged on the project already; or not the player's: the copy saved last says it (V21, V22).
             if (MergeRules.OnProject(path) || MergeRules.Class(path) != FieldClass.Player)
@@ -216,18 +222,47 @@ internal static class ProjectMerge
                 return Set(mine as JsonArray, theirs as JsonArray, before as JsonArray);
             }
 
-            if (MergeRules.IsObject(path) && mine is JsonObject ours && theirs is JsonObject other)
+            if (MergeRules.ByField(path, hasBase) && mine is JsonObject ours && theirs is JsonObject other)
             {
                 var merged = new JsonObject();
                 foreach (string name in MergeRules.Names(ours, other))
                 {
-                    Set(merged, name, Node($"{path}.{name}", ours[name], other[name], before?[name]));
+                    Set(merged, name, Node($"{path}.{name}", ours[name], other[name], before?[name], entity));
                 }
 
                 return merged;
             }
 
-            return Whole(path, null, mine, theirs, before);
+            return Whole(path, entity, mine, theirs, before);
+        }
+
+        /// <summary>
+        /// The fields of each entry of <paramref name="list"/> (a Notes, an original) that both copies have, merged by their
+        /// rules: an original's page marks mark by mark, a later build's field as a whole; the rest stay the copy saved last's.
+        /// </summary>
+        public void Entries(string list, JsonObject merged, JsonObject theirs, JsonObject? before)
+        {
+            Func<JsonNode?, string> key = MergeRules.Keyed(list)!;
+            Dictionary<string, JsonNode?> other = MergeRules.Index(theirs[list] as JsonArray, key);
+            Dictionary<string, JsonNode?> was = MergeRules.Index(before?[list] as JsonArray, key);
+            foreach (JsonObject entry in (merged[list] as JsonArray ?? []).OfType<JsonObject>())
+            {
+                if (other.GetValueOrDefault(key(entry)) is not JsonObject their)
+                {
+                    continue;
+                }
+
+                JsonNode? old = was.GetValueOrDefault(key(entry));
+                string entity = MergeRules.Key(entry, "id");
+                foreach (string name in MergeRules.Names(entry, their))
+                {
+                    // A field written as null (a Notes' Check) stays: only one the merge changed is set.
+                    if (Node($"{list}.{name}", entry[name], their[name], old?[name], entity) is var value && !JsonNode.DeepEquals(value, entry[name]))
+                    {
+                        Set(entry, name, value);
+                    }
+                }
+            }
         }
 
         /// <summary>The top level: the later time last opened, the later version and reader, the ids known before, and a later build's fields.</summary>
@@ -245,7 +280,7 @@ internal static class ProjectMerge
                 merged["formerIds"] = new JsonArray([.. former.Select(static each => (JsonNode)each)]);
             }
 
-            foreach (string name in MergeRules.Names(merged, theirs).Where(static name => !ProjectFile.s_rootFields.Contains(name)))
+            foreach (string name in MergeRules.Names(merged, theirs).Where(static name => !ProjectFile.RootFields.Contains(name)))
             {
                 Set(merged, name, Whole(name, null, merged[name], theirs[name], before?[name]));
             }
@@ -257,7 +292,14 @@ internal static class ProjectMerge
             Dictionary<string, JsonNode?> other = MergeRules.Index(theirs, key);
             Dictionary<string, JsonNode?> was = MergeRules.Index(before, key);
             var merged = new JsonArray();
-            foreach (string id in ours.Keys.Concat(other.Keys.Where(id => !ours.ContainsKey(id))))
+            List<string> ids = [.. ours.Keys.Concat(other.Keys.Where(id => !ours.ContainsKey(id)))];
+            // Entries keyed by a number, a PDF's bookmarks by their page, stay in its order, as the file keeps them.
+            if (ids.All(static id => int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out _)))
+            {
+                ids.Sort(static (one, two) => int.Parse(one, CultureInfo.InvariantCulture).CompareTo(int.Parse(two, CultureInfo.InvariantCulture)));
+            }
+
+            foreach (string id in ids)
             {
                 if (Whole(path, id, ours.GetValueOrDefault(id), other.GetValueOrDefault(id), was.GetValueOrDefault(id)) is { } entry)
                 {

@@ -19,11 +19,11 @@ public class ProjectMergeTests
 {
     private static readonly DateTimeOffset s_now = new(2026, 11, 27, 9, 0, 0, TimeSpan.Zero);
 
-    private const string CopyTitle = "{0} (previous copy)";
+    internal const string CopyTitle = "{0} (previous copy)";
 
     private static byte[] Music() => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Experiments", "Fixtures", "fur-elise-original.musicxml"));
 
-    private static Project Piece() => Project.Create("p_0123456789abcdef0123456789abcdef", "fur-elise.musicxml", Music(), s_now);
+    internal static Project Piece() => Project.Create("p_0123456789abcdef0123456789abcdef", "fur-elise.musicxml", Music(), s_now);
 
     /// <summary>The project with its file changed as <paramref name="change"/> says, read again.</summary>
     private static Project Edited(Project project, Action<JsonObject> change)
@@ -36,7 +36,7 @@ public class ProjectMergeTests
     private static JsonArray List(JsonObject file, string name) =>
         file["workspace"]![name] as JsonArray ?? (JsonArray)(file["workspace"]![name] = new JsonArray());
 
-    private static JsonObject Idea(string id, string note, int onset = 0) => new()
+    internal static JsonObject Idea(string id, string note, int onset = 0) => new()
     {
         ["id"] = id,
         ["name"] = "Bar 1",
@@ -46,7 +46,7 @@ public class ProjectMergeTests
         ["phrase"] = new JsonObject { ["onset"] = onset, ["duration"] = 1440, ["filter"] = new JsonObject() },
     };
 
-    private static Project WithIdeas(Project project, params JsonObject[] ideas) =>
+    internal static Project WithIdeas(Project project, params JsonObject[] ideas) =>
         Edited(project, file => ideas.ToList().ForEach(idea => List(file, "observations").Add(idea)));
 
     private static Project WithoutIdea(Project project, string id) =>
@@ -66,7 +66,7 @@ public class ProjectMergeTests
 
     private static Project WithPhraseStart(Project project, int tick) => Edited(project, file => ((JsonArray)file["workspace"]!["phrases"]!["added"]!).Add(tick));
 
-    private static IReadOnlyList<string> Ideas(Project project) => [.. project.Observations.Select(static idea => $"{idea.Id}:{idea.Note}")];
+    internal static IReadOnlyList<string> Ideas(Project project) => [.. project.Observations.Select(static idea => $"{idea.Id}:{idea.Note}")];
 
     private static MergedProject Merge(Project winner, Project loser, Project? @base) => Assert.IsType<MergedProject>(ProjectMerge.Merged(winner, loser, @base));
 
@@ -74,15 +74,15 @@ public class ProjectMergeTests
         ProjectSync.Resolve(here, hereWins ? s_now.AddMinutes(5) : s_now, online, hereWins ? s_now : s_now.AddMinutes(5), CopyTitle, "p_copy", null, @base);
 
     /// <summary>The piece with other Notes "n_2", the same music as the working ones.</summary>
-    private static Project WithOtherNotes(Project project) => project.AddNotes(new OtherNotes("n_2", "urtext.musicxml", Music(), new NotesProvenance(NotesProvenance.Import)));
+    internal static Project WithOtherNotes(Project project) => project.AddNotes(new OtherNotes("n_2", "urtext.musicxml", Music(), new NotesProvenance(NotesProvenance.Import)));
 
-    private static Project Renamed(Project project, string? name) =>
+    internal static Project Renamed(Project project, string? name) =>
         project with { Sources = project.Sources with { Notes = [.. project.Sources.Notes.Select(notes => notes.Id == "n_2" ? notes with { Name = name } : notes)] } };
 
-    private static string? NameOfOther(Project project) => project.Sources.Notes.Single(static notes => notes.Id == "n_2").Name;
+    internal static string? NameOfOther(Project project) => project.Sources.Notes.Single(static notes => notes.Id == "n_2").Name;
 
     /// <summary>The project as a later build saves it: read-only here (0026 S6).</summary>
-    private static Project Later(Project project) => ProjectFile.Read(ProjectFile.Write(project with { Newer = new NewerFile(ProjectFile.Version + 1, ProjectFile.MinReader) }));
+    internal static Project Later(Project project) => ProjectFile.Read(ProjectFile.Write(project with { Newer = new NewerFile(ProjectFile.Version + 1, ProjectFile.MinReader) }));
 
     private static JsonObject Motif(string id) => new()
     {
@@ -277,11 +277,54 @@ public class ProjectMergeTests
     [Fact]
     public void Every_field_of_the_players_own_is_merged_or_checked_for_a_conflict()
     {
-        // The reviewer of b6ee5f00: a field of the player's no rule names is lost when its copy loses. Version 16's layout is
-        // the Notes ("notes.…") and the workspace; an older file's fields are read into them.
-        string[] players = [.. ProjectSync.Fields.Where(static field => field.Value == FieldClass.Player && (field.Key.StartsWith("notes.", StringComparison.Ordinal) || field.Key.StartsWith("workspace", StringComparison.Ordinal))).Select(static field => field.Key)];
-        Assert.Contains("workspace.settings", players);
-        Assert.All(players, field => Assert.NotNull(MergeRules.MergedBy(field)));
+        // The reviewers of b6ee5f00 and e47921c7: a field of the player's no rule names is lost when its copy loses, as the
+        // marks on a PDF's pages were. Version 16's layout is the originals, the Notes and the workspace; a top-level field of
+        // an older file is read into it, where it is merged.
+        Dictionary<string, string> readInto = new(StringComparer.Ordinal)
+        {
+            ["documentMarks"] = "originals.marks",
+            ["tempo"] = "workspace.tempo",
+            ["motifs"] = "workspace.motifs",
+            ["variations"] = "workspace.variations",
+            ["observations"] = "workspace.observations",
+            ["edits"] = "notes.edits",
+            ["phrases"] = "workspace.phrases",
+            ["marks"] = "workspace.marks",
+            ["bookmarks"] = "workspace.bookmarks",
+            ["resumePoints"] = "workspace.resumePoints",
+            ["settings"] = "workspace.settings",
+            ["performances"] = "notes.performance",
+            ["assembly"] = "workspace.assembly",
+            ["metadata"] = "workspace.metadata",
+        };
+        string[] players = [.. ProjectSync.Fields.Where(static field => field.Value == FieldClass.Player).Select(static field => field.Key)];
+        Assert.Contains("originals.marks", players);
+        foreach (string field in players.Where(static field => !field.Contains('.', StringComparison.Ordinal) && !ProjectFile.RootFields.Contains(field)))
+        {
+            Assert.True(readInto.TryGetValue(field, out string? at), $"\"{field}\" names no field of version 16's layout it is read into.");
+            Assert.NotNull(MergeRules.MergedBy(at));
+        }
+
+        Assert.All(players.Where(static field => field.Contains('.', StringComparison.Ordinal) || ProjectFile.RootFields.Contains(field)), field => Assert.NotNull(MergeRules.MergedBy(field)));
+    }
+
+    [Fact]
+    public void A_later_builds_field_of_the_player_comes_in_from_the_copy_that_lost()
+    {
+        // The second review's finding 4: a field this build does not know in a Notes was given the Notes' class, an import's,
+        // so the merge dropped it and its self-check let it go. It is the player's, as a later build's field anywhere is.
+        Project @base = Piece();
+        Project winner = WithIdeas(@base, Idea("o_here", "Here."));
+        Project loser = Edited(@base, file => file["notes"]![0]!["future"] = 7);
+        Project merged = Merge(winner, loser, @base).Project;
+        Assert.Equal(7, JsonNode.Parse(ProjectFile.Write(merged))!["notes"]![0]!["future"]!.GetValue<int>());
+        Assert.Equal(["o_here:Here."], Ideas(merged));
+
+        Assert.Equal(FieldClass.Player, MergeRules.Class("notes.future"));
+        Assert.Equal(FieldClass.Player, MergeRules.Class("originals.future"));
+        Assert.Equal(FieldClass.Import, MergeRules.Class("notes.scan.confirmedBars"));
+        Assert.Equal(FieldClass.Player, MergeRules.Class("workspace.settings.layers.analysis"));
+        Assert.Equal(FieldClass.Import, MergeRules.Class("notes.transcription.bars"));
     }
 
     [Fact]
@@ -326,11 +369,10 @@ public class ProjectMergeTests
         Project beside = ProjectFile.Read(Encoding.UTF8.GetBytes(shipped.GetProperty("copy").GetString()!));
         Assert.Contains(beside.Originals, original => original.Id == PieceOriginal.RecordingId);
 
-        // Saved last online, the merged file is written here and sent by the next pass, as it changed here.
+        // Saved last online, nothing is sent and the file it writes never is, so its own copy is kept beside (SyncAnswerTests).
         JsonElement older = Resolved(null, "2026-11-27T09:00:00Z");
         Assert.False(older.GetProperty("upload").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, older.GetProperty("copy").ValueKind);
-        Assert.Equal(["o_here:Here."], Ideas(ProjectFile.Read(Encoding.UTF8.GetBytes(older.GetProperty("file").GetString()!))));
+        Assert.Equal(["o_here:Here."], Ideas(ProjectFile.Read(Encoding.UTF8.GetBytes(older.GetProperty("copy").GetString()!))));
 
         JsonElement sends = Resolved(true, "2026-11-27T09:00:00Z");
         Assert.True(sends.GetProperty("upload").GetBoolean());
@@ -354,12 +396,13 @@ public class ProjectMergeTests
         Assert.DoesNotContain(resolved.Kept.Sources.Notes, notes => notes.Id == "n_2");
         Assert.Equal("Urtext", NameOfOther(resolved.PreviousCopy!));
 
-        // A later build's copy stays read-only, as it came, and is not sent either.
+        // A later build's copy here is not merged: it goes beside, read-only as it came, and the online one takes its place.
         SyncResolution later = Resolve(Later(here), online, @base);
         Assert.False(later.Merged);
         Assert.False(later.Upload);
-        Assert.True(later.Kept.IsReadOnly);
-        Assert.Equal("Urtext", NameOfOther(later.PreviousCopy!));
+        Assert.Equal("Urtext", NameOfOther(later.Kept));
+        Assert.True(later.PreviousCopy!.IsReadOnly);
+        Assert.DoesNotContain(later.PreviousCopy.Sources.Notes, notes => notes.Id == "n_2");
     }
 
     [Fact]
@@ -451,21 +494,13 @@ public class ProjectMergeTests
         Assert.Equal(["o_here:Here."], Ideas(online.PreviousCopy!));
         Assert.Equal("p_copy", online.PreviousCopy!.Id);
 
+        // A later build's copy here goes beside, so the next download, of the online piece, does not write over it.
         SyncResolution mine = Resolve(Later(here), other, null);
-        Assert.True(mine.Kept.IsReadOnly);
         Assert.False(mine.Upload);
-        Assert.Equal(["o_other:Other."], Ideas(mine.PreviousCopy!));
-    }
-
-    [Fact]
-    public void A_later_builds_copy_here_merged_with_the_online_one_stays_read_only_and_is_not_sent()
-    {
-        Project @base = Piece();
-        SyncResolution resolved = Resolve(Later(WithIdeas(@base, Idea("o_here", "Here."))), WithIdeas(@base, Idea("o_online", "Online.")), @base);
-        Assert.True(resolved.Merged);
-        Assert.True(resolved.Kept.IsReadOnly);
-        Assert.False(resolved.Upload);
-        Assert.Equal(["o_here:Here.", "o_online:Online."], Ideas(resolved.Kept));
+        Assert.Equal(["o_other:Other."], Ideas(mine.Kept));
+        Assert.True(mine.PreviousCopy!.IsReadOnly);
+        Assert.Equal(["o_here:Here."], Ideas(mine.PreviousCopy));
+        Assert.Equal("p_copy", mine.PreviousCopy.Id);
     }
 
     [Fact]
@@ -478,34 +513,19 @@ public class ProjectMergeTests
     }
 
     [Fact]
-    public void A_copy_a_later_build_saved_online_is_kept_read_only_merged_with_its_unknown_fields_and_never_sent()
+    public void A_copy_a_later_build_saved_online_is_fetched_read_only_and_never_sent()
     {
-        // The 1.6 plan's decision 14 (c-14a's decision 10): it can be fetched, it is never written over by this build.
+        // The 1.6 plan's decision 14 (c-14a's decision 10): it can be fetched, it is never written over by this build;
+        // resolved with this device's copy, that one is kept beside (SyncAnswerTests).
         var facade = new MusicCoreFacade();
         JsonElement Call(string name, object request) => JsonDocument.Parse(facade.Call(0, name, JsonSerializer.Serialize(request))).RootElement;
-        string future = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Golden", "v19-future.motiff.json"));
-        JsonObject today = JsonNode.Parse(future)!.AsObject();
-        today["version"] = ProjectFile.Version;
-        today.Remove("future");
-        today["workspace"]!.AsObject().Remove("future");
-        Project here = WithIdeas(ProjectFile.Read(Encoding.UTF8.GetBytes(today.ToJsonString())), Idea("o_here", "Here."));
+        (string future, Project here) = SyncAnswerTests.LaterBuildOnline();
         string hereText = Encoding.UTF8.GetString(ProjectFile.Write(here));
 
         JsonElement pulled = Call("project.pulled", new { file = future });
         Assert.True(pulled.GetProperty("readOnly").GetBoolean());
         Assert.Contains("A field a later version adds to motifs.", pulled.GetProperty("file").GetString(), StringComparison.Ordinal);
         Assert.Equal("readOnly", Call("project.online", new { file = pulled.GetProperty("file").GetString() }).GetProperty("error").GetString());
-
-        JsonElement resolved = Call("project.resolve", new { here = hereText, savedHere = "2026-11-27T10:00:00Z", online = future, savedOnline = "2026-11-27T09:00:00Z", copyTitle = CopyTitle });
-        Assert.True(resolved.GetProperty("readOnly").GetBoolean());
-        Assert.False(resolved.GetProperty("upload").GetBoolean());
-        Assert.Equal("[]", resolved.GetProperty("conflicts").GetRawText());
-        Assert.True(resolved.GetProperty("merged").GetBoolean());
-        Project kept = ProjectFile.Read(Encoding.UTF8.GetBytes(resolved.GetProperty("file").GetString()!));
-        Assert.True(kept.IsReadOnly);
-        Assert.Contains(kept.Observations, idea => idea.Id == "o_here");
-        // The workspace field only the later build's copy has is kept.
-        Assert.Equal(1, JsonNode.Parse(resolved.GetProperty("file").GetString()!)!["workspace"]!["future"]!.GetValue<int>());
 
         // project.join leaves it out rather than failing as a whole.
         JsonElement joined = Call("project.join", new { files = new[] { future, hereText } });
