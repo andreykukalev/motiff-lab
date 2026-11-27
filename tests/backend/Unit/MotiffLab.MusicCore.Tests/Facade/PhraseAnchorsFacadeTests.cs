@@ -132,6 +132,33 @@ public class PhraseAnchorsFacadeTests
     }
 
     [Fact]
+    public void Undo_of_a_join_brings_the_second_anchor_back_with_its_ideas_and_resume_point_and_Redo_joins_them_again()
+    {
+        MusicCoreFacade facade = Opened();
+        JsonElement[] units = Units(Call(facade, "phrases"));
+        string first = Keep(facade, Onset(units[1]), End(units[1]));
+        string second = Keep(facade, Onset(units[2]), End(units[2]));
+        Keep(facade, Onset(units[2]), End(units[2]), "Second again");
+        string point = Call(facade, "resume.save", $$$"""{"passage": {"span": {{{units[2].GetProperty("selectable")}}}}, "focused": true, {{{Now}}}}""").GetProperty("saved").GetProperty("id").GetString()!;
+        string smaller = string.CompareOrdinal(first, second) < 0 ? first : second;
+        JsonElement joined = Call(facade, "phrases.edit", $$$"""{"remove": {{{Onset(units[2])}}}}""");
+        Assert.All(Ideas(facade), idea => Assert.Equal(smaller, Anchor(idea)));
+
+        JsonElement undone = Call(facade, "phrases.edit", $$$"""{"restore": {{{joined.GetProperty("previous")}}}, "expected": {{{joined.GetProperty("edits")}}}}""");
+
+        Assert.Equal((first, second), (Anchor(Units(undone)[1]), Anchor(Units(undone)[2])));
+        Assert.Equal([first, second, second], Ideas(facade).Select(Anchor));
+        JsonElement resumed = Call(facade, "resume").GetProperty("resumePoints").EnumerateArray().Single(entry => entry.GetProperty("id").GetString() == point);
+        Assert.Equal(second, Anchor(resumed));
+        Assert.Equal(Onset(units[2]), resumed.GetProperty("passage").GetProperty("span").GetProperty("onset").GetInt64());
+
+        JsonElement redone = Call(facade, "phrases.edit", $$$"""{"restore": {{{undone.GetProperty("previous")}}}, "expected": {{{undone.GetProperty("edits")}}}}""");
+        Assert.Equal(smaller, Anchor(Units(redone)[1]));
+        Assert.Single(redone.GetProperty("anchors").EnumerateArray());
+        Assert.All(Ideas(facade), idea => Assert.Equal(smaller, Anchor(idea)));
+    }
+
+    [Fact]
     public void A_resume_point_in_phrase_focus_is_attached_and_its_passage_goes_with_a_boundary_the_player_moves()
     {
         MusicCoreFacade facade = Opened();

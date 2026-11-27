@@ -135,35 +135,71 @@ internal static class ProjectAnchors
     }
 
     /// <summary>
-    /// The project with the anchors of <paramref name="spans"/> at those spans of <paramref name="phrases"/>; two anchors
-    /// on one span made one, the smaller id kept (0026 «Open», the council's proposal) and what was attached to the other
-    /// attached to it; and a resume point open in phrase focus on a moved anchor at its phrase now, as it is selected.
+    /// What the anchors are now (<see cref="AnchorState"/>), so an Undo or Redo of a phrases step can put them back exactly.
     /// </summary>
-    private static Project WithAnchorsAt(this Project project, IReadOnlyDictionary<string, TickSpan> spans, PhraseMap phrases)
+    internal static AnchorState AnchorState(this Project project)
     {
-        if (spans.Count == 0)
-        {
-            return project;
-        }
+        ArgumentNullException.ThrowIfNull(project);
+        return new(
+            project.Anchors,
+            project.Observations.ToDictionary(static observation => observation.Id, static observation => observation.Anchor, StringComparer.Ordinal),
+            project.ResumePoints.ToDictionary(static point => point.Id, static point => point.Anchor, StringComparer.Ordinal));
+    }
 
-        PhraseAnchor[] placed = [.. project.Anchors.Select(anchor => spans.TryGetValue(anchor.Id, out TickSpan span) ? anchor with { Span = span } : anchor)];
-        Dictionary<string, string> into = placed
+    /// <summary>
+    /// The project with the anchors as <paramref name="state"/> holds them (an Undo or Redo of a phrases step): its anchors
+    /// back at their spans and each idea and resume point it names on its anchor again; an anchor minted since, and what
+    /// was kept since, as they are. A resume point in phrase focus goes with its anchor (<see cref="Settled"/>).
+    /// </summary>
+    internal static Project WithAnchorState(this Project project, AnchorState state, PhraseMap phrases)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(phrases);
+        HashSet<string> back = [.. state.Anchors.Select(static anchor => anchor.Id)];
+        return project.Settled(
+            [.. state.Anchors, .. project.Anchors.Where(anchor => !back.Contains(anchor.Id))],
+            [.. project.Observations.Select(observation => state.Ideas.TryGetValue(observation.Id, out string? anchor) ? observation with { Anchor = anchor } : observation)],
+            [.. project.ResumePoints.Select(point => state.Points.TryGetValue(point.Id, out string? anchor) ? point with { Anchor = anchor } : point)],
+            phrases);
+    }
+
+    /// <summary>The project with the anchors of <paramref name="spans"/> at those spans of <paramref name="phrases"/> (<see cref="Settled"/>).</summary>
+    private static Project WithAnchorsAt(this Project project, IReadOnlyDictionary<string, TickSpan> spans, PhraseMap phrases) =>
+        spans.Count == 0 ? project : project.Settled(
+            [.. project.Anchors.Select(anchor => spans.TryGetValue(anchor.Id, out TickSpan span) ? anchor with { Span = span } : anchor)],
+            project.Observations,
+            project.ResumePoints,
+            phrases);
+
+    /// <summary>
+    /// The project with <paramref name="anchors"/>, <paramref name="ideas"/> and <paramref name="points"/>: two anchors on
+    /// one span made one, the smaller id kept (0026 «Open», the council's proposal; deterministic, so two devices agree) and
+    /// what was attached to the other attached to it; and a resume point open in phrase focus whose anchor is at another
+    /// span than its anchor had in <paramref name="project"/> at its phrase now, as it is selected.
+    /// </summary>
+    private static Project Settled(this Project project, IReadOnlyList<PhraseAnchor> anchors, IReadOnlyList<Observation> ideas, IReadOnlyList<ResumePoint> points, PhraseMap phrases)
+    {
+        Dictionary<string, string> into = anchors
             .GroupBy(static anchor => anchor.Span)
             .SelectMany(static same => same.Select(anchor => (anchor.Id, Kept: same.Select(static other => other.Id).Min(StringComparer.Ordinal)!)))
             .ToDictionary(static pair => pair.Id, static pair => pair.Kept, StringComparer.Ordinal);
         string? Into(string? id) => id is not null && into.TryGetValue(id, out string? kept) ? kept : id;
+        Dictionary<string, TickSpan> was = project.Anchors.ToDictionary(static anchor => anchor.Id, static anchor => anchor.Span, StringComparer.Ordinal);
+        Dictionary<string, TickSpan> now = anchors.ToDictionary(static anchor => anchor.Id, static anchor => anchor.Span, StringComparer.Ordinal);
+        TickSpan? Span(Dictionary<string, TickSpan> spans, string? id) => id is not null && spans.TryGetValue(id, out TickSpan span) ? span : null;
         return project with
         {
-            MintedAnchors = [.. placed.Where(anchor => into[anchor.Id] == anchor.Id)],
-            Observations = [.. project.Observations.Select(observation => observation with { Anchor = Into(observation.Anchor) })],
-            ResumePoints = [.. project.ResumePoints.Select(point => Carried(point, spans, phrases) with { Anchor = Into(point.Anchor) })],
+            MintedAnchors = [.. anchors.Where(anchor => into[anchor.Id] == anchor.Id)],
+            Observations = [.. ideas.Select(observation => observation with { Anchor = Into(observation.Anchor) })],
+            ResumePoints = [.. points.Select(point => Carried(point, Span(was, project.FindResumePoint(point.Id)?.Anchor), Span(now, point.Anchor), phrases) with { Anchor = Into(point.Anchor) })],
         };
     }
 
-    /// <summary>A resume point open in phrase focus on an anchor <paramref name="spans"/> moved, at its phrase now, as it is selected; its place with it when it was at the passage.</summary>
-    private static ResumePoint Carried(ResumePoint point, IReadOnlyDictionary<string, TickSpan> spans, PhraseMap phrases)
+    /// <summary>A resume point open in phrase focus whose anchor went from <paramref name="was"/> to the phrase <paramref name="now"/>, at that phrase as it is selected; its place with it when it was at the passage.</summary>
+    private static ResumePoint Carried(ResumePoint point, TickSpan? was, TickSpan? now, PhraseMap phrases)
     {
-        if (!point.Focused || point.Passage is not { } passage || point.Anchor is not { } id || !spans.TryGetValue(id, out TickSpan span)
+        if (!point.Focused || point.Passage is not { } passage || now is not { } span || span == was
             || phrases.Phrases.FirstOrDefault(phrase => phrase.Span == span) is not { } phrase)
         {
             return point;
