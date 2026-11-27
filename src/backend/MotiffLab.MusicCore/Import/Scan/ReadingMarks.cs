@@ -180,7 +180,7 @@ internal static class ReadingMarks
         return true;
     }
 
-    /// <summary>The staff's notes read under the printed clef; false when the part has no such staff or the reading writes it in a clef other than treble or bass.</summary>
+    /// <summary>The staff's notes read under the printed clef; false, every note left as it was, when the part has no such staff or the reading writes it in a clef other than treble or bass in any of the bars.</summary>
     private static bool Clef(List<XElement> measures, int first, int last, ReadingMark mark)
     {
         int staff = mark.Staff!.Value;
@@ -190,35 +190,37 @@ internal static class ReadingMarks
         }
 
         (char sign, int line) = ReadingMark.Clefs[mark.Value!];
+        // Every note of the staff in the bars is first found under a treble or bass clef, so the mark moves all of them or none.
         bool fits = true;
         Walk(measures, first, last, (note, state) =>
         {
-            if (StaffOf(note) != staff || state.ClefOf(staff) is not { } read || !ReadingMark.Clefs.Values.Contains(read))
-            {
-                fits &= StaffOf(note) != staff;
-                return null;
-            }
-
-            return (StaffPitch.Middle(sign, line, 0) - StaffPitch.Middle(read.Sign, read.Line, 0), state.Fifths);
+            fits &= StaffOf(note) != staff || state.ClefOf(staff) is { } read && ReadingMark.Clefs.Values.Contains(read);
+            return null;
         });
-        if (fits)
+        if (!fits)
         {
-            // The clef as printed over the bars, and the reading's own again after them, where it did not write one there.
-            (char Sign, int Line)? after = ReadState.After(measures, last).ClefOf(staff);
-            foreach (XElement measure in measures.Skip(first + 1).Take(last - first))
-            {
-                measure.Elements("attributes").Elements("clef").Where(clef => ((int?)clef.Attribute("number") ?? 1) == staff).Remove();
-            }
-
-            PutClef(measures[first], staff, (sign, line));
-            if (last + 1 < measures.Count && after is { } restored
-                && !measures[last + 1].Elements("attributes").Elements("clef").Any(clef => ((int?)clef.Attribute("number") ?? 1) == staff))
-            {
-                PutClef(measures[last + 1], staff, restored);
-            }
+            return false;
         }
 
-        return fits;
+        Walk(measures, first, last, (note, state) => StaffOf(note) == staff && state.ClefOf(staff) is { } read
+            ? (StaffPitch.Middle(sign, line, 0) - StaffPitch.Middle(read.Sign, read.Line, 0), state.Fifths)
+            : null);
+
+        // The clef as printed over the bars, and the reading's own again after them, where it did not write one there.
+        (char Sign, int Line)? after = ReadState.After(measures, last).ClefOf(staff);
+        foreach (XElement measure in measures.Skip(first + 1).Take(last - first))
+        {
+            measure.Elements("attributes").Elements("clef").Where(clef => ((int?)clef.Attribute("number") ?? 1) == staff).Remove();
+        }
+
+        PutClef(measures[first], staff, (sign, line));
+        if (last + 1 < measures.Count && after is { } restored
+            && !measures[last + 1].Elements("attributes").Elements("clef").Any(clef => ((int?)clef.Attribute("number") ?? 1) == staff))
+        {
+            PutClef(measures[last + 1], staff, restored);
+        }
+
+        return true;
     }
 
     /// <summary>The measure's clef of <paramref name="staff"/>, in the place of one it writes, in MusicXML's order among its attributes.</summary>

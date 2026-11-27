@@ -74,6 +74,18 @@ public class ReadingMarksTests
         Assert.Equal("F4", Clef(measures[1], 2));
     }
 
+    [Fact]
+    public void A_clef_mark_over_bars_the_reading_writes_partly_in_another_clef_leaves_every_note_as_read()
+    {
+        string score = Score().Replace("<measure number=\"2\">", "<measure number=\"2\"><attributes><clef number=\"2\"><sign>C</sign><line>3</line></clef></attributes>", StringComparison.Ordinal);
+        byte[] bytes = Encoding.UTF8.GetBytes(score);
+
+        MarkedReading marked = ReadingMarks.Apply(bytes, PieceImporter.Import("a.musicxml", bytes).Piece!, [new ReadingMark(ReadingMarkKind.Clef, 1, 2, 2, "treble")]);
+
+        Assert.Same(bytes, marked.Score);
+        Assert.Equal([MarkOutcome.Unfit], marked.Marks.Select(static mark => mark.Outcome));
+    }
+
     private static string? Clef(XElement measure, int staff) =>
         measure.Elements("attributes").Elements("clef").Where(clef => (int?)clef.Attribute("number") == staff)
             .Select(static clef => $"{clef.Element("sign")!.Value}{clef.Element("line")!.Value}").SingleOrDefault();
