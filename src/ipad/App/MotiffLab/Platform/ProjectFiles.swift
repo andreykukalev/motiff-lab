@@ -87,13 +87,20 @@ enum ProjectFiles {
         return base.isEmpty ? "Piece" : base
     }
 
-    /// Asks music-core for the piece's project file and writes it, whole, to the url.
-    static func save(piece: Int32, to url: URL, now: Date = Date()) async throws {
+    /// Asks music-core for the piece's project file and writes it, whole, to the url. The ask is queued in the caller's
+    /// isolation, so it keeps its order with the caller's other calls (a change, then the save; the save, then the
+    /// piece closed); the file is written off the caller's actor (`write`).
+    static func save(piece: Int32, to url: URL, now: Date = Date(), isolation: isolated (any Actor)? = #isolation) async throws {
         let request = "{\"now\": \"\(ISO8601DateFormatter().string(from: now))\"}"
         let text = await MusicCore.run { PieceCore(piece: piece).send(.projectSave, request) }
         if let failure = facadeObject(text), failure["error"] != nil {
             throw ProjectError(message: failure["message"] as? String ?? UIText.current["opening.notSaved"])
         }
+        try await write(text, to: url)
+    }
+
+    /// The project file written to the url, on the generic executor (a nonisolated async function), never the main actor.
+    private static func write(_ text: String, to url: URL) async throws {
         try Data(text.utf8).write(to: url, options: .atomic)
     }
 
