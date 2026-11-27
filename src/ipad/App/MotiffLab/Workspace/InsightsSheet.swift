@@ -15,6 +15,8 @@ struct InsightsSheet: View {
     /// What loops while a variation is heard: the selection, to the variation's end.
     let range: Range<Double>?
     let text: UIText
+    /// «Привязать заново» on the line «Границы фраз изменились» (#318); nil on a view only shown (E-insights-5).
+    let reattach: (() -> Void)?
     let close: () -> Void
     @EnvironmentObject private var assistant: AssistantController
 
@@ -42,7 +44,10 @@ struct InsightsSheet: View {
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: CGFloat.ds("s-6")) {
-                        InsightsStream(insights: insights, text: text, hasSelection: !(selectionModel.selection?.noteIds.isEmpty ?? true), noNotes: selectionModel.selection?.noteIds.isEmpty ?? false)
+                        InsightsStream(
+                            insights: insights, text: text, hasSelection: !(selectionModel.selection?.noteIds.isEmpty ?? true),
+                            noNotes: selectionModel.selection?.noteIds.isEmpty ?? false, phrases: selectionModel.phrases, reattach: reattach
+                        )
                         // The assistant is the stream's last voice: its foot leads to the assistant's panel (#582 item 17.1).
                         Button(text["padAssistant.open"] + " ›") { assistant.open(wholePiece: false, selection: selectionModel.selection) }
                             .dsType(.label)
@@ -54,6 +59,8 @@ struct InsightsSheet: View {
                     .id("top")
                 }
                 .onChange(of: insights.understanding) { _, _ in reader.scrollTo("top", anchor: .top) }
+                // An edit of the boundaries carries the anchors and may join two, whose ideas then name the one kept (#318).
+                .onChange(of: selectionModel.phrases?.anchors) { _, _ in Task { await insights.loadIdeas() } }
                 // The sheet ignores the keyboard with the rest of the screen; its stream keeps clear of it (#582 item 16).
                 .keyboardRoom()
             }
@@ -66,8 +73,6 @@ struct InsightsSheet: View {
     /// The selection named, as the roll's drawer names it: "bars 9–16".
     private var heading: String {
         guard let selection = selectionModel.selection else { return text["bar.insights"] }
-        return selection.firstBar == selection.lastBar
-            ? text.format("bars.one", String(selection.firstBar))
-            : text.format("bars.range", String(selection.firstBar), String(selection.lastBar))
+        return barsText(selection.firstBar, selection.lastBar, text)
     }
 }

@@ -260,5 +260,8 @@
   "settings.theme": "Theme",
   "settings.thisPiece": "This piece has its own: {0}.",
   "settings.title": "Settings",
-  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it."
+  "piece.newerReadOnly": "Saved by a newer version of Motiff Lab: open to read only, and nothing done here is saved. Update the app to work on it.",
+  "phrases.reattached.one": "Attached again: {0} phrase",
+  "phrases.reattached.many": "Attached again: {0} phrases",
+  "phrases.reattachedNone": "Nothing to attach to: those places have no phrases now"
 }

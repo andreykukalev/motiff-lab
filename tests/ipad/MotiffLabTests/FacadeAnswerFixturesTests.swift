@@ -236,6 +236,10 @@ final class FacadeAnswerFixturesTests: XCTestCase {
         XCTAssertEqual(read[1].changed.first?.before.span, [0, 2880], "phrase 1 as it was")
         XCTAssertEqual(read[1].changed.first?.after.span, [0, 2520], "and by its new boundaries")
         XCTAssertEqual(read[4].changed.map { [$0.before.number, $0.after.number] }, [[4, 4], [5, 4]], "a boundary removed: two into one")
+
+        // Each edit's step number, which its Undo and Redo send back (#318); a restore sent without one answers none.
+        XCTAssertEqual(read.map(\.step), [nil, 1, nil, 2, 3, 4, 5, 6])
+        XCTAssertTrue(read.allSatisfy { $0.anchors.isEmpty && $0.unmatched == 0 }, "nothing attached to a phrase yet")
     }
 
     /// The drafts' calls (v1.1, ADR 0034): the «В черновик» sheet and what it offers first, the Sources group and the draft's

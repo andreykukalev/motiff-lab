@@ -97,3 +97,8 @@ struct UIText: Sendable {
         return object
     }
 }
+
+/// "bars 9–12", or "bar 9" (moved from Marks in v1.6 i-18, as Insights names an idea's bars too).
+func barsText(_ first: Int, _ last: Int, _ text: UIText) -> String {
+    first == last ? text.format("bars.one", String(first)) : text.format("bars.range", String(first), String(last))
+}

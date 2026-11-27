@@ -12,7 +12,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
   (`PageCommand`, `PageEvent`, `pageScript`) and `RollPage.swift` (`RollCommand`, `RollPage`, `RollEvent` with the roll's
   values and `NoteEditorState`; a message the page never sends goes to `RollEvent.broken`, a hook apart from
   `FacadeAnswer.broken`): the one port to each page (0031 steps 2, 12).
-- Typed answers, naming no feature type: `PieceAnswers.swift` (`SelectionAnswer`, `PhrasesAnswer`, `PlaybackAnswer`,
+- Typed answers, naming no feature type: `PieceAnswers.swift` (`SelectionAnswer`, `PhrasesAnswer` with its anchors,
+  `IdeasAnswer`, `PlaybackAnswer`,
   `RollAnswer`, `SourceLayersAnswer`, `CorrectionsAnswer`, `EditsLayerAnswer`, `PerformanceAnswer`, `PerformancesAnswer`,
   `VersionHead`), `DraftAnswers.swift` (the drafts' answers), `FormSection.swift` (Piece DNA's lane, the Contents, the
   letters), `CheckPageEntry.swift` (a scan's page as `check` counts it, v1.6 i-8), `VersionEntry.swift` (the version
@@ -29,7 +30,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
   (`queueChange`, E-settings-1); `resolved(overrides:)` lays a piece's own over them; read by the score, the roll, the
   assistant, scans, Piece DNA, the Reference and the app's appearance; shown by `Workspace/SettingsSheet`. `UIText.swift`:
   the shared words, then each folder's `<Folder>/Words/<Folder>.<language>.json`, merged (which key goes where:
-  `tests/shared/i18n.test.mjs`); `UIText.current` in the language picked (`motiff.language`), else the iPad's.
+  `tests/shared/i18n.test.mjs`); `UIText.current` in the language picked (`motiff.language`), else the iPad's; `barsText`.
   `InterfaceLanguage.swift`: a new choice saves the open piece, rebuilds the app under `.id(language)` and opens it again.
 - Look and input. `Design.swift` reads `design/kit/tokens.css`. Kit views more than one folder uses: `FlowLayout`
   (rows that wrap, centred or topped, `alignment`; Marks' `FlowRow` merged into it, v1.6 i-16), `SegmentedChoice` (ds.css `.seg`, v1.6 i-13), `FieldLook` (ds.css `.field`, the

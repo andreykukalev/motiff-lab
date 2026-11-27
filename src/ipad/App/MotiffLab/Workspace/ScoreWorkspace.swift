@@ -88,6 +88,7 @@ final class ScoreWorkspace: ObservableObject {
         insights.scaleStop = { [weak self] in self?.scaleStop() }
         insights.variationReady = { [weak self] notes, end in self?.variationReady(notes, end: end) }
         insights.variationLeft = { [weak self] in self?.variationLeft() }
+        insights.ideaKept = { [weak self] in self?.ideaKept() }
         wireRollSelection()
         wireRollPlayback()
         roll.noteEdited = { [weak self] edit in self?.noteEdited(edit) }
@@ -190,6 +191,13 @@ final class ScoreWorkspace: ObservableObject {
         if let range = score.focusModel.playRange?.range {
             player.hear(.variation, over: range.lowerBound..<max(range.upperBound, end))
         }
+    }
+
+    /// An idea kept is attached to its phrase's anchor, minted for it when the phrase had none (#318): the phrases are read
+    /// again so the stream shows it on that phrase; their marks do not change.
+    func ideaKept() {
+        let id = piece.id
+        Task { [weak score] in await score?.selectionModel.loadPhrases(of: id) }
     }
 
     /// Left, the original sounds again.
