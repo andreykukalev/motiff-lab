@@ -7,7 +7,8 @@ import os
 /// and the project file. Every answer is the facade's JSON text.
 ///
 /// The facade keeps its open pieces in memory and is not shared between threads, so every call runs through
-/// `MusicCore.run`, one at a time, on a thread with the 8 MB stack the .NET runtime expects, off the main thread.
+/// `MusicCore.run`, one at a time and in the order issued, on the core's one thread with the 8 MB stack the .NET runtime
+/// expects, off the main thread.
 enum MusicCore {
     /// {"contract": n, "projectFile": n, "runtime": "…"}: the facade contract's number (docs/facade-contract.md) and the
     /// project file's version.
@@ -43,26 +44,59 @@ enum MusicCore {
         ml_close(piece) != 0
     }
 
-    /// Runs `work` on the core's thread, after any call before it, and hands its result back.
-    static func run<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+    /// Runs `work` on the core's thread after every call issued before it, and hands its result back. The call joins the
+    /// core's queue in the caller's isolation (`isolation`, the caller's actor), before its first wait: calls issued one
+    /// after another, each in a task of its own on the main actor (an edit, then Save), reach music-core in that order.
+    /// A helper that wraps `run` in an async function of its own takes the same parameter to keep that (`PieceCore`,
+    /// `ProjectFiles.save`).
+    /// `work` never waits for another call: it would wait for itself.
+    static func run<T: Sendable>(isolation: isolated (any Actor)? = #isolation, _ work: @escaping @Sendable () -> T) async -> T {
         await withCheckedContinuation { continuation in
             ProbeCounts.shared.add("pending")
-            let thread = Thread {
-                lock.lock()
+            CoreThread.shared.enqueue {
                 let began = DispatchTime.now().uptimeNanoseconds
-                let result = work()
+                let result = autoreleasepool { work() }
                 ProbeCounts.shared.called(Int((DispatchTime.now().uptimeNanoseconds - began) / 1_000_000))
-                lock.unlock()
                 ProbeCounts.shared.add("pending", -1)
                 continuation.resume(returning: result)
             }
+        }
+    }
+
+    /// The core's one thread, started at the first call and kept: it runs the works queued in the order they came, one
+    /// at a time, on the 8 MB stack.
+    private final class CoreThread: @unchecked Sendable {
+        static let shared = CoreThread()
+        private let condition = NSCondition()
+        /// Guarded by `condition`.
+        private var queued: [@Sendable () -> Void] = []
+
+        private init() {
+            let thread = Thread { [self] in drain() }
+            thread.name = "music-core"
             thread.stackSize = 8 << 20
             thread.qualityOfService = .userInitiated
             thread.start()
         }
-    }
 
-    private static let lock = NSLock()
+        /// Queues `work` after every work queued before it.
+        func enqueue(_ work: @escaping @Sendable () -> Void) {
+            condition.lock()
+            queued.append(work)
+            condition.signal()
+            condition.unlock()
+        }
+
+        private func drain() {
+            while true {
+                condition.lock()
+                while queued.isEmpty { condition.wait() }
+                let work = queued.removeFirst()
+                condition.unlock()
+                work()
+            }
+        }
+    }
 
     private static func withOptionalCString<T>(_ text: String?, _ body: (UnsafePointer<CChar>?) -> T) -> T {
         guard let text else { return body(nil) }
