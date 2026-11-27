@@ -257,10 +257,10 @@ public class ObservationTests
         TickSpan bars2To3 = MotifSelector.Bars(piece.Meter, 2, 3, piece.End);
         TickSpan pickup = MotifSelector.Bars(piece.Meter, 0, 0, piece.End);
 
-        Assert.Equal(["o_0001", "o_0002"], project.ObservationsAbout(opening).Select(observation => observation.Id));
-        Assert.Equal(["o_0001", "o_0002"], project.ObservationsAbout(bar2).Select(observation => observation.Id));
-        Assert.Equal(["o_0001", "o_0002", "o_0003"], project.ObservationsAbout(bars2To3).Select(observation => observation.Id));
-        Assert.Empty(project.ObservationsAbout(pickup));
+        Assert.Equal(["o_0001", "o_0002"], project.Observations.Where(observation => observation.IsAbout(opening)).Select(observation => observation.Id));
+        Assert.Equal(["o_0001", "o_0002"], project.Observations.Where(observation => observation.IsAbout(bar2)).Select(observation => observation.Id));
+        Assert.Equal(["o_0001", "o_0002", "o_0003"], project.Observations.Where(observation => observation.IsAbout(bars2To3)).Select(observation => observation.Id));
+        Assert.DoesNotContain(project.Observations, observation => observation.IsAbout(pickup));
     }
 
     [Fact]

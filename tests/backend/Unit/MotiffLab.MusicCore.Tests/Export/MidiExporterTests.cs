@@ -32,6 +32,13 @@ public class MidiExporterTests
         .Select(note => (note.Span.Onset.Value - shift, note.Span.Duration, note.Pitch.MidiNumber, note.Velocity))
         .Order();
 
+    /// <summary>The first bar of <paramref name="piece"/> syncopated, all of it selected and nothing kept.</summary>
+    private static Variation Syncopated(Note[] piece)
+    {
+        MotifSelection selection = MotifSelector.Select(piece, MeterMap.Default, new TickSpan(Tick.Zero, 4 * Quarter), SelectionFilter.All);
+        return RhythmReshape.Instance.Apply(VariationFacts.MotifNotes(piece, selection), VariationContext.For(selection, new HashSet<KeepProperty>()), new RhythmReshapeParameters(RhythmReshapeKind.Syncopate));
+    }
+
     /// <summary>AC-S1-19: a variation exports with the right tempo, one track per hand and the variation's notes.</summary>
     [Fact]
     public void A_variation_round_trips_through_the_importer_with_its_tempo_one_track_per_hand_and_its_notes()
@@ -42,8 +49,7 @@ public class MidiExporterTests
             Note("r3", 76, 2 * Quarter, Quarter, Hand.Right), Note("r4", 79, 3 * Quarter, Quarter, Hand.Right),
             Note("l1", 48, 0, 2 * Quarter, Hand.Left, velocity: 60), Note("l2", 43, 2 * Quarter, 2 * Quarter, Hand.Left, velocity: 60),
         ];
-        MotifSelection selection = MotifSelector.Select(piece, MeterMap.Default, new TickSpan(Tick.Zero, 4 * Quarter), SelectionFilter.All);
-        Variation variation = RhythmReshape.Instance.Apply(piece, selection, new HashSet<KeepProperty>(), new RhythmReshapeParameters(RhythmReshapeKind.Syncopate));
+        Variation variation = Syncopated(piece);
         PlaybackTempo[] tempos = [new(Tick.Zero, 625_000)];
 
         MidiImport back = MidiImporter.Import(MidiExporter.Export(variation.Notes, tempos, MeterMap.Default, "Study"));

@@ -81,7 +81,7 @@ public class ReferenceSoundingTests
         Assert.All(run, note => Assert.Equal(1920 + 960, note.Span.End.Value));
         Assert.Equal(36, music.KeyboardLow);
         Assert.Equal(71, music.KeyboardHigh);
-        Assert.Equal("B F D G", string.Join(" ", music.Keys.Select(key => key.Name)));
+        Assert.Equal("B F D G", string.Join(" ", music.Keys.Select(key => key.Note.Letter)));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class ReferenceSoundingTests
         Assert.Equal("s", (string?)notes[6].Attribute("accid"));
         Assert.Equal("s", (string?)notes[8].Attribute("accid"));
         Assert.Equal("f", (string?)notes[5].Attribute("accid.ges"));
-        Assert.Equal(["B♭", "C♯"], sounding.Music.Keys.Where(key => key.Name.Length > 1).Select(key => key.Name));
+        Assert.Equal(["B♭", "C♯"], sounding.Music.Keys.Where(key => key.Note.Letter.Length > 1).Select(key => key.Note.Letter));
         Assert.Equal("ре ми фа соль ля си♭ до♯ ре", string.Join(" ", sounding.Music.Keys.Select(key => key.NameIn(NoteNaming.Syllables))));
     }
 

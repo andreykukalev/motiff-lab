@@ -14,9 +14,6 @@ internal readonly record struct WrittenTone(int Midi, SpelledName Name)
 /// <summary>A key the Reference's keyboard marks, with the note spelled on it.</summary>
 internal sealed record MarkedKey(int Midi, SpelledName Note)
 {
-    /// <summary>The note by its letter: B♭, C♯.</summary>
-    public string Name => Note.Letter;
-
     /// <summary>The note as the note naming setting names it.</summary>
     public string NameIn(NoteNaming naming) => Note.Name(naming);
 }

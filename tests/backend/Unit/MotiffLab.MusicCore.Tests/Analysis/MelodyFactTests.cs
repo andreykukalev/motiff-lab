@@ -148,7 +148,7 @@ public class MelodyFactTests
         Note[] notes = [.. Enumerable.Range(0, 8).Select(i => Note($"p{i}", 60 + i, i * Quarter, Quarter))];
         PhraseBoundary[] found = [new(new Tick(4 * Quarter), [PhraseEvidence.Rest], Attribution.Inferred(PhraseBoundaryFinder.RestConfidence))];
 
-        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.WithPlayerBoundaries(found, [new Tick(4 * Quarter), new Tick(6 * Quarter)]);
+        IReadOnlyList<PhraseBoundary> phrases = PhraseBoundaryFinder.WithPlayerBoundaries(found, new PhraseEdits([new Tick(4 * Quarter), new Tick(6 * Quarter)], []), static _ => true);
         MotifFact fact = Fact(Analyze(notes, MeterMap.Default, 0, 8 * Quarter, s_cMajor, phrases), "melody.phrases");
 
         Assert.Equal(
