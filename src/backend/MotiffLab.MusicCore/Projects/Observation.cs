@@ -250,8 +250,7 @@ public sealed record Observation(
         TickSpan span = (Variation ?? throw new InvalidOperationException("This observation keeps a note, not a variation.")).Passage.Span;
         int first = meter.BarAt(span.Onset).Number;
         int last = meter.BarAt(new Tick(span.End.Value - 1)).Number;
-        string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
-        return MidiExporter.FileName(Path.GetFileNameWithoutExtension(projectFileName), bars, Name);
+        return MidiExporter.FileName(Path.GetFileNameWithoutExtension(projectFileName), Words.English.Bars(first, last), Name);
     }
 
     private static string Trimmed(string name)

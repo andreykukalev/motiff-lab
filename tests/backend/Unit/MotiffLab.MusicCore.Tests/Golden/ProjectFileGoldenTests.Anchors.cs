@@ -65,6 +65,24 @@ public partial class ProjectFileGoldenTests
         Assert.Null(read.ResumePoints[0].Anchor);
     }
 
+    [Fact]
+    public void Two_anchors_a_file_keeps_on_one_span_are_read_as_one_the_smaller_id_with_what_was_on_both()
+    {
+        Project anchored = WithAnchor(out PhraseAnchor anchor);
+        var other = new PhraseAnchor("ph_0", anchor.Span);
+        Project two = anchored with
+        {
+            MintedAnchors = [anchor, other],
+            ResumePoints = [.. anchored.ResumePoints.Select(point => point with { Anchor = other.Id })],
+        };
+
+        Project read = ProjectFile.Read(ProjectFile.Write(two));
+
+        Assert.Equal([other], read.Anchors);
+        Assert.Equal(other.Id, read.Observations[0].Anchor);
+        Assert.Equal(other.Id, read.ResumePoints[0].Anchor);
+    }
+
     [Theory]
     [InlineData("""[{"id": "ph_1", "onset": 0, "duration": 480}, {"id": "ph_1", "onset": 480, "duration": 480}]""")]
     [InlineData("""[{"id": "", "onset": 0, "duration": 480}]""")]

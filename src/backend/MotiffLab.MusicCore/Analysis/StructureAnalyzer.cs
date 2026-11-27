@@ -367,7 +367,7 @@ internal static class StructureAnalyzer
                 : $"New material {InBarList(newBars, w)}; the other {Words.EnglishCount(repeated, "bar repeats", "bars repeat")} an earlier bar, exactly or transposed.";
 
         // Every run of new bars is a place: the bars, with the line notes that were compared.
-        FactPlace[] places = [.. Runs(newBars).Select(run =>
+        FactPlace[] places = [.. Words.Runs(newBars).Select(run =>
         {
             TickSpan bars = TickSpan.FromBounds(meter.GetBar(run.First).Span.Onset, meter.GetBar(run.Last).Span.End);
             return new FactPlace(w.Bars(run.First, run.Last), bars, [.. line.Where(note => bars.Contains(note.Span.Onset)).Select(note => note.Id)]);
@@ -387,24 +387,5 @@ internal static class StructureAnalyzer
 
     /// <summary>"in bars 1–2, 5 and 9": runs of consecutive bars joined; "в тактах 1–2, 5 и 9".</summary>
     private static string InBarList(IReadOnlyList<int> bars, Words w) =>
-        (bars.Count == 1 ? w.T("in bar ", "в такте ") : w.T("in bars ", "в тактах ")) + w.Joined([.. Runs(bars).Select(run => Words.Range(run.First, run.Last))]);
-
-    /// <summary>Runs of consecutive bars, in order.</summary>
-    internal static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
-    {
-        var runs = new List<(int First, int Last)>();
-        for (int i = 0; i < bars.Count;)
-        {
-            int j = i;
-            while (j + 1 < bars.Count && bars[j + 1] == bars[j] + 1)
-            {
-                j++;
-            }
-
-            runs.Add((bars[i], bars[j]));
-            i = j + 1;
-        }
-
-        return runs;
-    }
+        w.InBars(w.Joined([.. Words.Runs(bars).Select(run => Words.Range(run.First, run.Last))]), bars.Count == 1);
 }

@@ -55,7 +55,7 @@ through the facade; the API references it.
 - `Assistant` (its tools; the digest `FactsDigest`, `.Piece`, `.Draft`; the template's `NearestFacts`; `.Drafts`, in a
   draft: `DraftScope`, `DraftTools`, `DraftProposal`), `Analytics`
   (`AnalyticsCatalogue`), `Settings` (`SettingsCatalogue`), `Accounts`, `Invitations`, `Assembly`, `Export`;
-  `Words.cs`: the sentences in both languages, with `Words.Music.cs` the one module of the words they share (W1.8, v1.6 c-12: bars and their cases, intervals, key signatures, the English article and count, a list cut short; internal); `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
+  `Words.cs`: the sentences in both languages, with `Words.Music.cs` the one module of the words they share (W1.8, v1.6 c-12: bars, their cases and runs, intervals, key signatures, the English article and count, a list cut short; internal); `JsonWrite.cs`: the JSON primitives of the answers and the file (D16).
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`; made with the `IdSource` its pieces take ids from (`OpenPiece.Ids`, `OpenDocument.Ids`, `SessionPiece.Ids`), and `open` with "onlineIds" re-keys a numbered project not saved online. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested

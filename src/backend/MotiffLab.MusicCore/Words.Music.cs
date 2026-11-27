@@ -2,7 +2,7 @@ namespace MotiffLab.MusicCore;
 
 /// <summary>
 /// The words of music the sentences of the core share, each written once (W1.8, D14): bars and their
-/// numbers, intervals, key signatures, the English article and count, and a list cut short. The
+/// numbers, their runs, intervals, key signatures, the English article and count, and a list cut short. The
 /// sentences that use them stay with what they say; these never measure, they only name.
 /// </summary>
 public readonly partial record struct Words
@@ -20,6 +20,26 @@ public readonly partial record struct Words
     /// <summary>"3", "1–8": a bar number, or a run of bars.</summary>
     internal static string Range(int first, int last) => first == last ? $"{first}" : $"{first}–{last}";
 
+    /// <summary>Runs of consecutive numbers, in order: 1, 2, 5 gives (1, 2) and (5, 5).</summary>
+    internal static List<(int First, int Last)> Runs(IReadOnlyList<int> bars)
+    {
+        ArgumentNullException.ThrowIfNull(bars);
+        var runs = new List<(int First, int Last)>();
+        for (int i = 0; i < bars.Count;)
+        {
+            int j = i;
+            while (j + 1 < bars.Count && bars[j + 1] == bars[j] + 1)
+            {
+                j++;
+            }
+
+            runs.Add((bars[i], bars[j]));
+            i = j + 1;
+        }
+
+        return runs;
+    }
+
     /// <summary>"bar 3", "bars 1–8"; "такт 3", "такты 1–8".</summary>
     internal string Bars(int first, int last) => Bars(Range(first, last), first == last);
 
@@ -28,9 +48,14 @@ public readonly partial record struct Words
         one ? T($"bar {numbers}", $"такт {numbers}") : T($"bars {numbers}", $"такты {numbers}");
 
     /// <summary>"in bar 5", "in bars 5–6"; "в такте 5", "в тактах 5–6".</summary>
-    internal string InBars(int first, int last) => first == last
-        ? $"{T("in bar", "в такте")} {first}"
-        : $"{T("in bars", "в тактах")} {first}–{last}";
+    internal string InBars(int first, int last) => InBars(Range(first, last), first == last);
+
+    /// <summary>"in bars 1–2, 5 and 9"; "в тактах 1–2, 5 и 9": the bars' numbers as written, one bar or more.</summary>
+    internal string InBars(string numbers, bool one) => $"{T("in", "в")} {BarsPrepositional(numbers, one)}";
+
+    /// <summary>"bar 5", "bars 5–6, 9"; "такте 5", "тактах 5–6, 9": the Russian in the prepositional, after «в».</summary>
+    internal string BarsPrepositional(string numbers, bool one) =>
+        one ? T($"bar {numbers}", $"такте {numbers}") : T($"bars {numbers}", $"тактах {numbers}");
 
     /// <summary>"bar 15", "bars 15–16"; "такта 15", "тактов 15–16": the Russian in the genitive.</summary>
     internal string BarsGenitive(int first, int last) =>

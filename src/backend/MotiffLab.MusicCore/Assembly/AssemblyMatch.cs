@@ -1,4 +1,3 @@
-using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
 using MotiffLab.MusicCore.Performance;
 using MotiffLab.MusicCore.Time;
@@ -245,14 +244,14 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
         bool one = runs.Length == 1 && runs[0].First == runs[0].Last;
         sentences.Add(kind == MatchKind.NotFound
             ? $"{start} {words.Bars(bars, one)}."
-            : words.T($"{start} {(one ? "bar" : "bars")} {bars}.", $"{start} {(one ? "такте" : "тактах")} {bars}."));
+            : $"{start} {words.BarsPrepositional(bars, one)}.");
     }
 
     private IReadOnlyList<int> CorrectedBars(SourceMusic source) =>
         [.. Bars.Where(bar => bar.Kind == MatchKind.Same && !bar.Identical && bar.Clean).Select(bar => source.NumberOf(bar.Index))];
 
     private static string BarList(IReadOnlyList<int> bars, Words words) =>
-        words.Bars(string.Join(", ", StructureAnalyzer.Runs(bars).Select(run => Words.Range(run.First, run.Last))), bars.Count == 1);
+        words.Bars(string.Join(", ", Words.Runs(bars).Select(run => Words.Range(run.First, run.Last))), bars.Count == 1);
 
     private static IReadOnlyList<MatchSegment> RunsOf(SourceMusic source, IReadOnlyList<MatchBar> bars)
     {

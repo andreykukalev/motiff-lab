@@ -38,12 +38,10 @@ internal static partial class OperationTemplates
         int last = was.Keys.Max();
         if (w.IsRussian)
         {
-            string inBars = first == last ? $"В такте {first}" : $"В тактах {first}–{last}";
-            return $"{inBars} аккомпанемент сохраняет высоты и играет их в новом ритме или порядке; мелодия не изменилась.";
+            return $"{Words.Capitalize(w.InBars(first, last))} аккомпанемент сохраняет высоты и играет их в новом ритме или порядке; мелодия не изменилась.";
         }
 
-        string bars = first == last ? $"bar {first}" : $"bars {first}–{last}";
-        return $"In {bars} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
+        return $"In {w.Bars(first, last)} the accompaniment keeps its pitches and plays them in a new rhythm or order; the melody is unchanged.";
     }
 
     /// <summary>
