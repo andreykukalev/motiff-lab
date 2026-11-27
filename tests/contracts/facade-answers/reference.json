@@ -964,8 +964,7 @@
      "appearance.language": "en",
      "account.saveOnline": "off",
      "account.analytics": "off",
-     "scan.engine": "homr",
-     "experimental.scanJobs": "off"
+     "scan.engine": "all"
     }
    }
   },

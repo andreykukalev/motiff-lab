@@ -32,6 +32,8 @@ struct SourcesRecognisePanel: View {
     /// Why an original was not recognised, by its id.
     @Binding var problems: [String: String]
     @EnvironmentObject private var account: Account
+    /// The library's recognition: one at a time (Andrei, 2026-11-25), so a page original is not sent while it goes on.
+    @Environment(\.backgroundReading) private var background
 
     private var text: UIText { row.text }
 
@@ -47,6 +49,7 @@ struct SourcesRecognisePanel: View {
             return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: Self.hearLine(sources.layers, text: text), send: text["sources.sheet.sendRecording"])
         }
         let pages = max(1, original.pages ?? 1)
+        if let busy = background.busy { return Offer(blocker: text.format("recognition.busy", busy)) }
         guard let address = row.address else { return Offer(blocker: text["pdf.readNone"]) }
         if row.hosted && account.player == nil { return Offer(blocker: text["scan.signInPrompt"]) }
         if row.hosted && !account.allows(.scan) { return Offer(blocker: text["scan.proPrompt"]) }

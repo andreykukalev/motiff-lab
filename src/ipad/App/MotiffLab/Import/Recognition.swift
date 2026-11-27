@@ -132,6 +132,8 @@ final class RecognitionQueue: ObservableObject {
     @Published private(set) var progress: (file: String, progress: ScanProgress)?
     /// The scan job of the piece being read, as its server last told it: its pages and their engines (version 1.3).
     @Published private(set) var job: (file: String, status: ScanJobStatus)?
+    /// The piece whose notes are read and wait for its screen to let it go (`letGo`): its PDF says «Ноты готовы».
+    @Published private(set) var awaiting: String?
     /// How long each page this batch read here took, from send to answer (v0.5.6, #533 section 1), for the time left.
     private(set) var measured: [Int] = []
     var account: Account?
@@ -147,6 +149,8 @@ final class RecognitionQueue: ObservableObject {
     private(set) var open: String?
     /// The batch stopped only at the open piece, to go on once it closes.
     private var waiting = false
+    /// The pieces whose screen saved them and let them go (`released`), so their notes need not wait for a closing save.
+    private var letGoSaved: Set<String> = []
     /// After a relaunch, only the pieces whose scan job goes on on the server are followed, until «Продолжить».
     private var jobsOnly = false
 
@@ -162,6 +166,14 @@ final class RecognitionQueue: ObservableObject {
 
     /// A batch left unfinished when the app was closed, waiting for «Продолжить».
     var interrupted: Bool { batch.map { !$0.finished && !$0.paused } == true && !running }
+
+    /// The piece being recognised while the batch is unfinished, paused or stopped too: the one being read, else the next
+    /// waiting; nil when none is. One recognition at a time (Andrei, 2026-11-25): while there is one, «Распознать ноты» on a
+    /// PDF, in Sources and in the library starts none; «Остановить» ends it.
+    var busy: RecognitionItem? {
+        guard let batch, !batch.finished else { return nil }
+        return batch.items.first { $0.state == .reading } ?? batch.items.first { $0.state == .queued }
+    }
 
     /// Reads the batch kept on the device, once, and starts following at once the pieces whose scan job goes on on the
     /// server (spec part 5: after a relaunch the app asks again); every other piece waits for «Продолжить», as before.
@@ -252,6 +264,25 @@ final class RecognitionQueue: ObservableObject {
         revision += 1
     }
 
+    /// The piece open on screen, `file`, has been saved and its screen writes it no more (its «Открыть ноты», Andrei
+    /// 2026-11-25): its notes may be written now. The screen then opens it again, which tells the queue as any opening does.
+    func released(_ file: URL) {
+        guard open == file.lastPathComponent else { return }
+        letGoSaved.insert(file.lastPathComponent)
+        opened(nil)
+    }
+
+    /// The piece's item once the batch is done with it (its notes written, or why not), waiting for the queue `seconds` at
+    /// most (a long scan job's fetch, join and reading included); nil when it is not in the batch or still not done.
+    func finished(_ file: URL, within seconds: Int = 600) async -> RecognitionItem? {
+        for _ in 0..<(seconds * 4) {
+            guard let item = status(of: file) else { return nil }
+            if item.state == .done || item.state == .failed { return item }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        return nil
+    }
+
     /// The piece now open on screen (nil when none); a piece left for it is read once another is open or none.
     func opened(_ url: URL?) {
         let now = url?.lastPathComponent
@@ -263,9 +294,28 @@ final class RecognitionQueue: ObservableObject {
         }
     }
 
-    /// The next piece to read: the first queued, except the one open on screen; with `jobsOnly`, the first with a scan job.
-    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false) -> Int? {
-        batch.items.firstIndex { $0.state == .queued && $0.file != open && (!jobsOnly || $0.job != nil) }
+    /// The next piece to read: the first queued that is not open on screen, else the open one when it is read by a scan
+    /// job (`jobs`, or its job kept), whose notes wait until the screen lets it go (`letGo`, Andrei 2026-11-25: «Распознать
+    /// ноты» on an open PDF goes on in the background), so the rest of a batch is not held behind it; with `jobsOnly`, only
+    /// those with a scan job.
+    static func next(in batch: RecognitionBatch, open: String?, jobsOnly: Bool = false, jobs: Bool = false) -> Int? {
+        let queued = batch.items.indices.filter { batch.items[$0].state == .queued && (!jobsOnly || batch.items[$0].job != nil) }
+        return queued.first { batch.items[$0].file != open } ?? queued.first { jobs || batch.items[$0].job != nil }
+    }
+
+    /// Waits while the piece `file` is open on screen with its notes read (`awaiting`: «Ноты готовы» on its PDF), until its
+    /// screen lets it go (`released`) or closes; false once the batch no longer wants it (`wanted`).
+    private func letGo(_ file: String, wanted: () -> Bool) async -> Bool {
+        guard open == file else {
+            letGoSaved.remove(file)
+            return wanted()
+        }
+        awaiting = file
+        defer { if awaiting == file { awaiting = nil } }
+        while wanted(), open == file { try? await Task.sleep(nanoseconds: 500_000_000) }
+        // Closed rather than let go: the screen's own save on leaving (in the background) lands before the file is read.
+        if letGoSaved.remove(file) == nil { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+        return wanted()
     }
 
     /// What is happening to the piece's notes in the batch, if it is in it.
@@ -281,7 +331,7 @@ final class RecognitionQueue: ObservableObject {
             waiting = batch.map { !$0.paused && $0.items.contains { $0.state == .queued } } ?? false
             revision += 1
         }
-        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly) {
+        while let current = batch, !current.paused, let index = Self.next(in: current, open: open, jobsOnly: jobsOnly, jobs: ScanServer.jobs) {
             guard let address = URL(string: current.address) else { return stop() }
             let item = current.items[index]
             if current.hosted, let player = account.player, DailyPages.used(player: player, defaults: defaults) + item.pages > DailyPages.limit {
@@ -292,6 +342,7 @@ final class RecognitionQueue: ObservableObject {
             batch?.items[index].state = .reading
             RecognitionStore.save(batch, in: root)
             let file = item.file
+            let id = current.id
             let outcome = await Self.recognise(
                 projects().appendingPathComponent(file), address: address, account: account, links: links, folders: root,
                 // Heard only on the way without a job (a job's `hear` sets both), so no job's line stays.
@@ -301,7 +352,10 @@ final class RecognitionQueue: ObservableObject {
                 },
                 job: follow(item, index: index, batch: current.id),
                 again: item.unread, read: item.read, session: session,
-                isOpen: { self.open == file }
+                isOpen: { self.open == file },
+                letGo: { [weak self] in
+                    await self?.letGo(file) { self?.batch?.id == id && self?.batch?.paused == false } ?? false
+                }
             )
             if let timed = progress, timed.file == file { measured += timed.progress.milliseconds }
             progress = nil
@@ -316,7 +370,10 @@ final class RecognitionQueue: ObservableObject {
                 batch?.items[index].reason = read.why
                 if current.hosted, let player = account.player { DailyPages.add(read.pages, player: player, defaults: defaults) }
             case .failure(let failure) where failure.open:
+                // Read again once the screen closes or lets it go (`opened`), not at once: the loop would pick it again.
                 batch?.items[index].state = .queued
+                RecognitionStore.save(batch, in: root)
+                return
             case .failure(let failure):
                 // Pages read again that did not work leave the piece with its notes and the line with «Повторить» (v1.3 i-1b).
                 let again = item.unread != nil
@@ -356,9 +413,8 @@ final class RecognitionQueue: ObservableObject {
             },
             wanted: wanted,
             ready: { [weak self] in
-                // The screen saves the open piece over anything written meanwhile: its readings wait until it closes.
-                while wanted(), self?.open == file { try? await Task.sleep(nanoseconds: 2_000_000_000) }
-                return wanted()
+                // The screen saves the open piece over anything written meanwhile: its readings wait until it lets it go.
+                await self?.letGo(file, wanted: wanted) ?? false
             }
         )
     }
@@ -367,8 +423,9 @@ final class RecognitionQueue: ObservableObject {
     /// ноты» on its PDF does: the pages sent and those no engine read, or why not. `isOpen` says, just before the notes
     /// are written, whether the piece is open on screen now; `progress` hears as each page is sent and read; `job`, the scan
     /// job it is read by (version 1.3), deleted on the server once the notes are written, its requests going by `session`;
-    /// `again`, the pages of a piece with notes no engine read, read again into its notes (v1.3 i-1b).
-    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, job: RecognitionJob? = nil, again unread: [Int]? = nil, read notes: [Int]? = nil, session: URLSession = .shared, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+    /// `again`, the pages of a piece with notes no engine read, read again into its notes (v1.3 i-1b); `letGo`, once the
+    /// notes are read while the piece is open, waits for its screen to let it go (false: not now).
+    static func recognise(_ url: URL, address: URL, account: Account, links: URL, folders: URL, progress: ScanProgressListener? = nil, job: RecognitionJob? = nil, again unread: [Int]? = nil, read notes: [Int]? = nil, session: URLSession = .shared, isOpen: () -> Bool, letGo: () async -> Bool = { false }) async -> Result<RecognitionRead, RecognitionFailure> {
         let text = UIText.current
         guard let summary = await PieceSummary.read(url), let project = try? Data(contentsOf: url) else {
             return .failure(RecognitionFailure(reason: text["recognition.failMissing"]))
@@ -390,12 +447,25 @@ final class RecognitionQueue: ObservableObject {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
         }
         let piece = open.id
-        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, isOpen: isOpen)
+        let away = pdf
+        // The file as it is once the notes are back: a piece open on screen while its job was read was saved there since.
+        let current: () async -> Int32? = {
+            guard let now = try? Data(contentsOf: url), now != project else { return piece }
+            guard case .success(let again) = await OpenPiece.open(fileName: url.lastPathComponent, data: now, language: text.language, pdf: away) else { return nil }
+            guard again.isDocument else {
+                _ = await MusicCore.run { MusicCore.close(piece: again.id) }
+                return nil
+            }
+            return again.id
+        }
+        let outcome = await read(piece, url: url, to: ScanTarget(address: address, account: account, session: session), text: text, progress: progress, job: job, current: current, isOpen: isOpen, letGo: letGo)
         _ = await MusicCore.run { MusicCore.close(piece: piece) }
         return outcome
     }
 
-    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, isOpen: () -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
+    /// `current` gives the piece as its file is when the notes are back: `piece` itself, or the file opened again when it
+    /// was saved meanwhile, closed here once the notes are written into it.
+    private static func read(_ piece: Int32, url: URL, to target: ScanTarget, text: UIText, progress: ScanProgressListener?, job: RecognitionJob?, current: () async -> Int32?, isOpen: () -> Bool, letGo: () async -> Bool) async -> Result<RecognitionRead, RecognitionFailure> {
         let document = await MusicCore.run { PieceCore(piece: piece).send(.document) }
         guard let object = facadeObject(document), let base64 = object["pdf"] as? String, let data = Data(base64Encoded: base64) else {
             return .failure(RecognitionFailure(reason: text["pdf.unreadable"]))
@@ -417,8 +487,13 @@ final class RecognitionQueue: ObservableObject {
         case .failure(let problem):
             return .failure(RecognitionFailure(reason: problem.text(text), stop: stop(problem)))
         case .success(let scanned):
+            // Read without a job too (a PDF read on the iPad, an older server, a long PDF in parts): the notes wait for the
+            // open piece's screen as a job's do, rather than being read again.
+            if isOpen(), !(await letGo()) { return .failure(RecognitionFailure(reason: "", open: true)) }
+            guard let into = await current() else { return .failure(RecognitionFailure(reason: text["pdf.unreadable"])) }
             let request = DocumentRead.request(musicXml: scanned.musicXml, engine: scanned.engine, pages: pages, reports: nil, language: text.language, now: Date())
-            let answer = await DocumentRead.call(piece: piece, request)
+            let answer = await DocumentRead.call(piece: into, request)
+            if into != piece { _ = await MusicCore.run { MusicCore.close(piece: into) } }
             guard let read = facadeObject(answer), read["error"] == nil, let file = read["file"] as? String else {
                 return .failure(RecognitionFailure(reason: facadeObject(answer)?["message"] as? String ?? text["pdf.readNone"]))
             }
