@@ -22,14 +22,17 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`. Cut
   hide a view, add pages or a recording, remove an original or Notes (Undo writes the file back), «Сделать рабочими»
   (E-sheet-1), `undo`, a picked file read (`read(picked:)`, E-sources-2), another PDF or Notes opened only to be shown
   (`openOriginal`, `openNotes`, `engraveShown`). Recognising is one path, one original at a time (E-sources-1):
-  `canRecognise`, `recognise`, then `keepRecognised` under the literal call name (`sources.notes.recognise`,
-  `.notes.hear`, read by the facade-calls contract test). The first notes of a piece with none, the first pages of a
+  `canRecognise`, `recognise` through `setReading` (`reading`, the one owner of which original is with the scan server,
+  held also by `Workspace/ScoreMarkedReading`'s «Распознать заново с отметками», v1.6 c-14b3), then `keepRecognised`
+  under the literal call name (`sources.notes.recognise`, `.notes.hear`, read by the facade-calls contract test; with
+  `keptPdf`, also the marked reading's). The first notes of a piece with none, the first pages of a
   piece that is only its recording, and a removal that takes a version away open the piece again in place (`tell`,
   `reopen`, the toast handed over). The recording heard (`performance`) is handed to the next screen of the file
   (`handOver`, `takeHanded`, `leave`, `switchReturned`, `handedAway`, `putAway`).
 - `SourcesRecognising.swift`: the readers of `recognise`, which write no state: `readPages` (the scan server),
   `hearRecording` (progress told back), `hearFields`, `gridHint`, `hint`, `jobPlanLine`, `readingOther`; `Recognised`,
-  `Refusal`, `noScanServer`, `toastText`.
+  `Refusal`, `noScanServer`, `toastText` (music-core's lines of the corrections carried, "carried", and of the marks
+  «что не так» used, "marked", v1.6 c-14b3).
 - `SourcesHandover.swift`: `SourcesToast` and `SourcesHandover`, what the next screen of the same file is handed (the
   toast, the view, the switch, the recording).
 - `SourcesDrafts.swift` (ADR 0034): the drafts' steps on the controller (`addToDraft`, `createWithRecording`,
@@ -46,7 +49,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`. Cut
 - `SourcesRows.swift`: `SourcesRow` (what the sheet hands the rows: the view shown, the scan server, the actions,
   `Picking`), `SourcesGroupCard`, `SourcesOriginalRow`, `SourcesNotesRow`, `SourcesDraftRow`, `SourcesCaption`.
 - `SourcesRecognise.swift`: `SourcesRecogniseButton` and `SourcesRecognisePanel` (`Offer`: what it needs, where it
-  goes, Send; `hearLine`, `timedBy`), Send → `SourcesController.recognise`.
+  goes, Send; `pagesOffer`, the words for pages sent, also Check's marked reading's; `hearLine`, `timedBy`), Send →
+  `SourcesController.recognise`.
 - `SourcesDialogs.swift` (`SourcesDialogs`, `DraftDialogs`), `DeleteOriginalDialog.swift`, `OriginalsViews.swift`
   (`OriginalPlaceLabel`).
 - `SourcesSwitch.swift`: the switch of views in the bar (`SourcesViewSwitch`, `SourcesViewMenu`), `SourcesButton`,
