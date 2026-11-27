@@ -96,8 +96,6 @@ internal sealed record ReferenceChord(string Numeral, HarmonicFunction Function,
 /// <param name="TrebleSteps">Each accidental's place on the treble staff, in diatonic steps above its bottom line (E4 is 0, F5 on the top line is 8).</param>
 internal sealed record SignatureCard(int Fifths, string Label, string Count, IReadOnlyList<string> Accidentals, IReadOnlyList<int> TrebleSteps)
 {
-    /// <summary>Sharps rather than flats; neither when <see cref="Fifths"/> is 0.</summary>
-    public bool Sharps => Fifths > 0;
 }
 
 /// <summary>A choice of the reverse lookup: a number of sharps or flats, with its short and its spoken label.</summary>

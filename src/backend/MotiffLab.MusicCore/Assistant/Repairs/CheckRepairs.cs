@@ -111,8 +111,6 @@ internal static partial class CheckRepairs
     private static Note Earlier(Note note, long ticks) => note with { Span = new TickSpan(new Tick(note.Span.Onset.Value - ticks), note.Span.Duration), Attribution = Attribution.UserEdited };
 
     private static Note Lasting(Note note, long duration) => note with { Span = new TickSpan(note.Span.Onset, duration), Attribution = Attribution.UserEdited };
-
-    private static string Ticks(long value) => value.ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>

@@ -157,33 +157,6 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
     public static bool IsSame(int matched, int total) =>
         matched >= total * SameShare || (total - matched <= 1 && matched >= total * PartlyShare);
 
-    /// <summary>Where a stretch of the source lands in the player's notes and how alike it is there: «Похоже на такты 15–16 · частично».</summary>
-    public (TickSpan Span, MatchKind Kind)? Similar(TickSpan inSource)
-    {
-        MatchBar[] bars = [.. Bars.Where(bar => bar.Target is not null && Overlaps(bar, inSource))];
-        Tick start = Alignment.TickAt(inSource.Onset.Value * 1000);
-        Tick end = Alignment.TickAt(inSource.End.Value * 1000);
-        if (bars.Length == 0 || end <= start)
-        {
-            return null;
-        }
-
-        return (TickSpan.FromBounds(start, end), Worst(bars.Select(bar => bar.Kind)));
-    }
-
-    /// <summary>Where a stretch of the player's notes lies in the source: «Найти похожее» the other way.</summary>
-    public TickSpan? InSource(TickSpan inNotes)
-    {
-        if (Alignment.Anchors.Count == 0)
-        {
-            return null;
-        }
-
-        long start = Alignment.MicrosecondsAt(inNotes.Onset) / 1000;
-        long end = Alignment.MicrosecondsAt(inNotes.End) / 1000;
-        return end > start && start >= 0 ? TickSpan.FromBounds(new Tick(start), new Tick(end)) : null;
-    }
-
     /// <summary>
     /// The places «Принять совпавшее» takes: runs of bars that match but are not identical and land bar for bar on the
     /// player's notes, as source spans with where they go. Bars that only partly match or differ are left to the player.
@@ -259,15 +232,6 @@ internal sealed record AssemblyMatch(string SourceId, string Stamp, IReadOnlyLis
 
         return string.Join(" ", sentences);
     }
-
-    /// <summary>The kind in a word: «совпадает», «частично», «отличается», «не найдено».</summary>
-    public static string Word(MatchKind kind, Words words) => kind switch
-    {
-        MatchKind.Same => words.T("matches", "совпадает"),
-        MatchKind.Partly => words.T("partly", "частично"),
-        MatchKind.Differs => words.T("differs", "отличается"),
-        _ => words.T("not found", "не найдено"),
-    };
 
     private void AddSentence(List<string> sentences, MatchKind kind, string start, Words words)
     {

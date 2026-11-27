@@ -167,9 +167,6 @@ internal sealed class FoundSections
         return [.. Items.Where(section => !marked.Contains(section.FirstBar))];
     }
 
-    /// <summary>The section with this number, or null.</summary>
-    public FoundSection? Find(int number) => Items.FirstOrDefault(section => section.Number == number);
-
     /// <summary>Whether the section's start can move to the bar: after the start of the one before it and before the start of the one after.</summary>
     public bool CanMove(int number, int bar)
     {
