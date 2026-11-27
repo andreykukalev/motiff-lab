@@ -17,7 +17,7 @@ internal static class CallRegistry
     public static readonly FrozenDictionary<string, FacadeCall<PieceCall>> OnPiece = Index(
     [
         .. MusicCoreFacade.CallsOnPiece,
-        .. Lifted([.. OpenPiece.Calls.Piece, .. OpenPiece.Calls.Selection, .. OpenPiece.Calls.Project, .. OpenPiece.Calls.Performances, .. OpenPiece.Calls.Sources, .. OpenPiece.Calls.Corrections], static (PieceCall call, Request _) => call.Piece),
+        .. Lifted([.. OpenPiece.Calls.Piece, .. OpenPiece.Calls.Selection, .. OpenPiece.Calls.Project, .. OpenPiece.Calls.Marks, .. OpenPiece.Calls.Performances, .. OpenPiece.Calls.Sources, .. OpenPiece.Calls.Corrections], static (PieceCall call, Request _) => call.Piece),
         .. Lifted(SourceRequest.Calls, static (PieceCall call, Request _) => call.Piece.HeldSources),
         .. Lifted(AssistantRequest.Calls, static (PieceCall call, Request _) => call.Piece.Assistant),
     ]);

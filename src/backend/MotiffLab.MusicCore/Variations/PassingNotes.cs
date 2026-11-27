@@ -6,7 +6,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>Which notes V11 adds between two melody notes.</summary>
-public enum PassingNoteKind
+internal enum PassingNoteKind
 {
     /// <summary>The scale notes between them, one to three, walking from the first to the second.</summary>
     Passing,
@@ -20,7 +20,7 @@ public enum PassingNoteKind
 
 /// <summary>The parameters of V11 Passing and neighbour notes.</summary>
 /// <param name="Intervals">The melody intervals to fill, interval 0 running from the first note to the second; null for every one.</param>
-public sealed record PassingNotesParameters(PassingNoteKind Kind, IntervalSet? Intervals = null) : OperationParameters;
+internal sealed record PassingNotesParameters(PassingNoteKind Kind, IntervalSet? Intervals = null) : OperationParameters;
 
 /// <summary>
 /// V11 Passing and neighbour notes (Stage 1 spec, Operations): the main notes of the melody keep their pitches and
@@ -40,7 +40,7 @@ public sealed record PassingNotesParameters(PassingNoteKind Kind, IntervalSet? I
 /// accompaniment.
 /// </para>
 /// </remarks>
-public sealed class PassingNotes : VariationOperation<PassingNotesParameters>
+internal sealed class PassingNotes : VariationOperation<PassingNotesParameters>
 {
     public const string OperationId = "V11";
 

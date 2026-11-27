@@ -151,7 +151,7 @@ extension RollAnswer {
     var argument: [String: Any] {
         let spelled: [String: Any] = [
             "notes": names.notes, "keyTicks": names.keyTicks, "rows": names.rows, "short": names.short, "shortRows": names.shortRows,
-            "octaves": names.octaves,
+            "octaves": names.octaves, "voices": names.voices.map { ["track": $0.track, "voice": $0.voice, "name": $0.name] as [String: Any] },
         ]
         return ["ids": ids, "notes": notes, "bars": bars, "end": end, "names": spelled]
     }

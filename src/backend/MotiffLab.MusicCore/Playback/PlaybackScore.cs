@@ -20,7 +20,7 @@ namespace MotiffLab.MusicCore.Playback;
 /// position. Building a score is pure and deterministic.
 /// </para>
 /// </remarks>
-public sealed class PlaybackScore
+internal sealed class PlaybackScore
 {
     private PlaybackScore(
         IReadOnlyList<PlaybackNote> notes,
@@ -291,16 +291,16 @@ public sealed class PlaybackScore
 /// <param name="Pitch">MIDI note number, 0–127.</param>
 /// <param name="Velocity">MIDI velocity, 1–127.</param>
 /// <param name="Track">Zero-based track lane, for solo and mute.</param>
-public readonly record struct PlaybackNote(TickSpan Span, int Pitch, int Velocity, int Track);
+internal readonly record struct PlaybackNote(TickSpan Span, int Pitch, int Velocity, int Track);
 
 /// <summary>The sustain pedal held down over <paramref name="Span"/>, for the notes of <paramref name="Track"/>.</summary>
-public readonly record struct PlaybackPedal(TickSpan Span, int Track);
+internal readonly record struct PlaybackPedal(TickSpan Span, int Track);
 
 /// <summary>A metronome beat; downbeats (beat 1 of a bar other than a pickup) are accented.</summary>
-public readonly record struct PlaybackBeat(Tick At, bool IsDownbeat);
+internal readonly record struct PlaybackBeat(Tick At, bool IsDownbeat);
 
 /// <summary>A bar, for the count-in: a count-in plays one full bar of the bar playback starts in.</summary>
 /// <param name="Number">0 for a pickup, otherwise from 1.</param>
 /// <param name="BeatTicks">Length of one beat (the time signature's denominator note value).</param>
 /// <param name="BeatsPerBar">The time signature's numerator.</param>
-public readonly record struct PlaybackBar(int Number, TickSpan Span, long BeatTicks, int BeatsPerBar, bool IsPickup);
+internal readonly record struct PlaybackBar(int Number, TickSpan Span, long BeatTicks, int BeatsPerBar, bool IsPickup);

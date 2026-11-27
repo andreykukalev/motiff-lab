@@ -10,14 +10,14 @@ namespace MotiffLab.MusicCore.Assembly;
 /// <param name="Dependents">Steps that lean on it and go with it: a note change of a note it put in, a carry into its music.</param>
 /// <param name="Staying">Later steps that do not lean on it and stay.</param>
 /// <param name="Delta">How much longer the notes become, in ticks (negative: shorter).</param>
-public sealed record RevertPlan(int Number, IReadOnlyList<int> Dependents, IReadOnlyList<int> Staying, long Delta);
+internal sealed record RevertPlan(int Number, IReadOnlyList<int> Dependents, IReadOnlyList<int> Staying, long Delta);
 
 /// <summary>
 /// An assembly at work (decision record 0024): the base the player's notes start from, the sources, the journal and its
 /// undo history, and the notes rebuilt from them. Immutable: every operation gives a new work, so undo is keeping the
 /// one before.
 /// </summary>
-public sealed record AssemblyWork
+internal sealed record AssemblyWork
 {
     private readonly Dictionary<string, AssemblyMatch> _matches = new(StringComparer.Ordinal);
 

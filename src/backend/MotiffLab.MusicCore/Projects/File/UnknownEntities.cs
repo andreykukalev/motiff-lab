@@ -73,11 +73,28 @@ internal static class UnknownEntities
     internal static List<UnknownEntity> KeptUnknown(IEnumerable<UnknownEntity> unknown, string list, IEnumerable<string> knownIds, IReadOnlySet<string>? replacedOwners, out HashSet<string> replaced)
     {
         HashSet<string> taken = [.. knownIds];
+        return Kept(unknown, list, entity => taken.Contains(entity.Id!), replacedOwners, out replaced);
+    }
+
+    /// <summary>
+    /// The unknown entities of a list whose entities belong with another (a variation's motif, a bookmark's category) to
+    /// write back, as <see cref="KeptUnknown(IEnumerable{UnknownEntity}, string, IEnumerable{string}, IReadOnlySet{string}?, out HashSet{string})"/>
+    /// keeps them, but a known entity takes an unknown one's place only when both have the same id and owner: one of another
+    /// owner with its id never drops it (#364).
+    /// </summary>
+    internal static List<UnknownEntity> KeptUnknown(IEnumerable<UnknownEntity> unknown, string list, IEnumerable<(string Id, string Owner)> known, IReadOnlySet<string> replacedOwners)
+    {
+        HashSet<(string, string)> taken = [.. known];
+        return Kept(unknown, list, entity => entity.Owner is { } owner && taken.Contains((entity.Id!, owner)), replacedOwners, out _);
+    }
+
+    private static List<UnknownEntity> Kept(IEnumerable<UnknownEntity> unknown, string list, Func<UnknownEntity, bool> taken, IReadOnlySet<string>? replacedOwners, out HashSet<string> replaced)
+    {
         List<UnknownEntity> kept = [];
         replaced = [];
         foreach (UnknownEntity entity in unknown.Where(entity => entity.List == list).OrderBy(static entity => entity.Index))
         {
-            if (entity.Id is { } id && taken.Contains(id))
+            if (entity.Id is { } id && taken(entity))
             {
                 replaced.Add(id);
             }

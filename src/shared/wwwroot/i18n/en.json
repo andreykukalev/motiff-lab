@@ -23,6 +23,7 @@
 
   "roll.js.track": "Track {0}",
   "roll.js.trackVoice": "{0}, voice {1}",
+  "roll.js.trackVoiceNamed": "{0}, {1}",
   "roll.js.noVoice": "none",
   "roll.js.rightHand": "Right hand",
   "roll.js.leftHand": "Left hand",

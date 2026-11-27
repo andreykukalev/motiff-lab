@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Events;
 /// alone would give G♭ and F. A section whose key had to be written enharmonically (nine sharps as three flats) moves by
 /// one letter more or less.
 /// </summary>
-public sealed class TransposedSpelling
+internal sealed class TransposedSpelling
 {
     private static readonly int[] s_natural = [0, 2, 4, 5, 7, 9, 11];
 

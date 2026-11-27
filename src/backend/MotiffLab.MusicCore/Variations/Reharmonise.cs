@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Motifs;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>Which chord V15 puts in place of each major or minor chord.</summary>
-public enum ReharmoniseKind
+internal enum ReharmoniseKind
 {
     /// <summary>The relative chord: a major chord becomes the minor chord a minor 3rd below (C to Am), a minor chord the major chord a minor 3rd above (Am to C).</summary>
     Relative,
@@ -15,7 +15,7 @@ public enum ReharmoniseKind
 }
 
 /// <summary>The parameters of V15 Reharmonise.</summary>
-public sealed record ReharmoniseParameters(ReharmoniseKind Kind) : OperationParameters;
+internal sealed record ReharmoniseParameters(ReharmoniseKind Kind) : OperationParameters;
 
 /// <summary>
 /// V15 Reharmonise (decision record 0018, section 7): the melody stays note for note, and under it each major or minor
@@ -34,7 +34,7 @@ public sealed record ReharmoniseParameters(ReharmoniseKind Kind) : OperationPara
 /// or minor chord, or when a moved note would sound at or above a melody note sounding with it.
 /// </para>
 /// </remarks>
-public sealed class Reharmonise : VariationOperation<ReharmoniseParameters>
+internal sealed class Reharmonise : VariationOperation<ReharmoniseParameters>
 {
     public const string OperationId = "V15";
 

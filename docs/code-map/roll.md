@@ -27,7 +27,8 @@ the handles are drawn on the canvas, so they check what the roll posts.
   `OnRollNote*` calls and `OnRollNotesPicked`. The painter reads `placed` and `picked`.
 - The input router and its gestures (`roll-input.ts`, `roll-press.ts`, the place and the strips' gestures):
   [`roll-input.md`](roll-input.md).
-- `roll-model.ts`: notes and bars from music-core's packed payload; `noteAt`, `inRange`, `grid`.
+- `roll-model.ts`: notes and bars from music-core's packed payload; `noteAt`, `inRange`, `grid`; `lanes`, a voice by
+  music-core's name where its `names.voices` gives one (`trackVoiceNamed`, v1.5 #330), else by its number.
 - `roll-modes.ts`: what a press begins under the bar's tool (`gestureFor`, `selectsOnRoll`, `navigatesOnRoll`), the
   Edit notes box (`notesInBox`, overlap rule), the one playhead.
 - `roll-view.ts`, `roll-zoom.ts`, `roll-playhead.ts`, `roll-head-drag.ts`, `roll-strips.ts`: view and zoom rules, playhead, lanes.

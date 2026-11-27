@@ -11,7 +11,6 @@
     { "name": "bookmark.form", "on": ["piece"] },
     { "name": "bookmark.move", "on": ["piece"] },
     { "name": "bookmark.remove", "on": ["piece"] },
-    { "name": "bookmark.structure", "on": ["piece"] },
     { "name": "bookmarks", "on": ["piece"] },
     { "name": "catalogue", "on": ["piece0"] },
     { "name": "category.add", "on": ["piece"] },

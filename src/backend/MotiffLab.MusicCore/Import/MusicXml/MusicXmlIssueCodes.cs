@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Pieces;
 namespace MotiffLab.MusicCore.Import.MusicXml;
 
 /// <summary>Stable codes for MusicXML import issues, and their descriptions in English and Russian.</summary>
-public static class MusicXmlIssueCodes
+internal static class MusicXmlIssueCodes
 {
     // Rounded
     public const string NotesRounded = "musicxml.notes-rounded";

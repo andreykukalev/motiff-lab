@@ -25,7 +25,7 @@ public sealed record RemovedOriginal(PieceOriginal Original, DateTimeOffset At)
 public sealed partial record Project
 {
     /// <summary>The id the working notes get when none was read: the notes of a file of an earlier version, or of a new piece.</summary>
-    public const string FirstNotesId = "n_1";
+    internal const string FirstNotesId = "n_1";
 
     /// <summary>The working notes' id among the piece's Notes (version 16); <see cref="FirstNotesId"/> until a file says otherwise.</summary>
     public string NotesId { get; init => field = !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("Notes have an id.", nameof(NotesId)); } = FirstNotesId;

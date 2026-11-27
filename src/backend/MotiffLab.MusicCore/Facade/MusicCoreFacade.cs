@@ -24,7 +24,7 @@ namespace MotiffLab.MusicCore.Facade;
 public sealed partial class MusicCoreFacade
 {
     /// <summary>The facade contract's number, in the version call; what each number added or removed: docs/facade-contract.md.</summary>
-    public const int Contract = 15;
+    public const int Contract = 16;
 
     private readonly Dictionary<int, OpenPiece> _pieces = [];
     private readonly Dictionary<int, OpenDocument> _documents = [];
@@ -59,9 +59,7 @@ public sealed partial class MusicCoreFacade
         {
             using Request fields = Request.Parse(request);
             Words words = Words.For(fields.Text("language"));
-            DateTimeOffset now = fields.Text("now") is { } text
-                ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-                : DateTimeOffset.UtcNow;
+            DateTimeOffset now = fields.Now();
             byte[] bytes = data.ToArray();
             int number = _next;
             string id = fields.Text("id") ?? NewProjectId();
@@ -196,7 +194,7 @@ public sealed partial class MusicCoreFacade
         new("settings.state", static (_, fields) => OpenPiece.SettingsState(fields)),
         new("project.summary", static (_, fields) => ProjectSummary(fields)),
         new("project.metadata", static (_, fields) => ProjectMetadata(fields)),
-        new("project.drafts", static (_, fields) => DraftRequest.Of(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), Words.For(fields.Text("language")))),
+        new("project.drafts", static (_, fields) => DraftRequest.Of(ProjectIn(fields), Words.For(fields.Text("language")))),
         new("project.online", static (_, fields) => SyncRequest.Online(fields)),
         new("project.sync", static (_, fields) => SyncRequest.Next(fields)),
         new("project.pulled", static (_, fields) => SyncRequest.Pulled(fields)),
@@ -270,15 +268,19 @@ public sealed partial class MusicCoreFacade
 
     /// <summary>
     /// «Сделать рабочими» (version 0.6; 0030, section 4 as amended): other Notes, "id", become the working notes and the
-    /// working notes until now stay beside them, so the piece is opened again on the new notes under the same number. Answers
-    /// as <c>open</c> does, with "project" the file to save; making the notes until now working again undoes it.
+    /// working notes until now stay beside them, so the piece is opened again on the new notes under the same number, the
+    /// work kept in ticks following the music by bars (<see cref="FollowedWork"/>). Answers as <c>open</c> does, with
+    /// "project" the file to save and, when there was work to follow, "followed": "moved" (how many bookmarks, phrase
+    /// boundaries and ideas moved with their bars), "near" (how many were in a bar with no match), "bars" (where those are
+    /// now) and "text" (the toast's line, null when it says nothing).
     /// </summary>
     private string MakeWorking(int number, OpenPiece open, Request fields)
     {
         Project changed;
+        FollowedWork? followed;
         try
         {
-            changed = open.Project.MakeWorking(fields.Required("id"));
+            changed = open.Project.MakeWorking(fields.Required("id"), out followed);
         }
         catch (KeyNotFoundException exception)
         {
@@ -295,6 +297,15 @@ public sealed partial class MusicCoreFacade
         {
             json.WriteNumber("piece", number);
             reopened.Summary(json);
+            if (followed is not null)
+            {
+                json.WriteStartObject("followed");
+                json.WriteNumber("moved", followed.Bookmarks + followed.Phrases + followed.Ideas);
+                json.WriteNumber("near", followed.Near);
+                JsonWrite.Numbers(json, "bars", followed.NearBars);
+                json.WriteString("text", followed.Text(open.Words));
+                json.WriteEndObject();
+            }
         });
     }
 
@@ -335,8 +346,7 @@ public sealed partial class MusicCoreFacade
     /// </summary>
     private static string ProjectSummary(Request fields)
     {
-        string file = fields.Required("file");
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(file));
+        Project project = ProjectIn(fields);
         return Answer.Write(json => Answer.Project(json, "project", project));
     }
 
@@ -348,12 +358,29 @@ public sealed partial class MusicCoreFacade
     /// </summary>
     private static string ProjectMetadata(Request fields)
     {
-        Project project = MetadataRequest.Apply(ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file"))), fields);
+        Project project = MetadataRequest.Apply(ProjectIn(fields), fields);
         return Answer.Write(json =>
         {
             Answer.Project(json, "project", project);
             json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
         });
+    }
+
+    /// <summary>
+    /// The project in the request's "file", the project file's text, for every call that reads one without opening it; a file
+    /// the reader refuses answers "badRequest" with its reason in the request's "language" where the reader gives one in both
+    /// (a newer version, #363).
+    /// </summary>
+    internal static Project ProjectIn(Request fields)
+    {
+        try
+        {
+            return ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        }
+        catch (ProjectFileException exception)
+        {
+            throw FacadeException.BadRequest(exception.Text(Words.For(fields.Text("language"))));
+        }
     }
 
     /// <summary>

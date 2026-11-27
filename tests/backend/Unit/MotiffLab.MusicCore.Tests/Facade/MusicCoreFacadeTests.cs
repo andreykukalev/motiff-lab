@@ -178,7 +178,7 @@ public class MusicCoreFacadeTests
     {
         JsonElement version = Json(new MusicCoreFacade().Call(0, "version"));
 
-        Assert.Equal(15, MusicCoreFacade.Contract);
+        Assert.Equal(16, MusicCoreFacade.Contract);
         Assert.Equal(MusicCoreFacade.Contract, version.GetProperty("contract").GetInt32());
         Assert.Equal(ProjectFile.Version, version.GetProperty("projectFile").GetInt32());
         Assert.Contains(".NET", version.GetProperty("runtime").GetString());
@@ -728,19 +728,13 @@ public class MusicCoreFacadeTests
     }
 
     [Fact]
-    public void TheDetectedSentencesBecomeStructureBookmarksOnce()
+    public void TheCallRemovedInContract16IsUnknown()
     {
         (MusicCoreFacade facade, _) = Open();
-        int sentences = Call(facade, "phrases", """{"level": "sentence"}""").GetProperty("units").GetArrayLength();
-        Assert.True(sentences > 0);
 
-        JsonElement added = Call(facade, "bookmark.structure", """{"now": "2026-11-05T10:00:00Z"}""");
-        JsonElement[] bookmarks = [.. added.GetProperty("bookmarks").EnumerateArray()];
-        Assert.Equal(sentences, bookmarks.Length);
-        Assert.All(bookmarks, bookmark => Assert.Equal("structure", bookmark.GetProperty("category").GetString()));
-        Assert.StartsWith("Sentence A, bars 0–", bookmarks[0].GetProperty("title").GetString());
-
-        Assert.Equal(sentences, Call(facade, "bookmark.structure").GetProperty("bookmarks").GetArrayLength());
+        // A Structure bookmark per sentence (bookmark.structure) left in contract 16: the Contents files the form, bookmark.form.
+        Assert.Equal("unknownCall", Error(facade, 1, "bookmark.structure", """{"now": "2026-11-05T10:00:00Z"}"""));
+        Assert.Equal(0, Call(facade, "bookmarks").GetProperty("bookmarks").GetArrayLength());
     }
 
     [Fact]

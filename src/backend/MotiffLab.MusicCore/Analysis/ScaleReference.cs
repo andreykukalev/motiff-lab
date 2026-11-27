@@ -7,7 +7,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// The scales of the Reference: the major, the three minors, the church modes and the two pentatonics. A key card shows the
 /// major for a major key, the natural and the harmonic minor for a minor one; a scale's own card takes any of them.
 /// </summary>
-public enum ScaleForm
+internal enum ScaleForm
 {
     Major,
     NaturalMinor,
@@ -23,7 +23,7 @@ public enum ScaleForm
 }
 
 /// <summary>How the Reference groups its scales (version 0.5): the major and the minors, the church modes, the pentatonics.</summary>
-public enum ScaleFamily
+internal enum ScaleFamily
 {
     MajorAndMinor,
     Mode,
@@ -32,7 +32,7 @@ public enum ScaleFamily
 
 /// <summary>A scale the Reference offers: its id ("dorian") and its name in words ("Dorian", «дорийский»).</summary>
 /// <param name="Short">Its name within its group: "major" and "minor" for the pentatonics («мажорная», «минорная»), else the name.</param>
-public sealed record ScaleFormChoice(ScaleForm Form, string Id, string Name, string Short)
+internal sealed record ScaleFormChoice(ScaleForm Form, string Id, string Name, string Short)
 {
     /// <summary>The group it is offered in.</summary>
     public ScaleFamily Family => ScaleReference.FamilyOf(Form);
@@ -45,7 +45,7 @@ public sealed record ScaleFormChoice(ScaleForm Form, string Id, string Name, str
 /// <param name="Notes">The notes up from the tonic, spelled for the naming: five for a pentatonic, seven for the rest.</param>
 /// <param name="Descending">The way down when it differs from the way up (the melodic minor comes down natural), from the octave; else empty.</param>
 /// <param name="Sound">The scale up to the octave and down again, a quaver a note; the keyboard marks the way up.</param>
-public sealed record ScaleCard(
+internal sealed record ScaleCard(
     SpelledName Tonic,
     ScaleForm Form,
     string Name,
@@ -56,7 +56,7 @@ public sealed record ScaleCard(
     ReferenceSound Sound);
 
 /// <summary>Spells and sounds the Reference's scales (<see cref="ScaleForm"/>) from any of its roots. Pure theory.</summary>
-public static class ScaleReference
+internal static class ScaleReference
 {
     /// <summary>The id of a scale card's sound, which the facade's reference.sound takes.</summary>
     public const string SoundId = "scale";

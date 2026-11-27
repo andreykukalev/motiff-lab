@@ -57,7 +57,7 @@ public sealed record StructureAnalysis(
 /// Analysis is pure: the same notes, meter, selection and boundaries give the same result.
 /// </para>
 /// </remarks>
-public static class StructureAnalyzer
+internal static class StructureAnalyzer
 {
     /// <summary>A line of fewer notes matches too much of any piece to be worth searching for.</summary>
     public const int MinNotesForRecurrence = 3;

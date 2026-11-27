@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Import.Scan;
 /// placed in a system, a bar and a staff. Coordinates are pixels of the page image: the merge uses them only to tell left
 /// from right and near from far, never for time. Nothing here is a note; <see cref="ScanAssembly"/> and the merge read it.
 /// </summary>
-public sealed class ScanEvidence
+internal sealed class ScanEvidence
 {
     /// <summary>The version of the evidence's schema this reads.</summary>
     public const int Version = 1;
@@ -80,10 +80,10 @@ public sealed class ScanEvidence
 }
 
 /// <summary>The page image the evidence's coordinates are in: its size in pixels and the degrees clockwise the server turned the page (0, 90, 180 or 270).</summary>
-public sealed record ScanImage(int Width, int Height, int Rotated);
+internal sealed record ScanImage(int Width, int Height, int Rotated);
 
 /// <summary>A box on the page image, in its pixels from the top left: left, top, right, bottom.</summary>
-public sealed record ScanBox(double Left, double Top, double Right, double Bottom);
+internal sealed record ScanBox(double Left, double Top, double Right, double Bottom);
 
 /// <summary>
 /// One bar found on the page: each staff's space (the distance between its lines, by staff from 1), the symbols in it, and

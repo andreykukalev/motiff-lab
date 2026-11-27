@@ -6,7 +6,7 @@ namespace MotiffLab.MusicCore.Motifs;
 /// <summary>Everything that sounds at one onset of a motif: the notes struck there and the notes still held from before.</summary>
 /// <param name="Struck">Notes that start at <paramref name="At"/>, from low to high.</param>
 /// <param name="Held">Notes that started earlier and still sound at <paramref name="At"/>, from low to high.</param>
-public sealed record Sonority(Tick At, IReadOnlyList<Note> Struck, IReadOnlyList<Note> Held)
+internal sealed record Sonority(Tick At, IReadOnlyList<Note> Struck, IReadOnlyList<Note> Held)
 {
     /// <summary>Every note sounding at <see cref="At"/>, from low to high.</summary>
     public IReadOnlyList<Note> Sounding => [.. Struck.Concat(Held).OrderBy(static note => note.Pitch.MidiNumber).ThenBy(static note => note.Id, StringComparer.Ordinal)];
@@ -39,7 +39,7 @@ public sealed record Sonority(Tick At, IReadOnlyList<Note> Struck, IReadOnlyList
 /// <param name="Melody">The melody notes in onset order.</param>
 /// <param name="Bass">The bass notes in onset order; empty for a single line.</param>
 /// <param name="Sonorities">One per distinct onset, in order.</param>
-public sealed record MotifTexture(
+internal sealed record MotifTexture(
     IReadOnlyList<Note> Notes,
     IReadOnlyList<Note> Melody,
     IReadOnlyList<Note> Bass,

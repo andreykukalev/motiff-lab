@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// Notes, and make other Notes the working ones (Andrei, 2026-11-14, amending section 1); <see cref="OriginalOperations"/>
 /// for the originals. Each is pure: the same piece and arguments give the same piece.
 /// </summary>
-public static class NotesOperations
+internal static class NotesOperations
 {
     /// <summary>
     /// The piece without the Notes <paramref name="id"/> (0030, section 4): other Notes or a compared version, with their
@@ -154,17 +154,30 @@ public static class NotesOperations
     /// <summary>
     /// The piece with other Notes made the working notes (Andrei, 2026-11-14: «Сделать рабочими» on the iPad, amending
     /// 0030, section 1): the working notes until now stay as other Notes with everything that is theirs (corrections, Check
-    /// flags, scan or transcription, page map), so they can be made working again with nothing lost. The work stays in
-    /// ticks: phrases, bookmarks, resume points and ideas without a variation stay with the piece; the marks on the score
+    /// flags, scan or transcription, page map), so they can be made working again with nothing lost. The work kept in ticks
+    /// with the piece, phrases, bookmarks, resume points, ideas without a variation and the versions compared, follows the music into the new working
+    /// notes by bars (<see cref="FollowedWork"/>, v1.5 c-11b), told by <paramref name="followed"/>; the marks on the score
     /// stay with the notes they were drawn on (sources sheet, 2026-11-14). Motifs, their
     /// variations and kept variations are made on particular notes: those of the notes until now wait with them, kept in the
     /// file and hidden while the piece opens, and those of the Notes made working come back. The Check flags of the
-    /// comparisons with versions stay with the piece. The piece's title and name stay; only the music's kind (MusicXML or
+    /// comparisons with versions stay with the piece, at their bars now. The piece's title and name stay; only the music's kind (MusicXML or
     /// MIDI) follows the new working notes.
     /// </summary>
+    /// <param name="followed">What of the work followed the music; null when there was none, or either notes do not open and it stays in its ticks.</param>
     /// <exception cref="KeyNotFoundException">The piece has no other Notes with the id (a compared version is made the working notes through the assembly).</exception>
     /// <exception cref="InvalidOperationException">Bars are taken from versions into the working notes or an assembly is applied: undo them first.</exception>
-    public static Project MakeWorking(this Project project, string id)
+    public static Project MakeWorking(this Project project, string id, out FollowedWork? followed)
+    {
+        Project made = Swap(project, id);
+        followed = FollowedWork.Of(project, made);
+        return followed?.Project ?? made;
+    }
+
+    /// <summary>
+    /// <see cref="MakeWorking"/> without the work following the music: the Notes swapped, the work left in its ticks; for
+    /// what reads only the notes, their corrections and their transcription.
+    /// </summary>
+    private static Project Swap(Project project, string id)
     {
         ArgumentNullException.ThrowIfNull(project);
         OtherNotes notes = project.Sources.Notes.FirstOrDefault(each => each.Id == id) ?? throw new KeyNotFoundException($"There are no other Notes {id}.");
@@ -213,10 +226,13 @@ public static class NotesOperations
     /// <summary>
     /// The piece as it reads with the Notes <paramref name="id"/> as its notes, only to show them (sources sheet, «Открыть»
     /// on Notes that are not working): other Notes as made working on a copy without the versions, the assembly and the
-    /// player's motifs, variations and ideas; a version's MIDI as notes of their own. The piece itself does not change.
+    /// player's motifs, variations and ideas; a version's MIDI as notes of their own. The piece itself does not change. With
+    /// <paramref name="followWork"/>, the view shows the work kept in ticks moved onto them as «Сделать рабочими» would move it
+    /// (<see cref="FollowedWork"/>, one rule; lead, 2026-11-26); without, for what reads only the notes, their corrections and
+    /// their transcription (a draft's fragment, its recording), they are swapped in alone and nothing is matched.
     /// </summary>
     /// <exception cref="KeyNotFoundException">The piece has no Notes with the id.</exception>
-    public static Project ViewOf(this Project project, string id)
+    public static Project ViewOf(this Project project, string id, bool followWork = true)
     {
         ArgumentNullException.ThrowIfNull(project);
         if (project.HasNotes && id == project.NotesId)
@@ -230,7 +246,7 @@ public static class NotesOperations
         }
 
         Project bare = project with { Performances = [], Assembly = PieceAssembly.Empty, Motifs = [], Variations = [], Observations = [] };
-        return bare.MakeWorking(id) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
+        return (followWork ? bare.MakeWorking(id, out _) : Swap(bare, id)) with { Sources = SourcesLayer.None, KeptOriginals = project.KeptOriginals };
     }
 
     /// <summary>The Notes a motif or kept variation names once <paramref name="now"/> are the working notes instead of <paramref name="was"/>.</summary>

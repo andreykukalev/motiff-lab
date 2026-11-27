@@ -15,7 +15,7 @@ namespace MotiffLab.MusicCore.Performance;
 /// first printed note or after the last one ends (the rest of a piece whose first page was scanned) are
 /// left out. The matching is <see cref="NoteMatcher"/>'s, the naming of a bar's kind <see cref="DifferenceClassifier"/>'s.
 /// </remarks>
-public sealed record PerformanceComparison(PerformanceAlignment Alignment, IReadOnlyList<BarComparison> Bars)
+internal sealed record PerformanceComparison(PerformanceAlignment Alignment, IReadOnlyList<BarComparison> Bars)
 {
     /// <summary>Printed notes below C2 that are not heard are "probably not heard", not a difference: transcription often misses the lowest octaves.</summary>
     public const int ReliableLowestPitch = 36;

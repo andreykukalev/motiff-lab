@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// simplifying and harmony (<c>.Texture.cs</c>); and a step by hand (<c>.ByHand.cs</c>). This file holds the dispatch
 /// and the places, beats and lists every template writes.
 /// </remarks>
-public static partial class OperationTemplates
+internal static partial class OperationTemplates
 {
     /// <summary>The template's sentence for <paramref name="operation"/>, or null when it has none or the diff does not fit it.</summary>
     /// <param name="operation">A catalogue id; a chain of steps (ids joined by " › ") has no template.</param>

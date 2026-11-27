@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Events;
 
 /// <summary>A key signature from a position onwards.</summary>
 /// <param name="Fifths">Sharps (positive) or flats (negative), −7 to 7.</param>
-public readonly record struct KeyChange
+internal readonly record struct KeyChange
 {
     public KeyChange(Tick at, int fifths)
     {

@@ -16,7 +16,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// <param name="CutNoteCount">Notes written as heard that end at the next note on their staff, where the pedal or a held key kept them sounding.</param>
 /// <param name="GraceNoteCount">Notes written as heard that are grace notes: shorter than a 32nd, just before the next.</param>
 /// <param name="WrittenAsHeard">True when the notes were written as heard: on a 16th grid, one line per staff where possible.</param>
-public sealed record GeneratedNotation(
+internal sealed record GeneratedNotation(
     string Mei,
     IReadOnlyList<NotationStaff> Staves,
     int NoteCount,
@@ -75,16 +75,16 @@ public sealed record GeneratedNotation(
 /// <param name="Track">The track whose notes the staff shows.</param>
 /// <param name="Hand">For a part split into two staves, the hand this staff holds.</param>
 /// <param name="IsSplitInferred">True when a part without hands was split at middle C, rather than by imported or confirmed hands.</param>
-public sealed record NotationStaff(int Number, int Track, Clef Clef, Hand? Hand, bool IsSplitInferred);
+internal sealed record NotationStaff(int Number, int Track, Clef Clef, Hand? Hand, bool IsSplitInferred);
 
-public enum Clef
+internal enum Clef
 {
     Treble,
     Bass,
 }
 
 /// <summary>Which marks of the playing a score of notes heard in a recording carries, with the tempo that follows the playing.</summary>
-public enum PlayedMarks
+internal enum PlayedMarks
 {
     /// <summary>«Как сыграно»: dynamics, accents, tempo words, hairpins, slurs and pedal (decision record 0016).</summary>
     All,

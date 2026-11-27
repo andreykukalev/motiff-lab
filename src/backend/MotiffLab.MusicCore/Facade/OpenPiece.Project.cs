@@ -1,8 +1,8 @@
-using System.Globalization;
 using System.Text.Json;
 
-using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Facade.Sessions;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Import.Transcription;
 using MotiffLab.MusicCore.Motifs;
 using MotiffLab.MusicCore.Pieces;
@@ -14,9 +14,9 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Facade;
 
 /// <summary>
-/// The calls about what the project keeps with the piece (0018; contract 2): the marks, the bookmarks and their
-/// categories, the resume points, the ideas, the piece's settings overrides and the Check flags. Each change
-/// answers with the collection as it now is, and project.save writes all of it.
+/// The calls about what the project keeps with the piece (0018; contract 2): the resume points, the ideas, the piece's
+/// settings overrides and the Check flags (the marks and the bookmarks: OpenPiece.Marks.cs). Each change answers with the
+/// collection as it now is, and project.save writes all of it.
 /// </summary>
 internal sealed partial class OpenPiece
 {
@@ -77,7 +77,7 @@ internal sealed partial class OpenPiece
     /// <summary>The Check flags, a recording's uncertain lengths and a scan's pages as its page reports count them (version 0.4).</summary>
     private void CheckAnswer(Utf8JsonWriter json)
     {
-        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes),
+        Answer.Check(json, Project, Words, Piece.Meter, Piece.End, HeardLengths.Of(Piece, Notes, CheckFlag.CheckedBars(Project.Check)),
             Project.Scan is { Pages.Count: > 0 } scan && Piece.MusicXml is not null ? scan.CheckOf(Piece).Pages : []);
         PiecesRequest.Check(json, Project, Piece.Meter);
         // The working notes' music by its SHA-256 (v1.3 i-2), as scan.join names the score it merged: what the app keeps
@@ -85,93 +85,11 @@ internal sealed partial class OpenPiece
         json.WriteString("fingerprint", PieceOriginal.Fingerprint(Project.Source));
     }
 
-    private string Marks(Func<Marks, Marks> change) => Change(project => project.ChangeMarks(change), json => Answer.Marks(json, Project.Marks, Piece.Meter));
-
-    private string MarksAnswer() => Answer.Write(json => Answer.Marks(json, Project.Marks, Piece.Meter));
-
-    private string Bookmarks(Func<Project, Project> change) => Change(change, json => Answer.Bookmarks(json, Project, Piece.Meter, Words));
-
-    private string BookmarksAnswer() => Answer.Write(json => Answer.Bookmarks(json, Project, Piece.Meter, Words));
-
     private string Resume(Func<Project, Project> change) => Change(change, json => Answer.ResumePoints(json, Project, Piece.Meter));
 
     private string Ideas(Func<Project, Project> change) => Change(change, json => Answer.Ideas(json, Project, Piece.Meter));
 
     private string IdeasAnswer() => Answer.Write(json => Answer.Ideas(json, Project, Piece.Meter));
-
-    private static InkStroke ReadStroke(JsonElement stroke)
-    {
-        try
-        {
-            return ProjectFile.ReadStroke(stroke);
-        }
-        catch (ProjectFileException exception)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
-    }
-
-    /// <summary>The span a mark is about: "span" {onset, end}, "bars" {first, last} or "phrase" (a number).</summary>
-    private TickSpan Span(Request request)
-    {
-        if (request.Span("span") is { } span)
-        {
-            return span;
-        }
-
-        if (request.Int("phrase") is int number)
-        {
-            Phrase phrase = Phrases.Phrases.FirstOrDefault(phrase => phrase.Number == number) ?? throw FacadeException.BadRequest($"There is no phrase {number}.");
-            return phrase.Span;
-        }
-
-        Request bars = request.Object("bars");
-        int first = bars.Int("first") ?? throw FacadeException.BadRequest("Send \"span\" {onset, end}, \"bars\" {first, last} or \"phrase\" (a number).");
-        int last = bars.Int("last") ?? first;
-        try
-        {
-            return MotifSelector.Bars(Piece.Meter, first, last, Piece.End);
-        }
-        catch (ArgumentException exception)
-        {
-            throw FacadeException.BadRequest(exception.Message);
-        }
-    }
-
-    private static DateTimeOffset Now(Request request) =>
-        request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
-
-    private string AddBookmark(Request request)
-    {
-        TickSpan span = Span(request);
-        bool fromPhrase = request.Has("phrase") || Phrases.Phrases.Any(phrase => phrase.Span == span);
-        string title = request.Text("title") ?? BarsTitle(span);
-        return Bookmarks(project => project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, request.Text("category") ?? BookmarkCategory.PractiseId, span, fromPhrase, Now(request))));
-    }
-
-    private string ChangeBookmark(Request request)
-    {
-        string id = request.Required("id");
-        bool moves = request.Has("span") || request.Has("bars") || request.Has("phrase");
-        TickSpan? span = moves ? Span(request) : null;
-        return Bookmarks(project => project.ChangeBookmark(id, bookmark => new Bookmark(
-            bookmark.Id,
-            request.Text("title") ?? bookmark.Title,
-            request.Text("category") ?? bookmark.CategoryId,
-            span ?? bookmark.Span,
-            span is { } moved ? request.Has("phrase") || Phrases.Phrases.Any(phrase => phrase.Span == moved) : bookmark.FromPhrase,
-            bookmark.CreatedAt)));
-    }
-
-    /// <summary>"bars 1–8" / "такты 1–8": the title a bookmark starts with.</summary>
-    private string BarsTitle(TickSpan span)
-    {
-        int first = Piece.Meter.BarAt(span.Onset).Number;
-        int last = Piece.Meter.BarAt(new Tick(span.End.Value - 1)).Number;
-        return first == last ? Words.T($"bar {first}", $"такт {first}") : Words.T($"bars {first}–{last}", $"такты {first}–{last}");
-    }
 
     /// <summary>
     /// Saves where the player is: a new resume point, or the one "id" names brought up to date. Fields not sent
@@ -180,7 +98,7 @@ internal sealed partial class OpenPiece
     /// </summary>
     private string SaveResumePoint(Request request)
     {
-        DateTimeOffset now = Now(request);
+        DateTimeOffset now = request.Now();
         SavedPassage? passage = null;
         bool hasPassage = request.Sends("passage");
         if (request.Has("passage"))
@@ -246,7 +164,7 @@ internal sealed partial class OpenPiece
         }
 
         string name = request.Text("name")
-            ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : BarsTitle(selection.Span));
+            ?? (chain is not null ? string.Join(" › ", chain.Steps.Select(step => step.Operation.Id)) : MarksSession.BarsTitle(State, selection.Span));
         string? factId = request.Text("factId");
         return Ideas(project => project.Keep(Observation.Create(
             project.NextObservationId(),
@@ -254,7 +172,7 @@ internal sealed partial class OpenPiece
             chain is null ? null : KeptVariation.Create(chain, selection.Filter),
             name,
             note,
-            Now(request)) with
+            request.Now()) with
         { FactId = factId }));
     }
 

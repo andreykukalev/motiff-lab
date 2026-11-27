@@ -41,7 +41,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// <see cref="BarValues"/>, <see cref="Beaming"/> and <see cref="BarAccidentals"/>; <see cref="MeiWriter"/> writes the document.
 /// </para>
 /// </remarks>
-public static class NotationGenerator
+internal static class NotationGenerator
 {
     /// <summary>The display grid: a 32nd note.</summary>
     public const long Grid = CanonicalTime.TicksPerQuarter / 8;

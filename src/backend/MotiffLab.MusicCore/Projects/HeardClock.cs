@@ -12,7 +12,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// sound's stretch for it is cut where it was played, and its rows say when it starts.
 /// </summary>
 /// <remarks>Integer arithmetic only, deterministic: the same piece gives the same times.</remarks>
-public sealed class HeardClock
+internal sealed class HeardClock
 {
     private const int TicksPerQuarter = CanonicalTime.TicksPerQuarter;
 

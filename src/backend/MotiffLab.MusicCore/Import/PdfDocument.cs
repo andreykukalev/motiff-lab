@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Import;
 /// A PDF of printed music the player adds to read as it is (0023; Andrei, 2026-11-04): kept exactly as picked and shown page
 /// by page, with no notes until it is recognised. music-core only recognises one; showing it is the apps' job.
 /// </summary>
-public static class PdfDocument
+internal static class PdfDocument
 {
     /// <summary>
     /// The largest PDF the library keeps on the device: printed scores run to a few megabytes. The PDF is kept inside the

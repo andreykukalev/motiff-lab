@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// start in the span, all of them, one hand, or the melody where the voices are clean, copied with their own bars, tempo
 /// and key, from 0.
 /// </summary>
-public static class DraftFragment
+internal static class DraftFragment
 {
     /// <summary>
     /// What of the notes can be taken: all of them always; a hand when the notes carry it; the melody only where the right

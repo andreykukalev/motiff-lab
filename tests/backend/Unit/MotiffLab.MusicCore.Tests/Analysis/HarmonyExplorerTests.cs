@@ -77,11 +77,11 @@ public class HarmonyExplorerTests
     }
 
     [Theory]
-    [InlineData(ExplorerTexture.Arpeggio, new[] { 57, 60, 64, 69, 64, 60, 57, 60 })]
-    [InlineData(ExplorerTexture.Broken, new[] { 57, 64, 60, 69, 57, 64, 60, 69 })]
-    public void The_textures_play_their_figures(ExplorerTexture texture, int[] figure)
+    [InlineData(nameof(ExplorerTexture.Arpeggio), new[] { 57, 60, 64, 69, 64, 60, 57, 60 })]
+    [InlineData(nameof(ExplorerTexture.Broken), new[] { 57, 64, 60, 69, 57, 64, 60, 69 })]
+    public void The_textures_play_their_figures(string texture, int[] figure)
     {
-        Assert.Equal([45, .. figure], Bar(Cadence(texture).Music, 0));
+        Assert.Equal([45, .. figure], Bar(Cadence(Enum.Parse<ExplorerTexture>(texture)).Music, 0));
     }
 
     [Fact]

@@ -61,6 +61,13 @@ public enum CheckReason
 
     /// <summary>No two of the engines that read the page agree on some staff of the bar (scan, version 1.3, within version 17; ADR 0035).</summary>
     EnginesDisagree,
+
+    /// <summary>
+    /// A correction the player made on an earlier reading of the same pages that the new reading gives neither as the
+    /// player found it nor as they corrected it (scan, «Как напечатано» step 2, version 1.5, within version 17): it stays on
+    /// the earlier reading, beside these notes, and the player decides.
+    /// </summary>
+    CorrectionUnfit,
 }
 
 /// <summary>
@@ -89,16 +96,16 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     }
 
     /// <summary>The most bars flagged for one reason in a transcription; beyond it the reason says nothing about a bar in particular.</summary>
-    public const double MostFlaggedShare = 0.25;
+    internal const double MostFlaggedShare = 0.25;
 
     /// <summary>An onset further than this from the 16th and the triplet-8th grids sits badly in its bar: a 64th.</summary>
-    public const long OffGridTicks = CanonicalTime.TicksPerQuarter / 16;
+    internal const long OffGridTicks = CanonicalTime.TicksPerQuarter / 16;
 
     /// <summary>The fewest onsets a bar needs before its fit to the tempo says anything.</summary>
-    public const int FewestOnsetsForTempo = 4;
+    internal const int FewestOnsetsForTempo = 4;
 
     /// <summary>The share of a bar's onsets off the grids that makes its tempo doubtful.</summary>
-    public const double OffGridShare = 0.5;
+    internal const double OffGridShare = 0.5;
 
     /// <summary>A cluster: this many separate onsets within a 16th…</summary>
     public const int ClusterOnsets = 4;
@@ -107,10 +114,10 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     public const int ClusterSeconds = 3;
 
     /// <summary>A hand inferred with less confidence than this was guessed from the pitch alone (<see cref="HandInference"/>).</summary>
-    public const double GuessedHandConfidence = 0.6;
+    internal const double GuessedHandConfidence = 0.6;
 
     /// <summary>The fewest notes with a guessed hand that flag a bar.</summary>
-    public const int FewestGuessedHands = 2;
+    internal const int FewestGuessedHands = 2;
 
     /// <summary>
     /// The doubts of a transcription (0018, section 9; preparation item 12), one flag per bar and reason, all open:
@@ -258,6 +265,20 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
     /// <summary>The reason as the Check layer says it, in the language.</summary>
     public string Describe(Words words) => Describe(Reason, words);
 
+    /// <summary>
+    /// Whether the flag doubts the notes themselves (their pitch, onset or length), so what is read from them rests on notes
+    /// to check (#352): every reason but <see cref="CheckReason.HandsGuessed"/>, which doubts only the hand that plays them.
+    /// </summary>
+    public bool DoubtsNotes => Reason != CheckReason.HandsGuessed;
+
+    /// <summary>The bars whose recognised notes are still to check: those with an open flag that doubts the notes (<see cref="DoubtsNotes"/>), in order.</summary>
+    public static IReadOnlyList<int> DoubtfulBars(IEnumerable<CheckFlag>? flags) =>
+        [.. (flags ?? []).Where(static flag => !flag.Resolved && flag.DoubtsNotes).Select(static flag => flag.Bar).Distinct().Order()];
+
+    /// <summary>The bars the player said look right: flagged, every flag on them resolved, in order.</summary>
+    public static IReadOnlyList<int> CheckedBars(IEnumerable<CheckFlag>? flags) =>
+        [.. (flags ?? []).GroupBy(static flag => flag.Bar).Where(static bar => bar.All(static flag => flag.Resolved)).Select(static bar => bar.Key).Order()];
+
     public static string Describe(CheckReason reason, Words words) => reason switch
     {
         CheckReason.BarTooLong => ScanBar.Describe(ScanFlag.BarTooLong, words),
@@ -285,6 +306,9 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             "The recording plays this bar in the length of its time signature.",
             "Запись играет этот такт ровно по размеру."),
         CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+        CheckReason.CorrectionUnfit => words.T(
+            "Your correction on the earlier reading of these pages does not fit this reading: it reads the note neither as you found it nor as you corrected it. The earlier reading keeps the correction; compare the two in Sources.",
+            "Ваше исправление не подошло к новому чтению: оно читает эту ноту не так, как вы её нашли, и не так, как исправили. Исправление осталось в прежнем чтении; сравните их в «Источниках»."),
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown check reason."),
     };
 
@@ -300,6 +324,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
             CheckReason.GraceNotes => words.T("Grace notes", "Форшлаги"),
             CheckReason.PageQuality => words.T("Poor page", "Плохая страница"),
             CheckReason.EnginesDisagree => words.T("Engines disagree", "Движки разошлись"),
+            CheckReason.CorrectionUnfit => words.T("Your correction did not fit", "Исправление не подошло"),
             CheckReason.PartSeam => words.T("Parts joined here", "Стык частей записи"),
             CheckReason.TempoUncertain => words.T("Tempo fits poorly", "Темп плохо ложится на такт"),
             CheckReason.DenseCluster => words.T("Crowded notes", "Скопление нот"),
@@ -340,6 +365,7 @@ public sealed record CheckFlag(int Bar, CheckSource Source, CheckReason Reason, 
                 "The scan reads this bar longer or shorter than its time signature, while the recording plays it exactly in it: a note or rest was probably misread. Compare the bar with the page and the recording.",
                 "При распознавании такт вышел длиннее или короче размера, а в записи он играется ровно по размеру: вероятно, неверно прочитана нота или пауза. Сравните такт со страницей и с записью."),
             CheckReason.EnginesDisagree => ScanBar.Describe(ScanFlag.EnginesDisagree, words),
+            CheckReason.CorrectionUnfit => Describe(CheckReason.CorrectionUnfit, words),
             _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Unknown Check reason."),
         };
     }

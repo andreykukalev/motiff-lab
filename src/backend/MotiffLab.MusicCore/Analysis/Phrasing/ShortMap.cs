@@ -27,16 +27,16 @@ public sealed partial class ShortMap
     public const double RestConfidence = 0.7;
 
     /// <summary>The opening figure coming back often starts the figure again, but it can also continue one.</summary>
-    public const double ReturnConfidence = 0.6;
+    internal const double ReturnConfidence = 0.6;
 
     /// <summary>A long note ending at the bar line often closes a figure, but many figures run on across one.</summary>
-    public const double HeldNoteConfidence = 0.5;
+    internal const double HeldNoteConfidence = 0.5;
 
     /// <summary>A cut for length alone is a guess at the middle.</summary>
-    public const double LengthConfidence = 0.4;
+    internal const double LengthConfidence = 0.4;
 
     /// <summary>The fewest onsets of the top line that must come back for a return to count.</summary>
-    public const int MinReturnNotes = 3;
+    internal const int MinReturnNotes = 3;
 
     private readonly MeterMap _meter;
 

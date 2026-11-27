@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// the key; false mirrors in semitones, so every interval keeps its exact size.
 /// </param>
 /// <param name="Intervals">The melody intervals to flip; null flips them all, which mirrors the whole melody around its first note.</param>
-public sealed record ChangeDirectionParameters(bool Diatonic = true, IntervalSet? Intervals = null) : OperationParameters;
+internal sealed record ChangeDirectionParameters(bool Diatonic = true, IntervalSet? Intervals = null) : OperationParameters;
 
 /// <summary>
 /// V10 Change direction: mirrors the melody around its first note, so every step up becomes a step
@@ -16,7 +16,7 @@ public sealed record ChangeDirectionParameters(bool Diatonic = true, IntervalSet
 /// after each flipped interval move with it, so every other interval keeps its size and direction.
 /// The first note is the fixed axis. Rhythm and the other voices stay. Pure and deterministic.
 /// </summary>
-public sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
+internal sealed class ChangeDirection : MelodyOperation<ChangeDirectionParameters>
 {
     public const string OperationId = "V10";
 

@@ -44,7 +44,7 @@ public enum IdeaKind
 /// the map marks inferred. The cards of phrases share no bars; a sequence or a motif may lie inside one. Pure: the same notes, meter, structure, key
 /// lane and language give the same ideas.
 /// </remarks>
-public static class MusicalIdeas
+internal static class MusicalIdeas
 {
     /// <summary>The most ideas the map shows besides the selection.</summary>
     public const int MaxIdeas = 5;

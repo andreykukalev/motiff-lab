@@ -38,7 +38,22 @@ internal sealed partial class OpenPiece
     internal SourcesSession Sources { get; } = new();
 
     /// <summary>This piece's project as the sources' calls that need no notes change it (<see cref="SourceRequest.Calls"/>), a PDF's pages shared over the bars.</summary>
-    internal SourceOwner HeldSources => new(() => Project, project => Project = project, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+    internal SourceOwner HeldSources => new(() => Project, KeepSources, pages => PageMap.Even(Piece.Meter, Piece.End, pages), Words);
+
+    /// <summary>
+    /// The <paramref name="project"/> one of the sources' calls that need no notes makes, kept; when it took away a version
+    /// with bars taken from it (sources.notes.remove, sources.original.remove with its notes), the notes read again without
+    /// them, and the selection kept over them, as when the bars are restored.
+    /// </summary>
+    private void KeepSources(Project project)
+    {
+        bool takenChanged = !Project.TakenBars.SequenceEqual(project.TakenBars);
+        Project = project;
+        if (takenChanged)
+        {
+            RefreshNotesFollowingSelection();
+        }
+    }
 
     /// <summary>The piece changed by one of the Sources sheet's operations, a draft's among them, answered as the sources with what <paramref name="more"/> adds.</summary>
     internal string Changed(Request request, Func<Project, Project> change, Action<Utf8JsonWriter> more) =>
@@ -66,9 +81,9 @@ internal sealed partial class OpenPiece
     /// <summary>
     /// "musicXml" (base64) the scan server read from the PDF kept in this piece, "engine", "pages" and "name": the notes
     /// added as another version from the score (0022), and the PDF's pages linked to these bars by the bar numbers the scan
-    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version and the link are kept together or
-    /// not at all: a call refused, or failing while the version is added, leaves the piece as it was. Answers the comparison,
-    /// as performance.add does.
+    /// began each page with (<see cref="SourcesSession.WithPagesLinked"/>). The version is added over the pages linked, and both
+    /// are kept together or not at all: a call refused, or failing while the version is added, leaves the piece as it was.
+    /// Answers the comparison, as performance.add does.
     /// </summary>
     private string AddDocumentNotes(Request request)
     {
@@ -77,17 +92,7 @@ internal sealed partial class OpenPiece
         Project linked = SourcesSession.WithPagesLinked(State, read.Read, request.Int("pages"));
         string name = SourcesSession.VersionName(State, request.Text("name"));
         string? engine = request.Text("engine");
-        Project before = Project;
-        Project = linked;
-        try
-        {
-            return AddVersion(name, read.Midi, PerformanceSource.Score, 0, engine);
-        }
-        catch
-        {
-            Project = before;
-            throw;
-        }
+        return AddVersion(State with { Project = linked }, name, read.Midi, PerformanceSource.Score, 0, engine);
     }
 
     /// <summary>
@@ -104,7 +109,7 @@ internal sealed partial class OpenPiece
             return SourcesAnswer(json => json.WriteBoolean("linked", false));
         }
 
-        Project = SourcesSession.HeldOnIpad(linked, PieceOriginal.DocumentId, held: true, Now(request));
+        Project = SourcesSession.HeldOnIpad(linked, PieceOriginal.DocumentId, held: true, request.Now());
         return SourcesAnswer(json => json.WriteBoolean("linked", true));
     }
 
@@ -113,14 +118,16 @@ internal sealed partial class OpenPiece
     {
         string id = request.Required("id");
         bool held = request.Bool("held") ?? throw FacadeException.BadRequest("Send \"held\", true or false.");
-        Project = SourcesSession.HeldOnIpad(Project, id, held, Now(request));
+        Project = SourcesSession.HeldOnIpad(Project, id, held, request.Now());
         return SourcesAnswer();
     }
 
     /// <summary>
     /// «Распознать ещё раз»: "original" (the PDF's id), "musicXml" (base64) the scan server read from it, "engine",
     /// "pages", "reports" (the scan server's page reports) and "now": other Notes beside the working ones, which keep their
-    /// corrections (<see cref="NotesOperations.RecognisedAgain"/>). Answers the sources with their "id".
+    /// corrections (<see cref="NotesOperations.RecognisedAgain"/>), carried over to the new Notes where they still apply
+    /// (<see cref="SourcesSession.CarriedOver"/>). Answers the sources with their "id" and, when corrections or confirmed
+    /// bars were carried, "carried" (<see cref="CarryAnswer"/>).
     /// </summary>
     private string RecogniseAgain(Request request)
     {
@@ -130,7 +137,48 @@ internal sealed partial class OpenPiece
         List<PageReport>? reports = ScanRequest.ReportsIn(request);
         string original = request.Required("original");
         string engine = request.Required("engine");
-        DateTimeOffset now = Now(request);
-        return Changed(request, project => project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), json => json.WriteString("id", id));
+        DateTimeOffset now = request.Now();
+        ReadingCarry? carry = null;
+        return Changed(
+            request,
+            project =>
+            {
+                (Project carried, carry) = SourcesSession.CarriedOver(State, project.RecognisedAgain(original, read.MusicXml, engine, pages, now, reports), id, original, read);
+                return carried;
+            },
+            json =>
+            {
+                json.WriteString("id", id);
+                CarryAnswer(json, carry, Words);
+            });
+    }
+
+    /// <summary>
+    /// "carried": what became of the working notes' corrections on the notes read again, "carried", "byReading" and
+    /// "notCarried" (how many), "bars" (those with a correction not carried), "confirmed" (the bars confirmed again) and
+    /// "text" (the toast's line, null when it says nothing); nothing without a carry.
+    /// </summary>
+    private static void CarryAnswer(Utf8JsonWriter json, ReadingCarry? carry, Words words)
+    {
+        if (carry is null)
+        {
+            return;
+        }
+
+        json.WriteStartObject("carried");
+        json.WriteNumber("carried", carry.Count(CarryOutcome.Carried));
+        json.WriteNumber("byReading", carry.Count(CarryOutcome.ByReading));
+        json.WriteNumber("notCarried", carry.Count(CarryOutcome.NotCarried));
+        JsonWrite.Numbers(json, "bars", carry.NotCarriedBars);
+        JsonWrite.Numbers(json, "confirmed", carry.ConfirmedBars);
+        if (carry.Text(words) is { } text)
+        {
+            json.WriteString("text", text);
+        }
+        else
+        {
+            json.WriteNull("text");
+        }
+        json.WriteEndObject();
     }
 }

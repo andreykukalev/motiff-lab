@@ -238,12 +238,7 @@ internal sealed partial class OpenPiece
         if (Corrections.DropUnfit(State, ids) is { } edits)
         {
             Project = Project with { Edits = edits };
-            IReadOnlyList<Note> before = Notes;
-            RefreshNotes();
-            if (!before.SequenceEqual(Notes))
-            {
-                Selection.FollowNotes(State);
-            }
+            RefreshNotesFollowingSelection();
         }
 
         return CorrectionsAnswer(bar);

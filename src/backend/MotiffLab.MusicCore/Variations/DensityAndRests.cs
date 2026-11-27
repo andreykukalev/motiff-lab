@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Variations;
 
 /// <summary>What V7 does to the line's notes and rests.</summary>
-public enum DensityKind
+internal enum DensityKind
 {
     /// <summary>Each note two units or longer is played as repeated notes of one unit at its pitch.</summary>
     Repeat,
@@ -22,7 +22,7 @@ public enum DensityKind
 
 /// <summary>The parameters of V7 Density and rests.</summary>
 /// <param name="Unit">The repeated notes' value, the rest's length, or the gap that still counts as straight after; eighths or sixteenths.</param>
-public sealed record DensityParameters(DensityKind Kind, PatternUnit Unit = PatternUnit.Eighths) : OperationParameters;
+internal sealed record DensityParameters(DensityKind Kind, PatternUnit Unit = PatternUnit.Eighths) : OperationParameters;
 
 /// <summary>
 /// V7 Density and rests (Stage 1 spec, Operations): repeats notes, merges repeats, or adds or removes rests in the
@@ -34,7 +34,7 @@ public sealed record DensityParameters(DensityKind Kind, PatternUnit Unit = Patt
 /// others ("n_0007~r2"); a merged note keeps the id of the first of its repeats, and the others are removed. Every
 /// onset that stays stays where it was. The step is not available when it would change nothing.
 /// </remarks>
-public sealed class DensityAndRests : VariationOperation<DensityParameters>
+internal sealed class DensityAndRests : VariationOperation<DensityParameters>
 {
     public const string OperationId = "V7";
 

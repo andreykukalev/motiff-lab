@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
-public static partial class ScanRepair
+internal static partial class ScanRepair
 {
     /// <summary>
     /// The stretches of a part whose bars are judged together (v0.5.7, issue #543): each range under one written time

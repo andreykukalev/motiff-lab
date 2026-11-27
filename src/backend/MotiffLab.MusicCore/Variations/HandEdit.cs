@@ -40,7 +40,7 @@ public sealed record HandEditParameters(HandEditKind Kind, string NoteId, NoteVa
 /// are marked user-edited; an added note takes the track, hand and voice of the note sounding
 /// before it, or of the first note. Pure: the same notes and edit give the same result.
 /// </remarks>
-public sealed class HandEdit : IVariationOperation
+internal sealed class HandEdit : IVariationOperation
 {
     /// <summary>The step's id in a chain; hand edits are not a catalogue operation, so it is the requirement's.</summary>
     public const string OperationId = "E7";

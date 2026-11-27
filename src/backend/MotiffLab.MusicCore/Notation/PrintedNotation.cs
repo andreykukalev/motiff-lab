@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Notation;
 /// 0029 and 0030), writes each note, rest and space, the notes looked up by their ids, for <see cref="NotationGenerator"/>
 /// to write the bars as printed. It reads what <see cref="MusicXmlImport"/> kept; it parses nothing itself.
 /// </summary>
-public sealed class PrintedNotation
+internal sealed class PrintedNotation
 {
     private readonly Dictionary<string, (Note Note, MusicXmlNote Record, MusicXmlWrittenNote[] Written)> _notes;
     private readonly ILookup<(int Track, int Staff), (string Id, MusicXmlWrittenNote Piece)> _written;

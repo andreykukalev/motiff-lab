@@ -110,7 +110,8 @@ struct RecordingViewCapsule: View {
     }
 }
 
-/// The sound of a recording kept on this iPad, heard as it is (AVAudioPlayer).
+/// The sound of a recording kept on this iPad, heard as it is (AVAudioPlayer). A call taking the audio, the app gone to
+/// the background or the screen locked, and the headphones gone pause it, as they pause the notes (v1.5 a-2, answer 30).
 @MainActor
 final class RecordingListening: ObservableObject {
     /// The one the «Исполнение» capsules hear (v0.10, finding 24): one recording sounds at a time, and it goes on from one
@@ -138,6 +139,12 @@ final class RecordingListening: ObservableObject {
     private var shownIn = 0
     /// The screen handed the piece to its other view: the capsule going with the old screen leaves the sound on.
     private var handedOver = false
+    /// Hears what the system does to the audio (EngineKeeper, with no engine): its pauses pause the recording.
+    private var keeper: EngineKeeper?
+
+    init() {
+        keeper = EngineKeeper(nil) { [weak self] in self?.pauseForSystem() }
+    }
 
     /// The recording at `url`, loaded once; another recording stops the one before.
     func load(_ url: URL) {
@@ -219,9 +226,7 @@ final class RecordingListening: ObservableObject {
         load(url)
         guard let player else { return }
         if player.isPlaying {
-            player.pause()
-            playing = false
-            timer?.invalidate()
+            pause()
         } else {
             // Heard with the ring switch on silent too, as the score's own playback is (Player).
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -233,6 +238,23 @@ final class RecordingListening: ObservableObject {
                 Task { @MainActor in self?.tick() }
             }
         }
+    }
+
+    /// Pauses the sound, the time shown where it was heard.
+    private func pause() {
+        player?.pause()
+        playing = false
+        timer?.invalidate()
+        timer = nil
+        if !holding { elapsed = heardAt }
+    }
+
+    /// The system paused the audio (EngineKeeper): the recording waits where it was heard, and plays on only from a
+    /// capsule's play. The system already paused an AVAudioPlayer that a call interrupted, so this never toggles; a stretch
+    /// heard once still lets its file go at its end (`playStretch`).
+    private func pauseForSystem() {
+        guard playing else { return }
+        pause()
     }
 
     func stop() {

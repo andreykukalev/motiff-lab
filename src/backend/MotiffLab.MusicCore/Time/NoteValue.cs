@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Time;
 /// Written note values: how long each of MusicXML's named values is, and a value with its dots, each dot adding half of what
 /// the one before added. The one rule the readers (MusicXML, scans, vector PDFs) and the notation writer share.
 /// </summary>
-public static class NoteValue
+internal static class NoteValue
 {
     private static readonly Dictionary<string, QuarterFraction> s_named = new(StringComparer.Ordinal)
     {

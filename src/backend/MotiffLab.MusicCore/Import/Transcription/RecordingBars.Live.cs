@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>
     /// The grid that fits a live performance (version 0.5, «Темп живого исполнения»): the beat found afresh in each

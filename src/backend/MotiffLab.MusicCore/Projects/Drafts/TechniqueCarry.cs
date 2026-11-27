@@ -28,7 +28,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// steps of that place's key. A bar where a note to take out or to follow is not there, or where nothing would change, does
 /// not take it. Bars the variant puts in (<see cref="TechniqueKind.InsertBars"/>) are not a shape and are not carried.
 /// </remarks>
-public static class TechniqueCarry
+internal static class TechniqueCarry
 {
     private const string KindParam = "carry";
 

@@ -129,7 +129,7 @@ internal static class DraftRecordingRequest
     public static string Add(OpenPiece owner, Request request)
     {
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
-        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, SourceRequest.Now(request), request.Text("notes"), null).FirstOrDefault()
+        Found chosen = Search(owner.Project, draft, draft.FindPlace(placeId)!, request.Now(), request.Text("notes"), null).FirstOrDefault()
             ?? throw FacadeException.Unavailable(owner.Words.T("The recording has no stretch of this place's music.", "На записи нет музыки этого места."));
         if (chosen.Already is not null)
         {
@@ -182,7 +182,7 @@ internal static class DraftRecordingRequest
     {
         try
         {
-            Project notes = project.ViewOf(id);
+            Project notes = project.ViewOf(id, followWork: false);
             OpenedProject opened = OpenedProject.Open(notes, layer);
             return (notes, opened.Piece, SourceMusic.OfPiece(opened.Piece, opened.Notes));
         }

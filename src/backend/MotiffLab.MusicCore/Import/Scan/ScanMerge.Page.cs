@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace MotiffLab.MusicCore.Import.Scan;
 
-public static partial class ScanMerge
+internal static partial class ScanMerge
 {
     /// <summary>
     /// The readings of a staff no two engines agree on (or two pairs do), settled by the page (ADR 0035, section 5, steps 3

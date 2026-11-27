@@ -18,7 +18,7 @@ public sealed record TakenNote(string Id, Pitch Pitch, TickSpan Span, int Veloci
 public sealed record TakenBar(int Bar, IReadOnlyList<string> Removed, IReadOnlyList<TakenNote> Added);
 
 /// <summary>Taking bars of a performance into the score, and the score with the bars taken. Pure and deterministic.</summary>
-public static class PerformanceTake
+internal static class PerformanceTake
 {
     /// <summary>The prefix of every taken note's id.</summary>
     public const string IdPrefix = "perf-";

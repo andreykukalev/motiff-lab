@@ -9,11 +9,11 @@ namespace MotiffLab.MusicCore.Assistant.Repairs;
 
 /// <summary>One way to repair a flagged bar: its id, its title for a button, and the draft (the notes before and after, as corrections).</summary>
 /// <param name="Id">Stable for the same notes, for example "barTooLong.doubled.7.R.4".</param>
-public sealed record RepairCandidate(string Id, string Title, AssistantDraft Draft);
+internal sealed record RepairCandidate(string Id, string Title, AssistantDraft Draft);
 
 /// <summary>The repairs music-core offers for one Check flag, best first, or why it offers none.</summary>
 /// <param name="NoneReason">Why there is no safe candidate, in the player's language; null when there are candidates.</param>
-public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason)
+internal sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate> Candidates, string? NoneReason)
 {
     /// <summary>The bars a repair reads and changes: the flagged bar, with the short bar the importer split off after it when the scan read it too long; empty for a bar outside the piece.</summary>
     public TickSpan Measure { get; init; }
@@ -26,7 +26,7 @@ public sealed record RepairOptions(CheckFlag Flag, IReadOnlyList<RepairCandidate
 /// Corrections never change the bars (the meter), a note's hand or the Check flag itself: the player resolves the flag.
 /// Pure: the same notes and flag give the same candidates in the same order.
 /// </summary>
-public static partial class CheckRepairs
+internal static partial class CheckRepairs
 {
     /// <summary>The most candidates offered for one flag.</summary>
     public const int MostCandidates = 3;
@@ -65,6 +65,9 @@ public static partial class CheckRepairs
             CheckReason.EnginesDisagree => ([], w.T(
                 "The engines read this bar in different ways, and no rule tells which reading is right. Compare the bar with the page.",
                 "Движки распознавания прочитали этот такт по-разному, и никакое правило не скажет, какое прочтение верно. Сверьте такт со страницей.")),
+            CheckReason.CorrectionUnfit => ([], w.T(
+                "Only you know which reading of this note is right: correct it with «Fix notes», or take the earlier reading in Sources.",
+                "Какое чтение этой ноты верно, знаете только вы: исправьте её через «Исправить ноты» или возьмите прежнее чтение в «Источниках».")),
             CheckReason.HandsGuessed => ([], w.T(
                 "Corrections change a note's pitch, timing and loudness, not its hand, so the hands cannot be repaired here.",
                 "Правки меняют высоту, время и громкость ноты, но не руку, поэтому руки здесь не исправить.")),

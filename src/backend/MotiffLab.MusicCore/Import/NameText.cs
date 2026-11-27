@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Import;
 /// <see cref="string.Normalize()"/> leaves text as it is. It covers the Latin and Cyrillic letters with one or more marks
 /// (Latin-1, Latin Extended-A and -B, Latin Extended Additional, Cyrillic), the letters names of pieces and composers use.
 /// </summary>
-public static class NameText
+internal static class NameText
 {
     /// <summary>For each combining mark, the pairs of a letter and that letter with the mark, as Unicode composes them.</summary>
     private static readonly (char Mark, string Pairs)[] s_compositions =

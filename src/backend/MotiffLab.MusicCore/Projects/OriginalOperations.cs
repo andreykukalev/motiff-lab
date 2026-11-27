@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// the same piece and arguments give the same piece. Nothing here touches a file of the player's: a linked original is
 /// only unlinked.
 /// </summary>
-public static class OriginalOperations
+internal static class OriginalOperations
 {
     /// <summary>
     /// A free id for a new original: <paramref name="stem"/> itself ("src_pdf") while the piece uses it nowhere (an original,

@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Motifs;
 /// typed in or clicked, or a drag whose edges snap to beats (S1-M1), limited to 1–8 bars; or
 /// 2–32 notes clicked one by one (S1-M3).
 /// </summary>
-public static class MotifSelector
+internal static class MotifSelector
 {
     /// <summary>
     /// The range from the start of <paramref name="firstBar"/> to the end of <paramref name="lastBar"/>.

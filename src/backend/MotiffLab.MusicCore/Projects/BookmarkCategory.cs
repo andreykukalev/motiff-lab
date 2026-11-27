@@ -9,9 +9,9 @@ namespace MotiffLab.MusicCore.Projects;
 public sealed record BookmarkCategory(string Id, string? Name, InkColour Ink)
 {
     public const string PractiseId = "practise";
-    public const string PerformanceId = "performance";
+    internal const string PerformanceId = "performance";
     public const string StructureId = "structure";
-    public const string TeacherId = "teacher";
+    internal const string TeacherId = "teacher";
 
     /// <summary>
     /// The pieces layer (version 0.5, <see cref="PieceLayer"/>): a reserved id, written with a name in the player's language

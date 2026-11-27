@@ -6,8 +6,6 @@ struct SourcesToast: Identifiable, Equatable {
     enum Undo: Equatable {
         /// The project file as it was just before: written back, and the piece opened again from it.
         case restore(String)
-        /// These notes made the working ones again, as «Сделать рабочими» is undone (0030, section 4).
-        case makeWorking(String)
         /// The last step of this draft undone (`drafts.undo`, v1.1): a приём, a hand or a span taken or left, a seam's offer
         /// taken or the seam left, or, while the piece is open, a change of its places (a new base, a variant put or moved).
         case draftStep(String)
@@ -430,17 +428,19 @@ final class SourcesController: ObservableObject {
         fresh = id
         status = nil
         await save()
-        await tell(SourcesToast(text: read.toast), reopening: first)
+        await tell(SourcesToast(text: Self.toastText(read.toast, adding: facadeObject(answer)?["carried"])), reopening: first)
         return nil
     }
 
     /// «Сделать рабочими» (0030, section 4 as amended): the badge moves to these notes, the working notes until now stay
     /// as other Notes, and the piece opens again on them; the toast on the next screen undoes it.
     func makeWorking(_ notes: SourceLayers.Notes) async {
-        guard let file, let previous = layers.working else { return }
+        guard let file, layers.working != nil, let before = await snapshot() else { return }
         let title = layers.title(of: notes, text)
-        guard await swapWorking(to: notes.id) else { return }
-        SourcesHandover.give(SourcesToast(text: text.format("sources.sheet.toastWorking", title), undo: .makeWorking(previous)), to: file)
+        guard let answer = await swapWorking(to: notes.id) else { return }
+        // E-sheet-1: Undo writes the file back; the work followed by bars may not map back exactly (v1.5 c-11b).
+        let done = Self.toastText(text.format("sources.sheet.toastWorking", title), adding: answer["followed"])
+        SourcesHandover.give(SourcesToast(text: done, undo: .restore(before)), to: file)
         await reopen?()
     }
 
@@ -457,9 +457,6 @@ final class SourcesController: ObservableObject {
                 status = error.localizedDescription
                 return
             }
-            await reopen?()
-        case .makeWorking(let id):
-            guard await swapWorking(to: id) else { return }
             await reopen?()
         case .draftStep(let draft):
             // Only the draft changes: its view, when shown, opens again itself (`SourcesToastView`'s `then`).
@@ -533,16 +530,17 @@ final class SourcesController: ObservableObject {
 
     // MARK: - Calls
 
-    private func swapWorking(to id: String) async -> Bool {
+    /// «Сделать рабочими» in music-core, saved: its answer, or nil, with why in `status`, when it was refused.
+    private func swapWorking(to id: String) async -> [String: Any]? {
         let piece = self.piece
         let request = facadeRequest(["id": id])
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.sourcesMakeWorking, request) }
         guard let object = facadeObject(answer), object["error"] == nil else {
             status = facadeObject(answer)?["message"] as? String ?? text["sources.sheet.failed"]
-            return false
+            return nil
         }
         await save()
-        return true
+        return object
     }
 
     /// One of the sheet's operations, answered as the sources; saved to the project file at once. Nil, with why in

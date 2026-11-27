@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Variations;
 /// What every operation and every chain of steps shares: the motif's notes, the diff, the
 /// kept-property checks (S1-E9) and the explanation, which states only facts read from the diff (S1-E4).
 /// </summary>
-public static class VariationFacts
+internal static class VariationFacts
 {
     /// <summary>The selected notes, in the selection's order.</summary>
     public static IReadOnlyList<Note> MotifNotes(IEnumerable<Note> notes, MotifSelection selection)

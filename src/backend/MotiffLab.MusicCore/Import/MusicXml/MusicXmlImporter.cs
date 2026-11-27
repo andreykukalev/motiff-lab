@@ -33,7 +33,7 @@ namespace MotiffLab.MusicCore.Import.MusicXml;
 /// bar lines, texts) and <see cref="MusicXmlTimeline"/> (tempos, bars, keys).
 /// </para>
 /// </remarks>
-public static class MusicXmlImporter
+internal static class MusicXmlImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
     public const int MaxFileBytes = 50 * 1024 * 1024;

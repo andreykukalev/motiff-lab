@@ -4,7 +4,7 @@ using MotiffLab.MusicCore.Time;
 namespace MotiffLab.MusicCore.Assembly;
 
 /// <summary>What a line of the carry sheet says: a choice to make (?), something around will change (!), or nothing changes (✓).</summary>
-public enum SheetMark
+internal enum SheetMark
 {
     Choice,
     Changes,
@@ -18,7 +18,7 @@ public enum SheetMark
 /// <param name="Name">"how", "where", "length", "seam", "key", "meter", "notes".</param>
 /// <param name="Label">«Как получить ноты», «Куда», «Длина», «Стык», «Тональность», «Размер и темп», «Ноты».</param>
 /// <param name="Text">The line in musical words, after the label.</param>
-public sealed record SheetLine(string Name, SheetMark Mark, string Label, string Text);
+internal sealed record SheetLine(string Name, SheetMark Mark, string Label, string Text);
 
 /// <summary>
 /// The carry sheet («В ноты…», decision record 0024, section 5): what a carry will do to the music around it, said
@@ -35,7 +35,7 @@ public sealed record SheetLine(string Name, SheetMark Mark, string Label, string
 /// <param name="HeardText">The other choice: the notes as heard in the recording; null when <paramref name="KeepText"/> is.</param>
 /// <param name="Ghost">The notes as they will be after the carry.</param>
 /// <param name="Outcome">What the carry does in the ghost.</param>
-public sealed record CarrySheet(
+internal sealed record CarrySheet(
     string Title,
     string Route,
     string? ReplaceText,

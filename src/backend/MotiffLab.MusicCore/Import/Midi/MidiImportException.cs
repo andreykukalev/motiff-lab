@@ -1,12 +1,12 @@
 namespace MotiffLab.MusicCore.Import.Midi;
 
 /// <summary>A MIDI file that cannot be imported at all. The message is a plain reason for the player (N2).</summary>
-public sealed class MidiImportException(MidiImportFailure failure, string message) : Exception(message)
+internal sealed class MidiImportException(MidiImportFailure failure, string message) : Exception(message)
 {
     public MidiImportFailure Failure { get; } = failure;
 }
 
-public enum MidiImportFailure
+internal enum MidiImportFailure
 {
     /// <summary>The bytes are not a Standard MIDI File.</summary>
     NotMidi,

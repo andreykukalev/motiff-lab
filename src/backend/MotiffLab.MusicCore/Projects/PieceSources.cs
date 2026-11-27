@@ -13,7 +13,7 @@ namespace MotiffLab.MusicCore.Projects;
 /// <param name="Versions">The other versions, in the order they were added.</param>
 /// <param name="TakenBars">Bars taken into the notes from the other versions.</param>
 /// <param name="Edits">The player's own corrections of the notes.</param>
-public sealed record PieceSources(PieceOrigin Base, bool HasDocument, bool ReadFromDocument, IReadOnlyList<SavedPerformance> Versions, int TakenBars, int Edits)
+internal sealed record PieceSources(PieceOrigin Base, bool HasDocument, bool ReadFromDocument, IReadOnlyList<SavedPerformance> Versions, int TakenBars, int Edits)
 {
     /// <summary>The sources of a piece.</summary>
     public static PieceSources Of(Project project)

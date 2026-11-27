@@ -94,7 +94,7 @@ public sealed class PhraseMap
     public Phrase? Matching(TickSpan span) => Phrases.FirstOrDefault(phrase => phrase.Span == span || Selectable(phrase) == span);
 
     /// <summary>The phrase that covers most of <paramref name="span"/>, the earliest of equals; the phrase at its start for an empty span.</summary>
-    public Phrase Covering(TickSpan span) => Phrases
+    internal Phrase Covering(TickSpan span) => Phrases
         .Select(phrase => (Phrase: phrase, Shared: Math.Min(phrase.Span.End.Value, span.End.Value) - Math.Max(phrase.Span.Onset.Value, span.Onset.Value)))
         .Where(entry => entry.Shared > 0)
         .OrderByDescending(entry => entry.Shared)
@@ -181,7 +181,7 @@ public sealed class PhraseMap
     }
 
     /// <summary>Whether a boundary in effect is the player's own: set or confirmed by them.</summary>
-    public static bool IsOwn(PhraseBoundary boundary)
+    internal static bool IsOwn(PhraseBoundary boundary)
     {
         ArgumentNullException.ThrowIfNull(boundary);
         return boundary.Attribution.Provenance is Provenance.UserEdited or Provenance.UserConfirmed;
@@ -252,7 +252,7 @@ public sealed class PhraseMap
     /// <see cref="MotifSelection.MaxBars"/> bars, so the edge that moves stops there. Null at either end of the
     /// piece, and when the selection already holds as many bars as it can that way.
     /// </summary>
-    public PhraseExtension? ExtendInto(TickSpan span, int direction)
+    internal PhraseExtension? ExtendInto(TickSpan span, int direction)
     {
         if (direction is not (1 or -1))
         {

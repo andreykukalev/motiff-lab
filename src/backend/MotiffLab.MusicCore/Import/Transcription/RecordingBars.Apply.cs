@@ -5,7 +5,7 @@ using MotiffLab.MusicCore.Time;
 
 namespace MotiffLab.MusicCore.Import.Transcription;
 
-public static partial class RecordingBars
+internal static partial class RecordingBars
 {
     /// <summary>
     /// The bars of the notes heard, found as <paramref name="search"/> asks (<see cref="Find"/>), and the piece on them

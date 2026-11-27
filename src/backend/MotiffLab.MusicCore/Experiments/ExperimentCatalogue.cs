@@ -8,7 +8,7 @@ using MotiffLab.MusicCore.Variations;
 namespace MotiffLab.MusicCore.Experiments;
 
 /// <summary>The musical question an experiment explores, as the "I have a question" list shows it.</summary>
-public enum ExperimentTopic
+internal enum ExperimentTopic
 {
     /// <summary>How does the character change if the notes stay the same?</summary>
     Character,
@@ -24,7 +24,7 @@ public enum ExperimentTopic
 }
 
 /// <summary>One step of an experiment's recipe: a catalogue operation with its parameters, scope included.</summary>
-public sealed record ExperimentStep(string OperationId, OperationParameters Parameters)
+internal sealed record ExperimentStep(string OperationId, OperationParameters Parameters)
 {
     /// <summary>The operation this version offers for <see cref="OperationId"/>.</summary>
     public IVariationOperation Operation => VariationOperations.Find(OperationId)
@@ -35,7 +35,7 @@ public sealed record ExperimentStep(string OperationId, OperationParameters Para
 /// <param name="Label">As the player reads it on the card, for example "Detached".</param>
 /// <param name="Keeps">What stays the same, completing "Keeps …", for example "the pitches and when each note starts".</param>
 /// <param name="Steps">The recipe, applied in order; at least one step.</param>
-public sealed record ExperimentAlternative(string Label, string Keeps, IReadOnlyList<ExperimentStep> Steps)
+internal sealed record ExperimentAlternative(string Label, string Keeps, IReadOnlyList<ExperimentStep> Steps)
 {
     /// <summary>The Keep preset this way runs with, when it is not the experiment's (a fact's Try button, whose ways are Try chips).</summary>
     public string? KeepPresetId { get; init; }
@@ -61,7 +61,7 @@ public sealed record ExperimentAlternative(string Label, string Keeps, IReadOnly
 /// <param name="Filter">Which notes of the passage the steps read, as in the selection.</param>
 /// <param name="KeepPresetId">The Keep preset the steps run with (<see cref="KeepTable.Presets"/>).</param>
 /// <param name="Alternatives">The ways to try it, closest to the original first; each one can run on the passage.</param>
-public sealed record Experiment(
+internal sealed record Experiment(
     string Id,
     ExperimentTopic Topic,
     string Title,
@@ -92,7 +92,7 @@ public sealed record Experiment(
 }
 
 /// <summary>What "Surprise me" picked: an experiment and which of its alternatives to play first.</summary>
-public sealed record SurprisePick(Experiment Experiment, int Alternative);
+internal sealed record SurprisePick(Experiment Experiment, int Alternative);
 
 /// <summary>
 /// The experiments of the Explore mode: musical ideas built from catalogue operations, each offered
@@ -110,7 +110,7 @@ public sealed record SurprisePick(Experiment Experiment, int Alternative);
 /// catalogue's order, and "Surprise me" picks by the seed it is given.
 /// </para>
 /// </remarks>
-public static class ExperimentCatalogue
+internal static class ExperimentCatalogue
 {
     /// <summary>The share of melody notes that must sound until the next melody onset for "more space" to be offered.</summary>
     public const decimal MinConnectedShare = 0.5m;

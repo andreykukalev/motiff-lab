@@ -8,7 +8,7 @@ namespace MotiffLab.MusicCore.Assembly;
 /// written in bars of their own, so each note's place in them is paired with the time it was heard at, and a place between
 /// notes lies in between. The page plays the recording's own sound from here and draws its stretch on the waveform.
 /// </summary>
-public sealed class RecordingClock
+internal sealed class RecordingClock
 {
     private readonly long[] _ticks;
     private readonly long[] _milliseconds;

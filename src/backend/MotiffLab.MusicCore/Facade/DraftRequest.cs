@@ -173,7 +173,7 @@ internal static class DraftRequest
     {
         (SourceMusic music, TickSpan span) = Selected(from.Open, request);
         DraftPart part = PartOf(request, DraftFragment.Parts(music.NotesIn(span.Onset, span.End)));
-        DateTimeOffset now = SourceRequest.Now(request);
+        DateTimeOffset now = request.Now();
         Draft? draft = request.Text("draft") is { } id ? into.FindDraft(id) ?? throw FacadeException.BadRequest($"There is no draft {id}.") : null;
         DraftDrop drop = request.Enum<DraftDrop>("drop") ?? (draft is null ? DraftDrop.Place : throw FacadeException.BadRequest("Send \"drop\": variant, place or shelf."));
         if (draft is null && drop != DraftDrop.Place)

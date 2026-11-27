@@ -8,16 +8,16 @@ namespace MotiffLab.MusicCore.Assembly;
 /// <param name="Title">«№1 · 9 нот из Кавера → такт 15».</param>
 /// <param name="Detail">«положил 9, убрал 7», or why it is not applied.</param>
 /// <param name="Span">Where the step's music lies in the notes, to show it; null when it is not applied.</param>
-public sealed record JournalRow(int Number, string? SourceId, string Title, string Detail, bool Applied, TickSpan? Span);
+internal sealed record JournalRow(int Number, string? SourceId, string Title, string Detail, bool Applied, TickSpan? Span);
 
 /// <summary>One line of the apply dialog or of a carry's card: ✓ for what stays as said, ! for what changes with it.</summary>
-public sealed record JournalLine(SheetMark Mark, string Label, string Text);
+internal sealed record JournalLine(SheetMark Mark, string Label, string Text);
 
 /// <summary>
 /// The journal said in musical words (decision record 0024, sections 2, 6 and 7): its rows, the card of a carry with what
 /// it put in, took out and what leans on it, and what «Сделать нотами» will change.
 /// </summary>
-public static class AssemblyJournal
+internal static class AssemblyJournal
 {
     /// <summary>The journal's rows, in order.</summary>
     public static IReadOnlyList<JournalRow> Rows(AssemblyWork work, Words words, NoteNaming naming)

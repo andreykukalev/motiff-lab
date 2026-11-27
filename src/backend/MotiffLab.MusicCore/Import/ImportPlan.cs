@@ -10,7 +10,7 @@ namespace MotiffLab.MusicCore.Import;
 /// </summary>
 /// <param name="Path">Inside the chosen folder, "/" between the folders: "Бах/ХТК/Prelude 1.pdf". Kept in Unicode's composed form.</param>
 /// <param name="Bytes">The file's size.</param>
-public sealed record FoundFile(string Path, long Bytes)
+internal sealed record FoundFile(string Path, long Bytes)
 {
     public string Path { get; } = PathOf(Path);
 
@@ -62,7 +62,7 @@ public sealed record FoundFile(string Path, long Bytes)
 /// One original the library has, for the plan to know a file it has already (by fingerprint) and a piece it may be: the
 /// piece's id, the original's id and fingerprint, and the piece's title and composer as its card shows them.
 /// </summary>
-public sealed record LibraryOriginal(string ProjectId, string OriginalId, string? Sha256)
+internal sealed record LibraryOriginal(string ProjectId, string OriginalId, string? Sha256)
 {
     /// <summary>The original's size in bytes; null when not known.</summary>
     public long? Bytes { get; init; }
@@ -84,7 +84,7 @@ public sealed record LibraryOriginal(string ProjectId, string OriginalId, string
 }
 
 /// <summary>What the folders become in the library, the player's choice on «Что нашлось».</summary>
-public enum FolderMapping
+internal enum FolderMapping
 {
     /// <summary>Each folder with pieces is a playlist of its name (the default): one piece can be on several.</summary>
     Playlists,
@@ -100,7 +100,7 @@ public enum FolderMapping
 }
 
 /// <summary>What the import does with a found file.</summary>
-public enum ImportStatus
+internal enum ImportStatus
 {
     /// <summary>A piece to add.</summary>
     New,
@@ -122,7 +122,7 @@ public enum ImportStatus
 }
 
 /// <summary>Where a suggested title or composer comes from, from the most trusted.</summary>
-public enum SuggestionSource
+internal enum SuggestionSource
 {
     /// <summary>The folder mapping the player chose: folders are composers.</summary>
     FolderChoice,
@@ -141,17 +141,17 @@ public enum SuggestionSource
 }
 
 /// <summary>A suggested title or composer: a guess (provenance inferred) until the player confirms it, with its source.</summary>
-public sealed record Suggestion(string Value, SuggestionSource Source, double Confidence)
+internal sealed record Suggestion(string Value, SuggestionSource Source, double Confidence)
 {
     public Attribution Attribution => Attribution.Inferred(Confidence);
 }
 
 /// <summary>How the import plan is made: what the folders become, and whether the files stay in the folder (linked).</summary>
 /// <param name="Linked">The files stay where they are and the pieces link them; else the pieces keep copies.</param>
-public sealed record ImportOptions(FolderMapping Folders = FolderMapping.Playlists, bool Linked = false);
+internal sealed record ImportOptions(FolderMapping Folders = FolderMapping.Playlists, bool Linked = false);
 
 /// <summary>One found file in the plan: what the import does with it and what the piece is suggested to be.</summary>
-public sealed record PlannedFile(FoundFile File, ImportStatus Status)
+internal sealed record PlannedFile(FoundFile File, ImportStatus Status)
 {
     /// <summary>For a duplicate, the path of the file before it with the same fingerprint.</summary>
     public string? SameAs { get; init; }
@@ -186,7 +186,7 @@ public sealed record PlannedFile(FoundFile File, ImportStatus Status)
 }
 
 /// <summary>The import plan: every found file in path order, and the files to fingerprint before the plan is sure.</summary>
-public sealed record ImportPlan(IReadOnlyList<PlannedFile> Files, IReadOnlyList<string> ToFingerprint)
+internal sealed record ImportPlan(IReadOnlyList<PlannedFile> Files, IReadOnlyList<string> ToFingerprint)
 {
     public int Found => Files.Count;
 

@@ -5,7 +5,7 @@ namespace MotiffLab.MusicCore.Analysis;
 /// <summary>A pitch as a step of a key's scale, counted from the tonic of octave −1, plus a chromatic offset.</summary>
 /// <param name="Step">Scale steps from the tonic below MIDI 0; seven steps make an octave.</param>
 /// <param name="Alteration">Semitones above the scale note, 0 or 1; 1 marks a note outside the scale.</param>
-public readonly record struct ScalePosition(int Step, int Alteration);
+internal readonly record struct ScalePosition(int Step, int Alteration);
 
 /// <summary>
 /// The scale-step pitch space that diatonic operations move in (V4, V9, V10): "up a 3rd" means two
@@ -21,7 +21,7 @@ public readonly record struct ScalePosition(int Step, int Alteration);
 /// </para>
 /// <para>Pure integer arithmetic: no floating point and no spelling choices.</para>
 /// </remarks>
-public static class ScaleSteps
+internal static class ScaleSteps
 {
     public const int StepsPerOctave = 7;
 

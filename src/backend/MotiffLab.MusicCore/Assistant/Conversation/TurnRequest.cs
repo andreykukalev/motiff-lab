@@ -21,7 +21,7 @@ public sealed record TurnRequest(AssistantRole Role, string Language, JsonElemen
     public const int MaxEntries = 40;
 
     /// <summary>The longest question, in characters.</summary>
-    public const int MaxQuestion = 1000;
+    internal const int MaxQuestion = 1000;
 
     /// <summary>The tool calls made since the last question.</summary>
     public int ToolCallsInQuestion => CallsSinceQuestion(History);

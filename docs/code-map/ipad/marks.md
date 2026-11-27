@@ -21,7 +21,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 - `SegmentedChoice.swift`: the choice of two or three (ds.css `.seg`: `SegmentedChoice`, `SegmentFill`,
   `SegmentedCapsule`), which other folders use too; out of `Bookmarks.swift` in S7b.
 
-- `Check.swift`: `CheckShelf` (`check`), the Check drawer, and Fix notes: `NoteCorrections`, a bar's notes built from
+- `Check.swift`: `CheckShelf` (`check`: the flags, a recording's note lengths to check, #352; `hasEntries`, which More
+  offers Check for, and the drawer's `heading` and `how`, E-sheets-1), the Check drawer, and Fix notes: `NoteCorrections`, a bar's notes built from
   `CorrectionsAnswer` (`PieceCore.corrections`), listed by `CorrectionsList`.
 - `ScanReviewBlock.swift` (v1.3 i-2, experiment `experimental.scanJobs`): in the Check entry of the bar selected, an
   EnginesDisagree bar's crop of the page and the engines' other readings, one tap each (`ScoreController.chooseVariant`,

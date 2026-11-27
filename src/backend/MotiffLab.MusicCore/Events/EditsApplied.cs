@@ -4,7 +4,7 @@ namespace MotiffLab.MusicCore.Events;
 /// How the player's corrections are laid over the imported notes when a piece opens (version 0.5, «Мои правки: вкл /
 /// выкл»). The app chooses it; music-core knows no switch.
 /// </summary>
-public enum EditsLayer
+internal enum EditsLayer
 {
     /// <summary>Every correction must fit, or the piece does not open: the behaviour before version 0.5, and the default.</summary>
     Strict,

@@ -3,7 +3,7 @@ using MotiffLab.MusicCore.Events;
 namespace MotiffLab.MusicCore.Assistant.Repairs;
 
 /// <summary>The repairs of a bar's length: a bar read too long, and two hands that do not add up to the same length.</summary>
-public static partial class CheckRepairs
+internal static partial class CheckRepairs
 {
     /// <summary>
     /// A bar too long (0028 section 6: drop a doubled note, read a triplet, shorten the last note): for each hand whose notes

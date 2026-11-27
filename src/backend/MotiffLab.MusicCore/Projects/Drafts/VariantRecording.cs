@@ -9,7 +9,7 @@ namespace MotiffLab.MusicCore.Projects.Drafts;
 /// the piece whose original it is, and, on those Notes' clock (<see cref="DraftFragment.Heard"/>), the stretch of the
 /// recording a span of the variant was played in. Whether the sound is on the device is not known here.
 /// </summary>
-public sealed class VariantRecording
+internal sealed class VariantRecording
 {
     private readonly Project _notes;
     private readonly HeardClock _clock;
@@ -46,7 +46,7 @@ public sealed class VariantRecording
 
         try
         {
-            Project notes = holder.ViewOf(variant.From.Notes);
+            Project notes = holder.ViewOf(variant.From.Notes, followWork: false);
             return notes.Transcription?.From is { } original && HeardClock.Of(notes, OpenedProject.Open(notes, EditsLayer.Lenient).Piece) is { } clock
                 ? new VariantRecording(holder.Id, original, notes, clock, variant.From.Span.Onset.Value)
                 : null;

@@ -1,5 +1,4 @@
 using MotiffLab.MusicCore.Analysis;
-using MotiffLab.MusicCore.Analysis.Phrasing;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Time;
 
@@ -18,14 +17,17 @@ public sealed partial record Project
 
     public BookmarkCategory? FindCategory(string id) => Categories.FirstOrDefault(category => category.Id == id);
 
-    public Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
+    internal Bookmark? FindBookmark(string id) => Bookmarks.FirstOrDefault(bookmark => bookmark.Id == id);
 
     /// <summary>The project with the bookmark at the end of the player's order.</summary>
-    /// <exception cref="ArgumentException">A bookmark with the same id is already there, or its category is not.</exception>
+    /// <exception cref="ArgumentException">
+    /// A bookmark with the same id is already there, one kept unknown too (S6, #364: the file never holds two), or its category
+    /// is not.
+    /// </exception>
     public Project AddBookmark(Bookmark bookmark)
     {
         ArgumentNullException.ThrowIfNull(bookmark);
-        if (Bookmarks.Any(kept => kept.Id == bookmark.Id))
+        if (Bookmarks.Any(kept => kept.Id == bookmark.Id) || UnknownIds(Unknown, "bookmarks.items").Contains(bookmark.Id, StringComparer.Ordinal))
         {
             throw new ArgumentException($"There is already a bookmark {bookmark.Id}.", nameof(bookmark));
         }
@@ -72,32 +74,6 @@ public sealed partial record Project
     }
 
     /// <summary>
-    /// The project with the detected form written into the Structure category (0018, section 5: "Structure for
-    /// free"): one bookmark per sentence, "Sentence A, bars 1–8", after the player's own. A sentence already
-    /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.
-    /// </summary>
-    public Project AddStructureBookmarks(IEnumerable<Sentence> sentences, Words words, DateTimeOffset now)
-    {
-        ArgumentNullException.ThrowIfNull(sentences);
-        Project project = this;
-        foreach (Sentence sentence in sentences)
-        {
-            if (project.Bookmarks.Any(bookmark => bookmark.CategoryId == BookmarkCategory.StructureId && bookmark.Span == sentence.Span))
-            {
-                continue;
-            }
-
-            string bars = sentence.FirstBar == sentence.LastBar
-                ? words.T($"bar {sentence.FirstBar}", $"такт {sentence.FirstBar}")
-                : words.T($"bars {sentence.FirstBar}–{sentence.LastBar}", $"такты {sentence.FirstBar}–{sentence.LastBar}");
-            string title = words.T($"Sentence {sentence.Letter}, {bars}", $"Предложение {sentence.Letter}, {bars}");
-            project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, sentence.Span, FromPhrase: false, now));
-        }
-
-        return project;
-    }
-
-    /// <summary>
     /// The project with the form of Piece DNA written into the Structure category (testing item 22, Add Structure
     /// bookmarks on the map): one bookmark per section, "Section A′, bars 17–32", after the player's own. A section already
     /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.
@@ -113,9 +89,7 @@ public sealed partial record Project
                 continue;
             }
 
-            string bars = section.FirstBar == section.LastBar
-                ? words.T($"bar {section.FirstBar}", $"такт {section.FirstBar}")
-                : words.T($"bars {section.FirstBar}–{section.LastBar}", $"такты {section.FirstBar}–{section.LastBar}");
+            string bars = Bookmark.Bars(section.FirstBar, section.LastBar, words);
             string title = words.T($"Section {section.Label}, {bars}", $"Раздел {section.Label}, {bars}");
             project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
         }

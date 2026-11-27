@@ -26,8 +26,12 @@ through the facade; the API references it.
   `PhraseLevels` (`NoteAt`, `NoteFrom`, `WhyHere`).
 - `Motifs`, `Variations` (the catalogue operations, `VariationChain`; their opening sentences in `OperationTemplates`:
   `.Rhythm`, `.Melody`, `.Texture`, `.ByHand`), `Experiments` (`ExperimentCatalogue`, `TryChips`).
-- `Notation`, `Playback`: the notes as written and heard; `Performance`: versions compared (`PerformanceComparison`:
-  `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`).
+- `Notation`, `Playback`: the notes as written and heard (the roll's data `PianoRollData`, with `VoiceNames`: upper and lower
+  voice where the file says which, v1.5 #330); `Performance`: versions compared (`PerformanceComparison`:
+  `NoteMatcher`, `DifferenceClassifier`, `BarComparison`) and kept (`SavedPerformance`, `PerformanceSource`); the player's
+  corrections carried to a new reading of the same pages (`ReadingCarry`, «Как напечатано» step 2: the two readings matched
+  once by `ReadingMatch`, onsets by `PerformanceAlignment.AlignOnsets`, bars by their music; wired by
+  `SourcesSession.CarriedOver` on sources.notes.recognise).
 - The notation writer: `NotationGenerator` (`FromMidi`, `FromMusicXml`, `Generate`) composes `NotationPlan`
   (parts and bars: `WrittenBars`, `PartPlan`, `MeasurePlan`), `StaffVoices` (staves, clefs, voices), `TupletBeats`,
   `HeardRhythm` and `HeardOnsets` (notes heard), `ControlPlan` (`ControlEvents` from `PlayingMarks`,
@@ -37,7 +41,8 @@ through the facade; the API references it.
   `StaffPlan.TakePiece` numbers the pieces of ids in both ways.
 - `Projects`: `Project`, a file per part (`Project.Originals`, `.Bookmarks`, `.ResumePoints`, `.Performances`,
   `.Assembly`, `.Check`, `.Settings`, `.Observations`, `.Sources`, `.Linked`, `.Recording`: a recording only, `.Drafts`),
-  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations`; originals
+  records apart (`ProjectSummary`, `SavedMotif`, …); `OriginalOperations`, `NotesOperations` (`MakeWorking`: the work in
+  ticks follows the music by bars, `FollowedWork` over `ReadingMatch`, v1.5 c-11b); originals
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync`, `PieceDetails`, `PieceOrigin`;
   `ProjectFile` (`Read`, `Write`, …) over `Projects.File` (a `*Codec` per part,
   `UnknownEntities`, `Legacy`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
@@ -52,7 +57,7 @@ through the facade; the API references it.
 - `Facade`: `MusicCoreFacade` (0020), the one entry point: `Open`, `Call(piece, name, json)`, `Close`, `Version`,
   `Contract`. `Call` dispatches by `CallRegistry` alone: each call's name, handler (`FacadeCall<T>`) and `CallFlags`,
   gathered from the `…Calls` lists each feature keeps beside its handlers (the piece's in `OpenPiece.Calls`, a nested
-  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections and the sources, `OpenPiece.Selection`, `OpenPiece.Corrections` and `OpenPiece.Sources`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
+  partial class that reaches its handlers, its lists in `OpenPiece.Dispatch` and, for the selection, the corrections, the sources, the performances and the marks, `OpenPiece.Selection`, `OpenPiece.Corrections`, `OpenPiece.Sources`, `OpenPiece.Performance` and `OpenPiece.Marks`; `SourceRequest.Calls` on both kinds of piece through `SourceOwner`, in
   `SourceRequest.cs`); the receivers `PieceCall` and `DraftCall` are in `FacadeCall.cs`. One name is read outside the
   registry: `drafts.add` with `file` (`CallOnDrafts`), answered before a draft's owner is looked for. `OpenPiece*` and `OpenDocument` (no notes: a PDF or a recording) hold an open piece;
   the typed sessions (W1.7) in `Facade/Sessions`: `SelectionSession` (the selection, what was understood, the Try chip,
@@ -62,10 +67,18 @@ through the facade; the API references it.
   correction answers the edit log, which the open piece keeps) answers `BarCorrections` (`Answer.Corrections`), its
   adapter `OpenPiece.Corrections` (`Calls.Corrections`, every call's bar read before anything changes);
   `SourcesSession` (the drafts kept for drafts.undo; the PDF kept in the piece, the notes read from it, relink, the
-  iPad's mark, «Распознать ещё раз», each answering the project it makes, the time taken as `now`) answers `KeptFile`,
+  iPad's mark, «Распознать ещё раз» with the corrections carried over (`CarriedOver`), each answering the project it makes, the time taken as `now`) answers `KeptFile`,
   `ReadScore`, `DocumentVersion`; its adapter `OpenPiece.Sources` (`Calls.Sources`, reads «now»; `Changed` for the drafts);
+  `PerformancesSession` (no state: the versions added, compared, their layer, bars taken and restored, dismissed, renamed,
+  each against the printed notes `OpenPiece.Printed` and answering the project it makes; `OpenPiece.RefreshNotes` reads the
+  notes again) answers the comparison (`Answer.Performance`) and `AddedVersion`; its adapter `OpenPiece.Performance` (`Calls.Performances`);
+  `MarksSession` (no state: ink, margin notes, highlights, fingering, the bookmarks and their categories, the Structure
+  bookmarks, a bookmark's default title by its bars, each answering the project it makes, the time taken as `now`); its
+  adapter `OpenPiece.Marks` (`Calls.Marks`; the resume points, ideas, settings and Check stay in `OpenPiece.Project`);
+  the time of a call is read once, `Request.Now` («now», else the clock) and `Request.SentNow` (project.save), by the
+  adapters only (D15); the one exception is sync.online's «now», read as its other times are (`SyncRequest.Time`);
   `Request` reads a call's JSON; `Answer*` write the answers by hand (NativeAOT), a file per feature (`Answer.cs` the shared
-  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (roll, play), …), a
+  shapes; `.Piece`, `.Understanding`, `.KeyCircle`, `.Dna`, `.Variation`, `.Notation`, `.Playback` (play; the roll in `RollAnswer`), …), a
   stroke, filter or key signature through `ProjectFile`; phrases: `OpenPiece.Phrases`,
   `Answer.Phrases` (the marks); drafts:
   `Draft*Request` (`DraftRecordingRequest`: «Найти на записи», and since v1.5 a new draft's passage, `FindNew`, `WithStretch`; `DraftLengthRequest`; `DraftCarryRequest`), `MusicCoreFacade.Drafts` (v1.2 collage: another piece's `file`, `DraftRequest.AddTo`; assistant:
@@ -96,6 +109,21 @@ as its parent, missing that `Analysis` and `.Phrasing` use each other (`MotifFac
 `FormAnalyzer`, `PieceDna`).
 The root's classes (`Words`, `JsonWrite`) are called by their name, never through `using static`, which the check
 reads as a namespace.
+
+## What is public
+
+Only what another project uses, and the types its public signatures name; the rest is `internal`, seen by
+`MotiffLab.MusicCore.Tests` (`InternalsVisibleTo`). The API uses `Accounts`, `Assistant.Conversation`, `ProjectFile`
+(`ReadEnvelope`), `ProjectEnvelope`, `ProjectSummary` and `Words`; its tests also `Project.Create`, `ProjectFile.Write`
+and the assistant run in-process (`AssistantPiece`, `AssistantContext`, `TurnRunner`, `FactsDigest`, `PieceImporter`);
+`src/ipad/Core` and the acceptance tests `MusicCoreFacade`. W1.12 made it so (done, v1.5), a layer at a time, top
+first: `Facade`, `Assistant`, `Analytics`, `Projects` (c-12w), then `Experiments`, `Assembly`, `Notation`, `Variations`,
+`Invitations`, `Analysis`, `Performance` (c-12w2: public stay the analyses, facts, phrase levels, variations and saved
+performances the project and the assistant name), then `Import`, `Playback`, `Pieces`, `Motifs`, `Export`, `Events`,
+`Time`, `Settings` (c-12w3: public stay what the API's tests use, `PieceImporter` with its result, `ImportedPiece`,
+`Tick`, `TickSpan`, and the notes, motifs, imported records, marks, edit log and provenance the layers above name;
+`Playback`, `Export`, `Settings` are all internal); `Accounts` and the root stay public. A new type is `internal` unless one of these needs it. A theory
+test takes an internal enum by its name (`nameof`, parsed in the test), since xUnit runs public methods only.
 
 ## Rules not to break
 

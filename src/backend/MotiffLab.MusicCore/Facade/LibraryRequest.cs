@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -65,7 +64,7 @@ internal static class LibraryRequest
     /// </summary>
     public static string Confirm(Request fields)
     {
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project project = MusicCoreFacade.ProjectIn(fields);
         project = project with
         {
             Metadata = LibraryImport.Confirmed(project.Metadata, fields.Text("title"), fields.Text("composer"), fields.Texts("tags"), fields.Texts("playlists")),
@@ -143,7 +142,7 @@ internal static class LibraryRequest
                 fields.Long("bytes") ?? throw FacadeException.BadRequest("A linked PDF needs \"bytes\"."),
                 fields.Int("pages"),
                 fields.Text("device") == "web" ? HoldingDevice.Web : HoldingDevice.Ipad,
-                Now(fields));
+                fields.Now());
         }
         catch (Exception exception) when (exception is ArgumentException)
         {
@@ -160,7 +159,7 @@ internal static class LibraryRequest
     /// </summary>
     public static string Link(Request fields)
     {
-        Project project = ProjectFile.Read(Encoding.UTF8.GetBytes(fields.Required("file")));
+        Project project = MusicCoreFacade.ProjectIn(fields);
         try
         {
             project = project.RelinkedAt(
@@ -184,11 +183,6 @@ internal static class LibraryRequest
         Answer.Project(json, "project", project);
         json.WriteString("file", Encoding.UTF8.GetString(ProjectFile.Write(project)));
     });
-
-    private static DateTimeOffset Now(Request request) =>
-        request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : DateTimeOffset.UtcNow;
 
     private static FoundFile FoundOf(JsonElement element)
     {

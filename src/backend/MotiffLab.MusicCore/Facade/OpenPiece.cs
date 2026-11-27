@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Text.Json;
 
 using MotiffLab.MusicCore.Analysis;
@@ -25,7 +24,8 @@ namespace MotiffLab.MusicCore.Facade;
 /// the phrases; the one primary selection (0013) with what was understood about it and the variation chain
 /// a Try chip starts are its <see cref="SelectionSession"/>, the corrections' draft and layer its
 /// <see cref="CorrectionsSession"/>, the drafts kept for drafts.undo and the rules of its sources its
-/// <see cref="SourcesSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
+/// <see cref="SourcesSession"/>, the rules of the versions compared with it <see cref="PerformancesSession"/>, the rules of the
+/// marks and the bookmarks <see cref="MarksSession"/> (audit W1.7). The iPad app's orchestration of music-core, kept in one place.
 /// </summary>
 internal sealed partial class OpenPiece
 {
@@ -166,7 +166,7 @@ internal sealed partial class OpenPiece
         }
         catch (ProjectFileException exception)
         {
-            throw new FacadeException("import", exception.Message) { Data = { ["reason"] = "damaged" } };
+            throw new FacadeException("import", exception.Text(words)) { Data = { ["reason"] = "damaged" } };
         }
 
         var result = new OpenPiece(opened.Project, opened.Piece, opened.Notes, words);
@@ -209,6 +209,33 @@ internal sealed partial class OpenPiece
         }
     }
 
+    /// <summary>The printed notes with the player's corrections, as the corrections' layer lays them: what every performance is compared with.</summary>
+    private IReadOnlyList<Note> Printed => Corrections.Corrected(State);
+
+    /// <summary>The notes read again after the corrections or the bars taken changed (<see cref="PerformancesSession.NotesWithTakes"/>), and what was worked out from them.</summary>
+    private void RefreshNotes()
+    {
+        Notes = PerformancesSession.NotesWithTakes(Printed, Project);
+        ReadStructure();
+        Selection.ForgetUnderstanding();
+    }
+
+    /// <summary>
+    /// The notes read again (<see cref="RefreshNotes"/>) and, when they changed, the selection kept over them and the
+    /// variation made from the old ones gone (<see cref="SelectionSession.FollowNotes"/>, E-score-1): after corrections
+    /// dropped, bars taken or restored, or a version with bars taken from it taken away. Notes that stay the same (bars
+    /// restored that were never taken) keep the variation in progress.
+    /// </summary>
+    private void RefreshNotesFollowingSelection()
+    {
+        IReadOnlyList<Note> before = Notes;
+        RefreshNotes();
+        if (!before.SequenceEqual(Notes))
+        {
+            Selection.FollowNotes(State);
+        }
+    }
+
     /// <summary>The structure read again from the notes as they are now, in the language set, with the player's <paramref name="edits"/> (by default those kept).</summary>
     [MemberNotNull(nameof(Structure))]
     private void ReadStructure(LevelEdits? edits = null) =>
@@ -244,7 +271,7 @@ internal sealed partial class OpenPiece
         // Another version above (0022, section 4) is engraved as the comparison layer has it, likely artefacts only when asked.
         bool artefacts = request.Bool("artefacts") ?? false;
         SavedPerformance?[] versions = [.. OssiaSources(request).Select(Project.FindPerformance)];
-        PerformanceLayerNotes?[] layers = [.. versions.Select(version => version is null ? null : VersionLayer(version, artefacts))];
+        PerformanceLayerNotes?[] layers = [.. versions.Select(version => version is null ? null : PerformancesSession.Layer(State, Printed, version, artefacts))];
         NotationOssia[] ossias = [.. OssiaSources(request).Select((source, index) => layers[index] is { } layer
             ? new NotationOssia(versions[index]!.Name, layer.Notes, AsHeard: true)
             : Ossia(source, heard, readable))];
@@ -407,7 +434,7 @@ internal sealed partial class OpenPiece
         NoteNaming naming = NoteNames.For(request.Text("naming"), Words);
         RollPayload payload = PianoRollData.Create(Notes, score);
         RollNames names = PianoRollData.Names(Notes, [.. NotationKeys(Transcribed.IsHeard(Piece))], naming, Words);
-        return Answer.Write(json => Answer.Roll(json, payload, names));
+        return Answer.Write(json => RollAnswer.Write(json, payload, names));
     }
 
     /// <summary>
@@ -429,7 +456,7 @@ internal sealed partial class OpenPiece
             "piece" => Project.ChangesNotes || hand is not null ? Notes : null,
             "heard" => Selection.Variation().Heard,
             "inPlace" => InPlace(Selection.Shown()),
-            "version" => VersionLayer(Performance(request), artefacts: false).Notes,
+            "version" => PerformancesSession.Layer(State, Printed, Performance(request), artefacts: false).Notes,
             _ => throw FacadeException.BadRequest("\"of\" is \"piece\", \"heard\", \"inPlace\" or \"version\"."),
         };
         if (hand is { } alone)
@@ -464,9 +491,7 @@ internal sealed partial class OpenPiece
     /// </summary>
     private string Save(Request request)
     {
-        DateTimeOffset? now = request.Text("now") is { } text
-            ? DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed) ? parsed : throw FacadeException.BadRequest("\"now\" must be an ISO 8601 time.")
-            : null;
+        DateTimeOffset? now = request.SentNow();
         (IReadOnlyList<SavedMotif> motifs, IReadOnlyList<SavedVariation> variations) = Selection.Saved(State, layerOff: Corrections.Layer == EditsLayer.Off);
         Project = Project.WithPhraseLevels(Levels.Edits) with
         {

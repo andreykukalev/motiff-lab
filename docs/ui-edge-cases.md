@@ -19,9 +19,28 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 
 ## Score and selection
 
+- `E-score-1` · Bars taken from another version or restored (performance.take, .takeAll, .restore) or a version with
+  bars taken from it removed, while a passage is selected · the selection keeps its passage over the new notes and a
+  variation in progress, made from the old notes, goes; when the notes stay the same (bars restored that were never
+  taken, a double tap) nothing changes · the same as after a correction (`SelectionSession.FollowNotes`, «Править ноты»)
+  · v1.5 w17-4
+
 ## Roll
 
 ## Menus, sheets and popovers
+
+- `E-sheet-1` · Undo on the toast of «Сделать рабочими» in the Sources sheet · writes the project file back as it was
+  just before, rather than making the earlier notes working again: the bookmarks and phrases that followed their bars
+  (`FollowedWork`) may not map back exactly (a place in a bar with no match, a bar read shorter) · as the sheet's
+  removal toasts undo (`SourcesController.remove`); nothing is lost without undo · v1.5 c-11b
+
+- `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
+  offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over
+  marks still shown), and the lengths' own heading is not repeated under it; with no flag at all the line on flagged bars
+  is left out too (only where the notes were heard). A mark goes when its note is fixed (any correction makes it the
+  player's), or with «Верно» on its bar's flags; a bar with no flag has no «Верно», its entry only «Показать» (lead,
+  2026-11-26). With no mark left, «Все такты проверены». · Pattern: a list's heading names what it holds; a text never
+  states what did not happen (robustness rule); Check is offered wherever it holds something. · v1.5 c-15b.
 
 ## Pen and marks
 

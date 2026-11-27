@@ -126,14 +126,14 @@ public sealed class VariationChain
     }
 
     /// <summary>Why the edit cannot apply to the notes as they are heard, or null when it can.</summary>
-    public string? EditUnavailableReason(HandEditParameters edit) =>
+    internal string? EditUnavailableReason(HandEditParameters edit) =>
         EditDisabledReason ?? HandEdit.Instance.UnavailableReason(Heard, Context, edit);
 
     /// <summary>The notes as they are heard: after the accepted steps and the pending one.</summary>
     public IReadOnlyList<Note> Heard => Pending?.Result.Notes ?? Current;
 
     /// <summary>Drops the pending step; the accepted steps stay.</summary>
-    public VariationChain Reject() => new(Original, Context, Steps, null, Undone);
+    internal VariationChain Reject() => new(Original, Context, Steps, null, Undone);
 
     /// <summary>Takes back the last accepted step, dropping any pending one.</summary>
     public VariationChain Undo()

@@ -51,7 +51,7 @@ internal static class DraftCarryRequest
         (Draft draft, string placeId) = DraftTakeRequest.PlaceOf(owner, request);
         int technique = request.RequiredInt("technique");
         string to = request.Required("to");
-        (Draft carried, IReadOnlyList<int> bars) = Refused(() => TechniqueCarry.Put(draft, placeId, technique, request.Int("bar"), to, SourceRequest.Now(request), owner.Words));
+        (Draft carried, IReadOnlyList<int> bars) = Refused(() => TechniqueCarry.Put(draft, placeId, technique, request.Int("bar"), to, request.Now(), owner.Words));
         return DraftRequest.Restructured(owner, request, draft, to, draft.NextVariantId(), _ => carried, (json, _) => JsonWrite.Numbers(json, "bars", bars));
     }
 

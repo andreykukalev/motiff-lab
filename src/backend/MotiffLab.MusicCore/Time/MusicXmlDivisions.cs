@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Time;
 /// are supported here. The importer reports non-integer values as unsupported.
 /// </para>
 /// </remarks>
-public sealed record MusicXmlDivisions
+internal sealed record MusicXmlDivisions
 {
     public MusicXmlDivisions(long divisionsPerQuarter)
     {

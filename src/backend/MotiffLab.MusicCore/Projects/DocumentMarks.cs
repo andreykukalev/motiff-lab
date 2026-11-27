@@ -44,7 +44,7 @@ public sealed record DocumentMarks
     }
 
     /// <summary>The bookmark on a page, if there is one.</summary>
-    public PageBookmark? BookmarkOn(int page) => Bookmarks.FirstOrDefault(bookmark => bookmark.Page == page);
+    internal PageBookmark? BookmarkOn(int page) => Bookmarks.FirstOrDefault(bookmark => bookmark.Page == page);
 
     /// <summary>Bookmarks a page, named or not; a page already bookmarked keeps its bookmark.</summary>
     public DocumentMarks AddBookmark(int page, string? name, DateTimeOffset now)

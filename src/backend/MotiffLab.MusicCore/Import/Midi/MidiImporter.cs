@@ -30,7 +30,7 @@ namespace MotiffLab.MusicCore.Import.Midi;
 /// The import is pure and deterministic: the same bytes give the same result and report.
 /// </para>
 /// </remarks>
-public static class MidiImporter
+internal static class MidiImporter
 {
     /// <summary>The Stage 1 file size limit (S1-I1).</summary>
     public const int MaxFileBytes = 50 * 1024 * 1024;

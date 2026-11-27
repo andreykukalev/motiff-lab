@@ -32,13 +32,13 @@ public readonly record struct Anchor(Tick Score, long Microseconds);
 public sealed class PerformanceAlignment
 {
     /// <summary>Played notes that start within this many microseconds of a group's first note join the group: 70 ms.</summary>
-    public const long GroupWindowMicroseconds = 70_000;
+    internal const long GroupWindowMicroseconds = 70_000;
 
     /// <summary>The cost of leaving a group of either side unmatched, against 1000 for groups with nothing in common.</summary>
-    public const int GapCost = 350;
+    internal const int GapCost = 350;
 
     /// <summary>The least similarity, in thousandths, at which matched groups become an anchor.</summary>
-    public const int AnchorSimilarity = 500;
+    internal const int AnchorSimilarity = 500;
 
     /// <summary>The tempo assumed outside the anchors when there is only one: a quarter at 120 a minute.</summary>
     public const long DefaultMicrosecondsPerQuarter = 500_000;
@@ -224,6 +224,17 @@ public sealed class PerformanceAlignment
         Int128 half = denominator / 2;
         Int128 result = product >= 0 ? (product + half) / denominator : -((-product + half) / denominator);
         return (long)result;
+    }
+
+    /// <summary>
+    /// The onsets of two readings of the same music matched by the same alignment with gaps, ticks on both sides (the notes
+    /// that start together as a group, «Как напечатано», step 2: <see cref="ReadingCarry"/>): each pair an onset of
+    /// <paramref name="from"/> and the one of <paramref name="to"/> it lines up with, in order.
+    /// </summary>
+    internal static IReadOnlyList<(long From, long To)> AlignOnsets(IReadOnlyList<Note> from, IReadOnlyList<Note> to)
+    {
+        List<(long At, int[] Pitches)> earlier = ScoreGroups(from), later = ScoreGroups(to);
+        return [.. AlignGroups(earlier, later).Select(pair => (earlier[pair.I].At, later[pair.J].At))];
     }
 
     private static List<(long At, int[] Pitches)> ScoreGroups(IReadOnlyList<Note> score) =>

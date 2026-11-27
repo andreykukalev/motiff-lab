@@ -23,6 +23,7 @@
 
   "roll.js.track": "Дорожка {0}",
   "roll.js.trackVoice": "{0}, голос {1}",
+  "roll.js.trackVoiceNamed": "{0}, {1}",
   "roll.js.noVoice": "без голоса",
   "roll.js.rightHand": "Правая рука",
   "roll.js.leftHand": "Левая рука",

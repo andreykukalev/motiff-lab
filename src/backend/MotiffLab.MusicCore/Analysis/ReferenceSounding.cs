@@ -1,7 +1,7 @@
 namespace MotiffLab.MusicCore.Analysis;
 
 /// <summary>How a chord's tones are spread (version 0.5): close, all within an octave above the bass, or open.</summary>
-public enum ChordSpacing
+internal enum ChordSpacing
 {
     /// <summary>The tones above the bass within an octave of it: G7 as B3 D4 F4 G4.</summary>
     Close,
@@ -11,7 +11,7 @@ public enum ChordSpacing
 }
 
 /// <summary>How a chord is played in the Reference (version 0.5).</summary>
-public enum ChordPattern
+internal enum ChordPattern
 {
     /// <summary>Struck at once.</summary>
     Together,
@@ -30,7 +30,7 @@ public enum ChordPattern
 }
 
 /// <summary>Which way a scale is played in the Reference (version 0.5).</summary>
-public enum ScalePattern
+internal enum ScalePattern
 {
     Up,
     Down,
@@ -41,16 +41,16 @@ public enum ScalePattern
 /// <param name="Position">The position of the chord's card (root position or an inversion), with its title and figure.</param>
 /// <param name="Tones">The tones from the bass up as they sound, spelled.</param>
 /// <param name="Music">The chord struck and held for a bar, then, unless struck at once, played the chosen way in quavers.</param>
-public sealed record ChordSounding(ChordCard Card, ChordPosition Position, ChordSpacing Spacing, ChordPattern Pattern, IReadOnlyList<WrittenTone> Tones, ReferenceMusic Music);
+internal sealed record ChordSounding(ChordCard Card, ChordPosition Position, ChordSpacing Spacing, ChordPattern Pattern, IReadOnlyList<WrittenTone> Tones, ReferenceMusic Music);
 
 /// <summary>A scale as the Reference sounds it: up, down or both, over one or two octaves, in quavers on a treble staff.</summary>
-public sealed record ScaleSounding(ScaleCard Card, ScalePattern Pattern, int Octaves, ReferenceMusic Music);
+internal sealed record ScaleSounding(ScaleCard Card, ScalePattern Pattern, int Octaves, ReferenceMusic Music);
 
 /// <summary>
 /// How the Reference's chords and scales sound (version 0.5, «Аккорды и гаммы»): what sounds is chosen apart from how it
 /// sounds, the position, the spacing and the way it is played. Pure theory; the same choices give the same notes.
 /// </summary>
-public static class ReferenceSounding
+internal static class ReferenceSounding
 {
     /// <summary>The tempo the Reference plays at, as <see cref="KeyReference.MicrosecondsPerQuarter"/>: a quarter at 100.</summary>
     public const int MicrosecondsPerQuarter = KeyReference.MicrosecondsPerQuarter;

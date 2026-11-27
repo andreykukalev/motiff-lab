@@ -10,7 +10,7 @@ public abstract record SourceLocation;
 /// <param name="Track">Zero-based track chunk index.</param>
 /// <param name="Channel">MIDI channel, 0–15 as stored in the file (channel 10 is 9).</param>
 /// <param name="NoteOnIndex">Zero-based index of the note-on event among all events in its track chunk.</param>
-public sealed record MidiSourceLocation(int Track, int Channel, int NoteOnIndex) : SourceLocation
+internal sealed record MidiSourceLocation(int Track, int Channel, int NoteOnIndex) : SourceLocation
 {
     public int Track { get; init; } = Track >= 0 ? Track : throw new ArgumentOutOfRangeException(nameof(Track));
 
@@ -25,7 +25,7 @@ public sealed record MidiSourceLocation(int Track, int Channel, int NoteOnIndex)
 /// <param name="NoteIndex">Zero-based index of the <c>&lt;note&gt;</c> element within the measure.</param>
 /// <param name="Staff">The <c>&lt;staff&gt;</c> number, 1 when the part has one staff.</param>
 /// <param name="Voice">The <c>&lt;voice&gt;</c> value as written, for example "1".</param>
-public sealed record MusicXmlSourceLocation(string PartId, int MeasureIndex, int NoteIndex, int Staff, string Voice) : SourceLocation
+internal sealed record MusicXmlSourceLocation(string PartId, int MeasureIndex, int NoteIndex, int Staff, string Voice) : SourceLocation
 {
     public string PartId { get; init; } = !string.IsNullOrWhiteSpace(PartId) ? PartId : throw new ArgumentException("A part id is required.", nameof(PartId));
 

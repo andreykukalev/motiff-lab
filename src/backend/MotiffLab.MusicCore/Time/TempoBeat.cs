@@ -6,7 +6,7 @@ namespace MotiffLab.MusicCore.Time;
 /// is "♩ = 90". The engine, the project file and the facade's "perMinute" keep counting quarter notes; only what the
 /// player reads and types is in this beat.
 /// </summary>
-public enum TempoBeat
+internal enum TempoBeat
 {
     /// <summary>A quarter note.</summary>
     Quarter,
@@ -16,7 +16,7 @@ public enum TempoBeat
 }
 
 /// <summary>The beat of a meter, and tempos counted in it.</summary>
-public static class TempoBeats
+internal static class TempoBeats
 {
     /// <summary>The dotted quarter for a compound meter of eighths (6/8, 9/8, 12/8 and on), the quarter for every other.</summary>
     public static TempoBeat Of(TimeSignature signature) =>

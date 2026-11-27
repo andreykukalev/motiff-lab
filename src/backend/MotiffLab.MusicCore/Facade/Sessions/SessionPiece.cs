@@ -1,5 +1,6 @@
 using MotiffLab.MusicCore.Analysis;
 using MotiffLab.MusicCore.Events;
+using MotiffLab.MusicCore.Import;
 using MotiffLab.MusicCore.Pieces;
 using MotiffLab.MusicCore.Projects;
 
@@ -12,6 +13,6 @@ namespace MotiffLab.MusicCore.Facade.Sessions;
 /// </summary>
 internal readonly record struct SessionPiece(Project Project, ImportedPiece Piece, IReadOnlyList<Note> Notes, PieceStructure Structure, Words Words)
 {
-    /// <summary>The recognised notes still to check: in the bars with an open Check flag (#352).</summary>
-    public NoteDoubt Doubt() => NoteDoubt.Of(Notes, Piece.Meter, Project.OpenChecks.Select(static flag => flag.Bar), Words);
+    /// <summary>The recognised notes still to check: in the bars with an open Check flag about the notes (#352).</summary>
+    public NoteDoubt Doubt() => NoteDoubt.Of(Notes, Piece.Meter, CheckFlag.DoubtfulBars(Project.Check), Words);
 }
