@@ -6,7 +6,7 @@
 // placed as a comma alone and takes the tap instead. Kept free of the DOM, so Node tests the rules; the iPad's page draws by
 // them (ipad-page/page-phrases.ts).
 import type { PagePhraseMark, PageSectionMark } from "./page-contract.js";
-import type { Rect } from "./score-geometry.js";
+import type { Rect } from "./page-reader.js";
 
 /** One mark to place, in the document's pixels: where its start is and how wide its parts are drawn (0 for a part it has not). */
 export interface MarkSpot {

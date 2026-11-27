@@ -5,8 +5,11 @@
 
 import type { ScoreBar, ScoreGeometry } from "./score-geometry.js";
 import { type ScoreBeats, keyLines, stepEdge } from "./selection-beats.js";
-import { handleTakes, handlesShown, nextGestureId } from "./selection-gesture.js";
+import { handleTakes, handlesShown, nextGestureId } from "../selection/selection-gesture.js";
 import type { ScoreSelection, SelectionHost } from "./selection-layer.js";
+
+/** The class of a handle's element: the layer draws it, a press on the score leaves it to the handle. */
+export const HANDLE_CLASS = "sel-handle";
 
 /** What the handles need from the layer. */
 export interface HandleSurface {

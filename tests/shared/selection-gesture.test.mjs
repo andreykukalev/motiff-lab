@@ -1,4 +1,4 @@
-// The one selection gesture of the score and the roll (#511 sections 2 and 6.3): Scripts/score/selection-gesture.ts and
+// The one selection gesture of the score and the roll (#511 sections 2 and 6.3): Scripts/selection/selection-gesture.ts and
 // Scripts/roll/roll-strip-gesture.ts. Acceptance 13.1: inside and move edits, outside and move leaves the selection, a
 // hold outside clears it, a move after that selects anew; the Pen keeps the stylus (selection-layer.test.mjs).
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import {
     nextGestureId,
     pressGesture,
     snapEdge,
-} from "../../src/shared/wwwroot/js/score/selection-gesture.js";
+} from "../../src/shared/wwwroot/js/selection/selection-gesture.js";
 
 globalThis.window ??= globalThis;
 const { RollStripGesture, keptDrag, rangeBars } = await import("../../src/shared/wwwroot/js/roll/roll-strip-gesture.js");

@@ -1,5 +1,5 @@
 // Selection by the place of the touch (v0.6.2, #601 H items 1, 4, 8; the selection study's section F):
-// Scripts/score/selection-places.ts, one rule for the score and the roll. The place decides, never the time: an edge wins
+// Scripts/selection/selection-places.ts, one rule for the score and the roll. The place decides, never the time: an edge wins
 // over inside, inside extends, outside draws anew (a replace), a tap outside selects, on the margin clears; a finger beside
 // the stylus scrolls and holds; the stroke's vertical extent picks the hand.
 import assert from "node:assert/strict";
@@ -23,7 +23,7 @@ import {
     staffAt,
     strokeHand,
     targetLines,
-} from "../../src/shared/wwwroot/js/score/selection-places.js";
+} from "../../src/shared/wwwroot/js/selection/selection-places.js";
 
 const span = { start: 1920, end: 5760 };
 // Two runs: the end of one system and the start of the next.
@@ -197,7 +197,7 @@ test("a note head is taken within its reach, the nearest of two", () => {
 });
 
 test("a gesture near the top or the bottom of the view scrolls the page, faster nearer the edge", async () => {
-    const { scrollStep, SCROLL_ZONE, SCROLL_STEP } = await import("../../src/shared/wwwroot/js/score/selection-places.js");
+    const { scrollStep, SCROLL_ZONE, SCROLL_STEP } = await import("../../src/shared/wwwroot/js/selection/selection-places.js");
     assert.equal(scrollStep(500, 0, 1000), 0);
     assert.equal(scrollStep(SCROLL_ZONE, 0, 1000), 0);
     assert.equal(scrollStep(0, 0, 1000), -SCROLL_STEP);

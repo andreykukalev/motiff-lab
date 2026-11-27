@@ -5,7 +5,7 @@
 // and the slop; the surface says what the press is meanwhile and what the hold does. Shared by the roll and, where it fits,
 // the score. Nothing here touches the DOM, so Node tests it.
 
-import { HOLD_MS, HOLD_SLOP } from "../score/selection-gesture.js";
+import { HOLD_MS, HOLD_SLOP } from "../selection/selection-gesture.js";
 
 /** The clock a hold waits on: the page's timers, or a test's. */
 export interface HoldTimers {
