@@ -14,7 +14,7 @@ struct SourcesRow {
     /// Scan jobs are on (version 1.3): Motiff Lab's server keeps the PDF until this iPad has fetched what was read.
     var jobs = false
     /// A file to pick in Files for a row: the same file as a deleted original, or where a linked one lies.
-    let pick: (SourcesSheet.Picking) -> Void
+    let pick: (Picking) -> Void
     /// ⋯ → «Удалить…» on an original: the warning before it goes.
     let delete: (SourceLayers.Original) -> Void
     /// ⋯ → «Удалить ноты…» on Notes.
@@ -31,6 +31,15 @@ struct SourcesRow {
 
     /// Recognising the original is Pro: Motiff Lab's scan server reads it, as it always hears a recording.
     func isPro(_ original: SourceLayers.Original) -> Bool { original.isRecording || hosted }
+
+    /// What the sheet's one file importer picks (in `SourcesSheet.swift` until v1.6 i-13, when the sheet went to Workspace).
+    enum Picking: Equatable {
+        case pdf, recording, score
+        /// The same file as a deleted original.
+        case same(SourceLayers.Original)
+        /// «Привязать оригинал»: the PDF where it lies in Files.
+        case relink(String)
+    }
 }
 
 /// An original and the Notes made from it, together in one card, the Notes under it, set in (Andrei, v0.8 finding 19).

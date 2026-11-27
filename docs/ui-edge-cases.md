@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-12, c-14b3):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-13, c-14b3):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -33,6 +33,18 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   just before, rather than making the earlier notes working again: the bookmarks and phrases that followed their bars
   (`FollowedWork`) may not map back exactly (a place in a bar with no match, a bar read shorter) · as the sheet's
   removal toasts undo (`SourcesController.remove`); nothing is lost without undo · v1.5 c-11b
+- `E-sources-1` · Send («Отправить …») on an original's «Распознать ноты» while another original of the piece is being recognised ·
+  the panel says which one is («Сейчас распознаётся «Henle.pdf»…») instead of Send, and a Send that still comes sends
+  nothing; once it is done, the panel offers Send again · as the library recognises one piece at a time (Andrei,
+  2026-11-25) and the panel already waits for it; before, both went to the server, and the first, coming back, cleared
+  the second's progress and gave its Send back (`SourcesController.reading` holds one original). The time line before
+  Send (E-scan-5) is asked again when what blocks the panel changes (another recognition, the library's), so it comes
+  back once that ends · v1.6 i-13
+- `E-sources-2` · A file picked in Files from the Sources sheet (a PDF, a score's file, the same file as a deleted
+  original) · read as a file picked for «Привязать оригинал» is (`LinkedFile.read`: coordinated, off the main thread, so
+  a file only in iCloud is downloaded first), and when it cannot be read the sheet's danger line says why in the same
+  words («Файл не прочитался.», no connection, the file gone) · as `OriginalsController` does (lead's decision); before,
+  it was read on the main thread, a file only in iCloud failed, and nothing was said · v1.6 i-13
 
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over

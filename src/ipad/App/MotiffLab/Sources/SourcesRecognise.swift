@@ -47,6 +47,8 @@ struct SourcesRecognisePanel: View {
     }
 
     private var offer: Offer {
+        // E-sources-1: while another original is being recognised, this one waits, and the panel says which.
+        if let other = sources.readingOther(than: original) { return Offer(blocker: other) }
         if original.isRecording {
             return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: Self.hearLine(sources.layers, text: text), send: text["sources.sheet.sendRecording"])
         }
@@ -100,8 +102,9 @@ struct SourcesRecognisePanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.ds("surface-2"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
         .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("hairline")))
-        // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5).
-        .task(id: original.id) {
+        // Before Send, as the PDF's own panel (ScanServer.jobPlanLine): only for pages, with nothing blocking them (E-scan-5);
+        // asked again when what blocks them changes, so the line comes back once another recognition ends (E-sources-1).
+        .task(id: [original.id, offer.blocker ?? ""]) {
             guard let address = Self.timedBy(jobs: row.jobs, recording: original.isRecording, blocked: self.offer.blocker != nil, address: row.address) else { return }
             planned = await sources.jobPlanLine(original, address: address)
         }
@@ -120,38 +123,6 @@ struct SourcesRecognisePanel: View {
             problems[original.id] = problem
         } else {
             recognising = nil
-        }
-    }
-}
-
-extension SourcesController {
-    /// What recognising pages says with no scan server set (scanning off in Settings, or a build without Motiff Lab's): what
-    /// the PDF's own panel says (`ReadNotesPanel`), never that a server found no notes, which none was asked (v1.5 r-2b).
-    static func noScanServer(_ text: UIText) -> String {
-        text["import.scanSetUp"] + " " + text["import.scanSetUpLink"] + "."
-    }
-
-    /// What recognising an original gives music-core to keep as its new Notes: the call's fields, a field to send again
-    /// without when music-core refuses it ("badRequest"), and the toast once the notes are kept.
-    struct Recognised {
-        var fields: [String: Any]
-        var dropped: String?
-        var toast: String
-    }
-
-    /// Why an original was not recognised, in the player's words.
-    struct Refusal: Error {
-        let words: String
-    }
-
-    /// A toast's text, then music-core's lines of what became of the player's work, each an answer's object's "text", when
-    /// it says something: the corrections on notes recognised again («Как напечатано», step 2: "carried") and the marks
-    /// «что не так» their reading used (step 3: "marked"), the bookmarks and phrases on notes made working (v1.5 c-11b:
-    /// "followed").
-    nonisolated static func toastText(_ done: String, adding parts: Any?...) -> String {
-        parts.reduce(done) { told, part in
-            guard let line = (part as? [String: Any])?["text"] as? String, !line.isEmpty else { return told }
-            return "\(told) · \(line)"
         }
     }
 }

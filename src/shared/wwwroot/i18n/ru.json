@@ -150,5 +150,9 @@
 
   "drafts.techniqueCount.one": "{0} приём",
   "drafts.techniqueCount.few": "{0} приёма",
-  "drafts.techniqueCount.many": "{0} приёмов"
+  "drafts.techniqueCount.many": "{0} приёмов",
+
+  "sources.sheet.photos": "Фото страниц",
+  "sources.sheet.recording": "Запись",
+  "drafts.new": "Новый черновик"
 }

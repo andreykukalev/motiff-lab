@@ -4,7 +4,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
 
 ## Files
 
-`Bookmarks`, `Check`, `CheckModel`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `ReadingMarks`, `ScanReviewBlock`, `SegmentedChoice` (`.swift`).
+`Bookmarks`, `Check`, `CheckModel`, `EditsLayer`, `HighlightPaint`, `Marks`, `MarksModel`, `ReadingMarks`, `ScanReviewBlock` (`.swift`).
 
 - `HighlightPaint.swift` (v0.10 d-5, finding 31): what the pen's colour bars and the eraser do to the highlights, as a
   `Recolouring` (Platform: the highlights taken and laid, by value): a passage coloured lays it in its colour (other
@@ -33,8 +33,6 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   (`barStarts`, from `playback`) while the notes have marks, which name bars only (`showMark`, `showCheckBar`). Tests:
   `MotiffLabTests/CheckModelTests` (fake score); the protected baseline reads it by its old names through
   `MotiffLabTests/CheckBaselineNames`.
-- `SegmentedChoice.swift`: the choice of two or three (ds.css `.seg`: `SegmentedChoice`, `SegmentFill`,
-  `SegmentedCapsule`), which other folders use too; out of `Bookmarks.swift` in S7b.
 
 - `Check.swift`: `CheckShelf` (`check`: the flags, a recording's note lengths to check, #352, the marks «что не так»;
   `hasEntries`, which More offers Check for, `takesMarks`, and the drawer's `heading` and `how`, E-sheets-1), the Check
