@@ -6,7 +6,7 @@ folder. The score's layers that use them: [`score.md`](score.md); the roll's: [`
 
 ## Who imports it
 
-The score (`score/selection-*-layer.ts`, `selection-press.ts`, `selection-boxes.ts`, `selection-handles.ts`,
+The score (`score/selection-layer.ts`, `selection-*-layer.ts`, `selection-press.ts`, `selection-boxes.ts`, `selection-handles.ts`,
 `selection-place-draw.ts`, `colour-bars.ts`, `menu-drag.ts`, `phrase-drag.ts`, `page-contract.ts`,
 `ipad-page/page-selection.ts`), the roll (`roll-place-gesture.ts`, `roll-strip-gesture.ts`, `roll-place-draw.ts`,
 `roll-input.ts`, `roll-fingers.ts`, `piano-roll.ts`) and the playheads (`playback/hold-place.ts`, `playhead-press.ts`:

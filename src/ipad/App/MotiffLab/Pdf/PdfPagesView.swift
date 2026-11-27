@@ -227,8 +227,11 @@ struct PdfPages: UIViewRepresentable {
         view.autoScales = true
         controller.view = view
         context.coordinator.watch(view)
-        // Out of SwiftUI's update (#675): attaching the pen puts away the colour bar's tool, a published value.
-        DispatchQueue.main.async { controller.attach(to: view) }
+        // Out of SwiftUI's update (#675): attaching the pen puts away the colour bar's tool, a published value; nothing if
+        // the screen has gone by then.
+        DispatchQueue.main.async { [weak controller, weak view] in
+            if let controller, let view { controller.attach(to: view) }
+        }
         // The place the player left the pages at, or the page PDF | Notes landed on: under the bar once the pages are laid out.
         if let state = controller.startState { view.comeBack(to: state) } else if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
         return view

@@ -2,10 +2,15 @@ import SwiftUI
 
 /// Views laid out in rows, wrapping to the next row when one is full, each placed in its row's height by `alignment`:
 /// centred (chips, the circle's chords, the Reference's keys), or at the top (`.top`: the Contents' structure, Piece
-/// DNA's chips, the assistant's suggestions); any alignment but `.top` centres.
+/// DNA's chips, the assistant's suggestions).
 struct FlowLayout: Layout {
+    /// Where a view shorter than its row sits in it.
+    enum RowAlignment {
+        case center, top
+    }
+
     var spacing: CGFloat
-    var alignment: VerticalAlignment = .center
+    var alignment: RowAlignment = .center
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)

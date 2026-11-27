@@ -20,7 +20,7 @@ The first release of Motiff Lab works on structured music, not audio. Players im
 | AI role | Interprets engine results, asks questions, gives hints and suggests goals and parameters. It never produces the notes, the timing or the analysis |
 | Learning | Discovery, Guided and Analysis modes; the player tries first and help comes on request |
 | Platform | Desktop and tablet browser (Blazor WebAssembly PWA), archived since 2026-11-16; now the native iPad app (0019, 0032). The core journey works offline and without AI |
-| Cloud | The Motiff Lab API (projects saved online after sign-in and synced between the player's devices, the assistant's relay; 0014, 0028) and the hosted scan server (0014). An imported file leaves the device only as a PDF or photo picked for scanning, or a recording's sound picked for transcription, and only to the scan server |
+| Cloud | The Motiff Lab API (projects saved online after sign-in and synced between the player's devices, the assistant's relay; 0014, 0028) and the hosted scan server (0014). An imported file goes online only inside its project file, after sign-in with saving online on, and only to the Motiff Lab API; a PDF or photo picked for scanning and a recording's sound picked for transcription go only to the scan server |
 | Output | Saved variations in the project; MIDI export |
 | Not in Stage 1 | Audio import or transcription, audio-based rhythm restoration, MIDI keyboard input or MIDI output to instruments, sync with other apps, reconstruction attempts with hints, PDF or image scores, reharmonisation |
 | Exit gate | Usability, creative-engagement, learning-potential and AI-trust criteria in the validation study below |
@@ -342,10 +342,10 @@ Hints follow progressive disclosure: the first AI hint points at a property ("li
 | Sent to the Motiff Lab API, which relays it to the model provider (Pro, after a one-time consent that lists it; 0028, 0034) | Never sent |
 | --- | --- |
 | The notes of the selected bars and the engine's facts about them with their IDs, the meter and the key; in a draft, the notes of one place's base and of the variant whose techniques it takes, at most 32 bars each, with those techniques and the place's seams (0034) | The imported file or its name, the piece's title, the notes of the rest of the piece or of other places, or a recording's sound |
-| The player's question and the conversation | The player's marks, notes, bookmarks and recordings |
+| The player's question and the conversation | The player's marks, written notes, bookmarks and recordings |
 | The sign-in's account, for Pro and the daily limit; the relay does not pass it to the model | |
 
-The API stores neither the notes nor the prompts and answers, and logs only counts (0028). The model provider, its region and its retention are stated in the privacy notice.
+The API never stores the notes (0028 section 4) and logs only a turn's outcome, counts and timing, never its content (`src/backend/MotiffLab.Api/Assistant/AssistantEndpoints.cs`). The model provider, its region and its retention are stated in the privacy notice.
 
 ### Integration
 
@@ -495,7 +495,7 @@ Each note keeps where it came from, so "Show in piece", corrections and exports 
 
 | Object | Key fields | Notes |
 | --- | --- | --- |
-| SourceFile | hash, format, name, parts or tracks, import warnings | Stored with the project; its bytes never go online with it (the online copy keeps only its name, size and hash); a PDF or photo picked for scanning goes to the scan server |
+| SourceFile | hash, format, name, parts or tracks, import warnings | Stored with the project; goes online with it after sign-in with saving online on (0014 item 9); the PDF and the bytes of the other originals stay on the device, only their description and fingerprint go; a PDF or photo picked for scanning goes to the scan server |
 | Project | id, source file, created and opened times, mode default, AI enabled | The unit the player saves and exports |
 | TimingLayer | id, grid, strength, scope, excluded notes, per-note restored onset and duration | Derived from the original; can be turned off; the original is never changed |
 | Motif | id, project, note IDs, range, track or voice filter, name, source reference, mode | Same derived views as in Domain & Architecture |
@@ -516,12 +516,12 @@ Stage 1 lives or dies on players having a file of music they care about, so gett
 | Their own recorded MIDI | Export a performance from a DAW or digital piano app, then Restore rhythm | Their own performance |
 | Public-domain score libraries | Download MusicXML or MIDI of older classical pieces | Licences vary per file and per edition; the app links to sources and shows the licence when known |
 | Starter library | Built into the app (S1-C1) | Public-domain compositions encoded by us or under CC0 or CC BY; licence stored per file |
-| Files found online for copyrighted songs | Players import them themselves | The app does not provide, host or share them; projects stay on the device, or in the player's own account online, seen only by the player's devices; exports are for personal practice |
+| Files found online for copyrighted songs | Players import them themselves | The app does not provide or share them; projects stay on the device, or in the player's own account online, seen only by the player's devices; exports are for personal practice |
 
 **Rules**
 
 - The composition and a particular edition or arrangement can carry separate rights; the starter library uses only editions with a clear open licence.
-- Files are never uploaded, except a PDF or photo picked for scanning and a recording's sound picked for transcription, which go only to the scan server. Projects with their variations go online only after sign-in with saving online on, to the player's own account. With the assistant on, only what is listed above is sent, for processing, and it is not stored by Motiff Lab.
+- An imported file goes online only inside its project file, after sign-in with saving online on, and only to the Motiff Lab API, kept in the player's own account; a PDF or photo picked for scanning and a recording's sound picked for transcription go only to the scan server. The PDF and the bytes of the other originals stay on the device. With the assistant on, only what is listed above is sent, for processing, and it is not stored by Motiff Lab.
 - The terms of use state that imports must be files the player may use and that exports are for personal practice.
 - The privacy notice explains AI processing, the model provider as processor, the region and retention, and how to turn AI off; and what saving online, scanning and transcription send, and how to turn saving online off.
 - Licensed catalogues from publishers or score platforms are a later partnership option (Stage 4), not a Stage 1 dependency.
