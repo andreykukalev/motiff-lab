@@ -16,7 +16,10 @@ namespace MotiffLab.MusicCore.Tests.Performance;
 public class ReadingCarryTests
 {
     /// <summary>A reading in 4/4 of quarter notes, bars split by "|", a note "C4" or "-" for a quarter rest.</summary>
-    private static ImportedPiece Reading(string bars)
+    internal static ImportedPiece Reading(string bars) => PieceImporter.Import("read.musicxml", ReadingXml(bars)).Piece!;
+
+    /// <summary>The MusicXML of a <see cref="Reading"/>.</summary>
+    internal static byte[] ReadingXml(string bars)
     {
         StringBuilder xml = new("""<?xml version="1.0"?><score-partwise version="3.1"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1">""");
         int number = 1;
@@ -39,7 +42,7 @@ public class ReadingCarryTests
         }
 
         xml.Append("</part></score-partwise>");
-        return PieceImporter.Import("read.musicxml", Encoding.UTF8.GetBytes(xml.ToString())).Piece!;
+        return Encoding.UTF8.GetBytes(xml.ToString());
     }
 
     private static Note At(ImportedPiece piece, int quarter) => piece.Notes.Single(note => note.Span.Onset.Value == quarter * CanonicalTime.TicksPerQuarter);

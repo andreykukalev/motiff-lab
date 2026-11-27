@@ -146,7 +146,7 @@ public class OriginalOperationsTests
         Project project = ScannedPdf()
             .AddOriginal(Pdf("src_pdf_2", "Nocturne (Henle).pdf"), s_otherPdf)
             .RecognisedAgain("src_pdf_2", musicXml, "homr 0.8.0", null, s_now.AddHours(1))
-            .MakeWorking("n_2")
+            .MakeWorking("n_2", out _)
             .RemoveOriginal(PieceOriginal.DocumentId, s_now.AddHours(2))
             .ViewHidden(Project.FirstNotesId, hidden: true);
 

@@ -129,7 +129,7 @@ internal static class DraftRecordingRequest
     {
         try
         {
-            Project notes = project.ViewOf(id);
+            Project notes = project.ViewOf(id, followWork: false);
             OpenedProject opened = OpenedProject.Open(notes, layer);
             return (notes, opened.Piece, SourceMusic.OfPiece(opened.Piece, opened.Notes));
         }

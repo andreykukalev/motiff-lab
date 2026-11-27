@@ -89,9 +89,7 @@ public sealed partial record Project
                 continue;
             }
 
-            string bars = section.FirstBar == section.LastBar
-                ? words.T($"bar {section.FirstBar}", $"такт {section.FirstBar}")
-                : words.T($"bars {section.FirstBar}–{section.LastBar}", $"такты {section.FirstBar}–{section.LastBar}");
+            string bars = Bookmark.Bars(section.FirstBar, section.LastBar, words);
             string title = words.T($"Section {section.Label}, {bars}", $"Раздел {section.Label}, {bars}");
             project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
         }

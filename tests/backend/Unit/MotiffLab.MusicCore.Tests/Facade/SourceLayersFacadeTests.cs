@@ -138,6 +138,7 @@ public class SourceLayersFacadeTests
 
         JsonElement reopened = Call(facade, "sources.makeWorking", """{"id": "n_2"}""");
         Assert.Equal(1, reopened.GetProperty("piece").GetInt32());
+        Assert.False(reopened.TryGetProperty("followed", out _));
         JsonElement swapped = Call(facade, "sources.layers");
         Assert.Equal("n_2", swapped.GetProperty("working").GetString());
         Assert.Equal(0, swapped.GetProperty("hidden").GetInt32());
@@ -148,6 +149,25 @@ public class SourceLayersFacadeTests
         Assert.Equal("badRequest", Error(facade, "sources.makeWorking", """{"id": "n_1"}"""));
         Assert.Equal("badRequest", Error(facade, "sources.notes.remove", """{"id": "n_9"}"""));
         Assert.DoesNotContain("notes:n_2", Views(Call(facade, "sources.notes.remove", """{"id": "n_2"}""")));
+    }
+
+    [Fact]
+    public void Notes_made_working_answer_how_the_bookmarks_followed_their_bars_in_the_piece_language()
+    {
+        Project project = Project.Create("p_1", "a.musicxml", Performance.ReadingCarryTests.ReadingXml("E4 F4 G4 A4 | B4 C5 D5 E5"), s_now)
+            .AddNotes(new OtherNotes("n_2", "b.musicxml", Performance.ReadingCarryTests.ReadingXml("C4 C4 C4 C4 | E4 F4 G4 A4 | B4 C5 D5 E5"), new NotesProvenance(NotesProvenance.Import)));
+        var span = new MusicCore.Time.TickSpan(new MusicCore.Time.Tick(1920), 1920);
+        project = project.AddBookmark(new Bookmark("b_0001", "Mine", BookmarkCategory.PractiseId, span, FromPhrase: false, s_now));
+        var facade = new MusicCoreFacade();
+        _ = facade.Open("a.motiff.json", ProjectFile.Write(project), """{"language": "ru"}""");
+
+        JsonElement followed = Call(facade, "sources.makeWorking", """{"id": "n_2"}""").GetProperty("followed");
+
+        Assert.Equal((1, 0), (followed.GetProperty("moved").GetInt32(), followed.GetProperty("near").GetInt32()));
+        Assert.Empty(followed.GetProperty("bars").EnumerateArray());
+        Assert.Equal("перенесено по тактам: 1 закладка", followed.GetProperty("text").GetString());
+        Bookmark moved = Assert.Single(ProjectFile.Read(Encoding.UTF8.GetBytes(facade.Call(1, "project.save"))).Bookmarks);
+        Assert.Equal(3840, moved.Span.Onset.Value);
     }
 
     [Fact]

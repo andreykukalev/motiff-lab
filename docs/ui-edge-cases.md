@@ -29,6 +29,11 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 
 ## Menus, sheets and popovers
 
+- `E-sheet-1` · Undo on the toast of «Сделать рабочими» in the Sources sheet · writes the project file back as it was
+  just before, rather than making the earlier notes working again: the bookmarks and phrases that followed their bars
+  (`FollowedWork`) may not map back exactly (a place in a bar with no match, a bar read shorter) · as the sheet's
+  removal toasts undo (`SourcesController.remove`); nothing is lost without undo · v1.5 c-11b
+
 - `E-sheets-1` · A recording with note lengths to check (#352) and no flag open: none at all, or every one resolved · More
   offers Check (as for flags); the drawer's heading is «Длительности под вопросом», not «Все такты проверены» (false over
   marks still shown), and the lengths' own heading is not repeated under it; with no flag at all the line on flagged bars
