@@ -191,6 +191,21 @@ public class ReadingMarksTests
     }
 
     [Fact]
+    public void A_note_with_no_length_in_a_voice_re_timed_takes_no_tuplet_and_the_others_their_brackets()
+    {
+        byte[] score = ScanRepairTests.Score(2, "4", ScanRepairTests.Note("D", 5, 0, 1)
+            + string.Concat(Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12)) + ScanRepairTests.Backup(12) + ScanRepairTests.Note("C", 3, 8, 2));
+
+        MarkedReading marked = ReadingMarks.Apply(score, PieceImporter.Import("a.musicxml", score).Piece!, [new ReadingMark(ReadingMarkKind.Triplets, 1, 1, null, "yes")]);
+
+        Assert.Equal([MarkOutcome.Applied], marked.Marks.Select(static mark => mark.Outcome));
+        string text = Encoding.UTF8.GetString(marked.Score);
+        Assert.Equal(4, text.Split("<tuplet type=\"start\" />").Length - 1);
+        Assert.Equal(4, text.Split("<tuplet type=\"stop\" />").Length - 1);
+        Assert.DoesNotContain("<duration>0</duration><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><voice>1</voice><staff>1</staff><notations>", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Triplets_marked_over_bars_keep_chords_and_ties_and_leave_the_other_bars_exact_in_the_finer_divisions()
     {
         string[] eighths = [.. Enumerable.Repeat(ScanRepairTests.Note("C", 5, 1, 1), 12)];

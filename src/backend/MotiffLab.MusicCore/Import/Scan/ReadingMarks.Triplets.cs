@@ -129,13 +129,14 @@ internal static partial class ReadingMarks
     }
 
     /// <summary>
-    /// The tuplets' starts and stops on the re-timed notes of each voice, chords counted once: a bracket opens on a note
+    /// The tuplets' starts and stops on the re-timed notes of each voice, chords counted once and notes with no length left
+    /// out (a voice of none has no bracket): a bracket opens on a note
     /// and closes on the first after which it has lasted a whole multiple of the time of two of its first note as read, a
     /// quarter at most (three triplet eighths in a quarter, three triplet quarters in a half).
     /// </summary>
     private static void Brackets(ScanRepair.Bar bar, List<XElement> notes, HashSet<int> sounds, long[] onsets, (long Times, long By) factor)
     {
-        foreach (IGrouping<(int Staff, string? Voice), int> voice in sounds.Where(i => !bar.Sounds[i].IsGrace && !bar.Sounds[i].IsChord).Order()
+        foreach (IGrouping<(int Staff, string? Voice), int> voice in sounds.Where(i => !bar.Sounds[i].IsGrace && !bar.Sounds[i].IsChord && bar.Sounds[i].Duration > 0).Order()
             .GroupBy(i => (bar.Sounds[i].Staff, ((string?)notes[i].Element("voice"))?.Trim())))
         {
             int? open = null;
