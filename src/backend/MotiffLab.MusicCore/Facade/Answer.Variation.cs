@@ -126,7 +126,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteString("id", preset.Id);
-            json.WriteString("label", preset.Label);
+            json.WriteString("label", preset.LabelIn(words));
             Keep(json, "keep", preset.Keep);
             JsonWrite.Texts(json, "operations", preset.Operations);
             json.WriteEndObject();

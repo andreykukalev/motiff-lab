@@ -81,7 +81,7 @@ internal static class ReadingTools
 
     private static void WriteChords(Utf8JsonWriter json, AssistantPiece piece, RangeReading reading)
     {
-        MusicalKey spelling = reading.Motif.Key?.Key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = reading.Motif.Key?.Key ?? MusicalKey.CMajor;
         json.WriteStartObject();
         json.WriteStartArray("chords");
         foreach (ChordSpan chord in reading.Harmony.Chords)

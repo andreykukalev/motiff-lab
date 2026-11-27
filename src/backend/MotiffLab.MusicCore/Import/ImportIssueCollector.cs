@@ -26,8 +26,6 @@ internal sealed class ImportIssueCollector
         _order.Add((kind, code, track));
     }
 
-    public int CountOf(string code) => _counts.Where(entry => entry.Key.Code == code).Sum(entry => entry.Value);
-
     /// <summary>The issues, each described in English and Russian.</summary>
     public IReadOnlyList<ImportIssue> Build(Func<string, int, Words, string> describe) =>
         _order

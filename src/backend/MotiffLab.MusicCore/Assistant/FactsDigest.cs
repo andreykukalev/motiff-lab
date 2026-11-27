@@ -12,9 +12,10 @@ namespace MotiffLab.MusicCore.Assistant;
 /// <summary>
 /// The facts digest (the AI companion study, section 4.4; CLAUDE.md: AI output cites fact IDs from the digest): a short,
 /// deterministic listing of what music-core found in a range or in the whole piece, each item with an id, how sure it is
-/// and where it is (as note addresses, never internal ids). A model's answer may cite only these ids
-/// (<see cref="Unknown"/> says which it cites wrongly); everything else it says is interpretation. The digest repeats what
-/// the analysers found and adds nothing: no notes, no timing beyond bars and places, no analysis of its own.
+/// and where it is (as note addresses, never internal ids). A model's answer may cite only the ids it writes
+/// (<see cref="Conversation.AnswerCheck"/> refuses an answer that cites another); everything else it says is
+/// interpretation. The digest repeats what the analysers found and adds nothing: no notes, no timing beyond bars and
+/// places, no analysis of its own.
 /// </summary>
 public sealed partial class FactsDigest
 {
@@ -48,17 +49,6 @@ public sealed partial class FactsDigest
 
     /// <summary>The digest's plain fields (meter, key) in order.</summary>
     public IReadOnlyList<(string Name, string Value)> Header { get; }
-
-    /// <summary>Every id the digest lists, in its order: the only ids an answer may cite.</summary>
-    public IReadOnlyList<string> Ids => [.. _items.Select(static item => item.Id)];
-
-    /// <summary>The ids in <paramref name="cited"/> the digest does not list, each once, in the order cited.</summary>
-    public IReadOnlyList<string> Unknown(IEnumerable<string> cited)
-    {
-        ArgumentNullException.ThrowIfNull(cited);
-        var known = _items.Select(static item => item.Id).ToHashSet(StringComparer.Ordinal);
-        return [.. cited.Where(id => !known.Contains(id)).Distinct(StringComparer.Ordinal)];
-    }
 
     /// <summary>
     /// The digest of bars <paramref name="from"/> to <paramref name="to"/> (in one hand, or both): the meter and key, the
@@ -136,7 +126,7 @@ public sealed partial class FactsDigest
     private static DigestItem ChordItem(ChordSpan chord, AssistantPiece piece, RangeReading reading, HashSet<string> ids)
     {
         MetricPosition at = piece.Meter.ToPosition(chord.Span.Onset);
-        MusicalKey spelling = reading.Motif.Key?.Key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = reading.Motif.Key?.Key ?? MusicalKey.CMajor;
         string place = piece.Words.T($"bar {at.Bar}, beat {at.Beat}", $"такт {at.Bar}, доля {at.Beat}");
         return new DigestItem(
             Unique(string.Create(CultureInfo.InvariantCulture, $"chord.{at.Bar}.{at.Beat}"), ids),

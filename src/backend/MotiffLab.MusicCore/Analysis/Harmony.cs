@@ -243,7 +243,7 @@ internal static partial class HarmonyAnalyzer
             return HarmonyAnalysis.None;
         }
 
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = key ?? MusicalKey.CMajor;
         Words w = words;
         var facts = new List<MotifFact>();
         if (key is { } inKey)

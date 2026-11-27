@@ -51,6 +51,9 @@ internal sealed record KeepPreset(string Id, string Label, IReadOnlySet<KeepProp
 {
     /// <summary>The preset in Russian (#134).</summary>
     public string RussianLabel { get; init; } = Label;
+
+    /// <summary>The preset in the player's language.</summary>
+    public string LabelIn(Words words) => words.IsRussian ? RussianLabel : Label;
 }
 
 /// <summary>

@@ -28,6 +28,9 @@ public class FactsDigestTests
         return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
+    /// <summary>The ids the digest writes, the only ones an answer may cite (<see cref="AnswerCheck.Known"/>).</summary>
+    private static string[] Ids(FactsDigest digest) => [.. Json(Written(digest)).GetProperty("ids").EnumerateArray().Select(static id => id.GetString()!)];
+
     [Fact]
     public void A_range_digest_lists_facts_chords_flags_and_hands_each_with_one_id()
     {
@@ -36,11 +39,11 @@ public class FactsDigestTests
 
         FactsDigest digest = FactsDigest.OfRange(piece, 1, 8);
 
-        Assert.Equal(digest.Ids.Count, digest.Ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Contains("check.3.barTooLong", digest.Ids);
-        Assert.Contains("range.R", digest.Ids);
-        Assert.Contains(digest.Ids, id => id.StartsWith("chord.", StringComparison.Ordinal));
-        Assert.InRange(digest.Ids.Count(id => id.Contains('.', StringComparison.Ordinal) && !id.StartsWith("chord.", StringComparison.Ordinal) && !id.StartsWith("check.", StringComparison.Ordinal) && !id.StartsWith("range.", StringComparison.Ordinal) && !id.StartsWith("here.tempo.", StringComparison.Ordinal)), 1, FactsDigest.MaxFacts);
+        Assert.Equal(Ids(digest).Length, Ids(digest).Distinct(StringComparer.Ordinal).Count());
+        Assert.Contains("check.3.barTooLong", Ids(digest));
+        Assert.Contains("range.R", Ids(digest));
+        Assert.Contains(Ids(digest), id => id.StartsWith("chord.", StringComparison.Ordinal));
+        Assert.InRange(Ids(digest).Count(id => id.Contains('.', StringComparison.Ordinal) && !id.StartsWith("chord.", StringComparison.Ordinal) && !id.StartsWith("check.", StringComparison.Ordinal) && !id.StartsWith("range.", StringComparison.Ordinal) && !id.StartsWith("here.tempo.", StringComparison.Ordinal)), 1, FactsDigest.MaxFacts);
         Assert.Equal("3/8", digest.Header.Single(field => field.Name == "meter").Value);
     }
 
@@ -58,9 +61,9 @@ public class FactsDigestTests
         JsonElement tempo = Json(Written(later)).GetProperty("items").EnumerateArray().Single(item => item.GetProperty("kind").GetString() == "tempo");
         Assert.Equal("here.tempo.profile", tempo.GetProperty("id").GetString());
         Assert.Equal("Темп: четверть 120 BPM на всём протяжении.", tempo.GetProperty("text").GetString());
-        Assert.Contains("here.tempo.change.1", whole.Ids);
-        Assert.DoesNotContain(whole.Ids, static id => id.StartsWith("piece.", StringComparison.Ordinal) || id.StartsWith("density.", StringComparison.Ordinal));
-        Assert.Contains("piece.tempo.profile", FactsDigest.OfPiece(piece).Ids);
+        Assert.Contains("here.tempo.change.1", Ids(whole));
+        Assert.DoesNotContain(Ids(whole), static id => id.StartsWith("piece.", StringComparison.Ordinal) || id.StartsWith("density.", StringComparison.Ordinal));
+        Assert.Contains("piece.tempo.profile", Ids(FactsDigest.OfPiece(piece)));
     }
 
     [Fact]
@@ -80,11 +83,14 @@ public class FactsDigestTests
     [Fact]
     public void Only_ids_the_digest_lists_may_be_cited()
     {
-        FactsDigest digest = FactsDigest.OfRange(Open(FurElise()), 1, 4);
-        string listed = digest.Ids[0];
+        AssistantPiece piece = Open(FurElise());
+        JsonElement context = AssistantContext.OfRange(piece, 1, 4);
+        IReadOnlySet<string> known = AnswerCheck.Known(context, []);
+        string listed = Ids(FactsDigest.OfRange(piece, 1, 4))[0];
 
-        Assert.Empty(digest.Unknown([listed]));
-        Assert.Equal(["melody.invented", "chord.99.1"], digest.Unknown([listed, "melody.invented", "chord.99.1", "melody.invented"]));
+        Assert.Null(AnswerCheck.Check($"It opens on [[{listed}]].", known, context, Words.English).Reason);
+        Assert.Equal(AnswerCheck.UnknownFact, AnswerCheck.Check($"It opens on [[{listed}]] and [[melody.invented]].", known, context, Words.English).Reason);
+        Assert.Equal(AnswerCheck.UnknownFact, AnswerCheck.Check("It moves to [[chord.99.1]].", known, context, Words.English).Reason);
     }
 
     [Fact]
@@ -95,11 +101,11 @@ public class FactsDigestTests
         FactsDigest digest = FactsDigest.OfPiece(piece);
 
         Assert.Equal("piece", digest.Scope);
-        Assert.Contains("key.1", digest.Ids);
-        Assert.Contains("form.section_1", digest.Ids);
-        Assert.Contains("cadence.8", digest.Ids);
-        Assert.Contains("check.5.graceNotes", digest.Ids);
-        Assert.DoesNotContain("check.6.stavesDiffer", digest.Ids);
+        Assert.Contains("key.1", Ids(digest));
+        Assert.Contains("form.section_1", Ids(digest));
+        Assert.Contains("cadence.8", Ids(digest));
+        Assert.Contains("check.5.graceNotes", Ids(digest));
+        Assert.DoesNotContain("check.6.stavesDiffer", Ids(digest));
         Assert.StartsWith("ля минор", Json(Written(digest)).GetProperty("items")[0].GetProperty("text").GetString(), StringComparison.Ordinal);
     }
 
@@ -178,8 +184,8 @@ public class FactsDigestTests
     {
         FactsDigest digest = FactsDigest.OfRange(Open(FurElise()), 1, 8, MotiffLab.MusicCore.Events.Hand.Left);
 
-        Assert.Contains("range.L", digest.Ids);
-        Assert.DoesNotContain("range.R", digest.Ids);
+        Assert.Contains("range.L", Ids(digest));
+        Assert.DoesNotContain("range.R", Ids(digest));
         Assert.Contains("\"hand\":\"left\"", Written(digest), StringComparison.Ordinal);
     }
 }

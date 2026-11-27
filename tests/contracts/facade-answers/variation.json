@@ -5279,6 +5279,374 @@
      }
     ]
    }
+  },
+  {
+   "call": "catalogue",
+   "request": {
+    "language": "ru"
+   },
+   "answer": {
+    "keep": {
+     "properties": [
+      {
+       "id": "pitches",
+       "label": "высоты"
+      },
+      {
+       "id": "pitchOrder",
+       "label": "порядок высот"
+      },
+      {
+       "id": "contour",
+       "label": "контур"
+      },
+      {
+       "id": "intervals",
+       "label": "интервалы"
+      },
+      {
+       "id": "rhythm",
+       "label": "ритм"
+      },
+      {
+       "id": "melody",
+       "label": "мелодия"
+      },
+      {
+       "id": "bass",
+       "label": "бас"
+      },
+      {
+       "id": "harmony",
+       "label": "гармония"
+      },
+      {
+       "id": "register",
+       "label": "регистр"
+      }
+     ],
+     "presets": [
+      {
+       "id": "keep-pitch-order",
+       "label": "Сохранить порядок высот, изменить ритм",
+       "keep": [
+        "pitchOrder"
+       ],
+       "operations": [
+        "V1",
+        "V7",
+        "V8"
+       ]
+      },
+      {
+       "id": "keep-rhythm",
+       "label": "Сохранить ритм, изменить интервалы",
+       "keep": [
+        "rhythm"
+       ],
+       "operations": [
+        "V9",
+        "V10",
+        "V4"
+       ]
+      },
+      {
+       "id": "keep-melody",
+       "label": "Сохранить мелодию, изменить аккомпанемент",
+       "keep": [
+        "melody"
+       ],
+       "operations": [
+        "V2",
+        "V12",
+        "V3",
+        "V15"
+       ]
+      },
+      {
+       "id": "keep-bass",
+       "label": "Сохранить бас, изменить верхние голоса",
+       "keep": [
+        "bass"
+       ],
+       "operations": [
+        "V3",
+        "V14"
+       ]
+      },
+      {
+       "id": "keep-contour",
+       "label": "Сохранить контур, изменить величину интервалов",
+       "keep": [
+        "contour"
+       ],
+       "operations": [
+        "V9"
+       ]
+      }
+     ]
+    },
+    "operations": [
+     {
+      "id": "V1",
+      "name": "Изменение ритма",
+      "whatItChanges": "меняет, когда начинаются ноты и сколько они длятся",
+      "compatible": [
+       "pitches",
+       "pitchOrder",
+       "contour",
+       "intervals",
+       "melody",
+       "bass",
+       "harmony",
+       "register"
+      ],
+      "footnotes": [
+       {
+        "property": "melody",
+        "number": 1,
+        "text": "Melody pitches stay; its rhythm changes, so Keep melody and Keep rhythm cannot both be on."
+       }
+      ],
+      "scopes": [
+       "all",
+       "melody",
+       "accompaniment",
+       "bass"
+      ]
+     },
+     {
+      "id": "V13",
+      "name": "Артикуляция",
+      "whatItChanges": "меняет, сколько звучат ноты",
+      "compatible": [
+       "pitches",
+       "pitchOrder",
+       "contour",
+       "intervals",
+       "melody",
+       "bass",
+       "harmony",
+       "register"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all",
+       "melody",
+       "accompaniment",
+       "bass"
+      ]
+     },
+     {
+      "id": "V7",
+      "name": "Плотность и паузы",
+      "whatItChanges": "меняет число нот и места пауз",
+      "compatible": [
+       "pitchOrder",
+       "contour",
+       "bass",
+       "harmony",
+       "register"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all",
+       "melody",
+       "accompaniment",
+       "bass"
+      ]
+     },
+     {
+      "id": "V8",
+      "name": "Сдвиг акцентов",
+      "whatItChanges": "меняет, какие ноты под акцентом",
+      "compatible": [
+       "pitches",
+       "pitchOrder",
+       "contour",
+       "intervals",
+       "rhythm",
+       "melody",
+       "bass",
+       "harmony",
+       "register"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all",
+       "melody",
+       "accompaniment",
+       "bass"
+      ]
+     },
+     {
+      "id": "V4",
+      "name": "Мелодическая секвенция",
+      "whatItChanges": "повторяет мотив на другой высоте",
+      "compatible": [
+       "contour",
+       "intervals",
+       "rhythm"
+      ],
+      "footnotes": [
+       {
+        "property": "intervals",
+        "number": 2,
+        "text": "Diatonic sequences keep interval sizes in scale steps, not semitones."
+       }
+      ],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V2",
+      "name": "Фактура аккомпанемента",
+      "whatItChanges": "меняет то, как играются аккорды",
+      "compatible": [
+       "melody",
+       "harmony"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V12",
+      "name": "Рисунок баса",
+      "whatItChanges": "меняет линию баса",
+      "compatible": [
+       "melody",
+       "harmony"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V3",
+      "name": "Расположение и регистр",
+      "whatItChanges": "меняет расположение аккордов и их регистр",
+      "compatible": [
+       "rhythm",
+       "melody",
+       "bass",
+       "harmony"
+      ],
+      "footnotes": [
+       {
+        "property": "melody",
+        "number": 3,
+        "text": "Melody pitch classes stay; its octave may change."
+       },
+       {
+        "property": "bass",
+        "number": 4,
+        "text": "Only spacing, register of upper voices and hand distribution change; inversions are off while Keep bass is on."
+       }
+      ],
+      "scopes": [
+       "all",
+       "melody",
+       "accompaniment",
+       "bass"
+      ]
+     },
+     {
+      "id": "V6",
+      "name": "Упрощение",
+      "whatItChanges": "оставляет меньше нот, и они проще",
+      "compatible": [
+       "contour",
+       "harmony"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V9",
+      "name": "Изменение интервалов",
+      "whatItChanges": "меняет величину интервалов мелодии",
+      "compatible": [
+       "contour",
+       "rhythm",
+       "bass"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V10",
+      "name": "Обращение мелодии",
+      "whatItChanges": "переворачивает движение мелодии",
+      "compatible": [
+       "rhythm",
+       "bass"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "V11",
+      "name": "Проходящие и вспомогательные ноты",
+      "whatItChanges": "добавляет ноты между основными",
+      "compatible": [
+       "bass",
+       "harmony",
+       "register"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all",
+       "melody"
+      ]
+     },
+     {
+      "id": "V14",
+      "name": "Орнамент",
+      "whatItChanges": "добавляет быстрые вспомогательные ноты к долгим нотам мелодии",
+      "compatible": [
+       "bass",
+       "harmony"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all",
+       "melody"
+      ]
+     },
+     {
+      "id": "V15",
+      "name": "Перегармонизация",
+      "whatItChanges": "меняет аккорды под мелодией",
+      "compatible": [
+       "contour",
+       "intervals",
+       "rhythm",
+       "melody"
+      ],
+      "footnotes": [],
+      "scopes": [
+       "all"
+      ]
+     },
+     {
+      "id": "E7",
+      "name": "Правка вручную",
+      "scopes": [
+       "all"
+      ]
+     }
+    ]
+   }
   }
  ]
 }

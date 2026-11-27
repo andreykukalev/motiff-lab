@@ -145,26 +145,13 @@ public class PiecePartsTests
         Assert.Throws<NotSupportedException>(() => PieceParts.Split(Project.Create("p_mid", "book.mid", midi, s_now), [new("A", PartUnit.Bars, 1, 2)], Options()));
     }
 
-    /// <summary>A scan of three pages read one at a time, with the PDF it was read from, a doubtful bar on page 2 and a bar the player checked on page 3.</summary>
-    internal static Project Scan()
-    {
-        byte[] score = ScanJoin.Join([ScanJoinTests.Page(3), ScanJoinTests.Page(2), ScanJoinTests.Page(2)]);
-        ImportedPiece piece = PieceImporter.Import("scan.musicxml", score).Piece!;
-        Project pdf = Project.CreateDocument("p_scan", "Songbook.pdf", Pdf(3), s_now);
-        return pdf.Recognised(score, "homr 0.7.0", PageMap.Of(piece, 3), s_now) with
-        {
-            Check = [new CheckFlag(4, CheckSource.Scan, CheckReason.BarTooShort, false), new CheckFlag(6, CheckSource.Scan, CheckReason.GraceNotes, true)],
-            Scan = new ScanOrigin("homr 0.7.0", [6]) { From = PieceOriginal.DocumentId, At = s_now },
-        };
-    }
-
     internal static byte[] Pdf(int pages) =>
         Encoding.ASCII.GetBytes($"%PDF-1.4\n1 0 obj << /Type /Pages /Count {pages} >> endobj\n" + string.Concat(Enumerable.Range(2, pages).Select(n => $"{n} 0 obj << /Type /Page >> endobj\n")) + "%%EOF\n");
 
     [Fact]
     public void A_scan_split_by_pages_takes_their_bars_its_own_pdf_and_the_check_flags_and_checked_bars_on_them()
     {
-        Project book = Scan();
+        Project book = PiecePartsPlaceTests.Scan();
         OpenedProject opened = OpenedProject.Open(book);
         byte[] pages = Pdf(2);
 

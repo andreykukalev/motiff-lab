@@ -59,14 +59,11 @@ internal static partial class OperationTemplates
         [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
 
     /// <summary>What a note is for comparing two versions of a passage whose ids may differ: its onset, length and pitch.</summary>
-    private static (long Onset, long Duration, int Pitch) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+    internal static (long Onset, long Duration, int Pitch) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
 
     /// <summary>Whether the melody is note for note the same, by <see cref="Shape"/>.</summary>
     private static bool MelodyHeld(MotifTexture before, MotifTexture after) =>
         before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape));
-
-    /// <summary>The key note names are spelt in: the passage's, else C major.</summary>
-    private static MusicalKey Spelling(MusicalKey? key) => key ?? new MusicalKey(0, KeyMode.Major);
 
     /// <summary>From the first onset to the last end of a passage's notes.</summary>
     private static TickSpan SpanOf(MotifTexture texture) =>

@@ -24,6 +24,9 @@ public readonly record struct MusicalKey
         Mode = mode;
     }
 
+    /// <summary>C major: the key note names are spelt in when a passage's key is not known.</summary>
+    public static MusicalKey CMajor { get; } = new(0, KeyMode.Major);
+
     public int Fifths { get; }
 
     public KeyMode Mode { get; }
