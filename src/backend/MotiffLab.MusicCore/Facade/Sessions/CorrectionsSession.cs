@@ -216,7 +216,7 @@ internal sealed class CorrectionsSession
             throw FacadeException.Unavailable(piece.Words.T("The bar has a note taken from a version.", "В такте есть нота, взятая из версии."));
         }
 
-        string group = Project.NextId("g_", piece.Project.Edits.Edits.Select(static edit => edit.Group).OfType<string>());
+        string group = piece.Ids.Next("g_", piece.Project.Edits.Edits.Select(static edit => edit.Group).OfType<string>());
         NoteEditLog before = piece.Project.Edits;
         NoteEditLog? edits = Correct(piece, log =>
         {

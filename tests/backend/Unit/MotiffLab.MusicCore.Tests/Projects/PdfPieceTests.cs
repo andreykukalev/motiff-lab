@@ -98,8 +98,8 @@ public class PdfPieceTests
     {
         DocumentMarks marks = DocumentMarks.Empty
             .WithInk([Stroke("k1", 1), Stroke("k2", 3)])
-            .AddBookmark(3, "  Coda  ", s_now)
-            .AddBookmark(1, null, s_now);
+            .AddBookmark(3, "  Coda  ", s_now, IdSource.Numbered)
+            .AddBookmark(1, null, s_now, IdSource.Numbered);
         Project project = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now) with { DocumentMarks = marks };
 
         Project read = ProjectFile.Read(ProjectFile.Write(project));
@@ -114,15 +114,15 @@ public class PdfPieceTests
     [Fact]
     public void A_page_has_one_bookmark_which_can_be_named_and_removed()
     {
-        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, null, s_now);
-        Assert.Same(marks, marks.AddBookmark(2, "again", s_now));
+        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, null, s_now, IdSource.Numbered);
+        Assert.Same(marks, marks.AddBookmark(2, "again", s_now, IdSource.Numbered));
 
         PageBookmark bookmark = marks.BookmarkOn(2)!;
         Assert.Equal("Development", marks.RenameBookmark(bookmark.Id, " Development ").BookmarkOn(2)!.Name);
         Assert.Null(marks.RenameBookmark(bookmark.Id, "  ").BookmarkOn(2)!.Name);
         Assert.Equal(PageBookmark.MaxName, marks.RenameBookmark(bookmark.Id, new string('a', 200)).BookmarkOn(2)!.Name!.Length);
         Assert.True(marks.RemoveBookmark(bookmark.Id).IsEmpty);
-        Assert.Equal("pb_0002", marks.AddBookmark(5, null, s_now).BookmarkOn(5)!.Id);
+        Assert.Equal("pb_0002", marks.AddBookmark(5, null, s_now, IdSource.Numbered).BookmarkOn(5)!.Id);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class PdfPieceTests
         Assert.Throws<ArgumentException>(() => DocumentMarks.Empty.WithInk([Stroke("k1", 0)]));
         Assert.Throws<ArgumentException>(() => DocumentMarks.Empty.WithInk([Stroke("k1", 1), Stroke("k1", 2)]));
 
-        Project project = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now) with { DocumentMarks = DocumentMarks.Empty.AddBookmark(2, null, s_now) };
+        Project project = Project.CreateDocument("p_pdf", "a.pdf", s_pdf, s_now) with { DocumentMarks = DocumentMarks.Empty.AddBookmark(2, null, s_now, IdSource.Numbered) };
         string json = Encoding.UTF8.GetString(ProjectFile.Write(project));
         Assert.Throws<ProjectFileException>(() => ProjectFile.Read(Encoding.UTF8.GetBytes(json.Replace("\"page\": 2", "\"page\": 0", StringComparison.Ordinal))));
     }
@@ -145,7 +145,7 @@ public class PdfPieceTests
     public void Recognised_notes_fill_the_pdf_piece_itself_and_its_pages_and_marks_stay()
     {
         // Testing item 16 (Andrei, 2026-11-06): the PDF is available right inside the piece, one card in the library.
-        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Trio", s_now);
+        DocumentMarks marks = DocumentMarks.Empty.AddBookmark(2, "Trio", s_now, IdSource.Numbered);
         Project pdf = Project.CreateDocument("p_pdf", "Nocturne.pdf", s_pdf, s_now) with { DocumentMarks = marks };
         byte[] musicXml = Scanned();
 

@@ -60,7 +60,7 @@ internal static class PiecesRequest
     /// pieces layer; none clears it. A piece by its first page (the iPad's rows of a PDF with notes read, version 0.5)
     /// starts at the bar its page starts in, by the piece's page map.
     /// </summary>
-    public static Project Save(Project project, ImportedPiece piece, Words words, DateTimeOffset now, Request request)
+    public static Project Save(Project project, ImportedPiece piece, Words words, DateTimeOffset now, IdSource ids, Request request)
     {
         if (!request.Has("pieces"))
         {
@@ -69,7 +69,7 @@ internal static class PiecesRequest
 
         PageMap? pages = PieceParts.PagesOf(project, piece);
         PieceStart[] pieces = [.. request.Elements("pieces").Select(element => Request.Of(element)).Select(start => new PieceStart(start.Text("title"), FirstBar(start, piece, pages)))];
-        return PieceLayer.Save(project, pieces, piece.Meter, piece.End, words, now);
+        return PieceLayer.Save(project, pieces, piece.Meter, piece.End, words, now, ids);
     }
 
     /// <summary>A piece's first bar: as sent, or the bar its first page starts in.</summary>

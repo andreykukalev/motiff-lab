@@ -49,7 +49,7 @@ internal sealed partial class OpenPiece
             new("check.mark", static (piece, request) => piece.Change(project => ReadingMarkRequest.Mark(project, piece.Piece, request), piece.CheckAnswer)),
             new("check.unmark", static (piece, request) => piece.Change(project => ReadingMarkRequest.Unmark(project, request), piece.CheckAnswer)),
             new("pieces.find", static (piece, request) => Answer.Write(json => PiecesRequest.Find(json, piece.Project, piece.Piece, piece.Notes, piece.Words, request))),
-            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
+            new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), piece.Ids, request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
             new("tempo", static (piece, _) => Answer.Write(json => TempoRequest.Write(json, piece.Project, piece.Piece, piece.Words))),
         ];
     }

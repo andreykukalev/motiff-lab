@@ -37,8 +37,8 @@ internal sealed class SelectionSession
     /// <summary>The Try chip that started <see cref="Chain"/>.</summary>
     public TryChip? Chip { get; private set; }
 
-    /// <summary>The id the selection is saved under as the working motif.</summary>
-    public string MotifId { get; private set; } = "m_0001";
+    /// <summary>The id the selection is saved under as the working motif: a saved motif's (<see cref="Start"/>) or a new one (<see cref="SaveBeside"/>), set as the piece opens.</summary>
+    public string MotifId { get; private set; } = string.Empty;
 
     /// <summary>
     /// The id the working variation is saved under: its own when the working motif opened on one or keeps one hidden, else
@@ -94,27 +94,20 @@ internal sealed class SelectionSession
     }
 
     /// <summary>
-    /// No saved motif is worked on: the passage picked from now on is saved beside them, never over one, under an id no motif
-    /// of the file has, known to this build or not (a later build's motif and its variations are never replaced), and its
-    /// variation under one no variation has.
+    /// No saved motif is worked on: the passage picked from now on is saved beside them, never over one, under a new id from
+    /// the piece's source that no motif of the file has, known to this build or not (a later build's motif and its variations
+    /// are never replaced), and its variation under one no variation has.
     /// </summary>
     public void SaveBeside(SessionPiece piece)
     {
         Project project = piece.Project;
-        HashSet<string> taken = [.. project.Motifs.Select(static motif => motif.Id), .. Project.UnknownIds(project.Unknown, "motifs")];
-        int number = 1;
-        while (taken.Contains($"m_{number:D4}"))
-        {
-            number++;
-        }
-
-        MotifId = $"m_{number:D4}";
+        MotifId = piece.Ids.Next("m_", [.. project.Motifs.Select(static motif => motif.Id), .. Project.UnknownIds(project.Unknown, "motifs")]);
         SaveVariationBeside(piece);
     }
 
     /// <summary>
     /// The working variation is saved from now on under an id no variation of the file has, known to this build or not: the
-    /// one named after the motif when it is free, else the next. What was saved before stays as it was (#821).
+    /// one named after the motif when it is free, else a new one from the piece's source. What was saved before stays as it was (#821).
     /// </summary>
     private void SaveVariationBeside(SessionPiece piece)
     {
@@ -122,7 +115,7 @@ internal sealed class SelectionSession
         _variationId = null;
         if (taken.Contains(VariationId))
         {
-            _variationId = Project.NextId("v_", taken);
+            _variationId = piece.Ids.Next("v_", taken);
         }
     }
 

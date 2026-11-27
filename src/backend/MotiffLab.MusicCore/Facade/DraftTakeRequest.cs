@@ -104,7 +104,7 @@ internal static class DraftTakeRequest
             request,
             piece => piece.ChangeDraft(draft.Id, each =>
             {
-                (Draft changed, taken) = DraftTakes.TakeSure(each, placeId, request.Now());
+                (Draft changed, taken) = DraftTakes.TakeSure(each, placeId, request.Now(), owner.Ids);
                 return changed;
             }),
             json =>

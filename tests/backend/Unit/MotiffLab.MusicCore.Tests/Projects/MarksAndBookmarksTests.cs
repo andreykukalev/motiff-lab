@@ -29,12 +29,12 @@ public class MarksAndBookmarksTests
         DnaSection second = new("s2", "A′", Bars(piece, 2, 2), 2, 2, ["s1"]);
         Project project = Fresh()
             .AddBookmark(new Bookmark("b_0001", "Mine", BookmarkCategory.PractiseId, Bars(piece, 0, 1), false, s_now))
-            .AddFormBookmarks([first, second], Words.English, s_now);
+            .AddFormBookmarks([first, second], Words.English, s_now, IdSource.Numbered);
 
         Assert.Equal(["Mine", "Section A, bars 0–1", "Section A′, bar 2"], project.Bookmarks.Select(bookmark => bookmark.Title));
         Assert.All(project.Bookmarks.Skip(1), bookmark => Assert.Equal(BookmarkCategory.StructureId, bookmark.CategoryId));
-        Assert.Equal(project.Bookmarks, project.AddFormBookmarks([first, second], Words.English, s_now).Bookmarks);
-        Assert.Equal("Раздел A, такты 0–1", Fresh().AddFormBookmarks([first], Words.Russian, s_now).Bookmarks[0].Title);
+        Assert.Equal(project.Bookmarks, project.AddFormBookmarks([first, second], Words.English, s_now, IdSource.Numbered).Bookmarks);
+        Assert.Equal("Раздел A, такты 0–1", Fresh().AddFormBookmarks([first], Words.Russian, s_now, IdSource.Numbered).Bookmarks[0].Title);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class MarksAndBookmarksTests
         Assert.Equal(["b_0001", "b_0002", "b_0003"], project.Bookmarks.Select(bookmark => bookmark.Id));
         Assert.Equal(["b_0002", "b_0003", "b_0001"], project.BookmarksInScoreOrder.Select(bookmark => bookmark.Id));
         Assert.Equal(["b_0003", "b_0001", "b_0002"], project.MoveBookmark("b_0003", 0).MoveBookmark("b_0002", 2).Bookmarks.Select(bookmark => bookmark.Id));
-        Assert.Equal("b_0004", project.NextBookmarkId());
+        Assert.Equal("b_0004", project.NextBookmarkId(IdSource.Numbered));
         Assert.Throws<KeyNotFoundException>(() => project.MoveBookmark("b_0009", 0));
         Assert.Throws<ArgumentOutOfRangeException>(() => project.MoveBookmark("b_0001", 3));
         Assert.Throws<ArgumentException>(() => project.AddBookmark(new Bookmark("b_0009", "Nowhere", "c_0007", Bars(piece, 0, 0), false, s_now)));
@@ -67,11 +67,11 @@ public class MarksAndBookmarksTests
         Assert.Equal([InkColour.Carmine, InkColour.Forest, InkColour.Graphite, InkColour.Ochre], project.Categories.Select(category => category.Ink));
 
         project = project.RenameCategory(BookmarkCategory.TeacherId, " Lena ")
-            .AddCategory(new BookmarkCategory(project.NextCategoryId(), "Exam", InkColour.Carmine))
+            .AddCategory(new BookmarkCategory(project.NextCategoryId(IdSource.Numbered), "Exam", InkColour.Carmine))
             .AddBookmark(new Bookmark("b_0001", "Scales", "c_0001", Bars(piece, 0, 0), false, s_now));
         Assert.Equal("Lena", project.FindCategory(BookmarkCategory.TeacherId)!.NameIn(Words.Russian));
         Assert.Equal("Teacher", project.RenameCategory(BookmarkCategory.TeacherId, null).FindCategory(BookmarkCategory.TeacherId)!.NameIn(Words.English));
-        Assert.Equal("c_0002", project.NextCategoryId());
+        Assert.Equal("c_0002", project.NextCategoryId(IdSource.Numbered));
 
         Project removed = project.RemoveCategory("c_0001");
         Assert.Equal(4, removed.Categories.Count);
@@ -96,8 +96,8 @@ public class MarksAndBookmarksTests
 
         Assert.Equal(4, marks.Count);
         Assert.Equal(2, marks.Fingering.Single().Finger);
-        Assert.Equal("n_0002", marks.NextNoteId());
-        Assert.Equal("h_0002", marks.NextHighlightId());
+        Assert.Equal("n_0002", marks.NextNoteId(IdSource.Numbered));
+        Assert.Equal("h_0002", marks.NextHighlightId(IdSource.Numbered));
         Assert.Equal("Second", marks.ChangeNote("n_0001", " Second ").Notes[0].Text);
         Assert.Empty(marks.RemoveInk(["k1", "k9"]).Ink);
         Assert.Empty(marks.RemoveFingering(note).Fingering);
@@ -116,11 +116,11 @@ public class MarksAndBookmarksTests
     {
         ImportedPiece piece = Piece();
         Project project = Fresh();
-        ResumePoint start = ResumePoint.Start(project.NextResumePointId(), s_now, "  ");
+        ResumePoint start = ResumePoint.Start(project.NextResumePointId(IdSource.Numbered), s_now, "  ");
         Assert.Equal(("r_0001", null, Tick.Zero, 100, false), (start.Id, start.Name, start.At, start.TempoPercent, start.Loop));
 
         project = project.AddResumePoint(start);
-        project = project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(), s_now.AddHours(1), "Coda"))
+        project = project.AddResumePoint(ResumePoint.Start(project.NextResumePointId(IdSource.Numbered), s_now.AddHours(1), "Coda"))
             .ChangeResumePoint("r_0001", point => point.Touch(new SavedPassage(Bars(piece, 2, 3), SelectionFilter.ForHand(Hand.Right)), s_now.AddHours(2)));
 
         Assert.Equal(["r_0001", "r_0002"], project.RecentResumePoints.Select(point => point.Id));

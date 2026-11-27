@@ -16,7 +16,7 @@ Options weighed:
 
 ## Decision
 
-1. **`MotiffLab.MusicCore.Facade.MusicCoreFacade`** is the one entry point for an app. It keeps the pieces an app has open in memory, numbered from 1, and answers calls by name with JSON text. It is the only stateful part of music-core: everything under it stays pure, and the facade itself is deterministic (the same calls in the same order give the same answers).
+1. **`MotiffLab.MusicCore.Facade.MusicCoreFacade`** is the one entry point for an app. It keeps the pieces an app has open in memory, numbered from 1, and answers calls by name with JSON text. It is the only stateful part of music-core: everything under it stays pure, and the facade itself is deterministic (the same calls in the same order give the same answers). The exception (version 1.6, #317, 0026 S3): what a call does not send, the facade makes itself. The native facade (`src/ipad/Core/Exports.cs`) gives new entity ids from the random `IdSource` (`IdSource.Random`, so two devices working offline never make the same one), a new project's id from a new GUID, and a call without "now" reads the clock. A facade made without an `IdSource` numbers new ids (`IdSource.Numbered`), and its answers stay deterministic when every call sends "id" and "now", as the tests and goldens do.
    - `Open(fileName, bytes, language)` imports a MIDI or MusicXML file as a new project, or reads a project file (`.motiff.json`), and returns the piece's number with its summary. A rejected file answers with the importer's reason and tip.
    - `Call(piece, name, request)` runs one call on an open piece; `piece` 0 is for the stateless calls (`version`, `catalogue`, `settings`, `settings.state`). `request` is a JSON object or null.
    - `Close(piece)` forgets it.

@@ -78,7 +78,7 @@ public sealed partial record Project
     /// bookmarks on the map): one bookmark per section, "Section A′, bars 17–32", after the player's own. A section already
     /// bookmarked in Structure over the same bars is left as it is, so a second call adds nothing.
     /// </summary>
-    public Project AddFormBookmarks(IEnumerable<DnaSection> sections, Words words, DateTimeOffset now)
+    public Project AddFormBookmarks(IEnumerable<DnaSection> sections, Words words, DateTimeOffset now, IdSource ids)
     {
         ArgumentNullException.ThrowIfNull(sections);
         Project project = this;
@@ -91,7 +91,7 @@ public sealed partial record Project
 
             string bars = Bookmark.Bars(section.FirstBar, section.LastBar, words);
             string title = words.T($"Section {section.Label}, {bars}", $"Раздел {section.Label}, {bars}");
-            project = project.AddBookmark(new Bookmark(project.NextBookmarkId(), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
+            project = project.AddBookmark(new Bookmark(project.NextBookmarkId(ids), title, BookmarkCategory.StructureId, section.Span, FromPhrase: false, now));
         }
 
         return project;
@@ -136,9 +136,9 @@ public sealed partial record Project
         };
     }
 
-    /// <summary>"b_0004": one more than the highest bookmark number.</summary>
-    public string NextBookmarkId() => NextId("b_", Bookmarks.Select(bookmark => bookmark.Id).Concat(UnknownIds(Unknown, "bookmarks.items")));
+    /// <summary>A new bookmark's id from <paramref name="ids"/>, one no bookmark of the file has.</summary>
+    public string NextBookmarkId(IdSource ids) => ids.Next("b_", Bookmarks.Select(bookmark => bookmark.Id).Concat(UnknownIds(Unknown, "bookmarks.items")));
 
-    /// <summary>"c_0004": one more than the highest number among the player's own categories.</summary>
-    public string NextCategoryId() => NextId("c_", Categories.Select(category => category.Id).Concat(UnknownIds(Unknown, "bookmarks.categories")));
+    /// <summary>A new category's id from <paramref name="ids"/>, one no category of the file has.</summary>
+    public string NextCategoryId(IdSource ids) => ids.Next("c_", Categories.Select(category => category.Id).Concat(UnknownIds(Unknown, "bookmarks.categories")));
 }

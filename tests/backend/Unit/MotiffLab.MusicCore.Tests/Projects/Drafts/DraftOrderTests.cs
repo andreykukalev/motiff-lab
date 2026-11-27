@@ -72,7 +72,7 @@ public class DraftOrderTests
         Draft draft = Draft.Start("d_1", "Коллаж", At, "pl_1", Variant("v_1", Score(), 1, 2))
             .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 3, 4, notes: "n_g"), DraftDrop.Place, "pl_2")
             .With(Variant("v_3", Score(prefix: "c"), 5, 6), DraftDrop.Place, "pl_3");
-        return DraftBridges.Put(draft, "pl_2", At).With(next => new DraftTempo(next, At, "pl_0004", 100));
+        return DraftBridges.Put(draft, "pl_2", At, Ids).With(next => new DraftTempo(next, At, "pl_0004", 100));
     }
 
     [Theory]
@@ -111,8 +111,8 @@ public class DraftOrderTests
             .With(Variant("v_2", Score(fifths: 1, prefix: "b"), 3, 4, notes: "n_g"), DraftDrop.Place, "pl_2");
         Draft kept = two.With(next => new DraftLeave(next, At, "pl_2") { Seam = true });
 
-        Assert.Empty(DraftBridges.Put(kept, "pl_2", At).Steps);
-        Draft bridged = DraftBridges.Put(two, "pl_2", At).With(next => new DraftLeave(next, At, "pl_2") { Seam = true });
+        Assert.Empty(DraftBridges.Put(kept, "pl_2", At, Ids).Steps);
+        Draft bridged = DraftBridges.Put(two, "pl_2", At, Ids).With(next => new DraftLeave(next, At, "pl_2") { Seam = true });
         Assert.Empty(DraftBridges.Leave(bridged, "pl_0003").Steps);
     }
 }

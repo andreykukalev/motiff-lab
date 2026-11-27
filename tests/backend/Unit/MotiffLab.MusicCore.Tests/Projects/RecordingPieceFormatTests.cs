@@ -78,7 +78,7 @@ public class RecordingPieceFormatTests
 
         Assert.Throws<InvalidOperationException>(() => project.RemoveOriginal(PieceOriginal.RecordingId, s_now));
 
-        Project two = project.AddOriginal(new PieceOriginal(project.NextOriginalId(PieceOriginal.RecordingId), OriginalKind.Audio, "Take 2.m4a", OriginalKept.Device, s_now), null);
+        Project two = project.AddOriginal(new PieceOriginal(project.NextOriginalId(PieceOriginal.RecordingId, IdSource.Numbered), OriginalKind.Audio, "Take 2.m4a", OriginalKept.Device, s_now), null);
         Project removed = two.RemoveOriginal(PieceOriginal.RecordingId, s_now);
         Assert.True(removed.IsOnlyRecording);
         Assert.Equal(removed.Originals, ProjectFile.Read(ProjectFile.Write(removed)).Originals);
