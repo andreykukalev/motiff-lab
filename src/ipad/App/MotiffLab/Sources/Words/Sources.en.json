@@ -60,6 +60,7 @@
   "sources.sheet.photoPages.many": "Photos · {0} pages",
   "sources.sheet.photoPages.one": "Photos · {0} page",
   "sources.sheet.readHeading": "Recognise the notes",
+  "sources.sheet.readingOther": "«{0}» is being recognised. This original can be recognised once it is done.",
   "sources.sheet.readHosted.many": "{0} pages go to the Motiff Lab recognition server, which deletes the PDF once it has read it.",
   "sources.sheet.readHosted.one": "{0} page goes to the Motiff Lab recognition server, which deletes the PDF once it has read it.",
   "sources.sheet.readKeeps": "The notes of {0} and their {1} stay beside them.",

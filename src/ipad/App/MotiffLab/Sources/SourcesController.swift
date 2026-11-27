@@ -231,8 +231,11 @@ final class SourcesController: ObservableObject {
     /// scan server (the player's yes is the panel's Send): the pages to the one chosen (`address`), a recording's sound to
     /// Motiff Lab's. The notes it reads become new Notes of that original beside the ones there are, which keep their
     /// corrections, and the working notes stay as they are (`keepRecognised`); a piece with no notes yet takes them as its
-    /// working notes and opens again on them (v1.1, finding 29). Answers why not, or nil once done.
+    /// working notes and opens again on them (v1.1, finding 29). Answers why not, or nil once done; while another original
+    /// is being recognised, which one (`readingOther`), and nothing is sent.
     func recognise(_ original: SourceLayers.Original, address: URL?, account: Account) async -> String? {
+        // E-sources-1: one original at a time; the one on its way keeps its reading and its progress.
+        if let other = readingOther(than: original) { return other }
         reading = original.id
         defer {
             reading = nil

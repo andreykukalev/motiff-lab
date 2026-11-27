@@ -47,6 +47,8 @@ struct SourcesRecognisePanel: View {
     }
 
     private var offer: Offer {
+        // E-sources-1: while another original is being recognised, this one waits, and the panel says which.
+        if let other = sources.readingOther(than: original) { return Offer(blocker: other) }
         if original.isRecording {
             return Offer(blocker: RecordingChooser.blocker(account, text)?.words, line: Self.hearLine(sources.layers, text: text), send: text["sources.sheet.sendRecording"])
         }
