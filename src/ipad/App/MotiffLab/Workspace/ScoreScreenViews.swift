@@ -3,9 +3,10 @@ import SwiftUI
 import WebKit
 
 /// Where the score's page is scrolled to, as a place in the notes (the page's `placeAt`, `lineAt`): the scroll view's top
-/// in the document's points (its offset over its zoom) and back.
+/// in the document's points (its offset over its zoom) and back; and back where the player stopped (#327), once the
+/// pages are drawn.
 extension ScoreController {
-    /// Waits for the pages to be drawn, as `arrive(at:)` does; false when they were not within ten seconds.
+    /// Waits for the pages to be drawn; false when they were not within ten seconds.
     func whenRendered() async -> Bool {
         var waited = 0
         while !rendered && waited < 100 {
@@ -13,6 +14,25 @@ extension ScoreController {
             waited += 1
         }
         return rendered
+    }
+
+    /// Back where the player stopped (#327): the passage selected and brought into view, and in focus when it was. It
+    /// waits for the page to be drawn, so the selection is drawn on it with its phrase.
+    func arrive(at place: ResumePlace) async {
+        guard await whenRendered(), piece != nil else { return }
+        guard let passage = place.passage else {
+            await reveal(place.at)
+            return
+        }
+        await select(passage.lowerBound, passage.upperBound, step: false)
+        guard let selection = selectionModel.selection else { return }
+        await reveal(selection.onset)
+        if place.focused { enterFocus() }
+    }
+
+    /// The tick at the top of the pages in view: where the player was when nothing is selected.
+    func tickInView() async -> Double? {
+        await firstTick(onPage: pages.first)
     }
 
     /// The place at the top of the view, the page's zoom and how far across it is; nil before the pages are drawn.

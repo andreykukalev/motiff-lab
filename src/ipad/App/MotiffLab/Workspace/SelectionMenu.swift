@@ -184,7 +184,7 @@ struct SelectionMenu: View {
             // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
             // item 10); ✕ is the one that clears it.
             iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
-            ClearSelectionButton(score: score, focusModel: focusModel, text: text, iconOnly: true)
+            ClearSelectionButton(score: score, focusModel: focusModel, text: text)
         }
     }
 }
@@ -195,22 +195,15 @@ struct ClearSelectionButton: View {
     /// Practice view is off in Expand (`ScoreController.practicing`).
     @ObservedObject var focusModel: FocusModel
     let text: UIText
-    /// At a fingertip's square, as the selection menu's other icons (#495 UX-11); the roll's head keeps its size.
-    var iconOnly = false
 
+    /// At a fingertip's square, as the selection menu's other icons (#495 UX-11).
     var body: some View {
-        let button = Button {
+        Button {
             score.clearSelection()
         } label: {
-            Icon(name: StylusRules.RingControl.clearSelection.icon).frame(width: iconOnly ? nil : 32, height: iconOnly ? nil : 32)
+            Icon(name: StylusRules.RingControl.clearSelection.icon)
         }
-        Group {
-            if iconOnly {
-                button.buttonStyle(DSIconItemStyle())
-            } else {
-                button.buttonStyle(DSItemStyle())
-            }
-        }
+        .buttonStyle(DSIconItemStyle())
         // Escape removes the selection too (the modes, version 0.5); in practice view it leaves that view (#533 11).
         .keyboardShortcut(!score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
         .accessibilityLabel(text["menu.clearSelection"])

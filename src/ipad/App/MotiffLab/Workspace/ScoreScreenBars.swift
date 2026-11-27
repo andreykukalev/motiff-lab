@@ -11,7 +11,9 @@ extension ScoreScreenContent {
             if focusModel.focused {
                 FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
             } else {
-                ScoreBar(title: piece.title, pages: score.pages, text: text, score: score, marksModel: marksModel, focusModel: focusModel, hasVersions: hasVersions, panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { score.toggleExtra() }, openReference: { change(.open(.reference)) },
+                ScoreBar(title: piece.title, pages: score.pages, text: text, mode: $score.mode, penModel: penModel, marksModel: marksModel, checkModel: checkModel,
+                         practice: PracticeButton(score: score, focusModel: focusModel, text: text),
+                         layers: LayersList(score: score, marksModel: marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions), panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { score.toggleExtra() }, openReference: { change(.open(.reference)) },
                          problem: player.problem ?? score.problem, askAboutPiece: askAboutPiece, sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
                          viewNote: sourcesModel.engraved.note(text), width: width) { dismiss() }
             }

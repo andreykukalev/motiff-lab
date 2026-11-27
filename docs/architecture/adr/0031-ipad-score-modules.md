@@ -287,4 +287,21 @@ order the code map pins; Expand and playback have no wiring of their own left in
 view's state they share is internal, no longer private. The view types are in their own files; the bar (`ScoreBar`) and
 the pill (`Pill`) are handed what they show and the actions they call, so the screen can place them elsewhere without
 touching what they do: the pill names no controller, and the bar holds `ScoreController` only to hand it to the modes,
-Practice, the layers list and More. `ScoreController` itself is step i-10.
+Practice, the layers list and More (since i-10 not even that). `ScoreController` itself is step i-10.
+
+## Note (S7 part 2, the score's controller by concern, v1.6 i-10)
+
+`SourcesModel` draws the versions on the page and acts on them: showing and comparing one, adding and renaming one, the
+sources read again, a version's bar shown, a marker's «Как в версии» and «Источники». It reaches the root through
+`SourcesScore`, as `CheckModel` does through `CheckScore`: the page, the piece, whether the pages are drawn, whether
+extra information of a kind shows, a draft's labels drawn with the markers, the bar shown (`showSpan`), and what
+follows (`versionsDrawn`: the version in focus and the page engraved again on even bars; `loadCheck`; `hear(version:)`,
+which needs the focus's version notes; `openSources(atBar:)`, the root's `versionPicked`). The Sources views observe
+the model (`MarkerPopover`, `SourcesSheet.versions`), so two folder edges to Workspace went. What stays the root's is
+split by concern into extension files beside it, each with one responsibility (`ScoreSelecting`, `ScoreMarks`,
+`ScoreFocus`, `ScoreInput`, `ScorePageLayout`, `ScorePlayheads`, `ScoreVersions`, resume in `ScoreScreenViews`), and
+`BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 566 lines and its
+two quality entries went. The bar holds no controller: the screen makes Practice and the layers list, and the modes get
+the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
+(`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
+Expand's calls into `FocusModel` and the marks' calls into `MarksModel`, each through its own protocol.

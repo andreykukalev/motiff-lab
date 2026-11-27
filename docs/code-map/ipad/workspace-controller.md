@@ -19,10 +19,23 @@ parts by concern are extensions in their own files.
   `colouringChanged`, `colourBars`, `uncolourBars`, `recolour`): the change `Marks/HighlightPaint` works out, sent to
   music-core as `highlight.remove` (ids found by value) and `highlight.add`, drawn at its last call and answered to the
   pen for its history; `recolour` sends a step's change again for the Pen's Undo and Redo (v1.4 i-5).
-- `ScoreController.swift`: the page (the menu's drag, marks, corrections, versions, Expand on the page); the
-  models' state: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md),
-  [`ink.md`](ink.md) (`PenModel`, through `PenScore`), [`marks.md`](marks.md) (`MarksModel`; `CheckModel`, through
-  `CheckScore`, v1.6 i-8: the root keeps drawing the flags, `drawChecks`, and `showProblem`).
+- `ScoreController.swift` (566 lines since v1.6 i-10): the root's own state (the piece, the pages in view, the playhead
+  away, the problem and notice lines, `rendered`, the stored values the parts below read), the web view and its
+  `MessageRelay`, `show` and the render order (`render`), what the page reports (`handle`: the selection's events and
+  the marks tapped), the notes engraved again (`setPieceTempo`, `notesDidChange`, `engraveScore`) and drawing Check's
+  flags (`drawChecks`). The models: [`selection.md`](selection.md), [`playback.md`](playback.md), [`sources.md`](sources.md)
+  (`SourcesModel`, through `SourcesScore`, v1.6 i-10), [`ink.md`](ink.md) (`PenModel`, through `PenScore`),
+  [`marks.md`](marks.md) (`MarksModel`; `CheckModel`, through `CheckScore`, v1.6 i-8).
+- v1.6 i-10, the root's parts by concern (each touches only the page and the models it names): `ScoreSelecting.swift`
+  (selecting by a span, beats or bars, clearing, the band drawn, the beat lines sent, `showSpan`, `askLabel`,
+  `bookmarkTitle`, the selection's Undo and Redo); `ScoreMarks.swift` (marks drawn and changed, `changeMarks`, bookmarks,
+  margin notes, layers and what the page hides, the settings followed); `ScoreFocus.swift` (Expand: `enterFocus`,
+  `expandRoll`, `leaveFocus`, `step`, the card engraved, the version in focus); `ScoreInput.swift` (strokes and the
+  eraser in the page's pixels, `applyInput`, `penTurned`, the mode sent, the handles on screen, the live style);
+  `ScorePageLayout.swift` (room for drawers and the menu, the outline, a page or a tick in view, Insights' rings);
+  `ScorePlayheads.swift` (where the player is, the playback position drawn); `ScoreVersions.swift` (the root's side of
+  `SourcesScore`: what follows the versions drawn, Check after a version added, a version's bar heard, a marker's way
+  to Sources). `BundleSchemeHandler` is Platform's.
 - `ScoreScreenViews.swift`: `ScoreController`'s `whenRendered`, `viewPlace`, `showPlace` (where the page is scrolled,
-  as a place in the notes), and `PdfController.keepView`.
+  as a place in the notes), `arrive` and `tickInView` (resume, #327), and `PdfController.keepView`.
 - `ScoreUnreadPages.swift` (v1.5 i-7): a scanned PDF's pages no engine read, their marks among the Check flags.

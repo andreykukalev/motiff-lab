@@ -2,20 +2,25 @@ import SwiftUI
 
 /// The bar over the score (ds.css `.bar`): back to the library, the title, which opens the Contents the way a reader opens
 /// a book at its contents, and the pages in view, then Phrases, Pen, the piano roll, Insights, Play and More, in the web
-/// app's order. It shows what it is handed and calls the actions it is handed; where it floats is the screen's
+/// app's order. It shows what it is handed and calls the actions it is handed, and holds no controller (v1.6 i-10):
+/// Practice and the layers list come made, the modes get the mode and the Pen; where it floats is the screen's
 /// (`ScoreScreenContent.bars`).
 struct ScoreBar: View {
     let title: String
     let pages: ScoreController.PagesInView
     let text: UIText
-    /// Handed on to the modes, Practice, the layers list and More.
-    @ObservedObject var score: ScoreController
+    /// The bar's mode (`ScoreController.mode`), chosen in the modes.
+    @Binding var mode: InteractionMode
+    /// The bar's Pen, in the modes.
+    let penModel: PenModel
     /// Extra information's button shows whether it is on.
     @ObservedObject var marksModel: MarksModel
-    /// Handed on to Practice, which is off in Expand.
-    let focusModel: FocusModel
-    /// Whether the piece has other versions: the layers list offers their marks (MarksModel.pieceExtra).
-    let hasVersions: Bool
+    /// Handed on to More, for its way to Check and «Мои правки».
+    let checkModel: CheckModel
+    /// The button of practice view's two visibilities.
+    let practice: PracticeButton
+    /// The list of extra information and the player's layers, under the ⓘ button's chevron and in More.
+    let layers: LayersList
     /// Which panels are open (PanelState), and the screen's way to change them.
     let panels: PanelState
     let change: (PanelState.Intent) -> Void
@@ -73,7 +78,7 @@ struct ScoreBar: View {
         viewButtons
         PaletteDivider()
         // The modes (version 0.5): one group for the score and the roll, the Pen in it.
-        ModeGroup(score: score, penModel: score.penModel, text: text, compact: compact)
+        ModeGroup(mode: $mode, penModel: penModel, text: text, compact: compact)
         PaletteDivider()
         if let openReference {
             // The Reference: the Circle, the circle with a sharp, opens the circle of fifths.
@@ -92,7 +97,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.insights]))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(panels[.insights] ? .isSelected : [])
-        PracticeButton(score: score, focusModel: focusModel, text: text)
+        practice
         PaletteDivider()
         playAndMore
     }
@@ -119,7 +124,7 @@ struct ScoreBar: View {
             .buttonStyle(BarActionStyle(on: extraOpen))
             .accessibilityLabel(text["extra.list"])
             .popover(isPresented: $extraOpen) {
-                LayersList(score: score, marksModel: marksModel, checkModel: score.checkModel, text: text, hasVersions: hasVersions)
+                layers
                     .padding(CGFloat.ds("s-4"))
                     .frame(width: 300, alignment: .leading)
                     .presentationCompactAdaptation(.popover)
@@ -137,7 +142,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.more]))
         .accessibilityLabel(text["bar.more"])
         .popover(isPresented: panels.binding(.more, change: change)) {
-            MorePanel(score: score, checkModel: score.checkModel, hasVersions: hasVersions, text: text, problem: problem, openCheck: {
+            MorePanel(checkModel: checkModel, layers: layers, text: text, problem: problem, openCheck: {
                 change(.openFromMore(.check))
             }, openVersions: viewing == nil ? openSources : nil, openSettings: {
                 change(.openFromMore(.settings))
