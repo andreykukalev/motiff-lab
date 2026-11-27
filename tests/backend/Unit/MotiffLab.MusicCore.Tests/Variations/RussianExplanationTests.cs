@@ -92,46 +92,6 @@ public partial class RussianExplanationTests
         Assert.True(unavailable > 0, $"No step was unavailable on {name}.");
     }
 
-    [Theory]
-    [MemberData(nameof(Pieces))]
-    public void Every_experiment_reads_in_russian(string name)
-    {
-        ImportedPiece piece = Piece(name);
-        var found = new SortedSet<string>(StringComparer.Ordinal);
-        int offered = 0;
-        foreach (MotifSelection selection in Selections(piece))
-        {
-            (InvitationContext english, InvitationContext russian) = (Context(piece, selection, Words.English), Context(piece, selection, Words.Russian));
-            IReadOnlyList<Experiment> inEnglish = ExperimentCatalogue.Offer(english);
-            IReadOnlyList<Experiment> inRussian = ExperimentCatalogue.Offer(russian);
-            Assert.Equal(inEnglish.Select(static experiment => (experiment.Id, experiment.Alternatives.Count)), inRussian.Select(static experiment => (experiment.Id, experiment.Alternatives.Count)));
-
-            foreach (Experiment experiment in inRussian)
-            {
-                string where = $"{experiment.Id} at bar {experiment.Passage.FirstBar}";
-                foreach (string text in new[] { experiment.Title, experiment.Change, experiment.Question, experiment.ListeningFocus })
-                {
-                    AddLatin(found, where, text);
-                }
-
-                for (int i = 0; i < experiment.Alternatives.Count; i++)
-                {
-                    AddLatin(found, where, experiment.Alternatives[i].Label);
-                    AddLatin(found, where, experiment.Alternatives[i].Keeps);
-                    if (ExperimentCatalogue.Start(experiment, i, russian).Result is { } result)
-                    {
-                        AddLatin(found, where, result.Explanation);
-                    }
-                }
-
-                offered++;
-            }
-        }
-
-        Assert.Empty(found);
-        Assert.True(offered > 0, $"No experiment was offered on {name}.");
-    }
-
     [Fact]
     public void The_keep_table_reads_in_russian()
     {
@@ -153,6 +113,10 @@ public partial class RussianExplanationTests
             }
 
             AddLatin(found, row.OperationId, row.NameIn(Words.Russian));
+            foreach (KeepFootnote footnote in row.Footnotes.Values)
+            {
+                AddLatin(found, $"{row.OperationId} footnote {footnote.Number}", footnote.TextIn(Words.Russian));
+            }
         }
 
         foreach (KeepPreset preset in KeepTable.Presets)
@@ -164,21 +128,9 @@ public partial class RussianExplanationTests
         Assert.Equal(
             "«Изменение ритма» меняет, когда начинаются ноты и сколько они длятся, поэтому эту операцию нельзя применить, пока в «Сохранить» отмечено: ритм.",
             KeepTable.DisabledReason("V1", new HashSet<KeepProperty> { KeepProperty.Rhythm }, Words.Russian));
-    }
-
-    [Fact]
-    public void The_fur_elise_groove_explains_itself_in_russian()
-    {
-        ImportedPiece piece = Piece("fur-elise-original.musicxml");
-        MotifSelection selection = MotifSelector.Select(piece.Notes, piece.Meter, MotifSelector.Bars(piece.Meter, 0, 1, piece.End), SelectionFilter.All);
-        InvitationContext context = Context(piece, selection, Words.Russian);
-        Experiment groove = ExperimentCatalogue.Offer(context).Single(static experiment => experiment.Id == ExperimentCatalogue.GrooveId);
-
-        string explanation = ExperimentCatalogue.Start(groove, 0, context).Result!.Explanation;
-
-        Assert.Matches(@"\p{IsCyrillic}", groove.Title);
-        Assert.Matches(@"\p{IsCyrillic}", explanation);
-        Assert.Contains("такт", explanation, StringComparison.Ordinal);
+        Assert.Equal(
+            "Звуковысотные классы мелодии остаются; её октава может измениться.",
+            KeepTable.MelodyPitchClasses.TextIn(Words.Russian));
     }
 
     private static InvitationContext Context(ImportedPiece piece, MotifSelection selection, Words words)

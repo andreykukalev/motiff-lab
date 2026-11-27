@@ -94,8 +94,7 @@ internal sealed class BassPattern : VariationOperation<BassPatternParameters>
             return NotAvailable(w, "would put a bass note at or above a note sounding over it", "нота баса оказалась бы на уровне звучащей над ней ноты или выше");
         }
 
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
-        return old.Select(Shape).Order().SequenceEqual(bass.Select(Shape).Order())
+        return old.Select(OperationTemplates.Shape).Order().SequenceEqual(bass.Select(OperationTemplates.Shape).Order())
             ? w.T($"The bass already plays this pattern, so {Name} has nothing to change.", $"Бас уже играет этот рисунок: «{NameIn(w)}» ничего не изменит.")
             : null;
     }

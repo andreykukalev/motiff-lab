@@ -206,7 +206,7 @@ internal static partial class Answer
     /// </summary>
     public static void Harmony(Utf8JsonWriter json, HarmonyAnalysis harmony, MusicalKey? key, Func<MotifFact, IReadOnlyList<TryChip>> chips, Words words)
     {
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = key ?? Analysis.MusicalKey.CMajor;
         json.WriteStartObject("harmony");
         json.WriteStartArray("chords");
         foreach (ChordSpan chord in harmony.Chords)

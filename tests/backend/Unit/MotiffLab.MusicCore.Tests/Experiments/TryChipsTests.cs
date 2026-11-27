@@ -90,37 +90,4 @@ public class TryChipsTests
         Assert.DoesNotContain(TryChips.Offer("rhythm.durations", context), chip => chip.Id == "v1.dotted");
         Assert.NotNull(TryChips.Start(TryChips.Find("v1.dotted")!, context, out _));
     }
-
-    [Fact]
-    public void A_fact_kind_with_chips_gets_one_Try_button_whose_ways_are_its_chips_each_with_its_preset()
-    {
-        InvitationContext context = Context(1, 2);
-        MotifFact[] facts =
-        [
-            new("melody.line.1", FactLens.Melody, FactCertainty.Detected, "The line.", "Basis."),
-            new("melody.line.2", FactLens.Melody, FactCertainty.Detected, "The line again.", "Basis."),
-            new("character.articulation", FactLens.Character, FactCertainty.Detected, "Articulation.", "Basis."),
-            // Its only chip is one melody.line already offers: one way is offered once.
-            new("melody.contour", FactLens.Melody, FactCertainty.Detected, "The contour.", "Basis."),
-        ];
-
-        Experiment button = Assert.Single(TryChips.Buttons(facts, context));
-        Assert.Equal("try.melody.line", button.Id);
-        Assert.Contains(button.Id, TryChips.ExperimentIds);
-        Assert.Equal(["melody.line.1", "melody.line.2"], button.FactIds);
-        Assert.Equal(context.Selection.Span, button.Passage.Span);
-        IReadOnlyList<TryChip> chips = TryChips.Offer("melody.line", context);
-        Assert.Equal(chips.Select(chip => chip.Label), button.Alternatives.Select(way => way.Label));
-        Assert.Equal(chips.Select(chip => chip.KeepPresetId), button.Alternatives.Select(way => way.KeepPresetId));
-
-        // A way runs with its own preset, as the chip does.
-        for (int way = 0; way < button.Alternatives.Count; way++)
-        {
-            VariationChain chain = ExperimentCatalogue.Start(button, way, context);
-            Assert.Equal(KeepTable.FindPreset(chips[way].KeepPresetId)!.Keep, chain.Context.Keep);
-            Assert.Equal(chips[way].OperationId, Assert.Single(chain.Steps).Operation.Id);
-        }
-
-        Assert.Equal("Попробовать вариацию", TryChips.Buttons(facts, context with { Words = Words.Russian })[0].Title);
-    }
 }

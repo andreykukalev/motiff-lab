@@ -274,7 +274,7 @@ internal static class TechniqueCarry
 
     /// <summary>The key in force at a tick, as the harmony reads it: its signature and mode, major where none is stated, C major where no key is.</summary>
     private static MusicalKey KeyAt(SourceMusic music, Tick at) =>
-        KeySignature.InForce(music.Keys, at) is { } key ? DraftBridges.KeyOf(key) : new MusicalKey(0, KeyMode.Major);
+        KeySignature.InForce(music.Keys, at) is { } key ? DraftBridges.KeyOf(key) : MusicalKey.CMajor;
 
     /// <summary>The provenance's params: {"carry": the kind, "place", "variant" and "bar" it was read at}.</summary>
     private static string Params(PlaceTechnique technique, string place, int bar)

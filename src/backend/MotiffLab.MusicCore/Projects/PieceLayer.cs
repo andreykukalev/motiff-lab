@@ -45,33 +45,6 @@ internal static class PieceLayer
     }
 
     /// <summary>
-    /// The pieces layer as pieces to review again (<see cref="FoundSections.IsPieces"/>): one section a piece, titled as
-    /// kept, each the player's own (<see cref="SectionCueKind.Kept"/>), the first from the start of the piece so the layer's
-    /// bars before it join it; one piece over the whole piece when the layer is empty.
-    /// </summary>
-    public static FoundSections Review(Project project, MeterMap meter, Tick end)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-        ArgumentNullException.ThrowIfNull(meter);
-        int lastBar = meter.BarAt(new Tick(Math.Max(0, end.Value - 1))).Number;
-        IReadOnlyList<LayerPiece> layer = Read(project, meter);
-        var sections = new List<FoundSection>(Math.Max(1, layer.Count));
-        for (int index = 0; index < Math.Max(1, layer.Count); index++)
-        {
-            Tick onset = index == 0 ? Tick.Zero : layer[index].Span.Onset;
-            Tick until = index + 1 < layer.Count ? layer[index + 1].Span.Onset : end;
-            int first = index == 0 ? meter.BarAt(Tick.Zero).Number : layer[index].FirstBar;
-            int last = index + 1 < layer.Count ? layer[index + 1].FirstBar - 1 : lastBar;
-            sections.Add(new FoundSection(index + 1, TickSpan.FromBounds(onset, until), first, last, 1, [index == 0 && layer.Count == 0 ? SectionCues.Opening(heard: false) : SectionCues.Kept()])
-            {
-                Title = layer.Count > 0 ? layer[index].Title : null,
-            });
-        }
-
-        return new FoundSections(sections, meter, lastBar, pieces: true);
-    }
-
-    /// <summary>
     /// The project with the pieces layer replaced by <paramref name="pieces"/>: one bookmark each, from its first bar to the
     /// first bar of the next, the last to <paramref name="end"/>. The layer's bookmarks keep their ids in score order, so
     /// saving again on another device changes them rather than adding more; the category is added, named in the player's

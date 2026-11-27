@@ -106,8 +106,7 @@ internal sealed class AccompanimentPattern : VariationOperation<AccompanimentPat
             return NotAvailable(context.Words, "would put an accompaniment note at or above the melody", "нота аккомпанемента оказалась бы на уровне мелодии или выше");
         }
 
-        static (long, long, int) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
-        return accompaniment.Select(Shape).Order().SequenceEqual(pattern.Select(Shape).Order())
+        return accompaniment.Select(OperationTemplates.Shape).Order().SequenceEqual(pattern.Select(OperationTemplates.Shape).Order())
             ? context.Words.T($"The accompaniment already plays this pattern, so {Name} has nothing to change.", $"Аккомпанемент уже играет этот рисунок: «{NameIn(context.Words)}» ничего не изменит.")
             : null;
     }

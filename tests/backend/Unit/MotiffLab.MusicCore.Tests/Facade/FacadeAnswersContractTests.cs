@@ -329,7 +329,7 @@ public class FacadeAnswersContractTests
             ("dna", """{"ideas":"musical"}"""),
         ],
         // A variation (0018, section 8): bars 1–4, a Try chip applied, the chain with its step and result, the notes of bars
-        // 1–2 as written, and the catalogue of operations and Keep.
+        // 1–2 as written, and the catalogue of operations and Keep, in English and in Russian.
         ["variation"] =
         [
             ("select", """{"bars":{"first":1,"last":4}}"""),
@@ -337,6 +337,7 @@ public class FacadeAnswersContractTests
             ("variation", null),
             ("notation", """{"bars":{"first":1,"last":2}}"""),
             ("catalogue", null),
+            ("catalogue", """{"language":"ru"}"""),
         ],
         // What the player keeps with the piece, opened at a fixed time: a stroke in the margin, a margin note, a highlight and
         // a fingering (the score's marks), a bookmark, resume points, a variation kept as an idea, Check, the settings and the project's summary

@@ -31,9 +31,10 @@ internal static partial class Answer
             json.WriteNull("pending");
         }
 
-        json.WriteNumber("undone", chain.Undone.Count);
+        // The chain keeps no undone steps (no call undoes one); "undone" and "canRedo" stay in the contract with these values.
+        json.WriteNumber("undone", 0);
         json.WriteBoolean("canUndo", chain.CanUndo);
-        json.WriteBoolean("canRedo", chain.CanRedo);
+        json.WriteBoolean("canRedo", false);
         json.WriteString("acceptDisabledReason", chain.AcceptDisabledReason);
         json.WriteString("editDisabledReason", chain.EditDisabledReason);
         Notes(json, "original", chain.Original);
@@ -126,7 +127,7 @@ internal static partial class Answer
         {
             json.WriteStartObject();
             json.WriteString("id", preset.Id);
-            json.WriteString("label", preset.Label);
+            json.WriteString("label", preset.LabelIn(words));
             Keep(json, "keep", preset.Keep);
             JsonWrite.Texts(json, "operations", preset.Operations);
             json.WriteEndObject();
@@ -152,7 +153,7 @@ internal static partial class Answer
                     json.WriteStartObject();
                     json.WriteString("property", JsonWrite.Name(property));
                     json.WriteNumber("number", footnote.Number);
-                    json.WriteString("text", footnote.Text);
+                    json.WriteString("text", footnote.TextIn(words));
                     json.WriteEndObject();
                 }
 
