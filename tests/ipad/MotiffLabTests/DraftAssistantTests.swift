@@ -451,10 +451,16 @@ final class DraftAssistantTests: XCTestCase {
     func testTheBridgeChooserProposesACandidateInTheBridgesCard() async throws {
         let (sources, draft, view) = try await drafted { sources, draft, _ in
             // ② a new place in another key, and the bridge's candidates put before it.
+            let added = await sources.change("drafts.add", ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "place", "now": "2026-11-20T10:05:00Z"])
+            XCTAssertNotNil(added, "drafts.add: \(sources.status ?? "")")
+            // The new place's id is music-core's, one two devices never clash on (v1.6 c-14c): read from the draft as it is now.
+            guard let opening = await sources.openDraft(draft), let second = opening.draft?.places.last?.id else {
+                return XCTFail("the draft with its new place: \(sources.status ?? "")")
+            }
+            opened.append(opening.id)
             let steps: [(String, [String: Any])] = [
-                ("drafts.add", ["bars": ["first": 5, "last": 8], "draft": draft.id, "drop": "place", "now": "2026-11-20T10:05:00Z"]),
-                ("drafts.transpose", ["draft": draft.id, "place": "pl_0002", "semitones": 2, "now": "2026-11-20T10:10:00Z"]),
-                ("drafts.bridge", ["draft": draft.id, "place": "pl_0002", "now": "2026-11-20T10:12:00Z"]),
+                ("drafts.transpose", ["draft": draft.id, "place": second, "semitones": 2, "now": "2026-11-20T10:10:00Z"]),
+                ("drafts.bridge", ["draft": draft.id, "place": second, "now": "2026-11-20T10:12:00Z"]),
             ]
             for (name, fields) in steps {
                 let changed = await sources.change(name, fields)

@@ -62,14 +62,14 @@ extension ScoreController {
     var unreadPages: [UnreadPage] {
         if let item = unreadRecognition {
             guard item.state == .done, let unread = item.unread, let read = item.read else { return [] }
-            return UnreadPage.of(unread: unread, read: read, starts: check.pageStarts)
+            return UnreadPage.of(unread: unread, read: read, starts: checkModel.check.pageStarts)
         }
-        return UnreadPage.of(unread: check.unreadPages, read: check.readPages, starts: check.pageStarts)
+        return UnreadPage.of(unread: checkModel.check.unreadPages, read: checkModel.check.readPages, starts: checkModel.check.pageStarts)
     }
 
     /// Check's part about these pages (`UnreadPagesCheck`), which the Check drawer shows without naming this folder's types.
     func unreadPagesCheck(_ text: UIText) -> some View {
-        UnreadPagesCheck(score: self, text: text)
+        UnreadPagesCheck(score: self, checkModel: checkModel, text: text)
     }
 }
 
@@ -78,12 +78,14 @@ extension ScoreController {
 /// recognition has them; pages kept only with the notes (project file 18) are shown without it.
 struct UnreadPagesCheck: View {
     @ObservedObject var score: ScoreController
+    /// Where the notes' pages start (`check`'s "pageStarts"), which places the pages, and the pages kept with the notes.
+    @ObservedObject var checkModel: CheckModel
     let text: UIText
     @ObservedObject private var queue = RecognitionQueue.shared
 
     var body: some View {
         let item = score.unreadRecognition
-        let kept = item?.unread ?? score.check.unreadPages
+        let kept = item?.unread ?? checkModel.check.unreadPages
         if !kept.isEmpty {
             VStack(alignment: .leading, spacing: CGFloat.ds("s-2")) {
                 Text(text["recognition.unreadHeading"]).overline()

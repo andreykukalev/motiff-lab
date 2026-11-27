@@ -39,12 +39,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   `.shared` counts the capsules showing it and stops at none unless handed over (`handOver`, `takeHanded`, `leave`,
   `switchReturned`, `handedAway`); ✕ (`putAway`) silences and withdraws it; picking a view never closes it; `playStretch`;
   a call, the background or the headphones gone pause it (`EngineKeeper` with no engine, v1.5 a-2, answer 30).
-- `SourcesSheet.swift` (from `Workspace/ScoreScreen`, `Pdf/Pdf`): header, add menu, groups and loose Notes, picking files
+- `SourcesSheet.swift` (from `Workspace/ScoreScreen` with its `SourcesModel` as `versions`, `Workspace/PdfScreen`): header, add menu, groups and loose Notes, picking files
   (`Picking`, `take`), camera; owns the rows' view state (`recognising`, `problems`, `deleting`, `deletingNotes`,
   `renaming`), handed down as bindings and `SourcesRow`.
 - `SourcesRows.swift` (v0.10 s-1): `SourcesRow` (from the sheet: the view shown, the scan server and whether hosted, the
   actions; a row opens no view since s-2), `SourcesGroupCard`, `SourcesOriginalRow` and `SourcesNotesRow` with their ⋯
-  (a version's «Переименовать…», `rename`, only with a score: `ScoreController.renameVersion`), `SourcesRowHead`,
+  (a version's «Переименовать…», `rename`, only with a score: `SourcesModel.renameVersion`), `SourcesRowHead`,
   `SourcesRowBackground`, `SourcesCaption`.
 - `SourcesRecognise.swift` (v0.10 s-1): `SourcesRecogniseButton` («Распознать», Pro when hosted or a recording) and
   `SourcesRecognisePanel` (`Offer`: what it needs, where it goes, Send's word; `RecordingChooser.blocker`; `hearLine`:
@@ -70,11 +70,12 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`.
   over): music-core's open notes still hold its taken bars, the score its markers (v1.1).
 - `SourcesModel.swift` (S4, ADR 0031): the versions, their words, a marker tapped (`markerPick`), the score as last
   engraved (since v1.4 with the bars the app wrote, `Engraved.note`: the view's note in the score's bar); reads and
-  renames versions (`performance.rename`). Tests: `SourcesModelTests`.
+  renames versions (`performance.rename`); since v1.6 i-10 draws them on the page and acts on them (show, compare, add,
+  rename, a marker's «Как в версии» and «Источники») through `SourcesScore`, which the root adopts. Tests: `SourcesModelTests`.
 - `Versions.swift`: `VersionShelf` (the versions and the one compared: `read(performance:)`, `read(list:)`),
-  `VersionEntry`, `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
+  `VersionBar`, `SourcesInfo`, `VersionFiles`, `MarkerPopover` (a marker tapped: «▶ Как в версии»,
   «Источники»). The bar-by-bar merge (0022 section 5) left in v1.1 (ADR 0034 section 8): a version picked opens Sources
-  and is compared (`ScoreController.compareVersion`); files with taken bars read as before (music-core).
+  and is compared (`SourcesModel.compareVersion`); files with taken bars read as before (music-core).
 
 ## The contract others may rely on
 

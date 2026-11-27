@@ -24,27 +24,6 @@ struct VersionBar: Identifiable, Equatable, Sendable {
     var differs: Bool { aligned && kind != "none" }
 }
 
-/// Another version as `performances` lists it.
-struct VersionEntry: Identifiable, Equatable, Sendable {
-    var id: String
-    var name: String
-
-    /// A time music-core writes (.NET's round trip, seven digits of fraction).
-    static func date(_ text: String?) -> Date? {
-        guard let text else { return nil }
-        let reader = ISO8601DateFormatter()
-        return reader.date(from: text) ?? reader.date(from: text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression))
-    }
-}
-
-extension VersionEntry {
-    /// A version as music-core writes its head (`VersionHead`); nil without its id.
-    init?(_ head: VersionHead) {
-        guard let id = head.id else { return nil }
-        self.init(id: id, name: head.name ?? "")
-    }
-}
-
 /// The piece's sources as music-core answers `sources` (testing item 16, contract 6): the base, the line on what the
 /// player's version holds beyond it, and the PDF kept inside the piece.
 struct SourcesInfo: Equatable, Sendable {
@@ -148,7 +127,6 @@ enum VersionFiles {
 /// A marker tapped on the score (testing item 33): how the bar differs, heard as the version plays it, and the way to the
 /// version in Sources; nothing is taken from the score here. Its card at the marker is `DraftCardAtMark`'s (v1.4 a-1).
 struct MarkerPopover: View {
-    @ObservedObject var score: ScoreController
     @ObservedObject var sourcesModel: SourcesModel
     let text: UIText
     let pick: SourcesModel.MarkerPick
@@ -161,11 +139,11 @@ struct MarkerPopover: View {
                 Text(bar.marker).dsType(.label).foregroundStyle(Color.ds("ink"))
             }
             HStack(spacing: CGFloat.ds("s-2")) {
-                Button { score.hearMarkerVersion() } label: {
+                Button { sourcesModel.hearMarkerVersion() } label: {
                     Label { Text(text["merge.asInVersion"]) } icon: { Icon(name: "play", size: CGFloat.ds("icon-s")) }
                 }
                 .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
-                Button(text["sources.title"]) { score.openSourcesFromMarker() }
+                Button(text["sources.title"]) { sourcesModel.openSourcesFromMarker() }
                     .buttonStyle(DSButtonStyle(kind: .primary, compact: true))
             }
         }
