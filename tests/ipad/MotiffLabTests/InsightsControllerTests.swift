@@ -1,0 +1,89 @@
+import XCTest
+
+@testable import MotiffLab
+
+/// InsightsController (W2.12, v1.6 i-12) on the kit's piece through music-core: the stream's rules that moved from its
+/// view into the controller, rule for rule (the filter chips, the lenses under Details folded and opened, the trial kept
+/// in reach when its fact is filtered out), each written only by the controller's methods.
+@MainActor
+final class InsightsControllerTests: XCTestCase {
+    private var opened: [Int32] = []
+
+    override func tearDown() async throws {
+        for piece in opened { MusicCore.close(piece: piece) }
+        opened = []
+    }
+
+    /// The kit's piece with bars 4–12 selected in music-core, and the stream read for them.
+    private func loaded() async throws -> (insights: InsightsController, piece: Int32) {
+        let example = try XCTUnwrap(KitPiece.example, "the kit's piece is bundled with the tests")
+        let answer = try XCTUnwrap(facadeObject(MusicCore.open(fileName: example.fileName, data: example.data, request: #"{"language": "en", "id": "p_insights"}"#)))
+        let piece = Int32(answer["piece"] as? Int ?? 0)
+        XCTAssertGreaterThan(piece, 0, "\(answer)")
+        opened.append(piece)
+        let selection = try XCTUnwrap(ScoreSelection(answer: MusicCore.call(piece: piece, "select", #"{"bars": {"first": 4, "last": 12}}"#)))
+        let insights = InsightsController()
+        await insights.load(piece: piece, selection: selection)
+        XCTAssertNotNil(insights.understanding, "music-core understood bars 4–12")
+        return (insights, piece)
+    }
+
+    func testAFilterChipNarrowsTheStreamToItsLensAndAllOrTheChipAgainListsEvery() async throws {
+        let (insights, _) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        XCTAssertGreaterThan(understanding.lensesShown.count, 1, "the chips show")
+        XCTAssertEqual(insights.mainShown, understanding.mainFacts)
+        let lens = try XCTUnwrap(understanding.lensesShown.first)
+
+        insights.filter(lens)
+        XCTAssertEqual(insights.lens, lens)
+        XCTAssertTrue(insights.mainShown.allSatisfy { $0.lens == lens }, "Main shows only the lens's facts")
+        XCTAssertTrue(insights.detailsShown.allSatisfy { $0 == lens }, "Details only the lens")
+        insights.filter(lens)
+        XCTAssertNil(insights.lens, "the chip pressed again lists every lens")
+        insights.filter(lens)
+        insights.filter(nil)
+        XCTAssertNil(insights.lens, "All lists every lens")
+        XCTAssertEqual(insights.detailsShown, understanding.lensesShown.filter { !understanding.facts(of: $0).isEmpty })
+    }
+
+    func testALensUnderDetailsOpensFoldedOpenFilteredToOrHoldingTheFactChosen() async throws {
+        let (insights, _) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        let lens = try XCTUnwrap(insights.detailsShown.first)
+        let fact = try XCTUnwrap(understanding.facts(of: lens).first)
+        XCTAssertFalse(insights.opens(lens), "folded to its name and count")
+
+        insights.fold(lens)
+        XCTAssertTrue(insights.opens(lens))
+        insights.fold(lens)
+        XCTAssertFalse(insights.opens(lens), "folded back")
+        insights.filter(lens)
+        XCTAssertTrue(insights.opens(lens), "the lens filtered to is open")
+        insights.filter(nil)
+        insights.choose(fact)
+        XCTAssertTrue(insights.opens(lens), "the fact chosen on the score does not disappear")
+        insights.clearChoice()
+        XCTAssertFalse(insights.opens(lens))
+    }
+
+    func testAWayTriedStaysInReachWhenItsFactIsFilteredOut() async throws {
+        let (insights, _) = try await loaded()
+        let understanding = try XCTUnwrap(insights.understanding)
+        let fact = try XCTUnwrap(understanding.facts.first { !$0.tries.isEmpty })
+        let other = try XCTUnwrap(understanding.lensesShown.first { $0 != fact.lens })
+        XCTAssertFalse(insights.trialFilteredOut, "nothing tried")
+
+        let way = try XCTUnwrap(fact.tries.first)
+        await insights.tryWay(way, of: fact)
+        XCTAssertEqual(insights.trial?.factId, fact.id, "\(insights.problem ?? "")")
+        XCTAssertFalse(insights.trialFilteredOut)
+        insights.filter(other)
+        XCTAssertTrue(insights.trialFilteredOut, "its fact is filtered out: the trial stays at the top")
+        insights.filter(nil)
+        XCTAssertEqual(insights.opens(fact.lens), !understanding.main.contains(fact.id), "its lens opens when Main does not hold it")
+        await insights.leave()
+        XCTAssertNil(insights.trial)
+        XCTAssertFalse(insights.trialFilteredOut)
+    }
+}

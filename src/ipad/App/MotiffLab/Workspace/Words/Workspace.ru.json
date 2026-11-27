@@ -188,5 +188,18 @@
   "library.title": "Библиотека",
   "recognition.choose": "Распознать ноты в нескольких пьесах",
   "reference.open": "Круг",
-  "reference.openHint": "Квартоквинтовый круг и тональности"
+  "reference.openHint": "Квартоквинтовый круг и тональности",
+  "compare.originalHint": "Слушать исходную фразу и показать её в нотах. Вариация остаётся, к ней можно вернуться.",
+  "compare.variationHint": "Слушать вариацию и показать её в нотах на своём месте.",
+  "compare.alternateHint": "Повторяет исходную фразу, затем вариацию, и снова.",
+  "compare.alternateVersionHint": "Повторяет фразу как в нотах, затем как в «{0}», и снова.",
+  "compare.versionHint": "Слушать фразу как в «{0}».",
+  "compare.notesHint": "Слушать фразу как в нотах.",
+  "focus.listen": "Что звучит",
+  "focus.original": "Оригинал",
+  "focus.variation": "Вариация",
+  "focus.alternate": "Поочерёдно",
+  "focus.versionHear": "Версия",
+  "focus.notes": "Ноты",
+  "padAssistant.open": "Спросить ассистента"
 }
