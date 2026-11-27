@@ -65,9 +65,6 @@ internal sealed record ReferenceMusic(
         ];
         return new PlacedMusic(notes, new TickSpan(at, Math.Max(1, Stretch(End.Value))));
     }
-
-    /// <summary>The ticks the music lasts on a timeline at <paramref name="timelineMicrosecondsPerQuarter"/>.</summary>
-    public long LengthOn(int timelineMicrosecondsPerQuarter) => Place(Tick.Zero, timelineMicrosecondsPerQuarter).Span.Duration;
 }
 
 /// <summary>The Reference's music on a piece's timeline: its notes there and the span of its bars.</summary>

@@ -15,26 +15,14 @@ namespace MotiffLab.MusicCore.Facade;
 internal static partial class Answer
 {
     /// <summary>
-    /// The three levels (0018, section 3; contract 3): the level shown, every level with its count, the edits per level and
-    /// the units of the level shown, a phrase with its mark (<see cref="Unit"/>); then "own", the player's boundaries as
-    /// «Ваших границ: N» counts them (<see cref="PhraseMap.OwnCount"/>), and "sections", where each section of the form
-    /// starts (the letter in its box): the section as Piece DNA writes it, with the phrase and the bar and beat it starts at;
-    /// and the phrase anchors (#318, <see cref="Anchors"/>).
+    /// The three levels (0018, section 3; contract 3): the edits per level and the units of the level shown, a phrase with
+    /// its mark (<see cref="Unit"/>; since contract 17 not the level shown nor every level with its count, which no app
+    /// read); then "own", the player's boundaries as «Ваших границ: N» counts them (<see cref="PhraseMap.OwnCount"/>), and
+    /// "sections", where each section of the form starts (the letter in its box): the section as Piece DNA writes it, with
+    /// the phrase and the bar and beat it starts at; and the phrase anchors (#318, <see cref="Anchors"/>).
     /// </summary>
     public static void Phrases(Utf8JsonWriter json, PhraseLevels levels, IReadOnlyList<DnaSection> sections, PhraseLevel shown, Words words, MeterMap meter, IReadOnlyList<PhraseAnchor> anchors)
     {
-        json.WriteString("level", PhraseLevels.Name(shown));
-        json.WriteStartArray("levels");
-        foreach (PhraseLevel level in PhraseLevels.All)
-        {
-            json.WriteStartObject();
-            json.WriteString("id", PhraseLevels.Name(level));
-            json.WriteBoolean("available", true);
-            json.WriteNumber("count", levels.Units(level).Count);
-            json.WriteEndObject();
-        }
-
-        json.WriteEndArray();
         json.WriteString("evidence", JsonWrite.Name(levels.Phrases.Evidence));
         LevelEdits(json, "edits", levels.Edits);
 

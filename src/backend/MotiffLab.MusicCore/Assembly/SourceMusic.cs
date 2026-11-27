@@ -127,8 +127,7 @@ public sealed record SourceMusic(IReadOnlyList<Note> Notes, IReadOnlyList<Assemb
         long context = Bars.Count > 0 ? Bars[0].Signature.BarTicks * 2 : CanonicalTime.TicksPerQuarter * 8;
         Tick from = new(Math.Max(0, start.Value - context));
         Tick to = end.Offset(context);
-        Note[] notes = [.. Notes.Where(note => note.Span.Onset >= from && note.Span.Onset < to)];
-        return MusicalKey.OfHeard(notes);
+        return MusicalKey.OfHeard(NotesIn(from, to));
     }
 
     /// <summary>The notes that start in <c>[start, end)</c>.</summary>

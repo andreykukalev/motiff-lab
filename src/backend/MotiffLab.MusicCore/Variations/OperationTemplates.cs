@@ -58,6 +58,20 @@ internal static partial class OperationTemplates
     private static Note[] Added(MotifTexture before, MotifTexture after) =>
         [.. after.Notes.Where(note => !before.Notes.Any(other => other.Id == note.Id))];
 
+    /// <summary>What a note is for comparing two versions of a passage whose ids may differ: its onset, length and pitch.</summary>
+    private static (long Onset, long Duration, int Pitch) Shape(Note note) => (note.Span.Onset.Value, note.Span.Duration, note.Pitch.MidiNumber);
+
+    /// <summary>Whether the melody is note for note the same, by <see cref="Shape"/>.</summary>
+    private static bool MelodyHeld(MotifTexture before, MotifTexture after) =>
+        before.Melody.Select(Shape).SequenceEqual(after.Melody.Select(Shape));
+
+    /// <summary>The key note names are spelt in: the passage's, else C major.</summary>
+    private static MusicalKey Spelling(MusicalKey? key) => key ?? new MusicalKey(0, KeyMode.Major);
+
+    /// <summary>From the first onset to the last end of a passage's notes.</summary>
+    private static TickSpan SpanOf(MotifTexture texture) =>
+        TickSpan.FromBounds(texture.Notes.Min(static note => note.Span.Onset), texture.Notes.Max(static note => note.Span.End));
+
     /// <summary>"3 notes", "3 ноты": a count of notes in the language.</summary>
     private static string NotesIn(int count, Words w) => w.Count(count, "note", "notes", "нота", "ноты", "нот");
 
@@ -79,11 +93,8 @@ internal static partial class OperationTemplates
     /// <summary>
     /// "beat 2 of bar 1", "beats 2, 3 and 4 of bar 1 and beat 1 of bar 2", from the meter, in order;
     /// in a bar with a position off the beat, each is named on its own: "beat 1 of bar 1 and 1 eighth
-    /// after beat 1 of bar 1".
+    /// after beat 1 of bar 1"; in Russian "доли 2 и 3 такта 1".
     /// </summary>
-    public static string Beats(IEnumerable<Tick> onsets, MeterMap meter) => Beats(onsets, meter, Words.English);
-
-    /// <summary>The beats in a language: "beats 2 and 3 of bar 1"; "доли 2 и 3 такта 1".</summary>
     public static string Beats(IEnumerable<Tick> onsets, MeterMap meter, Words words)
     {
         ArgumentNullException.ThrowIfNull(onsets);
