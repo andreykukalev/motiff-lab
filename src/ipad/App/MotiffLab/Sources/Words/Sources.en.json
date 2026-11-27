@@ -171,5 +171,8 @@
   "drafts.recordingSearching": "Searching the recordings…",
   "drafts.recordingNotFound": "No recording has this place's music.",
   "drafts.recordingFailed": "The recordings could not be searched. Try again.",
-  "drafts.recordingAlready": "Already a variant of this place: “{0}”"
+  "drafts.recordingAlready": "Already a variant of this place: “{0}”",
+  "drafts.newOnRecording": "On the recording: “{0}” · {1} % the same · {2}",
+  "drafts.newNotFound": "No recording has this music.",
+  "drafts.newWithAssistantHint": "Makes the draft, puts the stretch found on the recording in as a variant of ① and opens the assistant there. Pro."
 }

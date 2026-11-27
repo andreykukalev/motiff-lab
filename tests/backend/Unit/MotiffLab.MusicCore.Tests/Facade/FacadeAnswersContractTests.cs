@@ -237,6 +237,9 @@ public class FacadeAnswersContractTests
             ("drafts.findOnRecording", """{"draft":"d_0001","place":"pl_0001"}"""),
             ("drafts.undo", """{"device":"ipad","here":[],"draft":"d_0001"}"""),
         ],
+        // «Новый черновик» (version 1.5, d-11): bars 13–16 found on the recording n_2 before a draft is made, then made with it.
+        ["drafts.recording.new"] = [("drafts.findNewOnRecording", """{"bars":{"first":13,"last":16}}"""),
+            ("drafts.add", """{"device":"ipad","here":[],"bars":{"first":13,"last":16},"recording":"n_2","now":"2026-11-26T10:00:00Z"}""")],
         // The register at a seam (version 1.2, the plan's answer 3): bars 5–8 two octaves up after bars 1–4, the seam saying
         // «② на октаву выше» and offering «② на октаву ниже», a transposition by −12.
         ["drafts.register"] =
@@ -406,6 +409,7 @@ public class FacadeAnswersContractTests
         ["document.marks"] = ("Nocturne.pdf", _ => PdfWithABookmark()),
         ["drafts.techniques.heard"] = (Piece, WithAHeardVariant),
         ["drafts.recording"] = (Piece, data => Saved(WithARecording(data))),
+        ["drafts.recording.new"] = (Piece, data => Saved(WithARecording(data))),
     };
 
     private static readonly JsonSerializerOptions s_written = new()

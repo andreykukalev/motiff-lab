@@ -7,10 +7,40 @@ import Foundation
 extension SourcesController {
     /// «Добавить» on the sheet: the fragment `span` of the notes shown on `piece` (this piece, or notes opened only to be
     /// shown over it, whose drafts are this piece's) goes where `choice` says; into another piece's draft, by
-    /// `addElsewhere`. False, with why in `status`, when music-core refused it.
+    /// `addElsewhere`. False, with why in `status`, when music-core refused it; false too, `status` untouched, while another
+    /// is on its way (`stepping`: a second tap of «Добавить» or «Создать» makes no second draft, v1.5 d-11).
     func addToDraft(_ choice: DraftChoice, span: Range<Double>, from piece: Int32) async -> Bool {
+        // E-drafts-4: one at a time.
+        guard !stepping else { return false }
+        stepping = true
+        defer { stepping = false }
         if let other = choice.into.elsewhere { return await addElsewhere(choice, into: other, span: span, from: piece) }
         return await change(.draftsAdd, choice.fields(span: span, now: Self.now()), on: piece) != nil
+    }
+
+    /// «С ассистентом · Pro» on the card «Новый черновик» (v1.5 d-11, DRAFT-11): the new draft `choice` makes, its first
+    /// place the passage `span` of the notes shown on `piece`, with the stretch of the recording `found` on (its Notes,
+    /// "recording") as a variant of that place, in one change music-core makes and the file saves; the new draft's id, or
+    /// nil, with why in `status`, when music-core refused it (the recording no longer has that music), or, `status`
+    /// untouched, while another is on its way (`stepping`).
+    func createWithRecording(_ choice: DraftChoice, found: DraftRecordingAnswer.Found, span: Range<Double>, from piece: Int32) async -> String? {
+        guard choice.into == .new, !stepping else { return nil }
+        stepping = true
+        defer { stepping = false }
+        var fields = choice.fields(span: span, now: Self.now())
+        fields["recording"] = found.notes
+        return await change(.draftsAdd, fields, on: piece)?["draft"] as? String
+    }
+
+    /// The card «Новый черновик» shown (v1.5 d-11; spec «Ноты + запись»): what music-core finds on the piece's recordings
+    /// heard as notes for the passage `span` of the notes shown on `piece`, the part `part` of it, before any draft is made
+    /// (`drafts.findNewOnRecording`, read only); nothing searched on a piece with no recording heard (as «Найти на записи»),
+    /// and nothing to say where the only one is the recording the passage is selected in (music-core searched none).
+    func findNewOnRecording(span: Range<Double>, part: String, from piece: Int32) async -> DraftRecordingOffer {
+        guard hasHeardNotes else { return .noRecording }
+        let fields: [String: Any] = ["span": ["onset": Int(span.lowerBound), "end": Int(span.upperBound)], "part": part]
+        let found = await PieceCore(piece: piece).draftNewRecording(facadeRequest(fields))
+        return DraftRecordingOffer(new: found.value, refused: found.message)
     }
 
     /// The fragment into the draft of another piece (v1.2, collage, the plan's answer 5): music-core takes it into that

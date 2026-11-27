@@ -145,5 +145,8 @@
   "folderImport.recheck": "Check the folder",
   "rollMode.label": "Piano roll mode",
   "padAssistant.accepted": "The draft is accepted. The correction is in My corrections.",
-  "padAssistant.new": "New conversation"
+  "padAssistant.new": "New conversation",
+
+  "drafts.techniqueCount.one": "{0} technique",
+  "drafts.techniqueCount.many": "{0} techniques"
 }

@@ -287,12 +287,17 @@ struct ShownDraftScreen: View {
     @StateObject private var assistant = AssistantController()
     let owner: SourcesController
     let viewing: String
+    /// Opened by «С ассистентом · Pro» on the card «Новый черновик» (v1.5 d-11): the map open, the assistant on ①, once,
+    /// as the screen first shows.
+    @State private var assisting: Bool
 
-    init(piece: OpenPiece, owner: SourcesController, viewing: String) {
+    init(piece: OpenPiece, owner: SourcesController, viewing: String, assisting: Bool = false) {
         _piece = State(initialValue: piece)
         _visit = State(initialValue: DraftVisitPieces(showing: piece.id))
+        _map = State(initialValue: assisting ? .places : nil)
         self.owner = owner
         self.viewing = viewing
+        _assisting = State(initialValue: assisting)
     }
 
     var body: some View {
@@ -301,6 +306,19 @@ struct ShownDraftScreen: View {
             .id(piece.id)
             // Outside the view's identity, so only the whole screen going leaves the visit, not the view opened again.
             .background { Color.clear.onDisappear { visit.leave() } }
+            .onAppear {
+                guard assisting else { return }
+                assisting = false
+                Self.assist(assistant, on: piece.draft)
+            }
+    }
+
+    /// The assistant opened on the first place of `draft` where it is offered there (a variant besides its base), in the
+    /// role the map's «С ассистентом · Pro» opens it in (v1.5 d-11); it stays as the visit's first piece is read
+    /// (`AssistantController.load`).
+    static func assist(_ assistant: AssistantController, on draft: DraftViewAnswer.Draft?) {
+        guard let draft, let first = draft.places.first, DraftAssistantSection.offered(first) else { return }
+        assistant.openInDraft(DraftAssistantSection.named(first, of: draft), role: AssistantDraftPlace.roles(bridge: first.bridge)[0])
     }
 
     /// The draft opened again by `drafts.open`, at `landing`'s tick, else at its start; as it was when it cannot be, and

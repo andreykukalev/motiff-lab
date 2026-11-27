@@ -99,16 +99,17 @@ extension ScoreWorkspace {
         show(ScoreScreenContent.ShownView(piece: opened, pdf: false))
     }
 
-    /// A draft's view: its places as one score, its labels above them, on a screen of its own over this one; why not, in
-    /// the sheet.
-    private func showDraft(_ id: String, show: (ScoreScreenContent.ShownView) -> Void) async {
+    /// A draft's view: its places as one score, its labels above them, on a screen of its own over this one, with its map
+    /// and the assistant on its first place when `assisting` (v1.5 d-11, «С ассистентом · Pro» on the card «Новый
+    /// черновик»); why not, in the sheet.
+    func showDraft(_ id: String, assisting: Bool = false, show: (ScoreScreenContent.ShownView) -> Void) async {
         guard let draft = sources.layers.draft(id) else { return }
         if player.state == .playing { player.toggle() }
         guard let opened = await sources.openDraft(draft) else {
             change(.open(.versions))
             return
         }
-        show(ScoreScreenContent.ShownView(piece: opened, pdf: false))
+        show(ScoreScreenContent.ShownView(piece: opened, pdf: false, assisting: assisting))
     }
 
     /// The piece opened again in this screen's place from its project file, as «Сделать рабочими» or the toast's Undo has

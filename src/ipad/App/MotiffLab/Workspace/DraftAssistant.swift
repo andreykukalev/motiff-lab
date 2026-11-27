@@ -46,13 +46,7 @@ struct DraftAssistantSection: View {
         if let talk = shownTalk {
             section(talk)
         } else {
-            Button { assistant.openInDraft(here, role: roles[0]) } label: {
-                HStack(spacing: CGFloat.ds("s-1")) {
-                    Icon(name: "insight", size: CGFloat.ds("icon-s"))
-                    Text(text["drafts.withAssistant"]).dsType(.label)
-                    ProTag()
-                }
-            }
+            Button { assistant.openInDraft(here, role: roles[0]) } label: { DraftAssistantLabel(text: text) }
             .buttonStyle(DSButtonStyle(kind: .quiet, compact: true))
             .accessibilityHint(text[place.bridge ? "drafts.withAssistantBridgeHint" : "drafts.withAssistantHint"])
         }
@@ -216,6 +210,20 @@ struct DraftAssistantSection: View {
 
     private func signIn() {
         Task { await account.signIn() }
+    }
+}
+
+/// «С ассистентом · Pro», the words of the assistant's button in a draft: on a place's card of the map, and since v1.5
+/// (d-11) on the card «Новый черновик», which the screen hands it (`DraftSheet.assistLabel`).
+struct DraftAssistantLabel: View {
+    let text: UIText
+
+    var body: some View {
+        HStack(spacing: CGFloat.ds("s-1")) {
+            Icon(name: "insight", size: CGFloat.ds("icon-s"))
+            Text(text["drafts.withAssistant"]).dsType(.label)
+            ProTag()
+        }
     }
 }
 
