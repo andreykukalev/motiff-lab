@@ -423,7 +423,7 @@ struct CheckDrawer<MarksReading: View>: View {
                     editsOn: checkModel.editsOn, busy: checkModel.puttingVariant, text: text, choose: { checkModel.chooseVariant($0, bar: bar.bar) }, undo: { checkModel.undoVariant() }
                 )
             }
-            FlowRow(spacing: CGFloat.ds("s-2")) {
+            FlowLayout(spacing: CGFloat.ds("s-2"), alignment: .top) {
                 Button(text["scanCheck.show"]) { checkModel.showCheckBar(bar.bar) }
                     .buttonStyle(DSButtonStyle(kind: .secondary, compact: true))
                     .disabled(bar.span == nil)
