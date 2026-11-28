@@ -51,7 +51,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
 - Its views, each in its own file, handed what they show and the actions they call, so a new layout can place them
   elsewhere without touching what they do: `ScoreBar.swift` (`TopBar` docked: Back, Contents, the title, the switch,
   the pages, the modes, ⓘ and its list, the Circle, Insights, More); `Pill.swift` (Play, the chip back to the playing, Цикл, ‹ › | the tempo, the
-  hands, the metronome | the roll, the assistant; full, compact with «⋯», tight, the chip in «⋯»; 44 pt by `itemReach`, 0 in the tempo's popover); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
+  hands, the metronome | the roll, the assistant; full, compact with «⋯», tight, the chip in each; 44 pt by `itemReach`, 0 in the tempo's popover); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
   `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`; «Что не так?» in More on notes read from a PDF, v1.6 c-14b3); `FocusBar.swift` (with `FocusShowAs`,
   `FocusRollCard`); `HearingSwitch.swift` (also the Insights sheet's); `InsightsSheet.swift`
   ([`insights.md`](insights.md)); `SourcesSheet.swift` ([`sources.md`](sources.md), v1.6 i-13); `SettingsSheet.swift`
