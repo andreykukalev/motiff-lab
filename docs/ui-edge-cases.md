@@ -44,10 +44,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   strip over the pages; the Pencil's palette stays within the pages between the strips; the Sources panel takes the lower
   half of the room and its toast stands a gap (s-3) above the shelf; the keyboard never changes the screen's size there
   either · as on the notes (E-score-3, E-score-4, E-score-5) · v1.7 e-2
-- `E-pdf-3` · The PDF's bottom shelf while the metronome is off, and in a narrow Split View · the shelf stays, empty, so
-  the pages never move as the metronome's pill comes and goes and the room is the notes' (VIEW-04); the pill lies in its
-  middle, where the notes' shelf has the metronome, every control a 44 pt target, and scrolls sideways where the shelf is
-  narrower than it · a toolbar keeps its place (Apple HIG, toolbars); the bar's last form (`TopBar`) · v1.7 e-2
+- `E-pdf-3` · The PDF's bottom shelf, which has no Play or tempo, and in a narrow Split View · the shelf is always there,
+  so the pages never move and the room is the notes' (VIEW-04); the metronome moves from the PDF's bar to its middle,
+  where the notes' shelf has it, the same item (a tap starts it, held a slide sets the tempo); its pill stands in the
+  item's place while open, every control a 44 pt target, and scrolls sideways where the shelf is narrower than it;
+  ✕ puts it away and the item comes back · the lead's decision of 2026-11-28 (the notes' shelf); the bar's last form
+  (`TopBar`) · v1.7 e-2
 - `E-pdf-4` · A PDF's page brought to rest (opening, PDF | Notes, a turn of the iPad, the Contents) and the first page at
   the top of the document, with no bar over the pages any more · a page rests s-4 below the top strip, as the notes'
   page does; the first page at the top rests below PDFKit's own page break (s-4 at the pages' scale), no room kept above

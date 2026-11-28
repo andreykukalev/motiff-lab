@@ -9,6 +9,7 @@
   "focus.collapse": "Свернуть",
   "focus.collapseHint": "Назад к роллу, как он был (Escape)",
   "focus.position": "{0} · {1} {2} из {3}",
+  "metronome.label": "Метроном",
   "metronome.start": "Запустить метроном",
   "metronome.stop": "Остановить метроном",
   "metronome.slower": "Медленнее",

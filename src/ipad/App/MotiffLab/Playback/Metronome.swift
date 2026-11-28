@@ -324,7 +324,8 @@ extension Metronome {
 
 /// The metronome's pill (the web app's `.metronome-pill`): start and stop, slower, the tempo tapped in time on its number,
 /// faster, the beats to the bar and a dot for each beat, the one sounding now filled and the first a little larger. Since
-/// v1.7 e-2 it lies on the PDF view's bottom shelf, the shelf's surface its own, every control a fingertip (`itemReach`).
+/// v1.7 e-2 it lies on the PDF view's bottom shelf in the metronome's place while it is open, the shelf's surface its own,
+/// every control a fingertip (`itemReach`).
 struct MetronomePill: View {
     @ObservedObject var metronome: Metronome
     let text: UIText
@@ -411,15 +412,13 @@ struct MetronomePill: View {
 }
 
 
-/// The metronome's button, on the score's pill and on the PDF view's bar (#521 section 15): a tap starts or stops it at
+/// The metronome's button, on the bottom shelf of the notes and of the PDF view (#521 section 15, v1.7 e-2): a tap starts or stops it at
 /// once; held for a moment, it shows the tempo over the button, and a slide up or right makes it faster, down or left
 /// slower, one beat a minute each `s-1`; letting go keeps that tempo for the piece. A finger or the Pencil alike, and
 /// VoiceOver's swipe up and down. The tap is the button's own for VoiceOver, so the button keeps its trait and label.
 struct MetronomeHold: ViewModifier {
     @ObservedObject var metronome: Metronome
     let text: UIText
-    /// The tempo shows under the button rather than over it: the PDF view's bar is at the top of the screen.
-    var below = false
     let toggle: () -> Void
     /// How far the finger slid since the hold, or nil while the button is not held.
     @GestureState private var held: CGSize?
@@ -442,7 +441,7 @@ struct MetronomeHold: ViewModifier {
     func body(content: Content) -> some View {
         content
             .highPriorityGesture(hold.exclusively(before: TapGesture().onEnded { toggle() }))
-            .overlay(alignment: below ? .bottom : .top) {
+            .overlay(alignment: .top) {
                 if let held {
                     Text(verbatim: "\(metronome.note) = \(MetronomeTempo.dragged(from: metronome.bpm, by: held, step: step))")
                         .dsType(.label)
@@ -453,7 +452,6 @@ struct MetronomeHold: ViewModifier {
                         .padding(.vertical, CGFloat.ds("s-2"))
                         .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
                         .alignmentGuide(.top) { $0[.bottom] + CGFloat.ds("s-2") }
-                        .alignmentGuide(.bottom) { $0[.top] - CGFloat.ds("s-2") }
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }

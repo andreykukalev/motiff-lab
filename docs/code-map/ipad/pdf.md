@@ -25,9 +25,9 @@ composes the features, as the score's does). The pen on the PDF's pages is `Ink/
 room between the strips with the pages on the desk (`desk`), what hangs under the strip, the Pencil's palette and the
 Sources panel, then the bottom shelf; the sheets) and its life (`.task` loads, `onDisappear` and the background save).
 Its parts, extensions beside it: `PdfScreenBar.swift` (the strips, as the notes' `ScoreScreenBars`: the bar, Back and
-the Contents, the switch of views or the PDF tag, Recognise notes, the bookmark, the metronome, the modes, the
-Reference, More; `underStrip`: the library's recognition line, the Pen's palette, the recording heard; `shelf`: the
-metronome's pill while open, the shelf kept while it is not), `PdfScreenReading.swift` (Recognise
+the Contents, the switch of views or the PDF tag, Recognise notes, the bookmark, the modes, the Reference, More;
+`underStrip`: the library's recognition line, the Pen's palette, the recording heard; `shelf`: in its middle the
+metronome, the notes' item, and its pill in its place while open), `PdfScreenReading.swift` (Recognise
 notes: the panel, the scan server, the library's recognition in the background, `fill` puts the notes into this same
 piece), `PdfScreenSources.swift` (PDF | Notes and the switch of all views, Sources, `reopenHere`, `reopening`, a new
 interface language). With notes, the switch of all views and Sources are in the bar; a PDF of the piece's own with no

@@ -108,7 +108,7 @@ extension Walk {
 
     /// A PDF piece (0023): its pages, the pen, More and the metronome.
     func pdfPiece() throws {
-        try need(button("Метроном"), "the metronome in the PDF's bar")
+        try need(button("Метроном"), "the metronome on the PDF's shelf")
         shot("40-pdf-piece", settle: 2)
         try press(button("Перо"), "the Pen on the PDF")
         try settled(button("Убрать карандаш"), "the PDF's pen palette")
@@ -121,7 +121,7 @@ extension Walk {
         try dismissPopover()
         // A known issue, not a pass: strict (the day the pill shows, the walk fails saying the expected failure did not
         // come) and narrow (only the pill's own assertion is expected to fail).
-        try press(button("Метроном"), "the metronome in the PDF's bar")
+        try press(button("Метроном"), "the metronome on the PDF's shelf")
         let pill = button("Убрать метроном")
         let options = XCTExpectedFailure.Options()
         options.isStrict = true
@@ -134,7 +134,7 @@ extension Walk {
             shot("42-pdf-metronome", settle: 1)
             try press(pill, "Close the metronome")
         } else {
-            print("SCREEN-QUESTION metronome \(tag): no pill after the PDF's Метроном in the simulator; to be checked on an iPad")
+            print("SCREEN-QUESTION metronome \(tag): no pill after the PDF shelf's Метроном in the simulator; to be checked on an iPad")
         }
     }
 }

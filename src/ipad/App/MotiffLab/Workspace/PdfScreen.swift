@@ -2,9 +2,9 @@ import SwiftUI
 
 /// A PDF piece's screen (0023, the web app's `/pdf`): the score's paper with the printed pages on it, between the two strips
 /// of «Пюпитр» as on the notes (spec score-reading §2, §3, v1.7 e-2): the top strip with the way back, the title, which
-/// opens the bookmarked pages, the page in view, the PDF tag, the bookmark for the page, the metronome, the pen and the
-/// overflow with Download the PDF; the bottom shelf with the metronome's pill while it is open. The pen's palette hangs
-/// under the top strip as on the notes. No notes play here.
+/// opens the bookmarked pages, the page in view, the PDF tag, the bookmark for the page, the pen and the overflow with
+/// Download the PDF; the bottom shelf with the metronome in its middle, as on the notes, and its pill there while it is
+/// open. The pen's palette hangs under the top strip as on the notes. No notes play here.
 struct PdfScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
