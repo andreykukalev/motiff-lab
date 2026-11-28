@@ -144,7 +144,7 @@ struct AssistantHereCard: View {
 /// KeyboardRoom keeps a panel's content clear of it; nothing else on the screen moves. The lift is worked out from where
 /// the chat is laid out, which the lift does not move (its frame is read outside the offset), so it never feeds back.
 ///
-/// With `barOnly` (the pill, v0.6.4) it rises only above the bar a hidden keyboard leaves (iPadOS's shortcuts bar with the
+/// With `barOnly` (the pill, v0.6.4; the bottom shelf since v1.7 e-1) it rises only above the bar a hidden keyboard leaves (iPadOS's shortcuts bar with the
 /// language and Undo, while a field is focused without the keyboard: a Pencil's press, a hardware keyboard), never above the
 /// whole keyboard, which the screen ignores.
 struct KeyboardLift: ViewModifier {

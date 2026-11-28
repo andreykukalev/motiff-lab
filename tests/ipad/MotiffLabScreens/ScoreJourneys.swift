@@ -16,9 +16,25 @@ extension Walk {
         // The piano roll and the assistant are the pill's (Andrei's 0.8 test, findings 7 and 8).
         try need(button("Фортепианный ролл"), "the piano roll in the pill")
         try need(button("Ассистент"), "the assistant in the pill")
+        try pageBetweenStrips()
         shot("10-score", settle: 1.5)
         try play("on the piece")
         try stop()
+    }
+
+    /// «Пюпитр» (spec score-reading §3.1, v1.7 e-1): the page lies exactly between the two strips, the top strip and the
+    /// bottom shelf, each across the page's whole width, so neither covers any of it.
+    func pageBetweenStrips() throws {
+        let top = try need(app.otherElements["ml-top-strip"], "the top strip").frame
+        let shelf = try need(app.otherElements["ml-bottom-shelf"], "the bottom shelf").frame
+        guard let page = app.webViews.allElementsBoundByIndex.max(by: { $0.frame.height < $1.frame.height })?.frame else {
+            throw miss("the score's page is not there")
+        }
+        let line = "top strip to \(Int(top.maxY)), page \(Int(page.minY))–\(Int(page.maxY)), shelf from \(Int(shelf.minY))"
+        guard page.minY >= top.maxY - 1, page.maxY <= shelf.minY + 1, top.width >= page.width, shelf.width >= page.width else {
+            throw miss("the page is not between the strips: \(line)")
+        }
+        print("SCREEN-STRIPS \(tag): \(line)")
     }
 
     /// PLAY-04: a selection, its loop, and a new selection while it plays. Цикл is on from the launch and kept with no

@@ -74,7 +74,6 @@ final class WorkspaceScenarioTests: XCTestCase {
         let score = workspace.score
         await session.step("the screen opens, its sound not loaded") {
             workspace.wire()
-            session.appear()
             workspace.applyModel()
         }
         await session.step("bars 1–2 are selected where nothing was") { await score.select(request: Self.bars(1, 2), step: false) }
@@ -194,7 +193,6 @@ final class WorkspaceScenarioTests: XCTestCase {
         let score = workspace.score
         await session.step("the screen opens, its sound not loaded") {
             workspace.wire()
-            session.appear()
             workspace.applyModel()
         }
         await session.step("bars 5–6 are selected where nothing was") { await score.select(request: Self.bars(5, 6), step: false) }
@@ -218,7 +216,6 @@ final class WorkspaceScenarioTests: XCTestCase {
         let workspace = session.workspace
         await session.step("the screen opens, its sound not loaded") {
             workspace.wire()
-            session.appear()
         }
         await session.step("Insights opens") { workspace.change(.toggle(.insights)) }
         await session.step("Sources opens over Insights") { workspace.change(.open(.versions)) }
@@ -260,7 +257,6 @@ final class WorkspaceScenarioTests: XCTestCase {
     /// What the view's three tasks do as the screen appears, one after another: `appeared`, `loadOriginals`,
     /// `loadSources`; `reopen` is the library's way to open the piece again in the screen's place.
     private func appear(_ session: WorkspaceSession) async {
-        session.appear()
         await session.workspace.appeared()
         await session.workspace.loadOriginals()
         await session.workspace.loadSources(reopen: { session.say("the library opens the piece again at \(Self.words($0))") }, pick: { _ in })
@@ -382,7 +378,6 @@ final class WorkspaceScenarioTests: XCTestCase {
         }
         await session.step("the screen opens, its sound not loaded") {
             workspace.wire()
-            session.appear()
         }
         await session.step("the piece itself is added as another version, and the sources are read") {
             await workspace.score.sourcesModel.addVersion(fileName: example.fileName, data: example.data)

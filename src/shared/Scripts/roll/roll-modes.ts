@@ -131,7 +131,7 @@ export interface PositionMark {
 
 /**
  * The one playhead the roll shows (#543 6, lead decision 5): at the position P always, playing or stopped, as the blue one
- * (`blue` at P) while P is inside the selection and the selection's playhead shows (not in practice view, practiced), else
+ * (`blue` at P) while P is inside the selection, else
  * as the black one (`blue` null). The blue playhead waiting at the selection's edge while P is outside it (viewOf) is not
  * drawn on the roll, nor taken: there are never two indicators of two places, and the marker is where the line is.
  */

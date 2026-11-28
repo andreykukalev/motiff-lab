@@ -14,7 +14,7 @@ stays in the painter. Tests: `tests/shared/roll-press.test.mjs` (the table) and 
   Select by place › touch-reading pan › the old edge › strips or the loop lane › the editor › the modes (R8) › a note.
   Facts with a hit test are asked lazily, in that order; `CLICK_SLOP`, the distance a tap may move.
 - `roll-pointer-rules.ts`: `RollPointers`, the host's pointer rules (`setRules`, `setPlace`) and what they say of a
-  pointer: `editsWith`, `selectsWith`, `navigates`, `penHolds`, `waitsForLift`, `placeSelects`, `inHiddenLane`.
+  pointer: `editsWith`, `selectsWith`, `navigates`, `penHolds`, `waitsForLift`, `placeSelects`.
 - `roll-fingers.ts`: `RollFingers`, two fingers pinch the zoom (on each axis in touch reading), one finger moves the
   roll (`movePan`, shared with the Navigate hand); a second finger lets go of what the first began; a lost first
   finger's end is cleared (`staleGesture`).

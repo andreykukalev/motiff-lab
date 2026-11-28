@@ -5,7 +5,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
 ## Files
 
 `Expand`, `FocusModel`, `Metronome`, `Piano`, `PlaybackEngine`, `PlaybackPosition`, `Player`, `PlayheadDrag`, `PositionTransport`,
-`Practice`, `PracticeView`, `Tempo` (`.swift`).
+`Practice`, `Tempo` (`.swift`).
 
 - `FocusModel.swift` (S3, ADR 0031 section 3): Expand's state (whether it is open, the way back, the card as a roll,
   its options and ossia, the version in focus) and the play range, reading `SelectionModel`; the views observe it (S7b,
@@ -32,8 +32,6 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Playback`.
   keeper, v1.5 a-2, answer 29), and one clicking with the piece stops before the pause unlocks it
   (`Metronome.stopWithSystemPause`), not with the player's. A sound that cannot load is `problem`, `playback.failed` (ru, en). Tests:
   `MotiffLabTests/PlayerHeardTests`, `PlayerInterruptionTests`.
-- `PracticeView.swift`: the two visibilities (`selectionControlsShown`, `playbackControlsShown`, #582 item 10), two
-  switches under the bar's button, nothing over them, kept on the device (`PracticeView.saved`/`keep`, v0.6.4 spec 9).
 
 ## The contract others may rely on
 
@@ -53,7 +51,7 @@ taps stay `seek` (T12, Цикл off outside the selection). The rest: not record
 `playRange` and the version's notes to hear ([ADR 0031](../../architecture/adr/0031-ipad-score-modules.md), the notes
 of S3 and S7c).
 
-The practice visibilities (`PracticeView`); the selection, Цикл and the lead-in (`Player`, written only from the model's
+The selection, Цикл and the lead-in (`Player`, written only from the model's
 decisions, the lead-in also ended in `poll` once the position reaches the selection). The rest: not recorded yet.
 
 ## Baseline entries that protect it

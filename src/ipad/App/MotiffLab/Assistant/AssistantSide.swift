@@ -8,8 +8,8 @@ extension ScoreScreen {
     }
 }
 
-/// The full assistant's panel where it goes (#582 item 17.1): at the right of the screen under the bar, above the roll's
-/// drawer when it is open, the score narrowed beside it (ScoreScreen.layers), as a sheet at the side is drawn.
+/// The full assistant's panel where it goes (#582 item 17.1): at the right of the page between the strips (v1.7 e-1), above
+/// the roll's drawer when it is open, the score narrowed beside it (ScoreScreen.layers), as a sheet at the side is drawn.
 struct AssistantSide: View {
     @ObservedObject var assistant: AssistantController
     let text: UIText
@@ -29,7 +29,7 @@ struct AssistantSide: View {
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
             .dsShadow("shadow-sheet")
             .frame(width: ScoreScreen.assistantWidth(landscape: landscape))
-            .padding(.top, gap + CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
+            .padding(.top, gap)
             .padding(.trailing, gap)
             .padding(.bottom, drawer > 0 ? drawer + gap : gap)
             .transition(.move(edge: .trailing).combined(with: .opacity))

@@ -75,7 +75,6 @@ final class RollPageContractTests: XCTestCase {
         await page.highlight([RollLitPlace(onset: 0, end: 720, noteIds: ["n_0001"])])
         await page.edit(RollEditorShown(on: true, tool: "move", picked: "n_0001"))
         await page.lanes(true)
-        await page.practice(false)
         await page.input(RollPlaceInput(stylus: true).added(to: RollInput(stylus: true, mode: .navigate, tool: .select).page))
         await page.shape(RollPickShape.lasso.rawValue)
         await page.zoom(RollController.ZoomAxis.time.rawValue, 1)

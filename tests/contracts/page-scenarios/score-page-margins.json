@@ -3,7 +3,7 @@
   "protects": [
     "VIEW-03"
   ],
-  "says": "A page of the score keeps its paper margins at the top and the bottom, the systems spread down to the bottom one, and the pages start below the floating bar and end above the pill.",
+  "says": "A page of the score keeps its paper margins at the top and the bottom, the systems spread down to the bottom one, and the pages start and end a margin from the page's edges, which since v1.7 e-1 are the two strips («Пюпитр»).",
   "page": "score",
   "fixture": "fur-elise-score.json",
   "steps": [
@@ -72,17 +72,17 @@
           "paper": {
             "pages": [
               {
-                "top": 72,
-                "bottom": 1430,
+                "top": 16,
+                "bottom": 1374,
                 "inkTop": 163,
                 "inkBottom": 112
               }
             ],
-            "above": 72,
-            "below": 84
+            "above": 16,
+            "below": 16
           }
         },
-        "note": "the A4 page 1358 px high; the bars' ink 163 px below its top (the 20 mm margin and the title) and 112 px above its bottom (the 20 mm margin and less than a grand staff); 72 px above the page for the floating bar, 84 px below it for the pill"
+        "note": "the A4 page 1358 px high; the bars' ink 163 px below its top (the 20 mm margin and the title) and 112 px above its bottom (the 20 mm margin and less than a grand staff); 16 px above the page and below it, to the strips that frame the page (v1.7 e-1)"
       }
     }
   ]

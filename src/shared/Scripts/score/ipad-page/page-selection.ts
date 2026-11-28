@@ -23,8 +23,6 @@ export let places: PlaceLayer;
 let chosen: PageSelection | null = null;
 /** The tuplets of the engraved pages, each one block for the selection's grid. */
 let tuplets: GridSpan[] = [];
-/** Whether the selection's handles and menu show (#582 item 10). */
-let selectionShown = true;
 
 /**
  * The menu's stand-in: an invisible box the size of Swift's menu, which the selection layer places over the band as
@@ -193,8 +191,7 @@ let handlesReported = "";
  * Pencil does not write there (#479 item 18).
  */
 function reportHandles(): void {
-    // Hidden with the selection controls (#582 item 10), they take no touch and keep the Pencil from nothing.
-    const handles = !selectionShown ? [] : [...document.querySelectorAll<HTMLElement>("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
+    const handles = [...document.querySelectorAll<HTMLElement>("body > .sel-handle")].map((handle) => ({ x: parseFloat(handle.style.left) || 0, y: parseFloat(handle.style.top) || 0 }));
     const key = JSON.stringify(handles);
     if (key !== handlesReported) {
         handlesReported = key;
@@ -259,14 +256,4 @@ export function menuSize({ width, height }: Parameters<PageCommands["menuSize"]>
     menu.style.width = `${width}px`;
     menu.style.height = `${height}px`;
     selection.placeMenu();
-}
-
-/**
- * The selection controls (#582 item 10, PracticeView.swift): hidden, the selection's handles go with the menu (score.css),
- * whatever practice view does; the selection's band stays.
- */
-export function selectionControls(shown: boolean): void {
-    selectionShown = shown !== false;
-    document.body.toggleAttribute("data-selection-hidden", !selectionShown);
-    reportHandles();
 }

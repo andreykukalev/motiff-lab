@@ -8,7 +8,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Roll`.
 roll itself and the Swift side are mapped in [`../roll.md`](../roll.md).
 
 - `RollController.swift`: the web view, its holders (`ScoreRollView`, `RollHolder`) and what the roll is told and kept
-  for a load again (selection, tuplets, highlight, editor, input, passage, lanes, practice, position); the notes it
+  for a load again (selection, tuplets, highlight, editor, input, passage, lanes, position); the notes it
   loads come typed from `PieceCore.roll` (`RollAnswer`, B7); every call into the page
   goes through its `RollPage` (`Platform/RollPage.swift`) and every message comes in decoded as `RollEvent`s
   (`received` → the callbacks `picked`, `cleared`, `spanPicked`, `notesPicked`, `playheadMoved`, `noteEdited`, …).

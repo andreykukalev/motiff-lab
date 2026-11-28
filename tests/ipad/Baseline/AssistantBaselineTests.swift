@@ -57,7 +57,6 @@ final class AssistantBaselineTests: XCTestCase {
         let player = session.workspace.player
         await session.step("the piece's screen opens, its sound not loaded") {
             session.workspace.wire()
-            session.appear()
             session.workspace.applyModel()
         }
         let loop = AssistantPracticeOffer(first: 3, last: 4, hand: "both", tempo: 60, loop: true, label: "Зациклить такты 3–4 в темпе 60 %")

@@ -45,10 +45,10 @@ the modules against it, and that `Web/score.js` holds no page code; `ScorePageCo
 - `page-marks.ts`: margin notes and highlights (`notes`), Check flags (`checks`), `layers`, `tint`, highlight bands.
 - `page-versions.ts`: another version's or a draft's labels, numbers and seams (`performance`), tints, taken bars.
 - `page-selection.ts`: the menu's stand-in, `SelectionLayer` and `PlaceLayer` (`selection`, `places`), `select`,
-  the menu commands, `beats`, `clearLeft`, `selectionControls`, the grid and tuplets; reports `menu`, `handles`.
+  the menu commands, `beats`, `clearLeft`, the grid and tuplets; reports `menu`, `handles`.
 - `page-colouring.ts`: the pen's colour bars (`colouring`, a second `PlaceLayer`), `gridCell` for the eraser.
 - `page-playheads.ts`: the playback model's playheads (`playheads`, `heads`, `grabs`, `press`), the line of before
-  the modes, `practice`, `returnToPlayhead`, `heads`/`playheadAway` reports.
+  the modes, `returnToPlayhead`, `heads`/`playheadAway` reports.
 - `page-sounding.ts`: `playing` (notes sounding, following), `writing`, the hand-scroll listener.
 - `page-card.ts`: focus (`focus`, `card`): the card, its ossias, its playhead and taps; `cardLayout`, `leave`.
 - `page-taps.ts`: `mode`, `input`, `pen`; the click on the page (marks, bars, the beat under the modes).

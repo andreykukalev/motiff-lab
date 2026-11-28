@@ -39,6 +39,7 @@ test("the menu dragged goes as far as the pointer, inside the window and clear o
     assert.deepEqual(movedSpot({ left: 400, top: 200 }, 2000, 2000, size, room), { left: 1180 - 16 - 300, top: 820 - 16 - 44 }, "never off the window");
     assert.deepEqual(keptInside({ left: 0, top: 0 }, size, { ...room, left: 332, bottom: 500 }), { left: 348, top: 72 }, "below the bar, right of the Contents");
     assert.equal(keptInside({ left: 400, top: 700 }, size, { ...room, bottom: 500 }).top, 500 - 16 - 44, "above a drawer over the foot");
+    assert.equal(keptInside({ left: 400, top: 0 }, size, { ...room, top: 16 }).top, 16, "between the iPad's strips: below the page's top (v1.7 e-1)");
 });
 
 test("a short move on the menu is a tap on its button; a longer one drags it; closed, it forgets where it went (#582 7)", () => {

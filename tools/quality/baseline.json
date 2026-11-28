@@ -135,7 +135,6 @@
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Platform/ViewStates.swift","symbol":"Selection: ScoreSelection","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Platform/ViewStates.swift","symbol":"Selection: SelectionSpan","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Playback/PositionTransport.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
-    {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Playback/PracticeView.swift","symbol":"Workspace: ScoreController","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Reference/Reference.swift","symbol":"Insights: KeyCircle","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Reference/Reference.swift","symbol":"Playback: Piano","why":"folder edge known when the check was added (B1b, #641)"},
     {"tool":"dependencies","rule":"ipad-folder","file":"src/ipad/App/MotiffLab/Reference/Reference.swift","symbol":"Playback: PlaybackScore","why":"folder edge known when the check was added (B1b, #641)"},

@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// A piece's score (0018 section 2, design/kit/screens/s2_score_page.png): the score is the whole screen, A4 pages in one
-/// column in portrait and two to a row in landscape, with the pencil marks on them (0019 section 2.2). Verovio's SVG is in
-/// one web view that runs the web app's score modules (ScoreController, Web/score.html). Nothing is docked: the bar floats
-/// over the top with the way back, the title, the pages in view and the actions, and the pill floats at the bottom with
-/// play, the tempo and the metronome. Colours come from the design kit's tokens, Daylight or Night with
-/// the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
+/// A piece's score (0018 section 2, design/kit/screens/s2_score_page.png): A4 pages in one column in portrait and two to a
+/// row in landscape, with the pencil marks on them (0019 section 2.2). Verovio's SVG is in one web view that runs the web
+/// app's score modules (ScoreController, Web/score.html). «Пюпитр» (spec score-reading §3, v1.7 e-1): two opaque strips at
+/// the screen's edges and the page exactly between them, nothing lying on it: the top strip with the way back, the title,
+/// the pages in view and the actions, the bottom shelf with play, the tempo and the metronome. What the player opens
+/// (the menu over the selection, cards, sheets, the roll's drawer) stands between the strips. Colours come from the design
+/// kit's tokens, Daylight or Night with the iPad's appearance. In phrase focus (0018 section 4) the selection lifts into a card across the screen with the
 /// page dimmed behind it, previous and next on the card's edges, and the bar becomes the focus bar. The piano roll opens
 /// in a drawer from the bottom (section 4), Insights in a sheet over the right third in landscape or the lower half in
 /// portrait (section 6), and the Contents, the player's bookmarks and the pages, in a drawer over the left of the page in
@@ -78,12 +79,10 @@ struct ScoreScreenContent: View {
     @ObservedObject var roll: RollController
     @ObservedObject var insights: InsightsController
     @ObservedObject var assistant: AssistantController
-    /// The roll drawer's share of the screen's height in landscape (true) and portrait, as the player left it with its handle
-    /// (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
+    /// The roll drawer's share of the room between the strips in landscape (true) and portrait, as the player left it with
+    /// its handle (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
     @State var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
     @State var drawerDrag: CGFloat?
-    /// How tall the transport floating at the bottom is now: the selection's toast stands above it (v0.6.4, spec 7).
-    @State var transportHeight: CGFloat = 0
     @ObservedObject var contents: ContentsController
     /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
     @State var dna: DnaMap?
@@ -110,8 +109,6 @@ struct ScoreScreenContent: View {
     @State var assisted: String?
     /// A draft's map, open or not, kept by the draft's screen (`ShownDraftScreen`); nil on any other screen.
     @Environment(\.draftMap) var draftMap
-    /// Where the pill of a draft's view ends, in the layers' space: in landscape the map starts below it.
-    @State var draftPillBottom: CGFloat = 0
 
     init(piece: OpenPiece, switchView: ((Landing) async -> Void)?, viewing: String?, reopen: ((Landing) async -> Void)?, openFile: ((URL, Landing) async -> Void)?, workspace: ScoreWorkspace) {
         self.piece = piece
@@ -142,21 +139,22 @@ struct ScoreScreenContent: View {
     var hasVersions: Bool { !sourcesModel.versions.entries.isEmpty }
 
     var body: some View {
-        GeometryReader { screen in
-            let landscape = screen.size.width > screen.size.height
-            let kept = drawerShare(landscape) * screen.size.height
+        // The strips and the page between them (`Strips`); what the player opens over the page, drawers and sheets, takes
+        // its share of the room, never of the strips.
+        Strips { barWidth in
+            topStrip(barWidth: barWidth)
+        } room: { room, landscape in
+            let kept = drawerShare(landscape) * room.height
             page(
-                drawer: panels[.roll] ? (drawerDrag.map { $0 * screen.size.height } ?? kept) : 0,
+                drawer: panels[.roll] ? (drawerDrag.map { $0 * room.height } ?? kept) : 0,
                 inset: panels[.roll] ? kept : 0,
-                screen: screen.size,
-                sheet: sheetPlace(landscape: landscape, height: screen.size.height),
-                contentsPlace: panels[.contents] ? (landscape ? .side : .bottom(screen.size.height / 2)) : .none
+                room: room, landscape: landscape,
+                sheet: sheetPlace(landscape: landscape, height: room.height),
+                contentsPlace: panels[.contents] ? (landscape ? .side : .bottom(room.height / 2)) : .none
             )
+        } shelf: {
+            bottomShelf
         }
-        // The keyboard never changes the screen's size (#582 item 16): before, a chat's keyboard shrank it, portrait read
-        // as landscape and the sheets, the drawer, the pill and the page's room moved, and back again as it went. A chat
-        // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
-        .ignoresSafeArea(.keyboard)
         .environmentObject(assistant)
         // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
         .onChange(of: assistant.panelOpen) { _, open in workspace.assistantPanelChanged(open) }
@@ -190,52 +188,35 @@ struct ScoreScreenContent: View {
         panels.binding(panel, change: change)
     }
 
-    /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed, and the selection
-    /// controls shown (#582 item 10: `ScoreController.selectionControlsShown`, whatever the playback controls do).
+    /// Whether the selection's menu is open: a selection, outside Expand, the roll's drawer closed.
     private var selectionMenuOpen: Bool {
-        selectionModel.selection != nil && !focusModel.focused && !panels[.roll] && score.selectionControlsShown
+        selectionModel.selection != nil && !focusModel.focused && !panels[.roll]
     }
 
-    /// How high the pill floats: over whatever covers the bottom of the score, else at the screen's edge.
-    private static func pillBottom(covered: CGFloat) -> CGFloat {
-        covered > 0 ? covered + CGFloat.ds("s-3") : CGFloat.ds("s-4")
+    /// Where a toast over the foot of the page stands: a gap over whatever covers the foot (a drawer, a sheet from the
+    /// bottom; 0 for nothing), so above the bottom shelf at least. Nothing else floats there: the chip back to the playing
+    /// is the shelf's (E-score-7).
+    private static func footBottom(covered: CGFloat) -> CGFloat {
+        covered + CGFloat.ds("s-3")
     }
 
-    /// How far the pill and the toasts keep from the right: beside a sheet at the side, else beside the assistant's panel
-    /// (`side`, its width and a gap, or 0).
-    private static func pillTrailing(sheet: SheetPlace, side: CGFloat) -> CGFloat {
+    /// How far the toasts keep from the right: beside a sheet at the side, else beside the assistant's panel (`side`, its
+    /// width and a gap, or 0).
+    private static func footTrailing(sheet: SheetPlace, side: CGFloat) -> CGFloat {
         sheet == .side ? ScoreScreen.sheetWidth + CGFloat.ds("s-3") : side
     }
 
-    /// The layers' coordinate space, in which a sheet at the side is placed under the pills over the score.
-    static let layersSpace = "layers"
-
-    /// Where what floats over the score keeps below the bar: under it, with a gap.
-    static var barBottom: CGFloat {
-        CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2")
-    }
-
-    /// Where the bar, and on a draft's view the draft's pill under it, end: a card at a mark keeps below them (v1.4 a-1).
-    var barsBottom: CGFloat {
-        piece.draft == nil ? Self.barBottom : max(Self.barBottom, draftPillBottom + CGFloat.ds("s-2"))
-    }
-
-    /// Where a toast stands: over the pill, a touch's height and a gap above where the pill floats.
-    private static func toastBottom(covered: CGFloat) -> CGFloat {
-        pillBottom(covered: covered) + CGFloat.ds("h-touch") + CGFloat.ds("s-3")
-    }
-
-    /// The score and everything that floats over it.
-    private func layers(drawer: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
+    /// The score between the strips and everything the player opens over it; `room` is the space between the strips.
+    private func layers(drawer: CGFloat, room: CGSize, landscape: Bool, sheet: SheetPlace, contentsPlace: SheetPlace, covered: CGFloat) -> some View {
         let gap = CGFloat.ds("s-3")
-        let pillBottom = Self.pillBottom(covered: covered)
+        let footBottom = Self.footBottom(covered: covered)
         // The full assistant's panel sits beside the score, which keeps the rest of the width (#582 item 17.1).
-        let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: screen.width > screen.height) + gap : 0
-        let pillTrailing = Self.pillTrailing(sheet: sheet, side: side)
-        let pillLeading: CGFloat = contentsPlace == .side ? ScoreScreen.contentsWidth + gap : 0
-        // What the bars at the top and the pill, a drawer or a sheet at the bottom cover: a card at a mark opens where it
-        // shows whole between them (v1.4 a-1), the pill's top as the selection's toast keeps above it.
-        let controls = EdgeInsets(top: barsBottom, leading: 0, bottom: ToastPlace.bottom(pillBottom: pillBottom, transport: transportHeight, gap: gap), trailing: 0)
+        let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: landscape) + gap : 0
+        let footTrailing = Self.footTrailing(sheet: sheet, side: side)
+        let footLeading: CGFloat = contentsPlace == .side ? ScoreScreen.contentsWidth + gap : 0
+        // What a drawer or a sheet at the bottom covers: a card at a mark opens where it shows whole between the top strip
+        // and it (v1.4 a-1), as the selection's toast keeps above it.
+        let controls = EdgeInsets(top: 0, leading: 0, bottom: footBottom, trailing: 0)
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
             .padding(.trailing, side).overlay { TypingShield() }
@@ -244,8 +225,7 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) { cardAtMark(covered: controls) }
             .overlay(alignment: .bottom) {
-                let insets = ToastPlace.insets(pillBottom: pillBottom, transport: transportHeight, gap: gap, leading: pillLeading, trailing: pillTrailing)
-                toasts(covered: covered, insets: insets, trailing: pillTrailing)
+                toasts(insets: EdgeInsets(top: 0, leading: footLeading, bottom: footBottom, trailing: footTrailing))
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -253,13 +233,11 @@ struct ScoreScreenContent: View {
                     FocusRollCard(roll: roll, score: score, text: text)
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
-            .background(Color.ds("desk").ignoresSafeArea())
-            .overlay(alignment: .top) { bars(width: screen.width - 2 * CGFloat.ds("s-4")) }
-            .overlay(alignment: .bottom) { rollDrawer(height: drawer, screen: screen) }
+            .background(Color.ds("desk"))
+            .overlay(alignment: .topTrailing) { underStrip }
+            .overlay(alignment: .bottom) { rollDrawer(height: drawer, room: room, landscape: landscape) }
             .overlay(alignment: .bottomTrailing) { sideSheet(sheet) }
             .overlay(alignment: .topLeading) { contentsDrawer(contentsPlace) }
-            .overlay(alignment: .bottom) { transportLayer(bottom: pillBottom, leading: pillLeading, trailing: pillTrailing) }
             .animation(.easeOut(duration: 0.2), value: panels[.roll])
             .animation(.easeOut(duration: 0.2), value: panels[.insights])
             .animation(.easeOut(duration: 0.2), value: panels[.contents])
@@ -267,8 +245,7 @@ struct ScoreScreenContent: View {
     }
 
     /// The menu over the selection, where the page places it (the web app's menuPlace). While the roll's drawer is open it
-    /// gives way to the drawer's head and the pill, so Loop is not shown twice (#338). Hidden with the selection controls
-    /// (#582 item 10), whatever the playback controls do.
+    /// gives way to the drawer's head and the shelf, so Loop is not shown twice (#338).
     @ViewBuilder private var selectionMenu: some View {
         if selectionMenuOpen, let place = selectionModel.menuPlace {
             SelectionMenu(score: score, selectionModel: selectionModel, focusModel: focusModel, penModel: penModel, marksModel: marksModel, checkModel: checkModel, player: player, contents: contents, text: text, insightsOpen: panel(.insights), toDraft: workspace.draftOwner(under: pieceUnder) == nil ? nil : { draftSheet = workspace.draftSheet() }, viewOnly: viewing != nil)
@@ -277,7 +254,7 @@ struct ScoreScreenContent: View {
         }
     }
 
-    /// The card at a mark tapped, under it, between the bars and what covers the bottom (`covered`).
+    /// The card at a mark tapped, under it, between the top strip and what covers the bottom (`covered`).
     @ViewBuilder private func cardAtMark(covered controls: EdgeInsets) -> some View {
         // A version's marker tapped (testing item 33): the popover at it, as every card at a mark (v1.4 a-1); a tap
         // elsewhere puts it away.
@@ -296,17 +273,17 @@ struct ScoreScreenContent: View {
         }
     }
 
-    /// What was just done in the Sources sheet, else the selection's toasts, over the pill (`insets`) and beside a sheet.
-    @ViewBuilder private func toasts(covered: CGFloat, insets: EdgeInsets, trailing pillTrailing: CGFloat) -> some View {
+    /// What was just done in the Sources sheet, else the selection's toasts, over the foot of the page (`insets`), between
+    /// the strips above the shelf, and beside a sheet.
+    @ViewBuilder private func toasts(insets: EdgeInsets) -> some View {
         // What was just done in the Sources sheet, with Undo where it can be undone (version 0.6); beside the sheet.
         if let toast = sources.toast, sourcesOn {
             SourcesToastView(sources: sources, toast: toast, text: text)
-                .padding(.bottom, Self.toastBottom(covered: covered))
-                .padding(.trailing, pillTrailing)
+                .padding(.bottom, insets.bottom)
+                .padding(.trailing, insets.trailing)
                 .transition(.opacity)
-        } else if score.practiceChrome.hints {
-            // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z; not in practice view (#533 11).
-            // Above the pill and whatever floats with it, as tall as that is now (v0.6.4, spec 7: never under Loop or the metronome).
+        } else {
+            // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z.
             // Over it, the toast of an edit of the phrases with its Undo or Redo (v1.2, ScorePhraseEdits.swift).
             VStack(spacing: CGFloat.ds("s-2")) {
                 toastsOverSelection
@@ -318,15 +295,14 @@ struct ScoreScreenContent: View {
 
     /// `drawer` is the roll drawer's height as shown, following its handle while dragged; `inset`, the height it was left at,
     /// is the room the page keeps under its last page, so the score is not laid out again on every move of the handle.
-    private func page(drawer: CGFloat, inset: CGFloat, screen: CGSize, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
+    private func page(drawer: CGFloat, inset: CGFloat, room: CGSize, landscape: Bool, sheet: SheetPlace, contentsPlace: SheetPlace) -> some View {
         // The chain is cut into parts so the compiler type-checks each on its own.
         let covered = max(drawer, sheet.bottomHeight, contentsPlace.bottomHeight)
-        let laid = layers(drawer: drawer, screen: screen, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
-            .coordinateSpace(name: Self.layersSpace)
+        let laid = layers(drawer: drawer, room: room, landscape: landscape, sheet: sheet, contentsPlace: contentsPlace, covered: covered)
             .overlay(alignment: .bottomTrailing) {
                 // The full assistant beside the score, which layers narrowed for it (#582 item 17.1).
                 if assistant.panelOpen {
-                    AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: screen.width > screen.height, drawer: drawer, ask: askAssistant) { offer in
+                    AssistantSide(assistant: assistant, text: text, selection: selectionModel.selection, label: score.askLabel, landscape: landscape, drawer: drawer, ask: askAssistant) { offer in
                         Task { await score.practiseSuggestion(offer, on: player) }
                     }
                 }
@@ -335,12 +311,13 @@ struct ScoreScreenContent: View {
                 // A step just taken on a draft's view, with its Undo (v1.1), where the Sources toast stands, beside the map.
                 if piece.draft != nil, let owner = pieceUnder {
                     DraftStepToast(owner: owner, score: score, text: text, reopen: reopen)
-                        .padding(.bottom, Self.toastBottom(covered: covered))
-                        .padding(.trailing, Self.pillTrailing(sheet: sheet, side: 0))
+                        .padding(.bottom, Self.footBottom(covered: covered))
+                        .padding(.trailing, Self.footTrailing(sheet: sheet, side: 0))
                 }
             }
-        let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
-        return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
+        // The room the page keeps under its last page for what covers its foot (the drawer at the height it was left at).
+        let underLast = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
+        return following(sourcing(checking(watching(wired(laid), covered: underLast, contentsSide: contentsPlace == .side))))
     }
 
     /// A question to the full assistant about what it looks at now: the selection, or the whole piece.

@@ -21,7 +21,7 @@ import XCTest
 ///
 /// A transcript holds only what does not depend on the device or on its sound: of the score's page the playheads (when
 /// they change), the bookmarks and the two questions of where the view is (`placeAt`, `firstTickOn`); of the roll its
-/// load, selection, position, lanes, practice, passage, zoom and frame; of the player its selection, Цикл and what
+/// load, selection, position, lanes, passage, zoom and frame; of the player its selection, Цикл and what
 /// loops, and its shutdown; the metronome's stop; the panels, Expand and the assistant's panel. Nothing here plays: a
 /// playing position is the engine's, heard on the device.
 @MainActor
@@ -74,7 +74,6 @@ final class WorkspaceSession {
         page.called = { [weak self] command, argument in self?.pageCalled(command, argument) }
         workspace.score.scorePage = page
         workspace.roll.page = RollPage { [weak self] script, arguments in self?.rollCalled(script, arguments) }
-        workspace.score.practice = PracticeView()
         lines.append("## the score's page is drawn")
         workspace.score.show(piece, dark: false)
         let drawn = await workspace.score.whenRendered()
@@ -113,11 +112,6 @@ final class WorkspaceSession {
     /// A line of the transcript the test itself writes: what a step's closure was handed, or what was kept.
     func say(_ line: String) {
         lines.append("  " + line)
-    }
-
-    /// The reaction that also runs as the screen first appears (`onChange(of: score.practicing, initial: true)`).
-    func appear() {
-        workspace.practicingChanged(workspace.score.practicing)
     }
 
     /// The renders after an action, with everything the action and its reactions started done before each.
@@ -170,8 +164,6 @@ final class WorkspaceSession {
             Reaction({ player.hearingAlone }, { _, alone in workspace.hearingAloneChanged(alone) }),
             Reaction({ workspace.panels[.contents] }, { _, open in workspace.contentsChanged(open) }),
             Reaction({ score.focusModel.focused }, { _, focused in workspace.focusChanged(focused) }),
-            Reaction({ score.practicing }, { _, on in workspace.practicingChanged(on) }),
-            Reaction({ score.selectionControlsShown }, { _, shown in workspace.selectionControlsChanged(shown) }),
             Reaction({ score.focusModel.focused && score.focusModel.asRoll }, { _, shown in rollShown(shown); workspace.focusRollChanged(shown, dark: false) }),
             Reaction({ workspace.panels[.roll] }, { _, open in rollShown(open); workspace.rollDrawerChanged(open, dark: false) }),
             Reaction({ score.checkModel.check }, { _, _ in workspace.checkChanged() }),
@@ -278,8 +270,6 @@ final class WorkspaceSession {
             say("roll position: \(Int(Self.number(fields["tick"]) ?? -1)) \(standing), looping \(looping)")
         case .lanes?:
             say("roll lanes: \(argument as? Bool == true ? "on" : "off")")
-        case .practice?:
-            say("roll practice: \(argument as? Bool == true ? "on" : "off")")
         case .passage?:
             say("roll passage: \(Self.span(argument))")
         case .zoom?:

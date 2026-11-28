@@ -188,10 +188,7 @@ struct SelectionMenu: View {
             if offered.contains(.more) {
                 iconItem("more", text["menu.more"], on: more) { more.toggle() }
             }
-            // Hide (#533 11): the selection controls go, the selection staying and the playback controls as they are (#582
-            // item 10); ✕ is the one that clears it.
-            iconItem("practice", text["menu.hide"], on: false) { score.practise(.selection(shown: false)) }
-            ClearSelectionButton(score: score, focusModel: focusModel, text: text)
+            ClearSelectionButton(score: score, text: text)
         }
     }
 }
@@ -200,8 +197,6 @@ struct SelectionMenu: View {
 /// a fingertip's square, as the selection menu's other icons (#495 UX-11).
 struct ClearSelectionButton: View {
     @ObservedObject var score: ScoreController
-    /// Practice view is off in Expand (`ScoreController.practicing`).
-    @ObservedObject var focusModel: FocusModel
     let text: UIText
 
     var body: some View {
@@ -211,8 +206,8 @@ struct ClearSelectionButton: View {
             Icon(name: StylusRules.RingControl.clearSelection.icon)
         }
         .buttonStyle(DSIconItemStyle())
-        // Escape removes the selection too (the modes, version 0.5); in practice view it leaves that view (#533 11).
-        .keyboardShortcut(!score.practicing ? KeyboardShortcut(.escape, modifiers: []) : nil)
+        // Escape removes the selection too (the modes, version 0.5).
+        .keyboardShortcut(.escape, modifiers: [])
         .accessibilityLabel(text["menu.clearSelection"])
         .help(text["menu.clearSelection"])
     }

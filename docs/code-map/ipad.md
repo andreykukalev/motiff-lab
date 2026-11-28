@@ -24,7 +24,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Platform/` | [platform](ipad/platform.md) | music-core's port, the score page's port, design tokens, words, project files, the app |
 | `Workspace/` | [workspace](ipad/workspace.md) ([screen](ipad/workspace-screen.md), [controller](ipad/workspace-controller.md), [drafts](ipad/workspace-drafts.md)) | the score's screen and its controller |
 | `Selection/` | [selection](ipad/selection.md) | the one selection, its tools and history, phrases |
-| `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill, metronome, tempo, practice, Expand |
+| `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill's Play, metronome, tempo, Expand |
 | `Roll/` | [roll](ipad/roll.md) | the piano roll in the drawer |
 | `Ink/` | [ink](ipad/ink.md) | the stylus, the pen, input rules, the modes |
 | `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
@@ -52,7 +52,7 @@ folders' maps do not repeat: `grep '"ipad-folder","file":"src/ipad/App/MotiffLab
 ## Rules not to break
 
 - The score's screen never resizes for the keyboard: a chat keeps itself clear of it (`AskFlow`, `KeyboardRoom`); the
-  pill rises only above a hidden keyboard's bar (`KeyboardLift(barOnly:)`). The tap that hides the keyboard never acts on
+  bottom shelf rises only above a hidden keyboard's bar (`KeyboardLift(barOnly:)`). The tap that hides the keyboard never acts on
   the music (`TypingShield`); no field takes the focus by itself. Dictation never leaves the device.
 - Nothing in `src/ipad/App` changes analysis or variation data; drafts come from music-core and only the player accepts them.
 - Every interface string in English and Russian; colours, sizes and timings are tokens.
