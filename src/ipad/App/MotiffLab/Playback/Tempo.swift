@@ -245,6 +245,8 @@ extension View {
     func tempoPopover(isPresented: Binding<Bool>, tempo: TempoSetting, text: UIText, setPiece: @escaping (Int?) -> Void) -> some View {
         popover(isPresented: isPresented) {
             TempoPanel(tempo: tempo, text: text, setPiece: setPiece) { isPresented.wrappedValue = false }
+                // The shelf's fingertip reach (`itemReach`) is the shelf's items' own: the popover's rows keep their size.
+                .environment(\.itemReach, 0)
                 .padding(CGFloat.ds("s-4"))
                 .frame(width: 420, alignment: .leading)
                 .presentationCompactAdaptation(.popover)
