@@ -1,6 +1,6 @@
 # The playlists file, version 1
 
-**Status (2026-11-28, version 1.7, item p-2):** music-core reads, writes, edits, moves and merges it (`MotiffLab.MusicCore.Projects.Playlists`, the facade's `playlists.*` calls). The iPad keeps it and switches the library to it in p-4; the API keeps one per player and the sync sends it in p-3. Andrei's decision 3 of the 1.7 plan (format 19, «2 да»); the lead's decision 3: a playlist has one owner, this file, and its pieces are not kept in the pieces as well.
+**Status (2026-11-28, version 1.7, items p-2, p-3):** music-core reads, writes, edits, moves and merges it (`MotiffLab.MusicCore.Projects.Playlists`, the facade's `playlists.*` calls); the API keeps one per player and the iPad's sync pass sends and merges it (p-3, "Online" below). The iPad keeps it and switches the library to it in p-4. Andrei's decision 3 of the 1.7 plan (format 19, «2 да»); the lead's decision 3: a playlist has one owner, this file, and its pieces are not kept in the pieces as well.
 
 A playlist is a record of the library of its own (the score-reading spec, section 6): a name the player gives and the pieces they put on it, in their order. Before 1.7 a playlist was only a name in each piece's `metadata.playlists` ([project-file.md](project-file.md), "Title, composer, tags and playlists") and existed while a piece was on it. The file sits beside the project files on the device and online as one document per player; it never holds a piece itself, only the pieces' project ids.
 
@@ -67,6 +67,12 @@ Two copies (this device's and the online one) merge three-way against the copy b
 - **A later build's copy** is never merged nor sent (as a project's, the 1.6 plan's decision 14): the online copy is kept as it came, read-only when it is the later one, `merged` and `upload` false, and when this device's copy differs from the base (or from the online copy, without one), `{"in": "playlists", "id": null}` says its changes are not in the copy kept.
 
 The merge keeps no conflict copy beside, as a project's does: a conflict loses only a name or an order that the copy saved last replaced.
+
+## Online
+
+The API keeps one playlists document per player (`GET`/`PUT /playlists`, [0014](architecture/adr/0014-hosted-scan-server.md) item 11 as amended in 1.7), beside their projects in their partition, on any plan: the file's bytes as sent, its ETag and when it was saved (`Last-Modified`). It checks only the envelope (`PlaylistsEnvelope`: `format`, whole `version` and `minReader` of 1 or more) and the size (1 MB), so it keeps a later version as it came. A save with `If-Match` replaces only the copy that still has that ETag; without it, it only creates the document; either answers 412 otherwise. `GET` with none kept answers 404. `DELETE /me` and the develop deployment's `POST /me/reset` erase it with the projects.
+
+The iPad's sync pass (`Account/PlaylistsSync.swift`) syncs it after the pieces, by the rules a piece's copies follow (`project.sync` picks the step: upload, download, resolve, forget): it reads the library's file through `PlaylistsFileStore` (p-4's record implements it), the online copy with its ETag and time, and its own record beside the sync records (`sync-playlists.json`: the ETag last seen, the base, whether the online copy was seen gone). Changed on both, it calls `playlists.resolve` with the base, both copies and the pieces' `formerIds` (read then, after the pieces synced), keeps "file" here only while the file here is still the one it read (an edit during the pass is never written over), and sends it when "upload" says so, over the copy fetched (412: merged again next pass). A later build's copy online (the lead's decision, p-3 review 1) is never merged, taken here nor written over: the file here stays as the player left it and the pass says so (`CloudSync.Outcome.playlistsNewerOnline`) for the library's one line, as for a piece; one this build cannot read is left alone too. Where the app may not write, it only fetches.
 
 ## The facade
 

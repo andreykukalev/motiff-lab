@@ -128,6 +128,8 @@ extension PieceCore {
         case projectResolve = "project.resolve"
         case projectSame = "project.same"
         case projectJoin = "project.join"
+        case playlists = "playlists"
+        case playlistsResolve = "playlists.resolve"
         case scanVector = "scan.vector"
         case scanJoin = "scan.join"
         case scanInsert = "scan.insert"

@@ -87,6 +87,7 @@ enum SyncBases {
 /// build's copy (project file 18) is kept read-only and never sent: one online stays the piece and this iPad's goes
 /// beside as a new piece (decision 39), one here goes beside and the online copy takes the piece (decision 36). The
 /// library runs it when it opens, comes back to the screen, after a piece closes and on sign-in, never inside a piece.
+/// After the pieces it syncs the library's playlists file, when the library gives one (`PlaylistsSync`, v1.7 p-3).
 /// Where the app may not write (Main in a version build, `OnlineProjects.writable`) a pass only fetches: it sends
 /// nothing and leaves a piece changed on both sides as it is here, to be resolved once writing is allowed.
 struct CloudSync {
@@ -96,6 +97,9 @@ struct CloudSync {
     let online: OnlineProjects
     var folder: URL = ProjectFiles.folder
     var recordsURL: URL = SyncRecords.url
+    /// The library's playlists file (p-4's record): after the pieces the pass syncs it too (`PlaylistsSync`, v1.7 p-3); none
+    /// until the library gives one.
+    var playlists: (any PlaylistsFileStore)?
     /// The title of a previous copy made at a time, "{0} (previous copy, 11/11/26, 20:40)", "{0}" standing for the piece's title.
     let copyTitle: (Date) -> String
 
@@ -109,6 +113,8 @@ struct CloudSync {
         var reset: Int64?
         /// The pieces resolved with a conflict in this pass (v1.6 c-17b), for the library to say so.
         var conflicts: [SyncConflict] = []
+        /// The playlists online are a later build's (v1.7 p-3): left as they are with this iPad's, for the library to say so.
+        var playlistsNewerOnline = false
     }
 
     /// A project file here as the pass sees it: its bytes are read again only for the piece being sent or merged, so a
@@ -157,6 +163,9 @@ struct CloudSync {
         }
         SyncRecords.save(records, to: recordsURL)
         SyncBases.prune(keeping: Array(records.keys), records: recordsURL)
+        if let playlists {
+            outcome.playlistsNewerOnline = await PlaylistsSync(online: online, store: playlists, recordsURL: recordsURL, folder: folder).run()
+        }
         outcome.overQuota = records.filter { here[$0.key] != nil && $0.value.overQuota }.count
         return outcome
     }
@@ -410,7 +419,7 @@ struct CloudSync {
     }
 
     /// A call on music-core's piece 0 with JSON fields; nil when it answers an error.
-    private static func core(_ name: PieceCore.NoPiece, _ fields: [String: Any]) async -> [String: Any]? {
+    static func core(_ name: PieceCore.NoPiece, _ fields: [String: Any]) async -> [String: Any]? {
         let request = facadeRequest(fields)
         let answer = await MusicCore.run { PieceCore.sendWithoutPiece(name, request) }
         guard let object = facadeObject(answer), object["error"] == nil else { return nil }
@@ -421,7 +430,7 @@ struct CloudSync {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func iso(_ date: Date) -> String {
+    static func iso(_ date: Date) -> String {
         ISO8601DateFormatter().string(from: date)
     }
 }

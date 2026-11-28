@@ -10,6 +10,7 @@ internal sealed class InMemoryProjectStore : IProjectStore
     private readonly ConcurrentDictionary<(string Owner, string Id), (StoredSummary Summary, StoredProject Project)> _documents = new();
     private readonly ConcurrentDictionary<string, StoredProfile> _profiles = new();
     private readonly ConcurrentDictionary<string, long> _resets = new();
+    private readonly ConcurrentDictionary<string, StoredPlaylists> _playlists = new();
     private int _version;
 
     public Task<IReadOnlyList<StoredSummary>> ListAsync(string ownerId, CancellationToken cancellationToken) =>
@@ -50,6 +51,7 @@ internal sealed class InMemoryProjectStore : IProjectStore
         var keys = _documents.Keys.Where(key => key.Owner == ownerId).ToList();
         keys.ForEach(key => _documents.TryRemove(key, out _));
         _profiles.TryRemove(ownerId, out _);
+        _playlists.TryRemove(ownerId, out _);
         _resets.TryRemove(ownerId, out _);
         return Task.FromResult(keys.Count);
     }
@@ -71,5 +73,21 @@ internal sealed class InMemoryProjectStore : IProjectStore
     {
         _profiles[ownerId] = profile;
         return Task.CompletedTask;
+    }
+
+    public Task<StoredPlaylists?> GetPlaylistsAsync(string ownerId, CancellationToken cancellationToken) =>
+        Task.FromResult(_playlists.TryGetValue(ownerId, out StoredPlaylists? kept) ? kept : null);
+
+    public Task<string> PutPlaylistsAsync(string ownerId, string packedFile, string? ifMatch, CancellationToken cancellationToken)
+    {
+        bool kept = _playlists.TryGetValue(ownerId, out StoredPlaylists? current);
+        if (ifMatch is null ? kept : !kept || current!.ETag != ifMatch)
+        {
+            throw new ConflictException();
+        }
+
+        string etag = $"\"{Interlocked.Increment(ref _version)}\"";
+        _playlists[ownerId] = new StoredPlaylists(packedFile, etag, DateTimeOffset.UtcNow);
+        return Task.FromResult(etag);
     }
 }

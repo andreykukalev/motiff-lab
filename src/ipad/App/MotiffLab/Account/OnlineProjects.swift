@@ -116,6 +116,24 @@ struct OnlineProjects {
             .mapError(Self.failure)
     }
 
+    /// The player's playlists file saved online with its ETag and when it was saved (`GET /playlists`, its Last-Modified;
+    /// v1.7 p-3); `notFound` while there is none.
+    func fetchPlaylists() async -> Result<(data: Data, etag: String?, saved: Date?), Failure> {
+        await send(Self.playlistsPath) { _ in }
+            .map { (data: $0.data, etag: $0.response.value(forHTTPHeaderField: "ETag"), saved: Self.httpDate($0.response.value(forHTTPHeaderField: "Last-Modified"))) }
+            .mapError(Self.failure)
+    }
+
+    /// An HTTP date (RFC 9110, 5.6.7: "Sat, 28 Nov 2026 11:00:00 GMT"); nil for anything else.
+    private static func httpDate(_ value: String?) -> Date? {
+        guard let value else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        return formatter.date(from: value)
+    }
+
     /// What the API answered a delete.
     enum Deleted: Equatable, Sendable {
         /// Gone, also when it was gone already (404).
@@ -140,8 +158,8 @@ struct OnlineProjects {
         }
     }
 
-    /// Deletes everything the player keeps online in this environment: every project and the profile (the API's DELETE
-    /// /me; «Удалить аккаунт и данные онлайн», the 1.6 plan's decision 14). True once the API answered that it did.
+    /// Deletes everything the player keeps online in this environment: every project, the playlists and the profile (the
+    /// API's DELETE /me; «Удалить аккаунт и данные онлайн», the 1.6 plan's decision 14). True once the API answered that it did.
     func deleteEverything() async -> Bool {
         guard case .success = await send("me", { request in request.httpMethod = "DELETE" }) else { return false }
         return true
@@ -150,6 +168,15 @@ struct OnlineProjects {
     /// Sends the copy saved online (`project.online`) as the project's file, over the online copy with `ifMatch` when given.
     func upload(_ id: String, file: String, ifMatch: String?) async -> Sent {
         guard let path = Self.path(of: id) else { return .failed(.notFound) }
+        return await upload(file, to: path, ifMatch: ifMatch)
+    }
+
+    /// Sends the playlists file (`PUT /playlists`, v1.7 p-3), over the online copy with `ifMatch`, else only as the first one.
+    func uploadPlaylists(_ file: String, ifMatch: String?) async -> Sent {
+        await upload(file, to: Self.playlistsPath, ifMatch: ifMatch)
+    }
+
+    private func upload(_ file: String, to path: String, ifMatch: String?) async -> Sent {
         let answer = await send(path) { request in
             request.httpMethod = "PUT"
             request.httpBody = Data(file.utf8)
@@ -165,6 +192,8 @@ struct OnlineProjects {
         case .failure(.failed(let failure)): return .failed(failure)
         }
     }
+
+    private static let playlistsPath = "playlists"
 
     private static func path(of id: String) -> String? {
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))

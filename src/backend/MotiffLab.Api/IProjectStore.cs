@@ -6,7 +6,8 @@ namespace MotiffLab.Api;
 /// Where a player's projects and profile are kept: one document per project, in the player's own partition. The project
 /// file (with its sessions, observations and source) is stored packed; the summary is kept beside it so a list
 /// never loads the files. The profile (the name and photo the player chose) is one more document in the same partition,
-/// and so is the reset stamp of the develop deployment (<see cref="TestReset"/>).
+/// and so are the player's playlists file (<see cref="PlaylistsEndpoints"/>) and the reset stamp of the develop deployment
+/// (<see cref="TestReset"/>).
 /// </summary>
 internal interface IProjectStore
 {
@@ -28,7 +29,7 @@ internal interface IProjectStore
     /// <exception cref="ConflictException">The stored project has changed since <paramref name="ifMatch"/>.</exception>
     Task<bool> DeleteAsync(string ownerId, string id, string? ifMatch, CancellationToken cancellationToken);
 
-    /// <summary>Deletes everything the player keeps here, their profile too, and returns how many projects that was.</summary>
+    /// <summary>Deletes everything the player keeps here, their profile and playlists too, and returns how many projects that was.</summary>
     Task<int> DeleteAllAsync(string ownerId, CancellationToken cancellationToken);
 
     /// <summary>The player's last reset stamp (<see cref="TestReset"/>), or null when they never reset.</summary>
@@ -45,6 +46,14 @@ internal interface IProjectStore
 
     /// <summary>Keeps the player's name and photo, replacing what was kept.</summary>
     Task PutProfileAsync(string ownerId, StoredProfile profile, CancellationToken cancellationToken);
+
+    /// <summary>The player's playlists file, packed, with its ETag and when it was saved; null when they keep none here.</summary>
+    Task<StoredPlaylists?> GetPlaylistsAsync(string ownerId, CancellationToken cancellationToken);
+
+    /// <summary>Writes the player's playlists file and returns its new ETag, by the rule of <see cref="PutAsync"/>.</summary>
+    /// <param name="ifMatch">When given, the file kept is replaced only if it still has this ETag; when null, it is created and never written over one kept.</param>
+    /// <exception cref="ConflictException">The file kept has changed since <paramref name="ifMatch"/>, is gone, or, with none, is there already.</exception>
+    Task<string> PutPlaylistsAsync(string ownerId, string packedFile, string? ifMatch, CancellationToken cancellationToken);
 }
 
 /// <summary>The name a player chose to be shown, and their photo as a data URL; either may be null.</summary>
@@ -62,5 +71,8 @@ internal sealed record StoredSummary(
     DateTimeOffset SavedAt);
 
 internal sealed record StoredProject(string PackedFile, string ETag);
+
+/// <summary>The player's playlists file, packed as a project is (<see cref="ProjectEndpoints.Pack"/>), its ETag and when it was saved.</summary>
+internal sealed record StoredPlaylists(string PackedFile, string ETag, DateTimeOffset SavedAt);
 
 internal sealed class ConflictException() : Exception("The project changed since it was read.");

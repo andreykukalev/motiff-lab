@@ -5,8 +5,8 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
 
 ## Files
 
-`About`, `Account`, `AccountPanel`, `CloudSync`, `Environments`, `OnlineProjects`, `ProfileController`, `ProfileEditor`,
-`SyncConflict`, `TestLibrary` (`.swift`).
+`About`, `Account`, `AccountPanel`, `CloudSync`, `Environments`, `OnlineProjects`, `PlaylistsSync`, `ProfileController`,
+`ProfileEditor`, `SyncConflict`, `TestLibrary` (`.swift`).
 
 - `Account.swift`: MSAL sign-in, `apiRequest(path)` (the API with the player's token), plan and Pro features, the
   profile (`PlayerProfile`, `saveProfile`), `deleteOnlineData` («Удалить аккаунт и данные онлайн»: DELETE /me, then
@@ -27,7 +27,13 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
   (`PieceSummary.readOnly`) is never sent; one online stays the piece (decision 39). `Outcome.conflicts`: `SyncConflict` (`SyncConflict.swift`), the
   pieces resolved with a conflict, named by kind from the core's "in" for the library's line (E-sync-4).
 - `OnlineProjects.swift`: the API's projects (list, fetch with ETag, `upload` with If-Match, `delete(_:ifMatch:)`,
-  `deleteEverything` = DELETE /me), «Нет на этом iPad» (`OnlineList`, `OnlineShelf`).
+  `deleteEverything` = DELETE /me), the playlists document (`fetchPlaylists` with ETag and Last-Modified,
+  `uploadPlaylists`), «Нет на этом iPad» (`OnlineList`, `OnlineShelf`).
+- `PlaylistsSync.swift` (v1.7 p-3): the playlists' step, run by `CloudSync.run` after the pieces when the library gives
+  `CloudSync.playlists`. `PlaylistsFileStore` is the library's side (p-4's record implements it: `current`, and
+  `replace(_:with:)` only over the file it read); `PlaylistsSyncRecord` (`sync-playlists.json`, `sync-test-playlists.json`:
+  ETag, base, `deletedOnline`); the step by `project.sync`'s facts, `playlists.resolve` with the base and the pieces'
+  `formerIds` (`rekeyed`, only when it merges); a later build's copy online left apart (`Outcome.playlistsNewerOnline`).
 
 ### Settings (W2.12, v1.6 i-14)
 
@@ -60,7 +66,7 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
 ## The state it owns
 
 The sign-in and its name (MSAL, `defaults`), a tester's plan (`ml-test-plan`), the environment, saving online
-(`account.saveOnline`), the sync records and bases in Application Support (written only by `CloudSync`; the library's
+(`account.saveOnline`), the sync records, bases and the playlists' record in Application Support (written only by `CloudSync` and its `PlaylistsSync`; the library's
 Delete marks one through `CloudSync.markDeletedHere`, which a pass under way keeps, E-sync-1). The profile's draft lives only while the editor is open.
 
 ## Baseline entries that protect it

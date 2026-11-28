@@ -80,13 +80,7 @@ internal static class PlaylistsFile
     {
         using JsonDocument document = Parse(data);
         JsonElement root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out JsonElement format) || format.ValueKind != JsonValueKind.String || format.GetString() != FormatName)
-        {
-            throw new ProjectFileException("This is not a Motiff Lab playlists file.");
-        }
-
-        int version = Whole(root, "version");
-        int minReader = Whole(root, "minReader");
+        (int version, int minReader) = Envelope(root);
         if (minReader > Version)
         {
             throw new ProjectFileException("These playlists were saved by a newer version of Motiff Lab. Update the app and try again.")
@@ -113,6 +107,19 @@ internal static class PlaylistsFile
             Newer = version > Version ? new NewerFile(version, minReader) : null,
         }.Joined();
     }
+
+    /// <summary>The envelope only (<see cref="PlaylistsEnvelope.Read"/>): what the API checks before it keeps a file.</summary>
+    /// <exception cref="ProjectFileException">Not a playlists file, or its "version" or "minReader" is not a whole number of 1 or more.</exception>
+    internal static PlaylistsEnvelope ReadEnvelope(ReadOnlySpan<byte> data)
+    {
+        using JsonDocument document = Parse(data);
+        return Envelope(document.RootElement);
+    }
+
+    private static PlaylistsEnvelope Envelope(JsonElement root) =>
+        root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("format", out JsonElement format) || format.ValueKind != JsonValueKind.String || format.GetString() != FormatName
+            ? throw new ProjectFileException("This is not a Motiff Lab playlists file.")
+            : new PlaylistsEnvelope(Whole(root, "version"), Whole(root, "minReader"));
 
     private static Playlist ReadPlaylist(JsonElement playlist)
     {

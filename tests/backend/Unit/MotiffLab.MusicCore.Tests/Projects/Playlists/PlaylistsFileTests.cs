@@ -80,6 +80,19 @@ public class PlaylistsFileTests
         Assert.Contains("newer version", Assert.Throws<ProjectFileException>(() => Read(file)).Message, StringComparison.Ordinal);
     }
 
+    /// <summary>The envelope the API checks (0026 S2): a later version, even one this build may not read, passes as it is.</summary>
+    [Fact]
+    public void The_envelope_reads_any_version_without_the_playlists_and_refuses_what_is_not_a_playlists_file()
+    {
+        Assert.Equal(new PlaylistsEnvelope(1, 1), PlaylistsEnvelope.Read(Golden("v1-worked.playlists.json")));
+        Assert.Equal(new PlaylistsEnvelope(7, 5), PlaylistsEnvelope.Read("""{"format":"motiff-lab-playlists","version":7,"minReader":5,"lists":{}}"""u8));
+
+        Assert.Contains("not a Motiff Lab playlists file", Assert.Throws<ProjectFileException>(() => PlaylistsEnvelope.Read("""{"format":"motiff-lab-project","version":19,"minReader":18}"""u8)).Message, StringComparison.Ordinal);
+        Assert.Contains("minReader", Assert.Throws<ProjectFileException>(() => PlaylistsEnvelope.Read("""{"format":"motiff-lab-playlists","version":1,"minReader":1.5}"""u8)).Message, StringComparison.Ordinal);
+        Assert.Contains("version", Assert.Throws<ProjectFileException>(() => PlaylistsEnvelope.Read("""{"format":"motiff-lab-playlists","version":0,"minReader":1}"""u8)).Message, StringComparison.Ordinal);
+        Assert.Contains("not valid JSON", Assert.Throws<ProjectFileException>(() => PlaylistsEnvelope.Read("[1,"u8)).Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("""{"format":"motiff-lab-project","version":1,"minReader":1,"playlists":[]}""", "not a Motiff Lab playlists file")]
     [InlineData("""{"format":"motiff-lab-playlists","version":1,"playlists":[]}""", "minReader")]
