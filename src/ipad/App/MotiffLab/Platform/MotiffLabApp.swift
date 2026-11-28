@@ -16,6 +16,8 @@ struct MotiffLabApp: App {
     init() {
         // The design kit's faces, before the first screen draws (0018 section 13).
         DesignTokens.registerFonts()
+        // What the score kept of the controls on the page before «Пюпитр» (v1.7 e-1) goes, once on launch.
+        PageControlsShown.forget()
     }
 
     var body: some Scene {

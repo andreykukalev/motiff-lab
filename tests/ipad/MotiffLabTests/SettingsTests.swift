@@ -137,4 +137,13 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(profile.message, .photoUnreadable)
         XCTAssertEqual(profile.photo, try square(red), "the photo before stays")
     }
+
+    /// «Управление на листе» went in v1.7 e-1: its two kept switches leave the device once on launch.
+    func testTheOldPageControlsSwitchesAreForgotten() throws {
+        let store = try freshStore()
+        for key in PageControlsShown.keys { store.set(false, forKey: key) }
+        PageControlsShown.forget(store)
+        for key in PageControlsShown.keys { XCTAssertNil(store.object(forKey: key), key) }
+        XCTAssertEqual(PageControlsShown.keys, ["score.selectionControlsShown", "score.playbackControlsShown"], "the keys PracticeView kept")
+    }
 }

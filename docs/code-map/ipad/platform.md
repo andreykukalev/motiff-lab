@@ -28,7 +28,8 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Platform`. Wh
 - Settings and words. `DeviceSettings.swift` (v1.6 i-14, out of `Account/SettingsView.swift`): the player's settings on
   this iPad, music-core's `settings.state` from the values kept in `motiff.settings`, each change after the one before
   (`queueChange`, E-settings-1); `resolved(overrides:)` lays a piece's own over them; read by the score, the roll, the
-  assistant, scans, Piece DNA, the Reference and the app's appearance; shown by `Workspace/SettingsSheet`. `UIText.swift`:
+  assistant, scans, Piece DNA, the Reference and the app's appearance; shown by `Workspace/SettingsSheet`. With it
+  `PageControlsShown.forget`, run once on launch: the two kept switches of «Управление на листе» go (v1.7 e-1). `UIText.swift`:
   the shared words, then each folder's `<Folder>/Words/<Folder>.<language>.json`, merged (which key goes where:
   `tests/shared/i18n.test.mjs`); `UIText.current` in the language picked (`motiff.language`), else the iPad's; `barsText`.
   `InterfaceLanguage.swift`: a new choice saves the open piece, rebuilds the app under `.id(language)` and opens it again.
