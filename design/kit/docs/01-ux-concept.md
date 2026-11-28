@@ -2,7 +2,7 @@
 
 Oct 31, 2026 · @Andrei
 
-The score becomes the whole screen. Phrases, ink and notes live on the page as they do on paper; playback, the piano roll and analysis are pulled up from a selected phrase and put away with a swipe. The intent questionnaire, the permanent side panel and the always-on piano roll go away. This tab covers the interaction model and information architecture at wireframe level; the Design system tab carries colour, type, components and the same screens rendered in the new identity.
+The score fills the screen between two opaque strips at its edges, and nothing lies on the notes (ADR 0036). Phrases, ink and notes live on the page as they do on paper; playback, the piano roll and analysis are pulled up from a selected phrase and put away with a swipe. The intent questionnaire, the permanent side panel and the always-on piano roll go away. This tab covers the interaction model and information architecture at wireframe level; the Design system tab carries colour, type, components and the same screens rendered in the new identity.
 
 ## Today: what exists and what gets in the way
 
@@ -23,7 +23,7 @@ What gets in the way is how it is laid out. In the default “Both” view the s
 
 ![the four layers of the interface · the page, marks on it, overlays, the library](wireframes/w01-layers.png)
 
-Read from the inside out: the page is the only permanent thing; marks on it are kept with the piece; everything else is pulled up from a selection or the bar and put away with a swipe; the library sits outside the piece and is visited only to switch or add one.
+Read from the inside out: the page is the only permanent thing, with, in the working mode «Пюпитр», the two strips at the screen's edges that hold the tools off it (ADR 0036); marks on it are kept with the piece; everything else is pulled up from a selection or the bar and put away with a swipe; the library sits outside the piece and is visited only to switch or add one.
 
 ## Navigation model
 
@@ -31,18 +31,18 @@ Read from the inside out: the page is the only permanent thing; marks on it are 
 
 There are two places to be while working on a piece, the page and a focused phrase, and one place to step back to, Piece DNA, which sits outside the practice loop. Everything else is an overlay that slides over whichever of the two is active and leaves it exactly as it was. No overlay can open another place; the page and the phrase are always one gesture away, and Piece DNA returns to the score exactly as it was left. The current four view tabs, the project page and the “Open another piece” link all collapse into this map.
 
-The page is not a discrete screen: the whole piece is one continuously scrolling document in which pages are laid out one after another (two per row in landscape). Moving through it is scrolling, not page jumping, so a phrase that continues on the next page is followed without a break; page steps and the Pages rail are shortcuts within the same scroll.
+Pages turn one at a time by default, like paper on a stand, and the player can choose one continuously scrolling document instead, in «Вид страницы» (ADR 0036, since version 1.7). Turning by pages keeps every bar in its place; half a page ahead shows the end of a page and the start of the next together, so a phrase that continues on the next page is followed without a break.
 
 ## The score page, default mode
 
-A piece opens on its page, at the position of the last resume point, with nothing else on screen. This is the fundamental working mode the brief asks for, and every other state is reached from it and returns to it.
+A piece opens on its page, at the position of the last resume point, between the two strips of the working mode «Пюпитр» and with nothing on the page (ADR 0036). This is the fundamental working mode the brief asks for, and every other state is reached from it and returns to it.
 
 ![score page wireframe · landscape spread and portrait page · 6 callouts](wireframes/w03-score-page.png)
 
-- **One scrolling document, laid out as pages.** The score is a single continuous document that scrolls vertically, like a long sheet on a stand, so a phrase that runs across a page boundary is never cut and never needs a page jump to follow. Pages remain the layout unit: A4 proportions, page numbers, the same bar-to-page map as a printed edition. Portrait shows one column of pages at about 97% of the width; landscape shows two pages per row, fitted to height, like an open book. Pinch zooms; a double tap returns to fit.
-- **Navigation.** Swipe or drag to scroll freely; tap the top or bottom edge, or press the arrow keys, to move by exactly one page (a snap option aligns pages to the screen for those who prefer a stand-like turn). A long swipe up opens the Pages rail with thumbnails and phrase numbers; tapping a thumbnail scrolls there. “Go to bar” lives in the Pages rail for people who think in bar numbers. The bar shows the page under the top of the screen (“p. 2 of 4”) and updates as you scroll.
+- **Two strips and the page between them** (ADR 0036). The top strip (the bar) and the bottom strip (the transport) run the full width along the screen's edges, opaque `--surface` with a hairline and no shadow, radius or blur; the page takes everything between them and no strip ever lies on it. Pages remain the layout unit: A4 proportions, page numbers, the same bar-to-page map as a printed edition. Portrait shows one whole page between the strips; landscape two pages side by side, whole in height, like an open book. «Вид страницы» in the bar sets the size («Страница», «По ширине», «Две рядом» in landscape) and «Ноты крупнее», a layout with larger notes on pages of the screen's shape, kept per piece. Pinch zooms; a two-finger double tap returns to the chosen size.
+- **Navigation.** «По страницам», the default: a swipe or a tap at the left or right edge, the arrow keys or a page-turner pedal turn one page, instantly; with one page on screen the first turn shows the top of the next page over the end of the current one (half a page ahead), and two pages side by side turn one page at a time. «Лентой»: one continuous document, scrolled freely. A long swipe up opens the Pages rail with thumbnails and phrase numbers; tapping a thumbnail opens that page. “Go to bar” lives in the Pages rail for people who think in bar numbers. The bar shows the pages in view (“p. 1–2 of 4”).
 - **What is always visible.** The page and, when they are not hidden, the marks on it: phrase brackets, ink, margin-note markers, highlights, bookmarks and Check flags.
-- **What appears on demand.** The bar (title, page count, five actions) fades about two seconds after the last touch and returns on any tap outside the music. The transport pill appears when a phrase is selected or playback runs.
+- **The strips stay; the concert mode shows the notes alone.** The two strips neither fade nor hide (ADR 0036): there is nothing to hide in the working mode. The concert mode, entered from «Вид страницы», shows only the pages and the player's marks, which a tap or a pedal turns, and is left by holding a finger in the top right corner.
 - **Direct manipulation on the page.** Tap a note to play from it; tap a bracket to select its phrase; drag across bars to select freely; long-press a bar for the contextual menu; draw with the stylus, or with a finger when Pen is on, to ink.
 
 ## Selecting phrases
@@ -148,11 +148,11 @@ Piece DNA is the third place in the app, and the only one that is not the score:
 
 ## Playback
 
-The transport is a floating pill at the bottom centre of the page, not a bar. It holds Play / Pause, Loop, Tempo (tap for 50 / 75 / 100%, drag for anything else), Metronome, Count-in and Hands (All / Right / Left / Melody / Accompaniment). Position is not a slider: the playhead runs through the score itself, and tapping any note plays from it, as today.
+The transport is the bottom strip of the working mode, off the page (ADR 0036; the rest of this document calls it the pill). It holds Play / Pause, Loop, Tempo (tap for 50 / 75 / 100%, drag for anything else), Metronome, Count-in and Hands (All / Right / Left / Melody / Accompaniment). Position is not a slider: the playhead runs through the score itself, and tapping any note plays from it, as today.
 
-- **Appears** when a phrase is selected, when playback starts, or when Play is tapped in the bar. While playing it fades after about three seconds so it does not sit on the music; a tap anywhere brings it back.
+- **Always there** in the working mode, beside the music, never over it; it neither appears with a selection nor fades while playing.
 - **Loop** follows the context: a selection loops the selection, focus loops the phrase, nothing selected loops the page.
-- **The score follows playback** by scrolling smoothly, keeping the playing system in the upper third of the screen, so the next system is always visible below it and nothing is cut at a page edge. A manual scroll during playback wins; auto-follow resumes on the next Play or with a tap on the playhead.
+- **The score follows playback.** «По страницам»: the app turns the pages, the top half showing the start of the next page once the playhead is in the bottom half, and two pages side by side moving on by one when the playhead reaches the right page. «Лентой»: by scrolling smoothly, keeping the playing system in the upper third of the screen. A manual turn or scroll during playback wins; auto-follow resumes on the next Play or with a tap on the playhead.
 - **Original / Variation / Alternate** is shown in the focus bar only when the focused phrase has a saved variation; it never appears in the page view.
 - **Hear the transition** (the current “play the transition with the previous or next phrase”) becomes a lead-in toggle in focus: play starts one bar early and ends one bar late.
 
@@ -175,21 +175,21 @@ The same app has to serve a beginner who wants guidance and a professional who w
 ![settings wireframe · global sheet with presets and switches, contextual popover on the transport pill](wireframes/w11-settings.png)
 
 - **Global Settings.** Opened from the gear next to the avatar in the library and from the bar’s overflow in the score. In the score it opens as a sheet over the page, not a separate screen, so every change is previewed live on the music behind it. Sections: Level, Guidance, Score, Marks and layers, Playback, Piano roll, Assistant, Appearance, Account.
-- **Three presets, then every switch.** *Learning*: brackets, Insights strip, hints and coach marks, focus suggestions, assistant hints, Check flags all on; Short granularity. *Practising* (default): brackets and Insights strip on, hints off, Phrases granularity. *Clean*: the score, ink and bookmarks only; no brackets, no strip, no hints, the pill only while playing, the bar fades in one second, assistant on request only. A preset is a starting point: every element has its own switch beneath it, and changing one turns the preset label into “Custom”. On the first run, before the library, one screen asks once: three cards, each with its name and a one-line description, and a Continue button; the choice is changed any time in Settings and never asked again. The descriptions, as shown on the cards and next to the presets in Settings: \*Learning\* — “For getting to know a piece: phrases marked, hints and facts in view, the assistant ready to help.” \*Practising\* — “For daily work: phrases and the Insights strip, no hints; tools appear when you select something.” \*Clean\* — “Just the music: the score, your ink and bookmarks; everything else waits until you ask.”
-- **What can be switched.** Phrase brackets and their default granularity; Insights strip in focus; hints and coach marks; focus suggestions after repeated loops; assistant hints and verbosity; transport pill behaviour (appear with a selection, fade while playing); bar fade delay; auto-follow during playback; page step snapping; layers shown by default (ink, notes, bookmarks, analysis, check); whether Pen stays on after a stroke or turns off; ink palette; piano roll note names and colour scheme; theme (Daylight, Night stand, Auto) and the Slate page; score scale; language; online sync; export and import.
-- **Contextual settings.** A long-press on an element opens a small popover with its two or three switches: the transport pill (appear with selection, fade), a bar action (for Phrases: granularity, show brackets; for Pen: stay on after a stroke, palette), a drawer header (piano roll: note names, colour), the Insights strip (show, how many facts), a bracket (show brackets). The popover ends with a scope control, *This piece · Everywhere*, and a link to the same row in the global sheet, so nothing is hidden in only one place.
+- **Three presets, then every switch.** *Learning*: brackets, Insights strip, hints and coach marks, focus suggestions, assistant hints, Check flags all on; Short granularity. *Practising* (default): brackets and Insights strip on, hints off, Phrases granularity. *Clean*: the score, ink and bookmarks only; no brackets, no strip, no hints, assistant on request only. A preset is a starting point: every element has its own switch beneath it, and changing one turns the preset label into “Custom”. On the first run, before the library, one screen asks once: three cards, each with its name and a one-line description, and a Continue button; the choice is changed any time in Settings and never asked again. The descriptions, as shown on the cards and next to the presets in Settings: \*Learning\* — “For getting to know a piece: phrases marked, hints and facts in view, the assistant ready to help.” \*Practising\* — “For daily work: phrases and the Insights strip, no hints; tools appear when you select something.” \*Clean\* — “Just the music: the score, your ink and bookmarks; everything else waits until you ask.”
+- **What can be switched.** Phrase brackets and their default granularity; Insights strip in focus; hints and coach marks; focus suggestions after repeated loops; assistant hints and verbosity; auto-follow during playback; layers shown by default (ink, notes, bookmarks, analysis, check); whether Pen stays on after a stroke or turns off; ink palette; piano roll note names and colour scheme; theme (Daylight, Night stand, Auto) and the Slate page; score scale; language; online sync; export and import.
+- **Contextual settings.** A long-press on an element opens a small popover with its two or three switches: a bar action (for Phrases: granularity, show brackets; for Pen: stay on after a stroke, palette), a drawer header (piano roll: note names, colour), the Insights strip (show, how many facts), a bracket (show brackets). The popover ends with a scope control, *This piece · Everywhere*, and a link to the same row in the global sheet, so nothing is hidden in only one place.
 - **Per piece and everywhere.** Global settings are the defaults. Granularity, layers and a few score settings can be overridden for a piece from the score; the global sheet lists those overrides and clears them in one tap.
-- **Clean page in one tap.** The bar’s overflow has *Clean page*, a temporary switch to the Clean preset for this sitting, for the moment a musician wants to just play; it reverts when the piece is closed, unless they choose to keep it.
+- **Just the notes.** The bar and the transport have no switches to hide or fade them (ADR 0036); for the moment a musician wants to just play, the concert mode in «Вид страницы» shows only the pages and the player's marks. Page turning and size are «Вид страницы»'s, kept on the device.
 
 ## Portrait and landscape
 
-The same model works in both orientations; only the geometry of the overlays changes. Nothing is ever docked, so the score keeps the full screen in both.
+The same model works in both orientations; only the geometry of the overlays changes. In the working mode the two strips are docked at the top and bottom edges and the page fills the space between them, with the overlays the player opens sitting between the strips; in concert mode the page has the whole screen (ADR 0036).
 
 | Element | Landscape 1180×820 | Portrait 820×1180 |
 | --- | --- | --- |
-| Score | Continuous vertical scroll, two pages per row, page height fits the screen | Continuous vertical scroll, one column of pages, A4 at full width |
-| Bar | Thin, over the top margin, fades while reading | Same |
-| Transport pill | Bottom centre | Bottom centre, a little wider |
+| Score | Two pages side by side, whole in height between the strips, turned one page at a time; or scrolled («Лентой»), or one page across the width | One whole page between the strips, turned with half a page ahead; or scrolled, or across the width |
+| Bar | The top strip, full width, opaque, always there | Same |
+| Transport pill | The bottom strip, full width, opaque, always there | Same |
 | Phrase focus | Phrase across the full width, ossia above, drawer below | Same; a long phrase wraps to two systems |
 | Piano roll drawer | Bottom 40%, draggable to 70% | Bottom 30%, draggable to 60% |
 | Insights sheet | Right third (about 380 px) over the page | Bottom sheet at half height, draggable to full |
@@ -240,17 +240,17 @@ Every capability in the current build has a home in the new model. Three things 
 
 | Question from the brief | How the design answers it |
 | --- | --- |
-| Can a musician work with the score comfortably for a long time? | The page fills the screen at A4 proportions, the bar fades, the pill fades while playing. Nothing is docked. The document scrolls continuously, so a phrase that crosses a page edge is read without a break; two pages per row in landscape match a stand. |
+| Can a musician work with the score comfortably for a long time? | Nothing lies on the notes: the bar and the transport are opaque strips at the edges and the page fills the space between them at A4 proportions (ADR 0036). Pages turn like paper, with half a page ahead, so a phrase that crosses a page edge is read without a break; two pages side by side in landscape match a stand; «Лентой» scrolls for those who prefer it. |
 | Can they quickly find and focus on a phrase? | Brackets are on the page above the staff; one tap on a bracket selects, a second tap (or Focus in the menu) lifts it. Previous / next in the focus bar walks the piece phrase by phrase. Phrase numbers under page thumbnails jump anywhere. |
 | Can they annotate without interrupting their workflow? | A stylus draws after one tap on Pen, or a double tap or squeeze of the Pencil and a tool in its palette; a finger draws after one tap on Pen too, on an iPad without a stylus. Notes, bookmarks and highlights are two taps from the bar they concern. Nothing opens a separate screen. |
 | Can they reach extra information without losing focus? | The Insights stream covers a third of the screen and the phrase stays visible beside it; facts highlight on the page; trying a variation never stops the loop; a swipe puts the sheet away with the selection intact. |
 | Does the piano roll add value without stealing attention? | It is absent until asked for, aligned bar for bar under the phrase when present, and gone with a swipe. |
-| Is the plain A4 experience immediately there? | It is the state the piece opens in. The resume point restores the page, and nothing else is shown until the user acts. |
+| Is the plain A4 experience immediately there? | It is the state the piece opens in, between the two strips. The resume point restores the page, and nothing else is shown on it until the user acts; the concert mode shows the pages alone. |
 | Does it feel natural to someone used to printed music? | Pages, brackets, pencil, margin notes, highlighter, fingering and ossia are all borrowed from paper practice; the digital additions (loop, tempo, hands, roll, analysis) are reached from the music, not from menus. |
 
 ## Open questions before visual design
 
-- [x] Pages are layout units inside one continuously scrolling document (decided in the Navigation model thread). Verovio paginates to fixed A4 pages with a stable bar-to-page map, as the Design system screens show; confirm the current build uses fixed page sizes rather than a flowing layout.
+- [x] Pages are layout units, turned one at a time by default or scrolled as one continuous document, as the player chooses (ADR 0036, 2026-11-28, replacing the continuous document decided in the Navigation model thread). Verovio paginates to fixed A4 pages with a stable bar-to-page map, as the Design system screens show; confirm the current build uses fixed page sizes rather than a flowing layout.
 - [x] Decided: any iPad is a target, with or without a stylus. Ink therefore has a Pen mode for the finger (the Pen action in the bar). Since 2026-11-13 (#479 item 18) the stylus follows the tool as well, so it selects in Select and draws only with Pen; the finger always scrolls. See Annotations.
 - [x] Phrases belong to the piece and are shared by all its sessions, as does the chosen granularity. Confirm, and confirm that detection can produce the three levels (Short / Phrases / Sentences) from one analysis rather than three runs, and that a manual edit overrides detection at its level until Reset.
 - [x] Decided: a phrase can hold any number of saved variations. The ossia shows one at a time; a row of chips above it picks which, and two can be compared side by side. See Phrase focus.

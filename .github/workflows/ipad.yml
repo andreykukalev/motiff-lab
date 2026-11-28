@@ -110,12 +110,14 @@ jobs:
           run=true
           if [[ -n "$base" ]] && changed="$(git diff --name-only --no-renames "$base" HEAD)"; then
             run=false
-            # What the app is built from: src/ipad/App/project.yml reads src/shared, design/kit, tests/ipad and
-            # tests/contracts; src/ipad/Core builds music-core; the Swift tests replay tests/contracts/page-scenarios
-            # with tests/pages (PageScenarioTests.swift).
+            # What the app is built from: src/ipad/App/project.yml reads src/shared, tests/ipad, tests/contracts and
+            # from design/kit only tokens.css, the fonts and elise.musicxml; src/ipad/Core builds music-core; the Swift
+            # tests replay tests/contracts/page-scenarios with tests/pages (PageScenarioTests.swift). Markdown is never
+            # an input: no target bundles or reads a .md file.
             while IFS= read -r f; do
               case "$f" in
-                src/ipad/*|tests/ipad/*|src/shared/*|src/backend/MotiffLab.MusicCore/*|design/kit/*|tests/contracts/*|tests/pages/*|global.json|Directory.Build.props|.github/workflows/ipad.yml)
+                *.md) ;;
+                src/ipad/*|tests/ipad/*|src/shared/*|src/backend/MotiffLab.MusicCore/*|design/kit/tokens.css|design/kit/fonts/*|design/kit/elise.musicxml|tests/contracts/*|tests/pages/*|global.json|Directory.Build.props|.github/workflows/ipad.yml)
                   echo "An input of the app: $f"
                   run=true ;;
               esac
