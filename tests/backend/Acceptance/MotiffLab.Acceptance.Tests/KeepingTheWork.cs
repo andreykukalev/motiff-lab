@@ -69,10 +69,10 @@ public class KeepingTheWork
     [Fact(DisplayName = "j. The player opens a project file of a newer version: it is refused with the newer-version message and left as it was")]
     public void A_file_of_a_newer_version_is_neither_damaged_nor_overwritten()
     {
-        byte[] future = Player.Fixture("v19-future.motiff.json");
+        byte[] future = Player.Fixture("v20-future.motiff.json");
         byte[] copy = [.. future];
 
-        (Player player, JsonElement answer) = Player.TriesToOpen("v19-future.motiff.json", future, """{"language": "en"}""");
+        (Player player, JsonElement answer) = Player.TriesToOpen("v20-future.motiff.json", future, """{"language": "en"}""");
 
         Assert.Equal("import", answer.GetProperty("error").GetString());
         Assert.Contains("newer version of Motiff Lab", answer.GetProperty("message").GetString(), StringComparison.Ordinal);
@@ -85,11 +85,11 @@ public class KeepingTheWork
     [Fact(DisplayName = "r. The player opens a project file a later build wrote that this build may read: it opens read-only, plays, and is never saved")]
     public void A_file_of_a_later_version_this_build_may_read_opens_read_only_and_is_never_saved()
     {
-        // A version 19 file whose "minReader" is 18, the version this build writes (v1.6 c-14a): a later build says it may be read.
-        byte[] readable = Player.Fixture("v19-readable.motiff.json");
+        // A version 20 file whose "minReader" is 18 (v1.6 c-14a; this build writes 19, v1.7): a later build says it may be read.
+        byte[] readable = Player.Fixture("v20-readable.motiff.json");
         byte[] copy = [.. readable];
 
-        (Player player, JsonElement opened) = Player.Opens("v19-readable.motiff.json", readable, """{"language": "en"}""");
+        (Player player, JsonElement opened) = Player.Opens("v20-readable.motiff.json", readable, """{"language": "en"}""");
 
         // FILE-02: it opens, says it is read-only, and its notes play as any piece's.
         Assert.True(opened.GetProperty("project").GetProperty("readOnly").GetBoolean());
