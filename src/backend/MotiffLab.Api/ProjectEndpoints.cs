@@ -58,7 +58,7 @@ internal static partial class ProjectEndpoints
         {
             try
             {
-                return IsProjectId(id) && await store.DeleteAsync(Player.Id(http.User), id, await IfMatchAsync(http.Request, store, id, cancel), cancel)
+                return IsProjectId(id) && await store.DeleteAsync(Player.Id(http.User), id, await IfMatchAsync(http.Request, async () => (await store.GetAsync(Player.Id(http.User), id, cancel))?.ETag), cancel)
                     ? Results.NoContent()
                     : Problem(StatusCodes.Status404NotFound, "There is no such project.");
             }
@@ -73,6 +73,8 @@ internal static partial class ProjectEndpoints
             Results.Ok(new { deletedProjects = await store.DeleteAllAsync(Player.Id(http.User), cancel) }))
             .RequireAuthorization(Player.Policy);
         app.MapTestReset();
+        // The playlists sit beside the projects, synced by the same rules.
+        app.MapPlaylists();
     }
 
     /// <summary>Saves the project sent: over the stored one when <c>If-Match</c> still names it, else only as a new one.</summary>
@@ -93,7 +95,7 @@ internal static partial class ProjectEndpoints
             return Problem(StatusCodes.Status403Forbidden, $"A free account keeps {Plans.FreeProjectsOnline} pieces online; this one stays on the device.", "quota");
         }
 
-        byte[]? file = await ReadBodyAsync(http.Request, cancel);
+        byte[]? file = await ReadBodyAsync(http.Request, MaxFileBytes, cancel);
         if (file is null)
         {
             return Problem(StatusCodes.Status413PayloadTooLarge, $"The project is larger than {MaxFileBytes / (1024 * 1024)} MB.");
@@ -122,7 +124,7 @@ internal static partial class ProjectEndpoints
 
         try
         {
-            string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, await IfMatchAsync(http.Request, store, id, cancel), cancel);
+            string etag = await store.PutAsync(Player.Id(http.User), project.Summary, packed, await IfMatchAsync(http.Request, async () => (await store.GetAsync(Player.Id(http.User), id, cancel))?.ETag), cancel);
             http.Response.Headers.ETag = etag;
             return Results.NoContent();
         }
@@ -137,9 +139,10 @@ internal static partial class ProjectEndpoints
 
     /// <summary>
     /// The ETag a request's <c>If-Match</c> names, or null without one. <c>If-Match: *</c> names any copy kept (RFC 9110,
-    /// 13.1.1): the stored one's ETag, or, with none kept, one no copy has, so a save answers 412 and a delete 404.
+    /// 13.1.1): the stored one's ETag (<paramref name="kept"/>, null with none kept), or, with none kept, one no copy has,
+    /// so a save answers 412 and a delete 404.
     /// </summary>
-    private static async Task<string?> IfMatchAsync(HttpRequest request, IProjectStore store, string id, CancellationToken cancel)
+    internal static async Task<string?> IfMatchAsync(HttpRequest request, Func<Task<string?>> kept)
     {
         if (request.Headers.IfMatch.Count == 0)
         {
@@ -147,7 +150,7 @@ internal static partial class ProjectEndpoints
         }
 
         string named = request.Headers.IfMatch.ToString();
-        return named.Trim() != "*" ? named : (await store.GetAsync(Player.Id(request.HttpContext.User), id, cancel))?.ETag ?? NoCopy;
+        return named.Trim() != "*" ? named : await kept() ?? NoCopy;
     }
 
     /// <summary>True when the project is new online and the player already keeps <see cref="Plans.FreeProjectsOnline"/> pieces there.</summary>
@@ -183,10 +186,10 @@ internal static partial class ProjectEndpoints
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$", RegexOptions.CultureInvariant)]
     private static partial Regex ProjectId();
 
-    /// <summary>The body, or null when it is larger than <see cref="MaxFileBytes"/>.</summary>
-    private static async Task<byte[]?> ReadBodyAsync(HttpRequest request, CancellationToken cancel)
+    /// <summary>The body, or null when it is larger than <paramref name="most"/> bytes.</summary>
+    internal static async Task<byte[]?> ReadBodyAsync(HttpRequest request, int most, CancellationToken cancel)
     {
-        if (request.ContentLength > MaxFileBytes)
+        if (request.ContentLength > most)
         {
             return null;
         }
@@ -196,7 +199,7 @@ internal static partial class ProjectEndpoints
         int read;
         while ((read = await request.Body.ReadAsync(chunk, cancel)) > 0)
         {
-            if (body.Length + read > MaxFileBytes)
+            if (body.Length + read > most)
             {
                 return null;
             }

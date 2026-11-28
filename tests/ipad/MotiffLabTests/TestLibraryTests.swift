@@ -25,6 +25,7 @@ final class TestLibraryTests: XCTestCase {
             "/container/Documents/Test/Sonata 2.MOTIFF.JSON",
             "/container/Library/Application Support/sync-test.json",
             "/container/Library/Application Support/sync-test-bases",
+            "/container/Library/Application Support/sync-test-playlists.json",
             "/container/Library/Application Support/LibraryImport/test",
         ])
     }
@@ -38,6 +39,7 @@ final class TestLibraryTests: XCTestCase {
             "/container/Library/Application Support/sync.json",
             "/container/Library/Application Support/sync-bases",
             "/container/Library/Application Support/sync-bases/p_1.json",
+            "/container/Library/Application Support/sync-playlists.json",
             "/container/Library/Application Support/LibraryImport",
             "/container/Library/Application Support/LibraryImport/main",
             "/container/Library/Application Support/LibraryImport/main/folders.json",
@@ -67,6 +69,7 @@ final class TestLibraryTests: XCTestCase {
             documents.appendingPathComponent("Main.motiff.json"), support.appendingPathComponent("sync.json"),
             support.appendingPathComponent("sync-test.json"), kept.appendingPathComponent("p_1.pdf"), mainImport.appendingPathComponent("folders.json"),
             testBases.appendingPathComponent("p_1.json"), mainBases.appendingPathComponent("p_2.json"),
+            support.appendingPathComponent("sync-test-playlists.json"), support.appendingPathComponent("sync-playlists.json"),
         ]
         for file in files { try Data("{}".utf8).write(to: file) }
 
@@ -75,7 +78,7 @@ final class TestLibraryTests: XCTestCase {
         XCTAssertEqual(done.pieces, 2)
         XCTAssertEqual(done.failed, 0)
         let left = files.filter { FileManager.default.fileExists(atPath: $0.path) }.map(\.lastPathComponent)
-        XCTAssertEqual(left, ["player.pdf", "Main.motiff.json", "sync.json", "folders.json", "p_2.json"])
+        XCTAssertEqual(left, ["player.pdf", "Main.motiff.json", "sync.json", "folders.json", "p_2.json", "sync-playlists.json"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: support.appendingPathComponent("LibraryImport/test").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: test.path), "the folder itself stays, empty of pieces")
     }

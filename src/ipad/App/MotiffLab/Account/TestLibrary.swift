@@ -27,9 +27,10 @@ enum TestLibrary {
     }
 
     /// Whether clearing may delete the file or folder: one of Test's project files (a `.motiff.json` directly in
-    /// Documents/Test), Test's sync records (`sync-test.json`, and the bases beside them, `SyncBases`) or Test's
+    /// Documents/Test), Test's sync records (`sync-test.json`, and beside them the bases, `SyncBases`, and the playlists'
+    /// record, `PlaylistsSyncRecord`) or Test's
     /// folder-import records. Nothing of Main (the project files in Documents itself, `sync.json`, `sync-bases`,
-    /// `LibraryImport/main`), nothing else in Documents/Test, nothing outside.
+    /// `sync-playlists.json`, `LibraryImport/main`), nothing else in Documents/Test, nothing outside.
     static func deletes(_ url: URL, documents: URL, support: URL) -> Bool {
         let path = url.standardizedFileURL.path
         let records = testRecords(in: support)
@@ -44,10 +45,10 @@ enum TestLibrary {
         (listed + testRecords(in: support)).filter { deletes($0, documents: documents, support: support) }
     }
 
-    /// Test's records in Application Support: its sync records, their bases and its folder-import records.
+    /// Test's records in Application Support: its sync records, their bases, the playlists' record and its folder-import records.
     private static func testRecords(in support: URL) -> [URL] {
         let sync = ServerEnvironment.test.syncRecords(in: support)
-        return [sync, SyncBases.folder(for: sync), importRecords(in: support)]
+        return [sync, SyncBases.folder(for: sync), PlaylistsSyncRecord.url(for: sync), importRecords(in: support)]
     }
 
     /// Whether the player's copies may be deleted online: only in Test, and only when Test's API is develop's own

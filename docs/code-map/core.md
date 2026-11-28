@@ -57,7 +57,7 @@ through the facade; the API references it.
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync` (its `Resolve` merges two copies per
   entity by `ProjectMerge` over the file's JSON, with `SourcesMerge` for Notes, corrections, versions and drafts, and records
   `MergeConflict`s; `MergeRules` says how each part of the file merges, `MergeCheck` is the merge's self-check, c-17a), `PieceDetails`, `PieceOrigin`;
-  `Projects.Playlists` (version 1.7): the library's playlists, a file of their own (`PlaylistsFile`, docs/playlists-file.md), `LibraryPlaylists` (the edits, `Migrated` from the pieces' `metadata.playlists`, `Joined`: one playlist a name), `PlaylistsMerge` (three-way by playlist id, `Resolve` the copy saved last winning);
+  `Projects.Playlists` (version 1.7): the library's playlists, a file of their own (`PlaylistsFile`, docs/playlists-file.md; `PlaylistsEnvelope`, the public envelope the API checks), `LibraryPlaylists` (the edits, `Migrated` from the pieces' `metadata.playlists`, `Joined`: one playlist a name), `PlaylistsMerge` (three-way by playlist id, `Resolve` the copy saved last winning);
   `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
   read-only since version 18; version 19 since 1.7, with the piece's «Ноты крупнее» step `Project.LargerNotes`, its
   rule in `LargerNotes`: 0 to 10 steps of 10 %, clamped on reading) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also

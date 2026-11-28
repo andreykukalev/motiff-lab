@@ -137,6 +137,8 @@ struct PieceSummary: Equatable, Sendable {
     var latest: Latest?
     /// The project's id, and when it was last opened (ISO 8601, as music-core writes it).
     var id: String?
+    /// The ids the project was known by before it was re-keyed (project file 18, #317), for the playlists' sync (v1.7 p-3).
+    var formerIds: [String] = []
     var lastOpened = ""
     /// For notes read from a PDF piece: that piece's id, and where each of its pages starts in the notes (PDF | Notes, 0023).
     var readFrom: String?
@@ -195,6 +197,7 @@ struct PieceSummary: Equatable, Sendable {
         checkBars = (project["checkBars"] as? NSNumber)?.intValue ?? 0
         latest = (project["latest"] as? [String: Any]).map { Latest(name: $0["name"] as? String) }
         id = project["id"] as? String
+        formerIds = project["formerIds"] as? [String] ?? []
         lastOpened = project["lastOpened"] as? String ?? ""
         readFrom = project["readFrom"] as? String
         readFromPages = (project["readFromPages"] as? [NSNumber] ?? []).map(\.doubleValue)
