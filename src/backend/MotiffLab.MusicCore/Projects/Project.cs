@@ -154,20 +154,14 @@ public sealed partial record Project(
     /// <summary>
     /// The PDF piece with the notes the scan read from its pages (0011, 0023; testing item 16, Andrei, 2026-11-06: "the PDF
     /// is available right inside the piece"): the MusicXML becomes its source, named after the PDF, and the PDF, its marks
-    /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null) => Recognised(musicXml, engine, pages, at, null);
-
-    /// <summary>
-    /// The PDF piece with the notes the scan read from its pages, as <see cref="Recognised(byte[], string, PageMap, DateTimeOffset?)"/>,
-    /// and with <paramref name="reports"/>, the scan server's report on each page of the notes (its <c>X-Page-Report</c>,
-    /// version 0.4), kept by the scan (<see cref="ScanOrigin.Pages"/>) numbered by their place in the notes, so its check
+    /// and its bookmarks stay exactly as they were, for the "PDF" view beside the "Notes" one in the same piece. With
+    /// <paramref name="reports"/>, the scan server's report on each page of the notes (its <c>X-Page-Report</c>, version
+    /// 0.4), kept by the scan (<see cref="ScanOrigin.Pages"/>) numbered by their place in the notes, so its check
     /// (<see cref="ScanOrigin.CheckOf"/>) counts each page's quality on every open; the caller raises the Check flags from it.
     /// </summary>
     /// <exception cref="InvalidOperationException">The piece is not a PDF with no notes yet.</exception>
     /// <exception cref="ArgumentException">No notes, or not one report per page of the notes (<see cref="PageReport.ForScore"/>).</exception>
-    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at, IReadOnlyList<PageReport>? reports)
+    public Project Recognised(byte[] musicXml, string engine, PageMap pages, DateTimeOffset? at = null, IReadOnlyList<PageReport>? reports = null)
     {
         ArgumentNullException.ThrowIfNull(musicXml);
         ArgumentNullException.ThrowIfNull(pages);

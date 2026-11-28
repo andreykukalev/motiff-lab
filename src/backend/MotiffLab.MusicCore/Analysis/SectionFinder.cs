@@ -39,14 +39,14 @@ internal sealed record SectionEvidence(IReadOnlyList<Note> Notes, MeterMap Meter
 
 /// <summary>
 /// Finds where the pieces, movements and large sections of a long score or recording begin (Andrei, 2026-11-11,
-/// "automatic bookmarks"; an experiment), to propose them as bookmarks. Each boundary rests on facts the file shows: in
+/// "automatic bookmarks"), to propose them for the pieces layer (<see cref="FindPieces"/>). Each boundary rests on facts the file shows: in
 /// notation a final or double bar line, a heading, a rehearsal mark, a new key, time signature or tempo, whole bars of
 /// rest; in a recording a silence of some seconds, scaled to the tempo, and a different key or tempo around it. Each
 /// fact adds to the boundary's confidence; a boundary is proposed when the facts together reach
 /// <see cref="MinConfidence"/>, at least <see cref="MinBars"/> bars from the start, the end and any stronger boundary.
 /// </summary>
 /// <remarks>
-/// Pure and deterministic: the same evidence gives the same sections. Every position is a bar start in exact ticks;
+/// Pure and deterministic: the same evidence gives the same pieces. Every position is a bar start in exact ticks;
 /// seconds come from the tempo map in integer microseconds. The result is an inference, never a fact of the file.
 /// </remarks>
 internal static class SectionFinder
@@ -72,20 +72,8 @@ internal static class SectionFinder
     /// <summary>The fewest notes on each side of a silence for their keys to be compared.</summary>
     private const int MinKeyNotes = 16;
 
-    public static FoundSections Find(SectionEvidence evidence)
-    {
-        ArgumentNullException.ThrowIfNull(evidence);
-        if (Candidates(evidence) is not { } found)
-        {
-            return FoundSections.None;
-        }
-
-        int[] boundaries = Strongest(found.FirstBar, found.LastBar, StrongBars(found.Cues, heard: false), int.MaxValue);
-        return boundaries.Length == 0 ? FoundSections.None : Sections(evidence, found.Cues, boundaries, found.LastBar, pieces: false);
-    }
-
     /// <summary>
-    /// Finds where the pieces of a long score or recording begin (version 0.5, the pieces layer): as <see cref="Find"/>, but
+    /// Finds where the pieces of a long score or recording begin (version 0.5, the pieces layer): at the strongest cues, but
     /// in a recording a silence alone is not a boundary (Andrei, 2026-11-12): it needs a different key or tempo around it
     /// (<see cref="SectionCueKind.HeardKey"/>, <see cref="SectionCueKind.HeardTempo"/>). With <paramref name="count"/>, the
     /// player's number of pieces, at most that many come back: the strongest boundaries first, then, while there are too
@@ -117,7 +105,7 @@ internal static class SectionFinder
             }
         }
 
-        return Sections(evidence, found.Cues, boundaries, found.LastBar, pieces: true);
+        return Sections(evidence, found.Cues, boundaries, found.LastBar);
     }
 
     /// <summary>Every bar a fact says a section may start at, with those facts; null without notes.</summary>
@@ -268,7 +256,7 @@ internal static class SectionFinder
     }
 
     /// <summary>The sections between the boundaries: the opening up to the first, then one from each boundary to the next or the end.</summary>
-    private static FoundSections Sections(SectionEvidence evidence, SortedDictionary<int, List<SectionCue>> cues, int[] boundaries, int lastBar, bool pieces)
+    private static FoundSections Sections(SectionEvidence evidence, SortedDictionary<int, List<SectionCue>> cues, int[] boundaries, int lastBar)
     {
         MeterMap meter = evidence.Meter;
         int firstBar = meter.BarAt(Tick.Zero).Number;
@@ -287,7 +275,7 @@ internal static class SectionFinder
             sections.Add(new FoundSection(index + 1, TickSpan.FromBounds(onset, end), bar, last, confidence, found));
         }
 
-        return new FoundSections(sections, meter, lastBar, pieces);
+        return new FoundSections(sections);
     }
 
     /// <summary>How long the stretch lasts at the tempo map, in microseconds; 120 BPM before the first tempo.</summary>

@@ -125,6 +125,5 @@ public class OperationScopeTests
         Assert.Equal("V13 › V13", chain.Result!.Operation);
         Assert.All(chain.Result.Notes, note => Assert.Equal(notes.Single(other => other.Id == note.Id).Span.Onset, note.Span.Onset));
         Assert.All(chain.Result.Notes, note => Assert.True(note.Span.Duration < notes.Single(other => other.Id == note.Id).Span.Duration, note.Id));
-        Assert.Equal(chain.Result.Notes, chain.Replay(notes, chain.Context)!.Result!.Notes);
     }
 }

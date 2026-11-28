@@ -13,11 +13,7 @@ public sealed record ImportReport(
     int TrackCount,
     int NoteCount,
     int MeasureCount,
-    IReadOnlyList<ImportIssue> Issues)
-{
-    /// <summary>Total count of an issue code across all tracks; 0 when it did not occur.</summary>
-    public int CountOf(string code) => Issues.Where(issue => issue.Code == code).Sum(issue => issue.Count);
-}
+    IReadOnlyList<ImportIssue> Issues);
 
 /// <summary>One kind of thing the importer rounded, assumed, repaired or dropped.</summary>
 /// <param name="Track">Zero-based source track, or null when the issue concerns the whole file.</param>

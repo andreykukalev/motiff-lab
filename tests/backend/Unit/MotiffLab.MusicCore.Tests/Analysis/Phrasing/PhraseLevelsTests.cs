@@ -75,26 +75,6 @@ public class PhraseLevelsTests
     }
 
     [Fact]
-    public void A_selection_moves_to_the_enclosing_or_the_contained_unit_when_the_level_changes()
-    {
-        PhraseLevels levels = Levels();
-        TickSpan phrase2 = levels.Units(PhraseLevel.Phrase)[1].Span;
-
-        Assert.Equal(levels.Units(PhraseLevel.Sentence)[0].Span, levels.Map(phrase2, PhraseLevel.Sentence).Span);
-        Assert.Equal(phrase2, levels.Map(phrase2, PhraseLevel.Short).Span);
-        Assert.Equal(levels.Units(PhraseLevel.Phrase)[0].Span, levels.Map(levels.Units(PhraseLevel.Sentence)[0].Span, PhraseLevel.Phrase).Span);
-
-        // A range across two phrases: at the sentence level the one enclosing it; at the phrase level the one it starts in.
-        TickSpan across = TickSpan.FromBounds(new Tick(2 * Bar), new Tick(6 * Bar));
-        Assert.Equal(1, levels.Map(across, PhraseLevel.Sentence).Number);
-        Assert.Equal(1, levels.Map(across, PhraseLevel.Phrase).Number);
-        // A phrase of four bars is also one short unit, so the finest level that has it names it.
-        Assert.Equal(PhraseLevel.Short, levels.LevelOf(phrase2));
-        Assert.Equal(PhraseLevel.Sentence, levels.LevelOf(levels.Units(PhraseLevel.Sentence)[0].Span));
-        Assert.Null(levels.LevelOf(across));
-    }
-
-    [Fact]
     public void Joining_short_units_across_a_phrase_boundary_joins_the_phrases()
     {
         PhraseLevels levels = Levels();

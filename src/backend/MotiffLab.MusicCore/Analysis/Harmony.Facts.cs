@@ -56,7 +56,7 @@ internal static partial class HarmonyAnalyzer
     /// <summary>The facts, in this order: the motion when the key is known, the chords, the bass when there is one, the rhythm, the voicing, and the shared notes when the chord changes.</summary>
     private static List<MotifFact> Facts(Measures measures, MeterMap meter, MusicalKey? key, Words w)
     {
-        MusicalKey spelling = key ?? new MusicalKey(0, KeyMode.Major);
+        MusicalKey spelling = key ?? MusicalKey.CMajor;
         var facts = new List<MotifFact>();
         if (key is { } inKey && measures.Cadence is { } cadence)
         {

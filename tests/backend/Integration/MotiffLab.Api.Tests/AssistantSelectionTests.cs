@@ -56,7 +56,7 @@ public sealed class AssistantSelectionTests(AssistantSelectionTests.WithAzure ap
         Assert.Equal(6, addresses.Length);
         Assert.Equal(addresses.Order(StringComparer.Ordinal), given.GetProperty("notes").GetProperty("notes").EnumerateArray().Select(static note => note.GetProperty("address").GetString()!).Order(StringComparer.Ordinal));
         Assert.Contains(given.GetProperty("notes").GetProperty("notes").EnumerateArray(), static note => note.GetProperty("pitch").GetString() == "C6");
-        string[] ids = [.. FactsDigest.OfRange(piece, 3, 4).Ids];
+        string[] ids = [.. AssistantContext.OfRange(piece, 3, 4).GetProperty("digest").GetProperty("ids").EnumerateArray().Select(static id => id.GetString()!)];
         Assert.NotEmpty(ids);
         Assert.Equal(ids, given.GetProperty("digest").GetProperty("ids").EnumerateArray().Select(static id => id.GetString()!));
         Assert.Contains("never ask the player which bars they mean", api.Provider.Body.GetProperty("instructions").GetString(), StringComparison.Ordinal);

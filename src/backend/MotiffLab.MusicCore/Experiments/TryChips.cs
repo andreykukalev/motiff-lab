@@ -38,7 +38,7 @@ internal sealed record TryChipRow(string FactKind, IReadOnlyList<string> ChipIds
 /// <remarks>
 /// <para>
 /// Pure and deterministic, with no AI: the same fact and selection give the same chips in the table's order. A chip
-/// runs the way an experiment's alternative does (<see cref="ExperimentCatalogue"/>): one accepted step over the
+/// runs as a recipe of catalogue operations does (<see cref="ExperimentCatalogue.TryStart"/>): one accepted step over the
 /// selection with the preset's Keep choices, so what the player hears is a variation like any other.
 /// </para>
 /// </remarks>
@@ -173,67 +173,6 @@ internal static class TryChips
             .Where(chip => Start(chip, context, out _) is not null)
             .Take(MaxOffered)];
     }
-
-    /// <summary>
-    /// The facts' Try buttons, one per fact kind that offers chips, in the facts' order: an experiment whose ways are the
-    /// chips <see cref="Offer"/> gives, each with its own Keep preset, resting on every fact of that kind, so the page
-    /// tries, keeps and adjusts them as it does any experiment. Facts of one kind share it, since their chips are the same,
-    /// and a chip is offered once, on the first kind that offers it, so the stream does not repeat the same way.
-    /// </summary>
-    public static IReadOnlyList<Experiment> Buttons(IEnumerable<MotifFact> facts, InvitationContext context)
-    {
-        ArgumentNullException.ThrowIfNull(facts);
-        ArgumentNullException.ThrowIfNull(context);
-        if (context.Selection.NoteIds.Count == 0)
-        {
-            return [];
-        }
-
-        Words w = context.Words;
-        MotifSelection selection = context.Selection;
-        var buttons = new List<Experiment>();
-        var used = new HashSet<string>(StringComparer.Ordinal);
-        foreach (IGrouping<string, MotifFact> kind in facts.GroupBy(fact => KindOf(fact.Id), StringComparer.Ordinal))
-        {
-            IReadOnlyList<TryChip> chips = Offer(kind.Key, context, used);
-            if (chips.Count == 0)
-            {
-                continue;
-            }
-
-            used.UnionWith(chips.Select(chip => chip.Id));
-
-            buttons.Add(new Experiment(
-                ExperimentPrefix + kind.Key,
-                ExperimentTopic.Character,
-                w.T("Try a variation", "Попробовать вариацию"),
-                w.T(
-                    "Each way changes the passage with one operation and keeps what is named with it.",
-                    "Каждый вариант меняет отрывок одной операцией и сохраняет то, что названо рядом с ним."),
-                w.T("What does this change, and what stays?", "Что это меняет, а что остаётся?"),
-                w.T(
-                    "Hear the original, then the variation, then play the variation at the piano.",
-                    "Послушайте оригинал, затем вариацию, потом сыграйте вариацию на фортепиано."),
-                [.. kind.Select(fact => fact.Id).Distinct(StringComparer.Ordinal)],
-                new Passage(selection.Span, selection.FirstBar, selection.LastBar),
-                selection.Filter,
-                chips[0].KeepPresetId,
-                [.. chips.Select(chip => new ExperimentAlternative(chip.LabelIn(w), Keeps(chip.KeepPresetId, w), [new ExperimentStep(chip.OperationId, chip.Parameters!)]) { KeepPresetId = chip.KeepPresetId })]));
-        }
-
-        return buttons;
-    }
-
-    /// <summary>What a preset keeps, completing "Keeps …".</summary>
-    private static string Keeps(string presetId, Words w) => presetId switch
-    {
-        PitchOrder => w.T("the pitches and their order", "высоты и их порядок"),
-        Rhythm => w.T("the rhythm", "ритм"),
-        Melody => w.T("the melody", "мелодия"),
-        Bass => w.T("the bass", "бас"),
-        Contour => w.T("the contour", "контур"),
-        _ => throw new ArgumentOutOfRangeException(nameof(presetId), presetId, "Unknown preset."),
-    };
 
     /// <summary>The variation a chip sounds: one accepted step over the selection, or null with the reason when it cannot run.</summary>
     public static VariationChain? Start(TryChip chip, InvitationContext context, out string? reason)

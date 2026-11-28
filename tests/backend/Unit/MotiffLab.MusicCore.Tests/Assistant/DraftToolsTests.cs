@@ -133,14 +133,15 @@ public class DraftToolsTests
     {
         FactsDigest digest = FactsDigest.OfDraftPlace(Scope());
 
-        Assert.Equal(["place", "source.base", "source.variant", "technique.1", "technique.2"], digest.Ids);
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer))
         {
             digest.Write(json);
         }
 
-        JsonElement items = JsonDocument.Parse(buffer.ToArray()).RootElement.GetProperty("items");
+        JsonElement written = JsonDocument.Parse(buffer.ToArray()).RootElement;
+        Assert.Equal(["place", "source.base", "source.variant", "technique.1", "technique.2"], written.GetProperty("ids").EnumerateArray().Select(static id => id.GetString()));
+        JsonElement items = written.GetProperty("items");
         JsonElement technique = items.EnumerateArray().First(static item => item.GetProperty("id").GetString() == "technique.1");
         Assert.Equal("inferred", technique.GetProperty("certainty").GetString());
         Assert.StartsWith("Приём 1: ", technique.GetProperty("text").GetString(), StringComparison.Ordinal);

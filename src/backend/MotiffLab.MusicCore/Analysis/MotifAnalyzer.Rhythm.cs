@@ -102,14 +102,13 @@ internal static partial class MotifAnalyzer
         var other = new List<Note>();
         foreach (IGrouping<long, Note> group in notes.GroupBy(note => note.Span.Duration))
         {
-            int index = Array.FindIndex(s_values, value => value.Ticks == group.Key);
-            if (index < 0)
+            if (ValueOf(group.Key) is { } value)
             {
-                other.AddRange(group);
+                counts.Add((value, [.. group]));
             }
             else
             {
-                counts.Add((s_values[index], [.. group]));
+                other.AddRange(group);
             }
         }
 
@@ -289,5 +288,5 @@ internal static partial class MotifAnalyzer
     }
 
     /// <summary>A length in ticks when it is a single note value (<see cref="s_values"/>), otherwise -1.</summary>
-    private static long AsNoteValue(long ticks) => Array.Exists(s_values, value => value.Ticks == ticks) ? ticks : -1;
+    private static long AsNoteValue(long ticks) => ValueOf(ticks) is null ? -1 : ticks;
 }
