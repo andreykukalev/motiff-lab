@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-11-05; amended 2026-11-05 (Andrei): recognising a PDF always makes a separate piece; that amendment reversed 2026-11-07 (testing item 16, Andrei, 2026-11-06: "the PDF is available right inside the piece; everything there is is picked up"): the notes go into the same piece, and a PDF can be kept inside a piece with notes. Andrei, 2026-11-04 ("new positioning: forScore + MuseScore with subtle AI"): a plain PDF is added to the library and shown as it is, with no interactivity, alongside a separate "Notes" view once it is recognised; each view keeps its own marks, and only a rough link from pages to bars is needed.
 
+> 2026-11-28: [0036](0036-score-reading-two-modes.md) gives the PDF view the strips of the working mode and the turning and sizes of «Вид страницы», as on the Notes (its controls in the strips, never over the page); a PDF is never laid out again.
+
 ## Context
 
 Until now a PDF could only be scanned (0011, 0014): the notes the scan server read became the piece, and the PDF itself was not kept. Players who read from printed scores want the page exactly as printed (fingerings, editor's marks, the engraver's layout), whether or not the notes are ever recognised, and they want it to cost nothing: reading a PDF on the device is free; recognition runs on the server and is Pro (0018).
