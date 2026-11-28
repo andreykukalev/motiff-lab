@@ -95,6 +95,8 @@
     { "name": "ink.clear", "on": ["piece"] },
     { "name": "ink.remove", "on": ["piece"] },
     { "name": "language", "on": ["piece"] },
+    { "name": "largerNotes", "on": ["piece"] },
+    { "name": "largerNotes.set", "on": ["piece"] },
     { "name": "library.confirm", "on": ["piece0"] },
     { "name": "library.link", "on": ["piece0"] },
     { "name": "library.linked", "on": ["piece0"] },

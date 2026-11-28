@@ -7,15 +7,15 @@ namespace MotiffLab.MusicCore.Tests.Golden;
 /// <summary>A numbered project id re-keyed (0026 C4, #317): the encoding fixed by a golden, the old id kept in "formerIds".</summary>
 public partial class ProjectFileGoldenTests
 {
-    /// <summary>What today's writer makes of <c>v18-edits-meters.motiff.json</c> with the numbered id "p_0003", re-keyed.</summary>
-    private const string Rekeyed = "v18-rekeyed.motiff.json";
+    /// <summary>What today's writer makes of <c>v19-edits-meters.motiff.json</c> with the numbered id "p_0003", re-keyed.</summary>
+    private const string Rekeyed = "v19-rekeyed.motiff.json";
 
     /// <summary>The C4 id of that file: "p_" and the first 32 hex digits of sha256("p_0003|{createdAt}|{sha256 of its source}").</summary>
     private const string RekeyedId = "p_83a08b1319e2925df3c0cdd6aa0fff43";
 
     private static Project Numbered(string id = "p_0003")
     {
-        JsonObject file = Node(File("v18-edits-meters.motiff.json"));
+        JsonObject file = Node(File("v19-edits-meters.motiff.json"));
         file["id"] = id;
         return ProjectFile.Read(Bytes(file));
     }
@@ -32,6 +32,8 @@ public partial class ProjectFileGoldenTests
         Assert.Equal(RekeyedId, read.Id);
         Assert.Equal(["p_0003"], read.FormerIds);
         Assert.Same(read, read.Rekeyed());
+        // What version 1.6 wrote of the same project, in version 18, reads and is written as this golden.
+        Assert.Equal(Text(File(Rekeyed)), Text(ProjectFile.Write(ProjectFile.Read(File("v18-rekeyed.motiff.json")))));
     }
 
     [Fact]
@@ -76,7 +78,7 @@ public partial class ProjectFileGoldenTests
     [InlineData("\"p_0001\"")]
     public void Former_ids_that_repeat_or_are_not_texts_are_damage(string former)
     {
-        JsonObject file = Node(File("v18-edits-meters.motiff.json"));
+        JsonObject file = Node(File("v19-edits-meters.motiff.json"));
         file["id"] = "p_0003";
         file["formerIds"] = JsonNode.Parse(former);
 
@@ -86,7 +88,7 @@ public partial class ProjectFileGoldenTests
     [Fact]
     public void A_former_id_that_names_the_piece_itself_is_dropped()
     {
-        JsonObject file = Node(File("v18-edits-meters.motiff.json"));
+        JsonObject file = Node(File("v19-edits-meters.motiff.json"));
         file["id"] = "p_0003";
         file["formerIds"] = JsonNode.Parse("""["p_0001", "p_0003", "p_0002"]""");
 

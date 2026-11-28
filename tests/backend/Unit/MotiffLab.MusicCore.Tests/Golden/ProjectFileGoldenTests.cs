@@ -31,8 +31,11 @@ public partial class ProjectFileGoldenTests
     /// <summary>What versions 1.1 to 1.5 made of <see cref="Worked15"/>, in version 17: an input since version 18, never rewritten.</summary>
     private const string Worked17 = "v17-worked.motiff.json";
 
-    /// <summary>What today's writer makes of <see cref="Worked15"/>, <see cref="Worked16"/> and <see cref="Worked17"/>, in version 18.</summary>
-    private const string Worked = "v18-worked.motiff.json";
+    /// <summary>What version 1.6 made of <see cref="Worked15"/>, in version 18: an input since version 19, never rewritten.</summary>
+    private const string Worked18 = "v18-worked.motiff.json";
+
+    /// <summary>What today's writer makes of <see cref="Worked15"/> to <see cref="Worked18"/>, in version 19.</summary>
+    private const string Worked = "v19-worked.motiff.json";
 
     /// <summary>The future file made while version 15 was today's: the version 15 file with version 16.</summary>
     private const string Future15 = "v16-future.motiff.json";
@@ -43,8 +46,11 @@ public partial class ProjectFileGoldenTests
     /// <summary>The future file made while version 17 was today's: the version 17 file with version 18.</summary>
     private const string Future17 = "v18-future.motiff.json";
 
-    /// <summary>The future file of today: the version 18 file with version 19 and a "minReader" of 18 (#314, #315).</summary>
-    private const string Future = "v19-future.motiff.json";
+    /// <summary>The future file made while version 18 was today's: the version 18 file with version 19 and a "minReader" of 18 (#314, #315).</summary>
+    private const string Future18 = "v19-future.motiff.json";
+
+    /// <summary>The future file of today: the version 19 file with version 20 and a "minReader" of 18, the changes of <see cref="Future18"/>.</summary>
+    private const string Future = "v20-future.motiff.json";
 
     /// <summary>
     /// Where the future file puts an unknown value of each enum type the reader names (council fact V28: 24 types then;
@@ -180,7 +186,7 @@ public partial class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// An earlier file of the layers as this version writes it: version 18, "minReader" and, from a file before 18, without
+    /// An earlier file of the layers as this version writes it: version 19, "minReader" and, from a file before 18, without
     /// the piece's phrase level "phrases.granularity" (the phrases spec).
     /// </summary>
     private static JsonObject AsThisVersion(JsonObject file)
@@ -295,13 +301,15 @@ public partial class ProjectFileGoldenTests
     }
 
     /// <summary>
-    /// Versions 17 and 18 keep the layout of version 16: the version 16 and 17 files read and are written as the version
-    /// 18 file, which is each with the version raised, "minReader" and without the piece's phrase level (version 18).
+    /// Versions 17 to 19 keep the layout of version 16: the version 16, 17 and 18 files read and are written as the version
+    /// 19 file, which is each with the version raised, "minReader" and without the piece's phrase level (version 18); a
+    /// file before 19 has no «Ноты крупнее» step, and the file written has none.
     /// </summary>
     [Theory]
     [InlineData(Worked16, 16)]
     [InlineData(Worked17, 17)]
-    public void The_version_16_and_17_files_read_and_are_written_as_the_version_18_file_with_only_the_version_and_the_phrase_level_changed(string golden, int version)
+    [InlineData(Worked18, 18)]
+    public void The_version_16_17_and_18_files_read_and_are_written_as_the_version_19_file_with_only_the_version_and_the_phrase_level_changed(string golden, int version)
     {
         byte[] earlier = File(golden);
 
@@ -309,11 +317,12 @@ public partial class ProjectFileGoldenTests
 
         AssertWritten(written, Worked);
         Assert.Equal(version, Node(earlier)["version"]!.GetValue<int>());
-        Assert.True(JsonNode.DeepEquals(AsThisVersion(Node(earlier)), Node(written)), "the version 18 file is the earlier file with version 18, minReader and no phrase level");
+        Assert.True(JsonNode.DeepEquals(AsThisVersion(Node(earlier)), Node(written)), "the version 19 file is the earlier file with version 19, minReader and no phrase level");
+        Assert.Equal(0, ProjectFile.Read(earlier).LargerNotes);
     }
 
     [Fact]
-    public void The_version_18_file_reads_opens_and_is_written_back_unchanged()
+    public void The_version_19_file_reads_opens_and_is_written_back_unchanged()
     {
         byte[] golden = File(Worked);
 
@@ -336,7 +345,7 @@ public partial class ProjectFileGoldenTests
 
     [Theory]
     [MemberData(nameof(EnumValues))]
-    public void The_version_18_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
+    public void The_version_19_file_holds_a_known_value_of_each_enum_type_where_the_future_file_changes_it(string type, string path)
     {
         Type found = Assert.Single(typeof(ProjectFile).Assembly.GetTypes(), candidate => candidate.IsEnum && candidate.Name == type);
         string value = Parent(Node(File(Worked)), path, out string last)[last]!.GetValue<string>();
@@ -430,7 +439,7 @@ public partial class ProjectFileGoldenTests
         UnknownEntity kept = Assert.Single(AllUnknown(project), entity => entity.Enum is not null);
         Assert.Equal((list, index, type), (kept.List, kept.Index, kept.Enum));
         Assert.True(JsonNode.DeepEquals(At(file, entityPath), JsonNode.Parse(kept.Json)), "the unknown entity is kept as the file held it");
-        Assert.True(JsonNode.DeepEquals(AsThisVersion(file), written), "the file written back is the version 16 file read, with version 18");
+        Assert.True(JsonNode.DeepEquals(AsThisVersion(file), written), "the file written back is the version 16 file read, with version 19");
     }
 
     /// <summary>
@@ -538,11 +547,12 @@ public partial class ProjectFileGoldenTests
     /// (#315 criterion 1): an unknown field at the top level, in the workspace, in a Notes, an original, a provenance, a
     /// motif, a variation, an idea, a resume point, a bookmark category or a bookmark is kept and written back after the known ones.
     /// A version 15 file's unknown field is lost as before, since no build that wrote one knew a field this one does not.
-    /// Version 16 and 17 files keep them as a version 18 one does, written back with version 18.
+    /// Version 16 to 18 files keep them as a version 19 one does, written back with version 19.
     /// </summary>
     [Theory]
     [InlineData(Worked16)]
     [InlineData(Worked17)]
+    [InlineData(Worked18)]
     [InlineData(Worked)]
     public void An_unknown_field_in_a_file_of_the_layers_is_kept_where_the_layers_keep_them(string golden)
     {
@@ -573,7 +583,7 @@ public partial class ProjectFileGoldenTests
     [Fact]
     public void An_unknown_field_in_a_draft_is_kept_and_written_back()
     {
-        JsonObject file = Node(File("v18-drafts.motiff.json"));
+        JsonObject file = Node(File("v19-drafts.motiff.json"));
         file["workspace"]!["drafts"]![1]!["future"] = new JsonObject { ["note"] = "A field a later version adds to a draft." };
 
         Assert.True(JsonNode.DeepEquals(file, Node(ProjectFile.Write(ProjectFile.Read(Bytes(file))))), "the draft's unknown field is written back");

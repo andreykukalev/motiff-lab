@@ -11,8 +11,8 @@ namespace MotiffLab.MusicCore.Tests.Golden;
 /// </summary>
 public partial class ProjectFileGoldenTests
 {
-    /// <summary>What today's writer makes of <c>v18-worked.motiff.json</c> with its idea and its resume point in phrase focus attached to one anchor.</summary>
-    private const string Anchored = "v18-anchors.motiff.json";
+    /// <summary>What today's writer makes of <c>v19-worked.motiff.json</c> with its idea and its resume point in phrase focus attached to one anchor.</summary>
+    private const string Anchored = "v19-anchors.motiff.json";
 
     private static Project WithAnchor(out PhraseAnchor anchor)
     {
@@ -38,6 +38,8 @@ public partial class ProjectFileGoldenTests
         Assert.Equal(anchor.Id, read.Observations[0].Anchor);
         Assert.Equal(anchor.Id, read.ResumePoints[0].Anchor);
         Assert.Equal(Text(File(Anchored)), Text(ProjectFile.Write(read)));
+        // What version 1.6 wrote of the same project, in version 18, reads and is written as this golden.
+        Assert.Equal(Text(File(Anchored)), Text(ProjectFile.Write(ProjectFile.Read(File("v18-anchors.motiff.json")))));
     }
 
     [Fact]

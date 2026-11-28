@@ -22,7 +22,7 @@ public class LaterFilesFacadeTests
     /// <summary>Today's future file with a "minReader" above this build (#315 criterion 4): one this build refuses.</summary>
     private static byte[] Refused()
     {
-        JsonObject file = JsonNode.Parse(Golden("v19-future.motiff.json"))!.AsObject();
+        JsonObject file = JsonNode.Parse(Golden("v20-future.motiff.json"))!.AsObject();
         file["minReader"] = ProjectFile.Version + 1;
         return Encoding.UTF8.GetBytes(file.ToJsonString());
     }
@@ -42,7 +42,7 @@ public class LaterFilesFacadeTests
     [InlineData("en", "This project was saved by a newer version of Motiff Lab. Update the app and try again.")]
     public void A_file_of_a_newer_version_is_refused_in_the_players_language(string language, string message)
     {
-        JsonElement answer = Json(new MusicCoreFacade().Open("v18-future" + ProjectFile.Extension, Refused(), $$"""{"language": "{{language}}"}"""));
+        JsonElement answer = Json(new MusicCoreFacade().Open("v20-future" + ProjectFile.Extension, Refused(), $$"""{"language": "{{language}}"}"""));
 
         Assert.Equal(("import", message, "damaged"), (answer.GetProperty("error").GetString(), answer.GetProperty("message").GetString(), answer.GetProperty("reason").GetString()));
     }
@@ -81,7 +81,7 @@ public class LaterFilesFacadeTests
     public void A_file_of_a_newer_version_this_build_may_read_opens_read_only_and_is_never_saved()
     {
         var facade = new MusicCoreFacade();
-        byte[] future = Golden("v19-future.motiff.json");
+        byte[] future = Golden("v20-future.motiff.json");
 
         JsonElement opened = Json(facade.Open("piece" + ProjectFile.Extension, future, """{"language": "en"}"""));
 
@@ -94,7 +94,7 @@ public class LaterFilesFacadeTests
         string request = JsonSerializer.Serialize(new { file = Encoding.UTF8.GetString(future), title = "Another" });
         Assert.Equal("readOnly", Json(new MusicCoreFacade().Call(0, "project.metadata", request)).GetProperty("error").GetString());
         // A file this build writes says nothing of the kind.
-        Assert.False(Json(new MusicCoreFacade().Open("piece" + ProjectFile.Extension, Golden("v18-worked.motiff.json"))).GetProperty("project").TryGetProperty("readOnly", out _));
+        Assert.False(Json(new MusicCoreFacade().Open("piece" + ProjectFile.Extension, Golden("v19-worked.motiff.json"))).GetProperty("project").TryGetProperty("readOnly", out _));
     }
 
     [Theory]

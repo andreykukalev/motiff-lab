@@ -203,7 +203,7 @@ public class SettingsTests
 
         // Since version 18 a setting this build does not have is kept as the file held it and has no effect (#314): a file of
         // this layout that names one opens without it in force and writes it back; in a file of an earlier layout it is damage.
-        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v18-worked.motiff.json")))!.AsObject();
+        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v19-worked.motiff.json")))!.AsObject();
         file["workspace"]!["settings"]!["experimental.resume"] = Setting.On;
         byte[] bytes = Encoding.UTF8.GetBytes(file.ToJsonString());
 

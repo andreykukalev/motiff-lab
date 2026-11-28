@@ -24,15 +24,16 @@ namespace MotiffLab.MusicCore.Projects.File;
 /// The workspace of version 16 (decision record 0030): the working notes' id and everything the player made on them, in
 /// their ticks. A file of an earlier version keeps the same fields at its top level, so one reader takes both. Beside
 /// the codecs of its parts, it holds the ideas, the phrase boundaries, the piece's settings and hidden views, its place
-/// in its collection ("partOf", version 0.4), whether the corrections are off ("editsOff") and the player's tempo
-/// ("tempo", version 0.5). "partOf" and "editsOff" are optional within version 15: earlier builds open the file, with
-/// the corrections on, and drop them when they write it again ("partOf" versions 0.2 and 0.3, "editsOff" 0.2 to 0.4).
+/// in its collection ("partOf", version 0.4), whether the corrections are off ("editsOff"), the player's tempo ("tempo",
+/// version 0.5) and the «Ноты крупнее» step ("largerNotes", version 19). "partOf" and "editsOff" are optional within
+/// version 15: earlier builds open the file, with the corrections on, and drop them when they write it again ("partOf"
+/// versions 0.2 and 0.3, "editsOff" 0.2 to 0.4).
 /// </summary>
 internal static class WorkspaceCodec
 {
     internal static readonly HashSet<string> s_workspaceFields = new(StringComparer.Ordinal)
     {
-        "working", "metadata", "partOf", "editsOff", "tempo", "motifs", "variations", "observations", "phrases", "marks", "bookmarks",
+        "working", "metadata", "partOf", "editsOff", "tempo", "largerNotes", "motifs", "variations", "observations", "phrases", "marks", "bookmarks",
         "resumePoints", "assembly", "drafts", "settings", "hiddenViews",
     };
 
@@ -56,6 +57,7 @@ internal static class WorkspaceCodec
         WritePartOf(json, project.PartOf);
         WriteEditsOff(json, project);
         WritePlayerTempo(json, project);
+        WriteLargerNotes(json, project);
         WriteMotifsAndVariations(json, project);
         WriteList(json, "observations", project.Observations, KeptUnknown(project.Unknown, "observations", project.Observations.Select(static observation => observation.Id), null, out _), observation => WriteObservation(json, observation, project.HasNotes ? project.NotesId : null, project.UnknownFieldsAt(FieldsPath("observations", observation.Id))));
         WritePhrases(json, project);
@@ -104,6 +106,15 @@ internal static class WorkspaceCodec
             json.WriteStartObject("tempo");
             json.WriteNumber("quarterNotesPerMinute", perMinute);
             json.WriteEndObject();
+        }
+    }
+
+    /// <summary>"largerNotes": the «Ноты крупнее» step, 1 to 10, once the player chose one (version 19); left out at 0, the A4 layout.</summary>
+    private static void WriteLargerNotes(Utf8JsonWriter json, Project project)
+    {
+        if (project.LargerNotes > 0)
+        {
+            json.WriteNumber("largerNotes", project.LargerNotes);
         }
     }
 
@@ -292,7 +303,7 @@ internal static class WorkspaceCodec
             Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
             HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? DistinctTexts(hidden, "hiddenViews") : [],
-        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work).WithAnchorsIn(work, version);
+        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work).WithLargerNotesIn(work).WithAnchorsIn(work, version);
     }
 
     private static Observation ReadObservation(JsonElement observation, int version)
@@ -448,4 +459,15 @@ internal static class WorkspaceCodec
                 && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int perMinute) && Playback.PlayerTempo.IsValid(perMinute)
                 ? project with { PlayerTempo = perMinute }
                 : throw Damaged("tempo");
+
+    /// <summary>
+    /// The project with the «Ноты крупнее» step its file keeps (version 19); none when "largerNotes" is absent, as in every
+    /// earlier file. A whole number outside 0 to 10 is brought into it (a later build's larger step reads as the largest
+    /// here); a value that is not a whole number is damage.
+    /// </summary>
+    private static Project WithLargerNotesIn(this Project project, JsonElement root) =>
+        !root.TryGetProperty("largerNotes", out JsonElement step) ? project
+            : step.ValueKind == JsonValueKind.Number && step.TryGetDouble(out double value) && double.IsInteger(value)
+                ? project with { LargerNotes = LargerNotes.Clamped(value) }
+                : throw Damaged("largerNotes");
 }

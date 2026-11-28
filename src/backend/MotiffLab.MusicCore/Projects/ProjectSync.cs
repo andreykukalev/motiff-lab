@@ -167,6 +167,9 @@ internal static class ProjectSync
         ["workspace.partOf"] = FieldClass.Import,
         ["workspace.editsOff"] = FieldClass.Bookkeeping,
         ["workspace.tempo"] = FieldClass.Player,
+        // Version 19: the «Ноты крупнее» step, a choice of how the piece is shown, as whether the corrections are off: the copy
+        // saved last says it, never a conflict.
+        ["workspace.largerNotes"] = FieldClass.Bookkeeping,
         ["workspace.motifs"] = FieldClass.Player,
         ["workspace.variations"] = FieldClass.Player,
         ["workspace.observations"] = FieldClass.Player,

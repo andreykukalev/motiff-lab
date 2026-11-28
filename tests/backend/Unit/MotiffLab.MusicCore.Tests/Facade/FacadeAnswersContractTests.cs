@@ -340,7 +340,7 @@ public class FacadeAnswersContractTests
             ("catalogue", """{"language":"ru"}"""),
         ],
         // What the player keeps with the piece, opened at a fixed time: a stroke in the margin, a margin note, a highlight and
-        // a fingering (the score's marks), a bookmark, resume points, a variation kept as an idea, Check, the settings and the project's summary
+        // a fingering (the score's marks), a bookmark, resume points, a variation kept as an idea, Check, the settings, «Ноты крупнее» (project file 19) and the project's summary
         // after its details change.
         ["marks"] =
         [
@@ -359,7 +359,7 @@ public class FacadeAnswersContractTests
             ("idea.keep", """{"name":"Half time","now":"2026-11-15T10:00:00Z"}"""),
             ("ideas", null),
             ("check", null),
-            ("settings", null),
+            ("settings", null), ("largerNotes", null), ("largerNotes.set", """{"step":7}"""),
             ("project.metadata", """{"title":"Für Elise","composer":"Beethoven","tags":["practise"]}"""),
         ],
         // The marks on a PDF's pages (0023), opened at a fixed time: two strokes, one in the margin, with its bookmark, and
