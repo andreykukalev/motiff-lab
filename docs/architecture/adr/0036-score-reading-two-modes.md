@@ -6,7 +6,7 @@ Sources (project folder): the spec `product/specs/score-reading.md` (every behav
 
 ## Context
 
-0018 kept the page free by keeping everything else off it: the score is the whole screen, nothing is docked, the bar fades and the transport pill appears only when needed. On the iPad it went the other way. Under the playback model (v0.5.2) the pill always shows; it is rounded and translucent and lies on the bottom of the score, so some notes under it show and some do not. To get the notes back the app grew «Вид для практики» and «Управление на листе», two switches that hide the selection controls and the playback controls, and «Скрыть» in the selection menu. Andrei at the piano: the pill covers the bottom of the score, and the interface feels loaded and fragile. He wants to feel he is reading a score, not working in a studio.
+0018 kept the page free by keeping everything else off it: the score is the whole screen, nothing is docked, the bar fades and the transport pill appears only when needed. On the iPad it went the other way. Under the playback model (v0.5.2) the pill always shows; it is rounded and translucent and lies on the bottom of the score, so some notes under it show and some do not. To get the notes back the app grew «Вид для практики» and «Управление на листе», two switches that hide the selection controls and the playback controls, and «Скрыть» in the selection menu. Andrei at the piano: the pill covers the bottom of the score, and the interface feels loaded and fragile. What Andrei asks for: the feeling of reading a score, not of working in a studio.
 
 The research on paper practice and on pianists' use of score apps gave seven rules, against which every decision below is checked:
 
