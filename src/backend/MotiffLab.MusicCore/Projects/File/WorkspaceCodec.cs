@@ -109,10 +109,17 @@ internal static class WorkspaceCodec
         }
     }
 
-    /// <summary>"largerNotes": the «Ноты крупнее» step, 1 to 10, once the player chose one (version 19); left out at 0, the A4 layout.</summary>
+    /// <summary>
+    /// "largerNotes": the «Ноты крупнее» step, 1 to 10, once the player chose one (version 19); left out at 0, the A4 layout. A
+    /// later version's value is written back as its file held it.
+    /// </summary>
     private static void WriteLargerNotes(Utf8JsonWriter json, Project project)
     {
-        if (project.LargerNotes > 0)
+        if (project.UnknownFieldsAt(ProjectFile.LargerNotesPath) is { Count: > 0 } kept)
+        {
+            WriteUnknownFields(json, kept);
+        }
+        else if (project.LargerNotes > 0)
         {
             json.WriteNumber("largerNotes", project.LargerNotes);
         }
@@ -303,7 +310,7 @@ internal static class WorkspaceCodec
             Drafts = ReadDrafts(work, version, unknowns),
             Metadata = ReadMetadata(work),
             HiddenViews = version >= 16 && work.TryGetProperty("hiddenViews", out JsonElement hidden) ? DistinctTexts(hidden, "hiddenViews") : [],
-        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work).WithLargerNotesIn(work).WithAnchorsIn(work, version);
+        }.WithPartOfIn(work).WithEditsOffIn(work).WithPlayerTempoIn(work).WithLargerNotesIn(work, version, unknowns).WithAnchorsIn(work, version);
     }
 
     private static Observation ReadObservation(JsonElement observation, int version)
@@ -462,12 +469,25 @@ internal static class WorkspaceCodec
 
     /// <summary>
     /// The project with the «Ноты крупнее» step its file keeps (version 19); none when "largerNotes" is absent, as in every
-    /// earlier file. A whole number outside 0 to 10 is brought into it (a later build's larger step reads as the largest
-    /// here); a value that is not a whole number is damage.
+    /// earlier file. A whole number (as "tempo" reads one: 7.0 is none) outside 0 to 10 is brought into it, a later build's
+    /// larger step read as the largest here; any other value is damage. In a file of a later version, opened read-only, the
+    /// value is also kept as the file held it, to be written back unchanged (0026 S6), and one that is not a whole number
+    /// reads as step 0.
     /// </summary>
-    private static Project WithLargerNotesIn(this Project project, JsonElement root) =>
-        !root.TryGetProperty("largerNotes", out JsonElement step) ? project
-            : step.ValueKind == JsonValueKind.Number && step.TryGetDouble(out double value) && double.IsInteger(value)
-                ? project with { LargerNotes = LargerNotes.Clamped(value) }
-                : throw Damaged("largerNotes");
+    private static Project WithLargerNotesIn(this Project project, JsonElement root, int version, Unknowns unknowns)
+    {
+        if (!root.TryGetProperty("largerNotes", out JsonElement step))
+        {
+            return project;
+        }
+
+        int? whole = step.ValueKind == JsonValueKind.Number && step.TryGetInt32(out int value) ? value : null;
+        if (version > ProjectFile.Version)
+        {
+            unknowns.Fields[ProjectFile.LargerNotesPath] = [new UnknownField("largerNotes", step.GetRawText())];
+            return project with { LargerNotes = LargerNotes.Clamped(whole ?? 0) };
+        }
+
+        return whole is { } read ? project with { LargerNotes = LargerNotes.Clamped(read) } : throw Damaged("largerNotes");
+    }
 }

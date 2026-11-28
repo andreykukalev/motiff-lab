@@ -47,8 +47,7 @@ public class LargerNotesFormatTests
     [InlineData(0, 0)]
     [InlineData(10, 10)]
     [InlineData(25, 10)]
-    [InlineData(1e20, 10)]
-    public void A_step_out_of_range_is_clamped_on_reading(double step, int read)
+    public void A_step_out_of_range_is_clamped_on_reading(int step, int read)
     {
         JsonObject file = Worked();
         file["workspace"]!["largerNotes"] = step;
@@ -58,6 +57,8 @@ public class LargerNotesFormatTests
 
     [Theory]
     [InlineData("2.5")]
+    [InlineData("7.0")]
+    [InlineData("1e20")]
     [InlineData("\"big\"")]
     [InlineData("null")]
     [InlineData("true")]
@@ -69,6 +70,28 @@ public class LargerNotesFormatTests
         ProjectFileException refused = Assert.Throws<ProjectFileException>(() => Read(file));
 
         Assert.Equal("This project file is damaged: its largerNotes cannot be read.", refused.Message);
+    }
+
+    /// <summary>
+    /// A later version's file opens read-only: its step reads into 0 to 10 here (0 when it is not a whole number) and is
+    /// written back as the file held it, as its other fields are (0026 S6), until the player sets one here.
+    /// </summary>
+    [Theory]
+    [InlineData("25", 10)]
+    [InlineData("7.5", 0)]
+    [InlineData("\"big\"", 0)]
+    public void A_later_versions_step_is_read_into_range_and_written_back_as_its_file_held_it(string value, int read)
+    {
+        JsonObject file = JsonNode.Parse(GoldenFiles.Kept("v20-future.motiff.json"))!.AsObject();
+        file["workspace"]!["largerNotes"] = JsonNode.Parse(value);
+
+        Project project = Read(file);
+
+        Assert.True(project.IsReadOnly);
+        Assert.Equal(read, project.LargerNotes);
+        Assert.Equal(value, Written(project)["workspace"]!["largerNotes"]!.ToJsonString());
+        Assert.Equal("3", Written(project.WithLargerNotes(3))["workspace"]!["largerNotes"]!.ToJsonString());
+        Assert.False(Written(project.WithLargerNotes(0))["workspace"]!.AsObject().ContainsKey("largerNotes"));
     }
 
     /// <summary>A file of version 18 or earlier has no step: it opens at 100 %, as the build that wrote it showed it.</summary>

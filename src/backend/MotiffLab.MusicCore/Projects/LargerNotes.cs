@@ -22,5 +22,14 @@ internal static class LargerNotes
     public static int Percent(int step) => 100 + (PercentPerStep * step);
 
     /// <summary>A step a file holds, brought into 0 to <see cref="MaxStep"/>: a later build's larger one reads as the largest here.</summary>
-    public static int Clamped(double step) => (int)Math.Clamp(step, 0, MaxStep);
+    public static int Clamped(int step) => Math.Clamp(step, 0, MaxStep);
+
+    /// <summary>
+    /// The project with the step the player chose here; a later version's step kept as its file held it
+    /// (<see cref="ProjectFile.LargerNotesPath"/>) goes with it.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">The step is not 0 to <see cref="MaxStep"/>.</exception>
+    public static Project WithLargerNotes(this Project project, int step) => IsValid(step)
+        ? project with { LargerNotes = step, UnknownFields = OriginalOperations.Without(project.UnknownFields, ProjectFile.LargerNotesPath) }
+        : throw new ArgumentOutOfRangeException(nameof(step), step, $"A step is 0 to {MaxStep}.");
 }

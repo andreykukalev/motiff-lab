@@ -95,6 +95,12 @@ public static class ProjectFile
     /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
     internal const string SettingsPath = "workspace/settings";
 
+    /// <summary>
+    /// Where a later version's «Ноты крупнее» step stands in <see cref="Project.UnknownFields"/> as its file held it (version
+    /// 19): written back in its place, never clamped, until the player sets the step here (<see cref="LargerNotes.WithLargerNotes"/>).
+    /// </summary>
+    internal const string LargerNotesPath = "workspace/largerNotes";
+
     /// <summary>The top-level fields of a file of <see cref="Version"/>; any other is a later build's, kept as it came (0026 S6).</summary>
     internal static IReadOnlySet<string> RootFields { get; } = new HashSet<string>(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
 
