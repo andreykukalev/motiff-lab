@@ -19,7 +19,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class DraftsFormatTests
 {
-    private const string Golden = "v18-drafts.motiff.json";
+    private const string Golden = "v19-drafts.motiff.json";
 
     private const string CopyTitle = "{0} (previous copy)";
 
@@ -84,7 +84,7 @@ public class DraftsFormatTests
     [Fact]
     public void The_file_written_is_the_golden_of_version_17_and_reads_back_as_the_same_drafts()
     {
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(WithDrafts()), ["v17-drafts.motiff.json"]);
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(WithDrafts()), ["v17-drafts.motiff.json", "v18-drafts.motiff.json"]);
 
         Project read = ProjectFile.Read(GoldenFiles.Kept(Golden));
         Assert.Equal(["d_1", "d_2"], read.Drafts.Select(draft => draft.Id));

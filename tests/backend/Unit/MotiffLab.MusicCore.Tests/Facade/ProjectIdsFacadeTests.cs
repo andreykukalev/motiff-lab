@@ -153,7 +153,7 @@ public partial class ProjectIdsFacadeTests
 
     private static string Numbered(string id = "p_0003")
     {
-        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v18-edits-meters.motiff.json")))!.AsObject();
+        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v19-edits-meters.motiff.json")))!.AsObject();
         file["id"] = id;
         return file.ToJsonString();
     }
@@ -171,7 +171,7 @@ public partial class ProjectIdsFacadeTests
         var facade = new MusicCoreFacade();
         JsonElement project = Opened(facade, Numbered(), """{"onlineIds": ["p_0001", "p_9f2c4e1a0b7d4c3e8f6a5b4c3d2e1f00"]}""");
 
-        // The id of the golden v18-rekeyed.motiff.json, which is this file re-keyed.
+        // The id of the golden v19-rekeyed.motiff.json, which is this file re-keyed.
         const string id = "p_83a08b1319e2925df3c0cdd6aa0fff43";
         Assert.Equal(id, project.GetProperty("id").GetString());
         Assert.Equal(["p_0003"], project.GetProperty("formerIds").EnumerateArray().Select(static former => former.GetString()));
@@ -195,7 +195,7 @@ public partial class ProjectIdsFacadeTests
     [Fact]
     public void A_later_versions_numbered_piece_opened_read_only_keeps_its_id()
     {
-        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v19-future.motiff.json")))!.AsObject();
+        JsonObject file = JsonNode.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Golden", "v20-future.motiff.json")))!.AsObject();
         file["id"] = "p_0003";
 
         JsonElement project = Opened(new MusicCoreFacade(), file.ToJsonString(), """{"onlineIds": []}""");

@@ -125,6 +125,12 @@ public sealed partial record Project(
     /// </summary>
     public int? PlayerTempo { get; init; }
 
+    /// <summary>
+    /// The «Ноты крупнее» step the player chose for the piece (version 1.7, project file 19, <see cref="Projects.LargerNotes"/>):
+    /// 0, the A4 layout as it is, to <see cref="Projects.LargerNotes.MaxStep"/>. A file before version 19 has none.
+    /// </summary>
+    public int LargerNotes { get; init; }
+
     /// <summary>The title, composer and tags the player set in the library (version 0.2); none until they set one.</summary>
     public PieceMetadata Metadata { get; init; } = PieceMetadata.None;
 

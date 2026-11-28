@@ -17,7 +17,7 @@ namespace MotiffLab.MusicCore.Tests.Projects;
 /// </summary>
 public class PhotosAndPartsFormatTests
 {
-    private const string Golden = "v18-photos-parts.motiff.json";
+    private const string Golden = "v19-photos-parts.motiff.json";
 
     /// <summary>The same project as version 0.4 wrote it, in version 15.</summary>
     private const string Earlier = "v15-photos-parts.motiff.json";
@@ -77,7 +77,7 @@ public class PhotosAndPartsFormatTests
 
     [Fact]
     public void The_file_written_is_the_golden_reads_back_unchanged_and_is_what_the_file_of_version_0_4_becomes() =>
-        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Waltz()), [Earlier, Version16, "v17-photos-parts.motiff.json"]);
+        GoldenFiles.AssertIs(Golden, ProjectFile.Write(Waltz()), [Earlier, Version16, "v17-photos-parts.motiff.json", "v18-photos-parts.motiff.json"]);
 
     [Fact]
     public void The_golden_holds_each_new_field()

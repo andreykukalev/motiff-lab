@@ -39,6 +39,8 @@ public static class ProjectFile
     public const string FormatName = "motiff-lab-project";
 
     /// <summary>
+    /// 19 (version 1.7, the score-reading spec 4.3) keeps the piece's «Ноты крупнее» step ("workspace"."largerNotes"); a
+    /// file of 18 or earlier has none, and a build of 1.6 opens a file of 19 read-only ("minReader" stays 18);
     /// 18 (version 1.6, 0026 S6) writes "minReader", keeps the fields it does not know in every entity of the workspace's
     /// lists, an unknown per-piece setting and a variation of an unknown operation (written back unchanged), drops the
     /// piece's level "phrases.granularity" (the phrases spec, v1.2) and keeps which pages of a scanned PDF no engine read
@@ -72,7 +74,7 @@ public static class ProjectFile
     /// change the whole selection, versions 1 and 2 have no corrections, and version 1 holds one
     /// step per variation.
     /// </summary>
-    public const int Version = 18;
+    public const int Version = 19;
 
     /// <summary>
     /// The oldest build version that reads a file this build writes (0026 S6, "minReader"): the first with the tolerant reader
@@ -92,6 +94,12 @@ public static class ProjectFile
 
     /// <summary>Where the piece's settings this build does not have stand in <see cref="Project.UnknownFields"/> (version 18).</summary>
     internal const string SettingsPath = "workspace/settings";
+
+    /// <summary>
+    /// Where a later version's «Ноты крупнее» step stands in <see cref="Project.UnknownFields"/> as its file held it (version
+    /// 19): written back in its place, never clamped, until the player sets the step here (<see cref="LargerNotes.WithLargerNotes"/>).
+    /// </summary>
+    internal const string LargerNotesPath = "workspace/largerNotes";
 
     /// <summary>The top-level fields of a file of <see cref="Version"/>; any other is a later build's, kept as it came (0026 S6).</summary>
     internal static IReadOnlySet<string> RootFields { get; } = new HashSet<string>(StringComparer.Ordinal) { "format", "version", "minReader", "id", "formerIds", "fileName", "createdAt", "lastOpened", OriginalsList, NotesList, WorkspacePath };
@@ -184,7 +192,7 @@ public static class ProjectFile
                 throw Damaged("minReader");
             }
 
-            // Versions 16 to 18 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an unknown
+            // Versions 16 to 19 share a layout, and builds 0.6 to 1.0 wrote version 16 with the values they knew: an unknown
             // value, setting or operation in any of them is read as in a file of today's version (0026 S6).
             var unknowns = new Unknowns(version >= LayersVersion);
             Project project = version >= LayersVersion ? ReadLayers(root, version, unknowns) : ReadEarlier(root, version, unknowns);

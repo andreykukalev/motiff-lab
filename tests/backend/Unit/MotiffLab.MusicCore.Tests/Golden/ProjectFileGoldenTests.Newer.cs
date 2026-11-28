@@ -8,18 +8,23 @@ namespace MotiffLab.MusicCore.Tests.Golden;
 public partial class ProjectFileGoldenTests
 {
     /// <summary>
-    /// Today's future file (#314, #315): the version 18 file with version 19 and "minReader" 18, an unknown field at the top
-    /// level, in the workspace and in an entity of each workspace list a note piece keeps, an unknown per-piece setting and
-    /// a variation with a step of an unknown operation.
+    /// The future file made while version 18 was today's (#314, #315): the version 18 file with version 19 and "minReader"
+    /// 18, an unknown field at the top level, in the workspace and in an entity of each workspace list a note piece keeps,
+    /// an unknown per-piece setting and a variation with a step of an unknown operation.
     /// </summary>
     [Fact]
-    public void The_future_file_is_the_version_18_file_with_version_19_unknown_fields_an_unknown_setting_and_an_unknown_operation() =>
-        Assert.True(JsonNode.DeepEquals(Futured19(Node(File(Worked))), Node(File(Future))), "the future file is the version 18 file with exactly these changes");
+    public void The_future_file_of_version_18_is_the_version_18_file_with_version_19_unknown_fields_an_unknown_setting_and_an_unknown_operation() =>
+        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked18)), 19), Node(File(Future18))), "the future file of version 18 is the version 18 file with exactly these changes");
 
-    /// <summary>The changes <see cref="Future"/> makes to the version 18 file.</summary>
-    internal static JsonObject Futured19(JsonObject file)
+    /// <summary>Today's future file: the version 19 file with version 20, "minReader" 18 and the same changes.</summary>
+    [Fact]
+    public void The_future_file_is_the_version_19_file_with_version_20_unknown_fields_an_unknown_setting_and_an_unknown_operation() =>
+        Assert.True(JsonNode.DeepEquals(Futured(Node(File(Worked)), 20), Node(File(Future))), "the future file is the version 19 file with exactly these changes");
+
+    /// <summary>The changes <see cref="Future18"/> and <see cref="Future"/> make to the file of the version before theirs.</summary>
+    internal static JsonObject Futured(JsonObject file, int version)
     {
-        file["version"] = 19;
+        file["version"] = version;
         file["minReader"] = 18;
         file["future"] = new JsonObject { ["note"] = "A field a later version adds." };
         JsonObject work = file["workspace"]!.AsObject();
@@ -47,7 +52,7 @@ public partial class ProjectFileGoldenTests
         OpenedProject opened = OpenedProject.Open(project);
 
         Assert.True(project.IsReadOnly);
-        Assert.Equal(new NewerFile(19, 18), project.Newer);
+        Assert.Equal(new NewerFile(20, 18), project.Newer);
         Assert.True(JsonNode.DeepEquals(Node(File(Future)), Node(ProjectFile.Write(project))), "the future file is written back whole");
         Assert.True(ProjectFile.Read(ProjectFile.Write(project)).IsReadOnly);
         ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Save(project));
@@ -62,9 +67,9 @@ public partial class ProjectFileGoldenTests
 
     /// <summary>A file whose "minReader" is above this build, or of a later version without one, is refused before any other field is read (#315 criterion 4).</summary>
     [Theory]
-    [InlineData(19, 19)]
-    [InlineData(19, null)]
-    [InlineData(18, 19)]
+    [InlineData(20, 20)]
+    [InlineData(20, null)]
+    [InlineData(19, 20)]
     public void A_file_this_build_may_not_read_is_refused_as_saved_by_a_newer_version(int version, int? minReader)
     {
         JsonObject file = Node(File(Future));
@@ -80,9 +85,23 @@ public partial class ProjectFileGoldenTests
         Assert.Equal("This project was saved by a newer version of Motiff Lab. Update the app and try again.", refused.Message);
     }
 
-    /// <summary>The future file made while version 17 was today's now has this version without "minReader", which every file of version 18 has: it is damaged.</summary>
+    /// <summary>
+    /// The future file made while version 18 was today's now has this version (#314, #315): it opens to be worked on, not
+    /// read-only, its unknown fields, setting and operation kept and written back whole, and it is saved.
+    /// </summary>
     [Fact]
-    public void The_future_file_of_version_17_now_has_this_version_without_min_reader_and_is_damaged()
+    public void The_future_file_of_version_18_now_has_this_version_and_opens_to_be_saved_with_what_it_does_not_know_kept()
+    {
+        Project project = ProjectFile.Read(File(Future18));
+
+        Assert.False(project.IsReadOnly);
+        Assert.True(JsonNode.DeepEquals(Node(File(Future18)), Node(ProjectFile.Save(project))), "the file is saved whole");
+        Assert.Single(project.Unknown, entity => entity.Enum == UnknownEntity.NewerOperation);
+    }
+
+    /// <summary>The future file made while version 17 was today's has version 18 without "minReader", which every file of version 18 or later has: it is damaged.</summary>
+    [Fact]
+    public void The_future_file_of_version_17_has_version_18_without_min_reader_and_is_damaged()
     {
         ProjectFileException refused = Assert.Throws<ProjectFileException>(() => ProjectFile.Read(File(Future17)));
 

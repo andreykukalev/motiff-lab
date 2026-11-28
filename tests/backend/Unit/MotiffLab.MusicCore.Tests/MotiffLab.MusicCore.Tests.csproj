@@ -31,6 +31,8 @@
     <None Include="Analysis\Fixtures\*.musicxml" CopyToOutputDirectory="PreserveNewest" />
     <!-- Project files of earlier, current and later versions and what today's writer makes of them (Golden/README.md). -->
     <None Include="Golden\*.motiff.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The playlists files of today's and a later version (Projects/Playlists/PlaylistsFileTests.cs). -->
+    <None Include="Golden\*.playlists.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The notation written for real pieces (Notation/NotationGoldenTests.cs). -->
     <None Include="Notation\Golden\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- What the MusicXML importer reads from real scores (Import/MusicXml/MusicXmlImportGoldenTests.cs). -->

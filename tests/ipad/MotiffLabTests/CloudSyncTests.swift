@@ -56,11 +56,11 @@ final class CloudSyncTests: XCTestCase {
         return file
     }
 
-    /// The file as a later build writes it (version 19, readable from 18, with a field this build does not know): kept
-    /// here read-only (project file 18).
+    /// The file as a later build writes it (version 20, readable from 18, with a field this build does not know): kept
+    /// here read-only (project file 18; this build writes 19).
     func laterBuild(_ file: String) throws -> String {
         try edited(file) { object in
-            object["version"] = 19
+            object["version"] = 20
             object["future"] = 1
         }
     }

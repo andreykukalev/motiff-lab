@@ -53,10 +53,10 @@ public class SyncAnswerTests
         return [.. Ideas(piece).Concat(beside).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
-    /// <summary>A copy a later build saved online (the v19 golden) and this build's copy of it with an idea added here.</summary>
+    /// <summary>A copy a later build saved online (the v20 golden) and this build's copy of it with an idea added here.</summary>
     internal static (string Online, Project Here) LaterBuildOnline()
     {
-        string future = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Golden", "v19-future.motiff.json"));
+        string future = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Golden", "v20-future.motiff.json"));
         JsonObject today = JsonNode.Parse(future)!.AsObject();
         today["version"] = ProjectFile.Version;
         today.Remove("future");

@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-27, v1.6 c-17a):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-28, v1.7 p-2):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -141,6 +141,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `ink.clear` | piece |  |
 | `ink.remove` | piece |  |
 | `language` | piece | Showing |
+| `largerNotes` | piece | OpenFirst |
+| `largerNotes.set` | piece |  |
 | `library.confirm` | piece0 |  |
 | `library.link` | piece0 |  |
 | `library.linked` | piece0 |  |
@@ -167,6 +169,17 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `pieces.find` | piece |  |
 | `pieces.save` | piece |  |
 | `playback` | piece | Showing, OpenFirst |
+| `playlists` | piece0 |  |
+| `playlists.add` | piece0 |  |
+| `playlists.create` | piece0 |  |
+| `playlists.delete` | piece0 |  |
+| `playlists.forget` | piece0 |  |
+| `playlists.migrate` | piece0 |  |
+| `playlists.move` | piece0 |  |
+| `playlists.rekey` | piece0 |  |
+| `playlists.remove` | piece0 |  |
+| `playlists.rename` | piece0 |  |
+| `playlists.resolve` | piece0 |  |
 | `project` | pdf, recording |  |
 | `project.drafts` | piece0 |  |
 | `project.join` | piece0 |  |
@@ -224,6 +237,10 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ## History
 
 ### 17
+
+Also within 17 (version 1.7, p-2, the score-reading spec 6, Andrei's decision 3 of the 1.7 plan): the library's playlists as a file of their own ([playlists-file.md](playlists-file.md), `motiff-lab-playlists` version 1), on piece 0, the file as its text in "file" (none: no playlists yet). playlists reads it by the rules; playlists.create ("name", "pieces"?), playlists.rename ("id", "name"), playlists.delete, playlists.add, playlists.remove ("id", "pieces"), playlists.move ("id", "pieces", "before"?), playlists.forget ("pieces") and playlists.rekey ("pieces": [{"id", "formerIds"}]) edit it; playlists.migrate ("pieces": [{"id", "playlists"}] in the library's order) makes it from the pieces' playlists. Each answers {"file", "readOnly", "playlists": [{"id", "name", "pieces"}]}, create and rename also "id" and "taken" (a name another playlist has whatever the letter case changes nothing and answers that playlist). playlists.resolve ("here", "savedHere", "online", "savedOnline", "base"?, "pieces"?: the library's re-keyed pieces as playlists.rekey takes them, applied to the three copies first) merges two copies three-way and answers {"file", "upload", "merged", "readOnly", "conflicts": [{"in", "id"}]}, "in" one of "playlists.name", "playlists.pieces", "playlists" (a later build's copy kept without this device's changes) or an unknown field's path. A playlist not there answers `notFound`, an edit of a later build's file `readOnly`. Calls added; the project file stays version 19 and the pieces still write `metadata.playlists`.
+
+Also within 17 (version 1.7, p-1, the score-reading spec 4.3, Andrei's decision 3 of the 1.7 plan): the project file is version 19, with the piece's «Ноты крупнее» step (`workspace.largerNotes`). largerNotes answers it, {"step" (0, the A4 layout, to "maxStep"), "percent" (the notes' size, 100 + 10 × step) and "maxStep" (10)}, and largerNotes.set takes "step", a whole number from 0 to 10 (any other, or none, answers `badRequest` and changes nothing), keeps it in the project, which project.save writes, and answers as largerNotes; both on a piece with notes only (a PDF piece answers `noNotes`), as the PDF view is never laid out again. Calls added; a file of version 18 or earlier opens at step 0, and a call that answers the file writes version 19.
 
 Also within 17 (version 1.6, c-17a, #321, #322, the 1.6 plan's decisions 9, 14 and 16): project.resolve takes "base", the copy both last agreed on, and "sendsFile" (true: the app writes "file" here and sends it when "upload" is true; without it, as the iPad before c-17b, it sends "here", so "upload" is true only when "here" was saved last and "copy" then keeps the online copy unless it adds nothing; when "upload" is false, "copy" keeps "here" unless it adds nothing to the online copy, as the file such an app writes is never sent and the next download writes over it), and merges the two copies entity by entity against it (`ProjectMerge`): it answers "conflicts" ([{"in", "id"}], what of the copy that lost "file" does not hold; "id" is null for a field merged whole and for all the corrections of a copy whose notes are others; "copy" is null when there is none, and set whenever there is one), "merged" (false when the merge failed its self-check, 0026 C5: the one saved last was kept with the other's Notes, "copy" holds the other unless it adds nothing, and "upload" is false; false too when either copy is a later build's, which is never merged: "file" is the online copy as project.pulled keeps it and "copy" this device's, a later build's read-only, else unless it adds nothing, and "upload" is false) and "readOnly" (true when "file" holds a copy a later build saved: kept here, never sent; "upload" is then false). The marks on a PDF's pages ("originals" → "marks") merge mark by mark, three-way against "base" (one erased on one side and unchanged on the other goes) or, without it, as a union (a stroke by id, a bookmark by page; "in": "originals.marks.ink" or "originals.marks.bookmarks"), the online copy bringing its own; project.pulled keeps the online copy's, unless it has none (v1.6 r-3: two iPads that hold the PDF both write them). project.pulled answers a later build's copy as it came, with "readOnly": true, rather than refusing it; project.join leaves such a file out rather than failing as a whole. project.sync takes "deletedHere" (the player removed the piece here) and answers "deleteOnline" for it, or "download" when it changed online since. A copy re-keyed from the online id (`formerIds`) resolves with it under the online id. Fields and a step added; the project file stays version 18.
 

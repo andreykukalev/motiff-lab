@@ -57,8 +57,10 @@ through the facade; the API references it.
   (`PieceOriginals`, also the provenance the data shows), parts, `ProjectSync` (its `Resolve` merges two copies per
   entity by `ProjectMerge` over the file's JSON, with `SourcesMerge` for Notes, corrections, versions and drafts, and records
   `MergeConflict`s; `MergeRules` says how each part of the file merges, `MergeCheck` is the merge's self-check, c-17a), `PieceDetails`, `PieceOrigin`;
+  `Projects.Playlists` (version 1.7): the library's playlists, a file of their own (`PlaylistsFile`, docs/playlists-file.md), `LibraryPlaylists` (the edits, `Migrated` from the pieces' `metadata.playlists`, `Joined`: one playlist a name), `PlaylistsMerge` (three-way by playlist id, `Resolve` the copy saved last winning);
   `ProjectFile` (`Read`, `Write`, `Save`: refuses a file of a later version, `NewerFile` on `Project.Newer`, opened
-  read-only since version 18) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
+  read-only since version 18; version 19 since 1.7, with the piece's «Ноты крупнее» step `Project.LargerNotes`, its
+  rule in `LargerNotes`: 0 to 10 steps of 10 %, clamped on reading) over `Projects.File` (a `*Codec` per part, `UnknownEntities` with `Unknowns`, which also
   keeps the unknown fields of workspace entities, `Legacy`); `ScanOrigin` keeps the PDF pages no engine read (`Unread`,
   `ReadPages`); `Projects.Drafts`: `Draft*`, `PlaceResult`,
   `PlaceTechniques`, `VariantRecording`, `DraftSeams` (with the register), `DraftBridges` (bridge candidates at a
@@ -91,6 +93,8 @@ through the facade; the API references it.
   `MarksSession` (no state: ink, margin notes, highlights, fingering, the bookmarks and their categories, the Structure
   bookmarks, a bookmark's default title by its bars, each answering the project it makes, the time taken as `now`); its
   adapter `OpenPiece.Marks` (`Calls.Marks`; the resume points, ideas, settings and Check stay in `OpenPiece.Project`);
+  «Ноты крупнее»: `largerNotes`, `largerNotes.set` in `OpenPiece.LargerNotes` (listed in `Calls.Project`);
+  the playlists on piece 0: `PlaylistsRequest` (`playlists.*`, its `Calls` in `CallRegistry.WithoutPiece`; ids from `MusicCoreFacade.Ids`);
   the time of a call is read once, `Request.Now` («now», else the clock) and `Request.SentNow` (project.save), by the
   adapters only (D15); the one exception is sync.online's «now», read as its other times are (`SyncRequest.Time`);
   check.mark and check.unmark in `ReadingMarkRequest` (with check's "marks");

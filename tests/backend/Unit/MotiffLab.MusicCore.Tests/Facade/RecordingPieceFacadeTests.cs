@@ -76,7 +76,7 @@ public class RecordingPieceFacadeTests
         string file = facade.Call(1, "project.save", """{"now": "2026-11-19T23:35:00Z"}""");
         JsonElement reopened = Json(new MusicCoreFacade().Open("Etude in E" + ProjectFile.Extension, Encoding.UTF8.GetBytes(file), """{"language": "en"}"""));
 
-        Assert.Equal(18, Json(file).GetProperty("version").GetInt32());
+        Assert.Equal(19, Json(file).GetProperty("version").GetInt32());
         Assert.Equal(1, reopened.GetProperty("piece").GetInt32());
         Assert.Equal(opened.GetProperty("recording").GetRawText(), reopened.GetProperty("recording").GetRawText());
         Assert.Equal("Etude in E", Json(new MusicCoreFacade().Call(0, "project.summary", JsonSerializer.Serialize(new { file }))).GetProperty("project").GetProperty("title").GetString());

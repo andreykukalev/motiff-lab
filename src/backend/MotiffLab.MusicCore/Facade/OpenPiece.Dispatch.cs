@@ -25,7 +25,7 @@ internal sealed partial class OpenPiece
             new("reference.key", static (piece, request) => ReferenceRequest.Key(request, PieceDna.OpeningKey(piece.Notes, piece.Piece.Meter, piece.Piece.Keys, piece.Piece.End))),
         ];
 
-        /// <summary>What the project keeps with the piece: resume points, ideas, settings, Check, pieces, tempo (the marks and bookmarks: <see cref="Marks"/>).</summary>
+        /// <summary>What the project keeps with the piece: resume points, ideas, settings, Check, pieces, tempo, «Ноты крупнее» (the marks and bookmarks: <see cref="Marks"/>).</summary>
         public static readonly FacadeCall<OpenPiece>[] Project =
         [
             new("resume", static (piece, _) => Answer.Write(json => Answer.ResumePoints(json, piece.Project, piece.Piece.Meter)), CallFlags.OpenFirst),
@@ -52,6 +52,8 @@ internal sealed partial class OpenPiece
             new("pieces.find", static (piece, request) => Answer.Write(json => PiecesRequest.Find(json, piece.Project, piece.Piece, piece.Notes, piece.Words, request))),
             new("pieces.save", static (piece, request) => piece.Change(project => PiecesRequest.Save(project, piece.Piece, piece.Words, request.Now(), piece.Ids, request), json => PiecesRequest.Layer(json, piece.Project, piece.Piece))),
             new("tempo", static (piece, _) => Answer.Write(json => TempoRequest.Write(json, piece.Project, piece.Piece, piece.Words))),
+            new("largerNotes", static (piece, _) => Answer.Write(piece.LargerNotesAnswer), CallFlags.OpenFirst),
+            new("largerNotes.set", static (piece, request) => piece.SetLargerNotes(request)),
         ];
     }
 }

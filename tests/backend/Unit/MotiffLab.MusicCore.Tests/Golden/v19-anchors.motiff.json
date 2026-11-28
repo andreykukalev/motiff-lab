@@ -4,22 +4,22 @@
   "minReader": 18,
   "id": "p_0b5e7c1d2a3f4e5d6c7b8a9f0e1d2c3b",
   "fileName": "minuet.musicxml",
-  "createdAt": "2026-11-08T20:00:00.0000000+00:00",
-  "lastOpened": "2026-11-08T21:30:00.0000000+01:00",
+  "createdAt": "2026-11-08T20:00:00.0000000\u002B00:00",
+  "lastOpened": "2026-11-08T21:30:00.0000000\u002B01:00",
   "originals": [
     {
       "id": "src_file",
       "kind": "musicxml",
       "fileName": "minuet.musicxml",
       "bytes": 4531,
-      "addedAt": "2026-11-08T20:00:00.0000000+00:00",
+      "addedAt": "2026-11-08T20:00:00.0000000\u002B00:00",
       "kept": "file"
     },
     {
       "id": "perf_1",
       "kind": "audio",
       "fileName": "Live take",
-      "addedAt": "2026-11-08T20:00:00.0000000+00:00",
+      "addedAt": "2026-11-08T20:00:00.0000000\u002B00:00",
       "kept": "device"
     }
   ],
@@ -110,7 +110,7 @@
           }
         ],
         "merge": {
-          "appliedAt": "2026-11-08T21:37:00.0000000+01:00",
+          "appliedAt": "2026-11-08T21:37:00.0000000\u002B01:00",
           "bars": [
             {
               "bar": 2,
@@ -164,12 +164,11 @@
           "n_0009",
           "n_0010",
           "n_0011"
-        ],
-        "future": "A field a later version adds to motifs."
+        ]
       },
       {
         "id": "m_0002",
-        "name": "Motif 2 · bars 1–2",
+        "name": "Motif 2 \u00B7 bars 1\u20132",
         "kind": "Range",
         "mode": "Guided",
         "onset": 480,
@@ -190,7 +189,7 @@
       },
       {
         "id": "m_0003",
-        "name": "Motif 3 · bars 0–1",
+        "name": "Motif 3 \u00B7 bars 0\u20131",
         "kind": "Notes",
         "mode": "Analysis",
         "onset": 0,
@@ -226,15 +225,14 @@
         "keep": [
           "Pitches",
           "PitchOrder"
-        ],
-        "future": "A field a later version adds to variations."
+        ]
       },
       {
         "id": "v_0002",
         "motifId": "m_0001",
         "steps": [
           {
-            "operation": "V99",
+            "operation": "V13",
             "parameters": {
               "kind": "Short"
             }
@@ -376,13 +374,13 @@
         "name": "Bar 3",
         "factId": "rhythm.anacrusis",
         "note": "The left hand leads here.",
-        "createdAt": "2026-11-08T21:30:00.0000000+01:00",
+        "createdAt": "2026-11-08T21:30:00.0000000\u002B01:00",
         "phrase": {
           "onset": 3360,
           "duration": 1440,
           "filter": {}
         },
-        "future": "A field a later version adds to observations."
+        "anchor": "ph_ca58b80a92b8a96d9969fef469d966b3"
       }
     ],
     "phrases": {
@@ -395,7 +393,14 @@
       "sentences": {
         "added": [],
         "removed": []
-      }
+      },
+      "anchors": [
+        {
+          "id": "ph_ca58b80a92b8a96d9969fef469d966b3",
+          "onset": 3360,
+          "duration": 1440
+        }
+      ]
     },
     "marks": {
       "ink": [
@@ -442,7 +447,7 @@
           "onset": 3360,
           "duration": 1440,
           "text": "Breathe here",
-          "createdAt": "2026-11-08T21:30:00.0000000+01:00"
+          "createdAt": "2026-11-08T21:30:00.0000000\u002B01:00"
         }
       ],
       "highlights": [
@@ -467,8 +472,7 @@
       "categories": [
         {
           "id": "practise",
-          "ink": "Carmine",
-          "future": 2
+          "ink": "Carmine"
         },
         {
           "id": "performance",
@@ -496,7 +500,7 @@
           "onset": 480,
           "duration": 2880,
           "fromPhrase": true,
-          "createdAt": "2026-11-08T21:30:00.0000000+01:00"
+          "createdAt": "2026-11-08T21:30:00.0000000\u002B01:00"
         }
       ]
     },
@@ -512,6 +516,7 @@
             "hand": "Left"
           }
         },
+        "anchor": "ph_ca58b80a92b8a96d9969fef469d966b3",
         "focused": true,
         "overlays": [
           "PianoRoll",
@@ -520,9 +525,8 @@
         "tempoPercent": 60,
         "hands": "Left",
         "loop": true,
-        "createdAt": "2026-11-08T21:30:00.0000000+01:00",
-        "lastActive": "2026-11-08T21:35:00.0000000+01:00",
-        "future": "A field a later version adds to resumePoints."
+        "createdAt": "2026-11-08T21:30:00.0000000\u002B01:00",
+        "lastActive": "2026-11-08T21:35:00.0000000\u002B01:00"
       }
     ],
     "assembly": {
@@ -530,7 +534,7 @@
       "steps": [
         {
           "number": 1,
-          "at": "2026-11-08T21:40:00.0000000+01:00",
+          "at": "2026-11-08T21:40:00.0000000\u002B01:00",
           "kind": "carry",
           "source": "perf_1",
           "from": {
@@ -552,14 +556,14 @@
         },
         {
           "number": 2,
-          "at": "2026-11-08T21:41:00.0000000+01:00",
+          "at": "2026-11-08T21:41:00.0000000\u002B01:00",
           "kind": "note",
           "note": "n_0001",
           "semitones": 1
         },
         {
           "number": 3,
-          "at": "2026-11-08T21:42:00.0000000+01:00",
+          "at": "2026-11-08T21:42:00.0000000\u002B01:00",
           "kind": "transpose",
           "place": {
             "start": {
@@ -1128,14 +1132,8 @@
           }
         ]
       },
-      "appliedAt": "2026-11-08T21:43:00.0000000+01:00"
+      "appliedAt": "2026-11-08T21:43:00.0000000\u002B01:00"
     },
-    "settings": {
-      "future.setting": "on"
-    },
-    "future": 1
-  },
-  "future": {
-    "note": "A field a later version adds."
+    "settings": {}
   }
 }

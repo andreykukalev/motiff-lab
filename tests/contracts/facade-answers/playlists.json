@@ -1,0 +1,164 @@
+{
+ "note": "What music-core answers these calls on the example piece. Written and checked by tests/backend/Unit/MotiffLab.MusicCore.Tests/Facade/FacadeAnswersContractTests.cs (MOTIFF_UPDATE_SNAPSHOTS=1 writes it); decoded into the iPad's typed answers by tests/ipad/MotiffLabTests/FacadeAnswerFixturesTests.swift.",
+ "fixture": "FurElise.musicxml",
+ "answers": [
+  {
+   "call": "playlists.migrate",
+   "request": {
+    "pieces": [
+     {
+      "id": "p_answers",
+      "playlists": [
+       "Бах",
+       "Für Elise"
+      ]
+     },
+     {
+      "id": "p_other",
+      "playlists": [
+       "бах"
+      ]
+     }
+    ]
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_801d1f829895d67dc297d50a77221e36\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    },\n    {\n      \"id\": \"list_a7291a9f72b73c59608a67810f355f0c\",\n      \"name\": \"F\\u00FCr Elise\",\n      \"pieces\": [\n        \"p_answers\"\n      ]\n    }\n  ]\n}",
+    "readOnly": false,
+    "playlists": [
+     {
+      "id": "list_801d1f829895d67dc297d50a77221e36",
+      "name": "Бах",
+      "pieces": [
+       "p_answers",
+       "p_other"
+      ]
+     },
+     {
+      "id": "list_a7291a9f72b73c59608a67810f355f0c",
+      "name": "Für Elise",
+      "pieces": [
+       "p_answers"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "playlists",
+   "request": {
+    "file": "<playlists>"
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0001\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    }\n  ]\n}",
+    "readOnly": false,
+    "playlists": [
+     {
+      "id": "list_0001",
+      "name": "Бах",
+      "pieces": [
+       "p_answers",
+       "p_other"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "playlists.create",
+   "request": {
+    "file": "<playlists>",
+    "name": "Для рояля",
+    "pieces": [
+     "p_answers"
+    ]
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0001\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    },\n    {\n      \"id\": \"list_0002\",\n      \"name\": \"\\u0414\\u043B\\u044F \\u0440\\u043E\\u044F\\u043B\\u044F\",\n      \"pieces\": [\n        \"p_answers\"\n      ]\n    }\n  ]\n}",
+    "readOnly": false,
+    "playlists": [
+     {
+      "id": "list_0001",
+      "name": "Бах",
+      "pieces": [
+       "p_answers",
+       "p_other"
+      ]
+     },
+     {
+      "id": "list_0002",
+      "name": "Для рояля",
+      "pieces": [
+       "p_answers"
+      ]
+     }
+    ],
+    "id": "list_0002",
+    "taken": null
+   }
+  },
+  {
+   "call": "playlists.create",
+   "request": {
+    "file": "<playlists>",
+    "name": "БАХ"
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0001\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    }\n  ]\n}",
+    "readOnly": false,
+    "playlists": [
+     {
+      "id": "list_0001",
+      "name": "Бах",
+      "pieces": [
+       "p_answers",
+       "p_other"
+      ]
+     }
+    ],
+    "id": null,
+    "taken": "list_0001"
+   }
+  },
+  {
+   "call": "playlists.move",
+   "request": {
+    "file": "<playlists>",
+    "id": "list_0001",
+    "pieces": [
+     "p_other"
+    ],
+    "before": "p_answers"
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0001\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_other\",\n        \"p_answers\"\n      ]\n    }\n  ]\n}",
+    "readOnly": false,
+    "playlists": [
+     {
+      "id": "list_0001",
+      "name": "Бах",
+      "pieces": [
+       "p_other",
+       "p_answers"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "call": "playlists.resolve",
+   "request": {
+    "here": "<playlists>",
+    "savedHere": "2026-11-28T10:05:00Z",
+    "online": "<playlists>",
+    "savedOnline": "2026-11-28T10:00:00Z"
+   },
+   "answer": {
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0001\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    }\n  ]\n}",
+    "upload": false,
+    "merged": true,
+    "readOnly": false,
+    "conflicts": []
+   }
+  }
+ ]
+}

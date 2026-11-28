@@ -449,6 +449,21 @@ public class ProjectMergeTests
     }
 
     [Fact]
+    public void The_larger_notes_step_is_the_last_saved_copys_and_never_a_conflict()
+    {
+        // Version 19: "workspace.largerNotes" is bookkeeping, as "editsOff": a choice of how the piece is shown.
+        Project @base = Piece();
+        Project here = @base with { LargerNotes = 3 };
+        Project online = WithIdeas(@base, Idea("o_1", "Online.")) with { LargerNotes = 7 };
+
+        SyncResolution resolved = Resolve(here, online, @base, hereWins: false);
+        Assert.Equal(7, resolved.Kept.LargerNotes);
+        Assert.Empty(resolved.Conflicts);
+        Assert.Null(resolved.PreviousCopy);
+        Assert.Equal(3, Resolve(here, online, @base).Kept.LargerNotes);
+    }
+
+    [Fact]
     public void A_variation_whose_motif_went_and_an_idea_whose_anchor_went_take_them_back()
     {
         static JsonObject Anchored(string idea) => new(Idea(idea, idea).Select(pair => KeyValuePair.Create(pair.Key, pair.Value?.DeepClone()))) { ["anchor"] = "ph_aaaa" };

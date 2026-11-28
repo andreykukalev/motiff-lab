@@ -3681,6 +3681,26 @@
    }
   },
   {
+   "call": "largerNotes",
+   "request": null,
+   "answer": {
+    "step": 0,
+    "percent": 100,
+    "maxStep": 10
+   }
+  },
+  {
+   "call": "largerNotes.set",
+   "request": {
+    "step": 7
+   },
+   "answer": {
+    "step": 7,
+    "percent": 170,
+    "maxStep": 10
+   }
+  },
+  {
    "call": "project.metadata",
    "request": {
     "title": "Für Elise",
