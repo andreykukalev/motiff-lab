@@ -99,13 +99,13 @@ final class WorkspaceScenarioTests: XCTestCase {
         }
         await session.step("Expand on the roll's drawer") {
             workspace.change(.expandFromDrawer)
-            score.expandRoll()
+            score.focusModel.expandRoll()
         }
         XCTAssertNil(workspace.player.loop, "Цикл is off as Expand opens")
         await session.step("Space in Expand") { workspace.roll.spacePressed?() }
         XCTAssertEqual(workspace.player.loop, 4560..<6000, "Play in Expand loops the passage, whatever Цикл says")
         XCTAssertEqual(workspace.player.selection, 4560..<6000)
-        await session.step("Collapse") { score.leaveFocus() }
+        await session.step("Collapse") { score.focusModel.leave() }
         XCTAssertNil(workspace.player.loop, "out of Expand, Цикл is as the player left it")
         await session.step("the roll's drawer closes") { workspace.change(.toggle(.roll)) }
         await session.step("Expand from the selection's menu") { score.enterFocus() }
@@ -128,7 +128,7 @@ final class WorkspaceScenarioTests: XCTestCase {
             held()
             score.playheadGestured?(.release)
         }
-        await session.step("Back to page") { score.leaveFocus() }
+        await session.step("Back to page") { score.focusModel.leave() }
         await session.step("the score: the playhead is taken and dragged") {
             score.playheadGestured?(.grab(.black))
             score.playheadGestured?(.move(5040))
@@ -385,7 +385,7 @@ final class WorkspaceScenarioTests: XCTestCase {
             session.appear()
         }
         await session.step("the piece itself is added as another version, and the sources are read") {
-            await workspace.score.addVersion(fileName: example.fileName, data: example.data)
+            await workspace.score.sourcesModel.addVersion(fileName: example.fileName, data: example.data)
             await workspace.loadSources(reopen: nil, pick: pick)
         }
         let version = try XCTUnwrap(workspace.sources.layers.views.first { $0.kind == "notes" && !$0.working }, "the version is a view of the switch")

@@ -81,8 +81,8 @@ final class AddPieceBaselineTests: XCTestCase {
     /// A picture is one page; the photos are one PDF of them. A PDF and a picture are titled by the file's name, photos
     /// «Фото страниц, <date>» (PhotoReviewScreen, the device's).
     func testADD01PagesAddedArePiecesOfThosePagesWithNoNotes() async throws {
-        // What AddPieceSheet's «Открыть файл» passes to its file importer, rebuilt here: the sheet names it nowhere else.
-        let takes = LibraryView.openable + PhotoPiece.images
+        // What AddPieceSheet's «Открыть файл» passes to its file importer.
+        let takes = AddPieceSheet.openable
         for type in [UTType.pdf, .jpeg, .png] {
             XCTAssertTrue(takes.contains(type), "«Открыть файл» takes \(type.identifier)")
         }

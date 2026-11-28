@@ -76,4 +76,4 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Sources`. Cut
 
 `VIEW-07`, a recording kept as an original until deleted (`Baseline/SourcesBaselineTests`); `VIEW-06`, a version's marker
 opens Sources (`Baseline/WorkspaceScenarioTests`); the drafts' (`DraftsBaselineTests`, `Drafts12BaselineTests`). Tests:
-`SourcesModelTests`, `OriginalsTests`, `DraftsTests`; the baseline adds a version through `SourcesBaselineNames`.
+`SourcesModelTests`, `OriginalsTests`, `DraftsTests`; the baseline adds a version through `score.sourcesModel`.

@@ -19,7 +19,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   settings followed, and what the page hides (`applyLayers`), through `MarksScore` (what Marks may not name: Check's
   drawer, slate, Expand, the versions). The lists of layers and of the kinds of extra information (`layers`,
   `extra`) are here, which `tests/shared/i18n.test.mjs` reads. Tests: `MotiffLabTests/MarksModelTests` (fake score);
-  the baseline's old name through `MotiffLabTests/MarksBaselineNames`.
+  the baseline calls `score.marksModel`.
 
 - `CheckModel.swift` (S6, ADR 0031 section 3, v1.6 i-8): `CheckModel`, Check's state and calls out of `ScoreController`:
   the shelf (`check`), the drawer open (`drawerOpen`), the scan's variants and crops, the variant chosen, Fix notes
@@ -33,8 +33,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Marks`.
   `applyLayers`, `notesDidChange`, `showNotice`, `showProblem`. Since v1.6 c-14b3 it keeps where the bars start
   (`barStarts`, from `playback`) while the notes have marks, which name bars only, for their flags' ticks. Tests:
   `MotiffLabTests/CheckModelTests` (the fake score of `MotiffLabTests/FakeCheckScore`, shared with
-  `ReadingMarksTests`); the protected baseline reads it by its old names through
-  `MotiffLabTests/CheckBaselineNames`.
+  `ReadingMarksTests`); the protected baseline reads it as `score.checkModel`.
 
 - `Check.swift`: `CheckShelf` (`check`: the flags, a recording's note lengths to check, #352, the marks «что не так»;
   `hasEntries`, which More offers Check for, `takesMarks`, `reviewed`: the reasons `enginesDisagree` and `readAgain` whose

@@ -99,7 +99,7 @@ final class ScanCheckBaselineTests: XCTestCase {
             session.appear()
             session.workspace.applyModel()
         }
-        if let fingerprint = session.workspace.score.check.fingerprint {
+        if let fingerprint = session.workspace.score.checkModel.check.fingerprint {
             reviews.append(ScanReviewStore.root.appendingPathComponent(fingerprint, isDirectory: true))
         }
         return (session, opened)
@@ -115,10 +115,10 @@ final class ScanCheckBaselineTests: XCTestCase {
         let workspace = session.workspace
         let score = workspace.score
 
-        let flagged = try XCTUnwrap(score.check.openBars.first { $0.bar == 2 }, "bar 2 is to check")
+        let flagged = try XCTUnwrap(score.checkModel.check.openBars.first { $0.bar == 2 }, "bar 2 is to check")
         let disagree = try XCTUnwrap(flagged.flags.first { $0.reason == CheckShelf.enginesDisagree })
         XCTAssertEqual(disagree.name, "Движки разошлись")
-        XCTAssertNil(score.check.openBars.first { $0.bar == 1 }, "the bar they agree on is not")
+        XCTAssertNil(score.checkModel.check.openBars.first { $0.bar == 1 }, "the bar they agree on is not")
         let page = try XCTUnwrap(score.scorePage as? RecordingScorePage)
         let recording = page.called
         page.called = { [weak self] command, argument in
@@ -134,30 +134,30 @@ final class ScanCheckBaselineTests: XCTestCase {
         await session.step("a tap on the flag") { score.handle(.checkFlag(2)) }
         try await ScanSupport.wait("the bar selected") { score.selectionModel.selection?.firstBar == 2 }
         XCTAssertTrue(workspace.panels[.check], "Check opens on its bar")
-        let kept = try XCTUnwrap(score.scanReview?.bar(2), "what this iPad kept of the bar")
+        let kept = try XCTUnwrap(score.checkModel.scanReview?.bar(2), "what this iPad kept of the bar")
         XCTAssertTrue(kept.cropped)
-        let crop = try XCTUnwrap(score.scanCrops[2], "the bar's crop of the original page")
+        let crop = try XCTUnwrap(score.checkModel.scanCrops[2], "the bar's crop of the original page")
         XCTAssertEqual(crop.size, CGSize(width: 100, height: 220), "the bar's box, its staves and four spaces above and below")
         XCTAssertEqual(kept.variants.map(\.engines), [["copisteria"], ["audiveris"]], "the other engines' readings, homr's taken")
         XCTAssertEqual(kept.variants.map { $0.names(rest: russian["scanReview.rest"]) }, ["G5 A5 B5 C5", "G5 A5 B5 E5"], "the right hand only")
         XCTAssertEqual(russian["scanReview.variants"], "Другие прочтения движков")
         XCTAssertEqual(russian["scanReview.variantHint"], "Ставит эти ноты только в этот такт, как вашу правку")
-        XCTAssertTrue(score.editsOn, "with «Мои правки» on a reading can be put in")
+        XCTAssertTrue(score.checkModel.editsOn, "with «Мои правки» on a reading can be put in")
 
         let copisteria = try XCTUnwrap(kept.variants.first)
-        await session.step("copisteria's reading chosen") { score.chooseVariant(copisteria, bar: 2) }
-        try await ScanSupport.wait("put in") { score.variantChoice.engines(in: 2) == ["copisteria"] }
-        let chosen = try XCTUnwrap(score.corrections)
+        await session.step("copisteria's reading chosen") { score.checkModel.chooseVariant(copisteria, bar: 2) }
+        try await ScanSupport.wait("put in") { score.checkModel.variantChoice.engines(in: 2) == ["copisteria"] }
+        let chosen = try XCTUnwrap(score.checkModel.corrections)
         XCTAssertEqual(chosen.bar, 2)
         XCTAssertEqual(chosen.notes.map(\.pitch).sorted(), [48, 72, 79, 81, 83], "copisteria's right hand, the left hand as read")
         XCTAssertGreaterThan(chosen.count, 0, "as the player's corrections")
         XCTAssertEqual(russian.format("scanReview.chosen", "copisteria"), "Сейчас в такте: copisteria")
         XCTAssertEqual(russian["scanReview.undo"], "Отменить выбор")
 
-        await session.step("«Отменить выбор»") { score.undoVariant() }
-        try await ScanSupport.wait("taken back whole") { score.corrections?.count == 0 }
-        XCTAssertEqual(score.corrections?.notes.map(\.pitch).sorted(), [48, 74, 79, 81, 83], "the bar as merged")
-        XCTAssertNil(score.variantChoice.bar)
+        await session.step("«Отменить выбор»") { score.checkModel.undoVariant() }
+        try await ScanSupport.wait("taken back whole") { score.checkModel.corrections?.count == 0 }
+        XCTAssertEqual(score.checkModel.corrections?.notes.map(\.pitch).sorted(), [48, 74, 79, 81, 83], "the bar as merged")
+        XCTAssertNil(score.checkModel.variantChoice.bar)
         XCTAssertEqual(russian["scanReview.missing"], "Вырезка страницы и прочтения движков для этого такта есть только на iPad, который распознавал скан.")
     }
 }

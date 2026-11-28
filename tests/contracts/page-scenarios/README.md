@@ -64,8 +64,8 @@ A step is one of four kinds:
 replayer waits a frame after every call and every press, and a step sends the app's answer as a `call` (the position the
 player reports after a drag, the selection after a span) instead of waiting for a timeout. Where a real duration is the
 rule (a long press, a view that must stay put), the `hold` or `wait` is at least twice the page's timer, and its `note`
-says which timer: a hold is 900 ms against the pages' hold (`HOLD_MS` of `selection-gesture.ts`, 450 ms), a wait to see
-that the roll's view stays is 640 ms against its glide (the kit's slow time, 320 ms).
+says which timer: a hold is 900 ms against the pages' hold (`HOLD_MS` of `Scripts/selection/selection-gesture.ts`,
+450 ms), a wait to see that the roll's view stays is 640 ms against its glide (the kit's slow time, 320 ms).
 
 Both runners time every press on the page's own clock (`performance.now()` when the page takes each pointer event). A
 press with no `hold` that the page felt held still for its `HOLD_MS` or more (or a hold it felt shorter) is reported as a

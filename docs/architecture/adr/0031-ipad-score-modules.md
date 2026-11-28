@@ -274,7 +274,8 @@ model (`CheckDrawer`, `EditsLayerSection`, `LayersList`, `MorePanel`, `UnreadPag
 show as plain values (`RollDrawer.noteEditor`, `PhotoPagesCheck.pages`), so `NoteEditorState` and `CheckPageEntry` moved
 to Platform and five folder edges went. `ScoreController` keeps no forwarder: the protected `tests/ipad/Baseline`
 (`ScanCheckBaselineTests`, `WorkspaceSession`'s reactions) reads Check by its old names through a test-side extension
-(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges.
+(`MotiffLabTests/CheckBaselineNames.swift`), which goes with the baseline change Andrei merges. Gone in v1.6 b-3: the
+baseline reads `score.checkModel`.
 
 ## Note (S7 part 1, the score's screen by concern, v1.6 i-9)
 
@@ -303,7 +304,7 @@ split by concern into extension files beside it, each with one responsibility (`
 `BundleSchemeHandler` moved to Platform (the roll's edge to Workspace went): `ScoreController.swift` is 576 lines and its
 two quality entries went. The bar holds no controller: the screen makes Practice and the layers list, and the modes get
 the mode as a binding. The protected baseline calls `addVersion` on the score through a test-side extension
-(`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does. Still in the root, for the next step:
+(`MotiffLabTests/SourcesBaselineNames.swift`), as `CheckBaselineNames.swift` does (both gone in v1.6 b-3). Still in the root, for the next step:
 Expand's calls into `FocusModel` and the marks' calls into `MarksModel`, each through its own protocol.
 
 ## Note (S7 part 3, Expand and the marks through their own protocols, v1.6 i-10b)
@@ -325,7 +326,8 @@ or made private, so each state has one writer. The views call the models (`Focus
 composition: its state, the page's events routed to the models, the render order, engraving the score, and one line
 per protocol member a model may not name; `applyLayers` and `changeMarks` stay on the root only as `CheckScore`'s and
 `PenScore`'s. The protected baseline drives Expand and the phrases' marks by their old names through test-side
-extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does.
+extensions (`MotiffLabTests/FocusBaselineNames.swift`, `MarksBaselineNames.swift`), as `CheckBaselineNames.swift` does (all gone
+in v1.6 b-3: the baseline calls `score.focusModel` and `score.marksModel`).
 
 ## Note (W2.12, the PDF on its model and views, v1.6 i-11)
 

@@ -61,7 +61,6 @@ search's focus, picking to recognise) and the copies online.
 
 ## Baseline entries that protect it
 
-UX baseline: `VIEW-01`, `VIEW-02` (switching PDF | Notes), `ADD-01` (reads `LibraryView.openable` through the test-side
-`MotiffLabTests/LibraryBaselineNames.swift`), `ADD-03`. Tests: `LibraryModelTests`, `LibraryShelfTests`. Quality ratchet:
+UX baseline: `VIEW-01`, `VIEW-02` (switching PDF | Notes), `ADD-01` (reads `AddPieceSheet.openable`), `ADD-03`. Tests: `LibraryModelTests`, `LibraryShelfTests`. Quality ratchet:
 the folder edges of the views to Account, Import and Sources, and `LibraryModel`'s three to `Pdf` (`Landing`,
 `OtherView`, `PieceFamily`, moved from the screen).

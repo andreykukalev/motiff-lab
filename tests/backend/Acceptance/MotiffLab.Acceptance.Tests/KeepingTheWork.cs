@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace MotiffLab.Acceptance.Tests;
 
-/// <summary>Scenarios h to j, q1 and q2: the player saves and reopens a project, and opens project files of other versions (README.md).</summary>
+/// <summary>Scenarios h to j, q1, q2 and r: the player saves and reopens a project, and opens project files of other versions (README.md).</summary>
 public class KeepingTheWork
 {
     [Fact(DisplayName = "h. The player saves a project with a selection and a variation, reopens it and gets the same project")]
@@ -80,6 +80,26 @@ public class KeepingTheWork
         Assert.Equal(0, player.OpenPieces);
         Assert.Equal("noPiece", Player.Parse(player.Saves()).GetProperty("error").GetString());
         Assert.Equal(copy, future);
+    }
+
+    [Fact(DisplayName = "r. The player opens a project file a later build wrote that this build may read: it opens read-only, plays, and is never saved")]
+    public void A_file_of_a_later_version_this_build_may_read_opens_read_only_and_is_never_saved()
+    {
+        // A version 19 file whose "minReader" is 18, the version this build writes (v1.6 c-14a): a later build says it may be read.
+        byte[] readable = Player.Fixture("v19-readable.motiff.json");
+        byte[] copy = [.. readable];
+
+        (Player player, JsonElement opened) = Player.Opens("v19-readable.motiff.json", readable, """{"language": "en"}""");
+
+        // FILE-02: it opens, says it is read-only, and its notes play as any piece's.
+        Assert.True(opened.GetProperty("project").GetProperty("readOnly").GetBoolean());
+        Assert.NotEmpty(player.Notes());
+        Assert.NotEmpty(player.Hears());
+        // Nothing done here is saved over it: the save is refused in the player's language, and the bytes are as they were.
+        JsonElement saved = Player.Parse(player.Saves());
+        Assert.Equal("readOnly", saved.GetProperty("error").GetString());
+        Assert.StartsWith("This project was saved by a newer version of Motiff Lab: it opens read-only here", saved.GetProperty("message").GetString(), StringComparison.Ordinal);
+        Assert.Equal(copy, readable);
     }
 
     [Fact(DisplayName = "q1. The player saves a variation, tries another of the same passage and saves again: both variations are kept")]

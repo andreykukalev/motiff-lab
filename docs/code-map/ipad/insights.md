@@ -63,7 +63,7 @@ recorded yet.
 
 ## Baseline entries that protect it
 
-UX baseline: not recorded yet; the protected harness reads `workspace.insights.chosen` and calls
+UX baseline: `INS-01`, `PHR-08`; the protected harness reads `workspace.insights.chosen` and calls
 `factChosen(InsightsController.Choice?)` (`tests/ipad/Baseline/WorkspaceSession.swift`), so both names stay. Quality
 ratchet: `InsightsController.swift`'s two Playback edges (the piece with the variation in place for the player); none for
 size since i-12 nor Piece DNA's since d-1. Tests: `InsightsControllerTests` (the stream's rules, E-insights-1 to 3 and 8), `PhraseAnchorsTests` (i-18),
