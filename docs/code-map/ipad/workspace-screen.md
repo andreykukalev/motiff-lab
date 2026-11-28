@@ -39,10 +39,10 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
 - `ScoreScreen.swift`: `ScoreScreen` holds the workspace; `ScoreScreenContent` shows it: what only the view keeps,
   `body` (v1.7 e-1: the top strip, the room, the bottom shelf), `page` (the layers in the modifiers, in their order) and
   `layers` (the web view in the room, then the selection menu, the card at a mark, the toasts, the roll in focus,
-  `underStrip`, the drawer, the sheet, the Contents, the chip back to the playing; `footBottom`, `toastBottom`).
+  `underStrip`, the drawer, the sheet, the Contents; `footBottom`, `footTrailing`).
 - Its parts by concern, extensions of `ScoreScreenContent` (v1.6 i-9, ADR 0031 section 4):
   `ScoreScreenBars.swift` (`topStrip`: the bar or the focus bar, a draft's pill under it; `underStrip`: the recording
-  heard, `ModeOptions`; `bottomShelf`: the pill; `backToPlaying`; `askAboutPiece`, `setPieceTempo`; surface `DockedStrip`); `ScoreScreenPanels.swift` (`SheetPlace`, `sheetPlace`, `mapOwner`, `sideSheet` and
+  heard, `ModeOptions`; `bottomShelf`: the pill, `backToBar` for its chip; `askAboutPiece`, `setPieceTempo`; surface `DockedStrip`); `ScoreScreenPanels.swift` (`SheetPlace`, `sheetPlace`, `mapOwner`, `sideSheet` and
   what it holds, `contentsDrawer`, `PanelState.binding`); `ScoreScreenRoll.swift` (`rollDrawer`, its height by the
   handle, `rollSpan`, `expandFromDrawer`); `ScoreScreenSources.swift` (the switch of views and Sources: `ShownView`,
   `sourcesSheet`, the «В черновик» sheet, `toastsOverSelection`, `sourcing`, `pickView`, `shownViewScreen`);
@@ -50,8 +50,8 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   Piece DNA by `openDna`, the linked PDF, the Reference, Settings).
 - Its views, each in its own file, handed what they show and the actions they call, so a new layout can place them
   elsewhere without touching what they do: `ScoreBar.swift` (`TopBar` docked: Back, Contents, the title, the switch,
-  the pages, the modes, ⓘ and its list, the Circle, Insights, More); `Pill.swift` (Play, Цикл, ‹ › | the tempo, the
-  hands, the metronome | the roll, the assistant; full, compact with «⋯», tight; 44 pt by `itemReach`); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
+  the pages, the modes, ⓘ and its list, the Circle, Insights, More); `Pill.swift` (Play, the chip back to the playing, Цикл, ‹ › | the tempo, the
+  hands, the metronome | the roll, the assistant; full, compact with «⋯», tight, the chip in «⋯»; 44 pt by `itemReach`, 0 in the tempo's popover); `PillItems.swift` (`iconItem`, `stepItem`, `ItemDivider`, also `DraftAssemblyPill`'s);
   `SelectionMenu.swift` (with `ClearSelectionButton`; `offered`; «Что не так?» in More on notes read from a PDF, v1.6 c-14b3); `FocusBar.swift` (with `FocusShowAs`,
   `FocusRollCard`); `HearingSwitch.swift` (also the Insights sheet's); `InsightsSheet.swift`
   ([`insights.md`](insights.md)); `SourcesSheet.swift` ([`sources.md`](sources.md), v1.6 i-13); `SettingsSheet.swift`

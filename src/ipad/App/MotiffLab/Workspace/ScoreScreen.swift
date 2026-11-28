@@ -83,9 +83,6 @@ struct ScoreScreenContent: View {
     /// its handle (RollDrawerHeight, #511 section 7.1), and the share while the handle is dragged.
     @State var drawerShares: [Bool: CGFloat] = [true: RollDrawerHeight.saved(landscape: true), false: RollDrawerHeight.saved(landscape: false)]
     @State var drawerDrag: CGFloat?
-    /// How tall the chip back to the playing over the foot of the page is now (0 while there is none): the selection's
-    /// toast stands above it (v0.6.4, spec 7).
-    @State var transportHeight: CGFloat = 0
     @ObservedObject var contents: ContentsController
     /// Piece DNA (0018 section 11; testing item 22), from More: the map of the whole piece over the score; nil when closed.
     @State var dna: DnaMap?
@@ -204,21 +201,17 @@ struct ScoreScreenContent: View {
         selectionModel.selection != nil && !focusModel.focused && !panels[.roll]
     }
 
-    /// Where what stands over the foot of the page keeps: over whatever covers it (a drawer, a sheet from the bottom),
-    /// else a gap above the bottom shelf.
+    /// Where a toast over the foot of the page stands: a gap over whatever covers the foot (a drawer, a sheet from the
+    /// bottom; 0 for nothing), so above the bottom shelf at least. Nothing else floats there: the chip back to the playing
+    /// is the shelf's (E-score-7).
     private static func footBottom(covered: CGFloat) -> CGFloat {
-        covered > 0 ? covered + CGFloat.ds("s-3") : CGFloat.ds("s-3")
+        covered + CGFloat.ds("s-3")
     }
 
-    /// How far the toasts and the chip back to the playing keep from the right: beside a sheet at the side, else beside
-    /// the assistant's panel (`side`, its width and a gap, or 0).
+    /// How far the toasts keep from the right: beside a sheet at the side, else beside the assistant's panel (`side`, its
+    /// width and a gap, or 0).
     private static func footTrailing(sheet: SheetPlace, side: CGFloat) -> CGFloat {
         sheet == .side ? ScoreScreen.sheetWidth + CGFloat.ds("s-3") : side
-    }
-
-    /// Where a toast stands: over the foot of the page, above the chip back to the playing while it is there.
-    private func toastBottom(covered: CGFloat) -> CGFloat {
-        ToastPlace.bottom(pillBottom: Self.footBottom(covered: covered), transport: transportHeight, gap: CGFloat.ds("s-3"))
     }
 
     /// The score between the strips and everything the player opens over it; `room` is the space between the strips.
@@ -229,9 +222,9 @@ struct ScoreScreenContent: View {
         let side = assistant.panelOpen ? ScoreScreen.assistantWidth(landscape: landscape) + gap : 0
         let footTrailing = Self.footTrailing(sheet: sheet, side: side)
         let footLeading: CGFloat = contentsPlace == .side ? ScoreScreen.contentsWidth + gap : 0
-        // What a drawer or a sheet at the bottom and the chip back to the playing cover: a card at a mark opens where it
-        // shows whole between the top strip and them (v1.4 a-1), as the selection's toast keeps above them.
-        let controls = EdgeInsets(top: 0, leading: 0, bottom: toastBottom(covered: covered), trailing: 0)
+        // What a drawer or a sheet at the bottom covers: a card at a mark opens where it shows whole between the top strip
+        // and it (v1.4 a-1), as the selection's toast keeps above it.
+        let controls = EdgeInsets(top: 0, leading: 0, bottom: footBottom, trailing: 0)
         return ScoreWebView(score: score, piece: piece, dark: colorScheme == .dark)
             // While a field has the keyboard, a press on the score only puts it away (TypingFocus, v0.6.4).
             .padding(.trailing, side).overlay { TypingShield() }
@@ -240,8 +233,7 @@ struct ScoreScreenContent: View {
             .onChange(of: selectionMenuOpen) { _, open in workspace.selectionMenuChanged(open) }
             .overlay(alignment: .topLeading) { cardAtMark(covered: controls) }
             .overlay(alignment: .bottom) {
-                let insets = ToastPlace.insets(pillBottom: footBottom, transport: transportHeight, gap: gap, leading: footLeading, trailing: footTrailing)
-                toasts(covered: covered, insets: insets, trailing: footTrailing)
+                toasts(insets: EdgeInsets(top: 0, leading: footLeading, bottom: footBottom, trailing: footTrailing))
             }
             .overlay {
                 // The phrase as a roll over the card (testing item 12); the drawer's roll moves here, so it shows once the drawer is gone.
@@ -254,7 +246,6 @@ struct ScoreScreenContent: View {
             .overlay(alignment: .bottom) { rollDrawer(height: drawer, room: room, landscape: landscape) }
             .overlay(alignment: .bottomTrailing) { sideSheet(sheet) }
             .overlay(alignment: .topLeading) { contentsDrawer(contentsPlace) }
-            .overlay(alignment: .bottom) { backToPlaying(bottom: footBottom, leading: footLeading, trailing: footTrailing) }
             .animation(.easeOut(duration: 0.2), value: panels[.roll])
             .animation(.easeOut(duration: 0.2), value: panels[.insights])
             .animation(.easeOut(duration: 0.2), value: panels[.contents])
@@ -290,18 +281,17 @@ struct ScoreScreenContent: View {
         }
     }
 
-    /// What was just done in the Sources sheet, else the selection's toasts, over the foot of the page (`insets`) and
-    /// beside a sheet.
-    @ViewBuilder private func toasts(covered: CGFloat, insets: EdgeInsets, trailing footTrailing: CGFloat) -> some View {
+    /// What was just done in the Sources sheet, else the selection's toasts, over the foot of the page (`insets`), between
+    /// the strips above the shelf, and beside a sheet.
+    @ViewBuilder private func toasts(insets: EdgeInsets) -> some View {
         // What was just done in the Sources sheet, with Undo where it can be undone (version 0.6); beside the sheet.
         if let toast = sources.toast, sourcesOn {
             SourcesToastView(sources: sources, toast: toast, text: text)
-                .padding(.bottom, toastBottom(covered: covered))
-                .padding(.trailing, footTrailing)
+                .padding(.bottom, insets.bottom)
+                .padding(.trailing, insets.trailing)
                 .transition(.opacity)
         } else {
             // «Выделение снято · Вернуть» and the hint to hold (#511 11), with ⌘Z and ⇧⌘Z.
-            // Above the chip back to the playing while it is there (v0.6.4, spec 7: never under it).
             // Over it, the toast of an edit of the phrases with its Undo or Redo (v1.2, ScorePhraseEdits.swift).
             VStack(spacing: CGFloat.ds("s-2")) {
                 toastsOverSelection
@@ -329,7 +319,7 @@ struct ScoreScreenContent: View {
                 // A step just taken on a draft's view, with its Undo (v1.1), where the Sources toast stands, beside the map.
                 if piece.draft != nil, let owner = pieceUnder {
                     DraftStepToast(owner: owner, score: score, text: text, reopen: reopen)
-                        .padding(.bottom, toastBottom(covered: covered))
+                        .padding(.bottom, Self.footBottom(covered: covered))
                         .padding(.trailing, Self.footTrailing(sheet: sheet, side: 0))
                 }
             }

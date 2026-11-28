@@ -5,7 +5,7 @@ Part of [`workspace.md`](workspace.md). The drafts' models are in [`sources.md`]
 - Drafts (v1.1): `ScoreDraftPlaces.swift`, a view's marks (`placeMarkers`, `pickMarker`), hearing, `playDraft`,
   `loopPlace`; `ScoreDraftViews.swift`, `DraftTechniqueCard`, `DraftCardAtMark` (every card at a mark, a version marker's
   too: under it, else above it, `top`, by `ScoreController.markHeight`, clear of the strips (the page lies between them since v1.7 e-1)
-  and what covers its foot, `covered`, from `ToastPlace.bottom`; v1.4 a-1, `closeCardAtMark` on `markAway`), `DraftAssemblyPill` (the top strip's second row since v1.7 e-1), `DraftStepToast`,
+  and what covers its foot, `covered`, from `footBottom`; v1.4 a-1, `closeCardAtMark` on `markAway`), `DraftAssemblyPill` (the top strip's second row since v1.7 e-1), `DraftStepToast`,
   `ShownDraftScreen` (holds `draftMap` and, v1.4, the visit's `AssistantController`, handed to each `ScoreWorkspace`;
   r-1: `DraftVisitPieces.swift` closes each number it showed, one opened after it went at once); `DraftSeamCard.swift`; `DraftMap.swift`, the map in the sheet's place;
   v1.4: `DraftPlaceCard.swift`, `DraftPlaceContent` (a place's variants, base, «Сделать основой», «Перенести…»,
