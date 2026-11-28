@@ -53,7 +53,7 @@ change to the engraving options (`score-page.ts`) fails the run's fixture check 
 - Members: `PhraseCard`, `createPhraseCard` (the page uses `cardLayout`); `ScoreRules`, `ScorePan` (it uses `modeOf`,
   `beatUnder`); `readMarks`, `writeMarks`, `anchorBar`, `MIN_POINT_DISTANCE`, `TAP_DISTANCE`; `ScoreGeometry.barToPage`,
   `pageOf`; `MenuPin.moving`; `dispose` of `SelectionLayer`, `PlaceLayer`, `ScorePress`, `ScorePlayheadMarks`; `num`;
-  `PlayheadPress.owns`; `next` and its steps in `playback-model.ts`; `PracticeView`, `attach`; `applyTheme`,
+  `PlayheadPress.owns`; `next` and its steps in `playback-model.ts`; `applyTheme`,
   `applyStoredTheme`, `themeChoice`; `applyLanguage`, `clampSplit`.
 - Branches: the dot handles draw in Select with `places()` false, which is in focus: confirm on the device before
   cutting.

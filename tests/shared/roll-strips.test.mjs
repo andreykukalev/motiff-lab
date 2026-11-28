@@ -6,7 +6,6 @@ import {
     drawLoopLane,
     drawOverview,
     drawPosition,
-    laneShown,
     overviewGrab,
     overviewTick,
     overviewTrack,
@@ -57,13 +56,6 @@ test("the roll's one playhead is a line with its marker in the loop strip, cobal
     drawPosition(stopped.context, frame, { black: 2400, blue: null, playing: false }, inks);
     assert.equal(stopped.drawn.discs.length, 3, "stopped, the marker still shows, hollow");
     assert.equal(stopped.drawn.discs.at(-1).colour, "surface");
-});
-
-test("in practice view the loop strip is hidden and takes no press; with the lanes otherwise it is there (#543, 0.5.6 tail)", () => {
-    assert.equal(laneShown(true, "off"), true);
-    assert.equal(laneShown(true, "on"), false, "hidden, its handles, its tap and its drag take nothing");
-    assert.equal(laneShown(true, "reveal"), false, "nor while practice view shows its controls");
-    assert.equal(laneShown(false, "off"), false, "no lanes, no strip (the web's roll)");
 });
 
 test("the loop strip draws nothing without a selection and a handle at each end with one", () => {

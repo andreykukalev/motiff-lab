@@ -24,7 +24,7 @@ entries that protect it (the UX baseline, `docs/ux-baseline.md`, by its area ids
 | `Platform/` | [platform](ipad/platform.md) | music-core's port, the score page's port, design tokens, words, project files, the app |
 | `Workspace/` | [workspace](ipad/workspace.md) ([screen](ipad/workspace-screen.md), [controller](ipad/workspace-controller.md), [drafts](ipad/workspace-drafts.md)) | the score's screen and its controller |
 | `Selection/` | [selection](ipad/selection.md) | the one selection, its tools and history, phrases |
-| `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill's Play, metronome, tempo, practice, Expand |
+| `Playback/` | [playback](ipad/playback.md) | the player, the engine, the pill's Play, metronome, tempo, Expand |
 | `Roll/` | [roll](ipad/roll.md) | the piano roll in the drawer |
 | `Ink/` | [ink](ipad/ink.md) | the stylus, the pen, input rules, the modes |
 | `Marks/` | [marks](ipad/marks.md) | marks, bookmarks, Check, «Мои правки» |
