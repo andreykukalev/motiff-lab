@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// «Исполнение» over the view shown (v0.10, Andrei's finding 24): the recording picked in the switch, heard from a capsule
-/// under the bar of the notes, the PDF or a view shown over the piece. It is no view of its own: the view under it stays
-/// as it is, and it goes on as the screen switches between the PDF and the notes of the same file
-/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen`, under their bar, for their own
-/// piece or the one under them (`heardOver`).
+/// under the top strip of the notes, the PDF or a view shown over the piece (v1.7, E-score-3). It is no view of its own:
+/// the view under it stays as it is, and it goes on as the screen switches between the PDF and the notes of the same file
+/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen` under their top strip
+/// (`hungUnderTopStrip`), for their own piece or the one under them (`heardOver`).
 struct PerformanceCapsule: View {
     @ObservedObject var sources: SourcesController
     let text: UIText
@@ -22,8 +22,8 @@ struct PerformanceCapsule: View {
 }
 
 extension PerformanceCapsule {
-    /// Whose recording a screen's bar shows: the piece's under a screen shown over it (a view picked in the switch, the PDF
-    /// linked in Files: `heardOver`), else the screen's own while its switch shows; nil for none.
+    /// Whose recording a screen shows under its top strip: the piece's under a screen shown over it (a view picked in the
+    /// switch, the PDF linked in Files: `heardOver`), else the screen's own while its switch shows; nil for none.
     static func sources(over: SourcesController?, own: SourcesController, switchOn: Bool) -> SourcesController? {
         over ?? (switchOn ? own : nil)
     }
@@ -34,7 +34,7 @@ private struct HeardOverKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The Sources of the piece under a screen shown over it, whose recording that screen's bar shows.
+    /// The Sources of the piece under a screen shown over it, whose recording that screen shows under its top strip.
     var heardOver: SourcesController? {
         get { self[HeardOverKey.self] }
         set { self[HeardOverKey.self] = newValue }
@@ -43,7 +43,7 @@ extension EnvironmentValues {
 
 extension View {
     /// A screen shown over the piece (a view picked in the switch, the PDF linked in Files) hears the piece's recording in
-    /// a capsule under its own bar, above its mode's options (v0.10 s-2 review).
+    /// a capsule under its own top strip, above its mode's options (v0.10 s-2 review).
     func heardOver(_ sources: SourcesController) -> some View {
         environment(\.heardOver, sources)
     }

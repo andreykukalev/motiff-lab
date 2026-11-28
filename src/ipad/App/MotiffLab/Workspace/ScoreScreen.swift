@@ -139,30 +139,22 @@ struct ScoreScreenContent: View {
     var hasVersions: Bool { !sourcesModel.versions.entries.isEmpty }
 
     var body: some View {
-        GeometryReader { screen in
-            let landscape = screen.size.width > screen.size.height
-            VStack(spacing: 0) {
-                // The strips over whatever the room holds, so nothing from the page ever lies on them.
-                topStrip(width: screen.size.width).zIndex(1)
-                // The page between the strips (`room`), and what the player opens over it: drawers and sheets take their
-                // share of the room, never of the strips.
-                GeometryReader { room in
-                    let kept = drawerShare(landscape) * room.size.height
-                    page(
-                        drawer: panels[.roll] ? (drawerDrag.map { $0 * room.size.height } ?? kept) : 0,
-                        inset: panels[.roll] ? kept : 0,
-                        room: room.size, landscape: landscape,
-                        sheet: sheetPlace(landscape: landscape, height: room.size.height),
-                        contentsPlace: panels[.contents] ? (landscape ? .side : .bottom(room.size.height / 2)) : .none
-                    )
-                }
-                bottomShelf.zIndex(1)
-            }
+        // The strips and the page between them (`Strips`); what the player opens over the page, drawers and sheets, takes
+        // its share of the room, never of the strips.
+        Strips { barWidth in
+            topStrip(barWidth: barWidth)
+        } room: { room, landscape in
+            let kept = drawerShare(landscape) * room.height
+            page(
+                drawer: panels[.roll] ? (drawerDrag.map { $0 * room.height } ?? kept) : 0,
+                inset: panels[.roll] ? kept : 0,
+                room: room, landscape: landscape,
+                sheet: sheetPlace(landscape: landscape, height: room.height),
+                contentsPlace: panels[.contents] ? (landscape ? .side : .bottom(room.height / 2)) : .none
+            )
+        } shelf: {
+            bottomShelf
         }
-        // The keyboard never changes the screen's size (#582 item 16): before, a chat's keyboard shrank it, portrait read
-        // as landscape and the sheets, the drawer, the strips and the page's room moved, and back again as it went. A chat
-        // keeps itself clear of the keyboard (AskFlow, KeyboardRoom).
-        .ignoresSafeArea(.keyboard)
         .environmentObject(assistant)
         // One thing at a time on the right: the assistant's panel or the Insights, Check and Other versions sheet.
         .onChange(of: assistant.panelOpen) { _, open in workspace.assistantPanelChanged(open) }

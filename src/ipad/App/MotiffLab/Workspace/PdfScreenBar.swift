@@ -47,7 +47,7 @@ extension PdfScreen {
         .animation(.easeOut(duration: 0.16), value: pdf.penOn)
     }
 
-    /// The bottom shelf, as the notes' (`ScoreScreenContent.bottomShelf`), always there so the pages never move (E-pdf-3):
+    /// The bottom shelf's content, as the notes' (`ScoreScreenContent.bottomShelf`), always there so the pages never move (E-pdf-3):
     /// in its middle, where the notes' shelf has it, the metronome, the notes' same item (`Pill`). It starts the metronome
     /// at once with its pill for the beats and the tapped tempo, which stands in its place until it is put away; held, a
     /// slide sets its tempo (#521 section 15).
@@ -66,8 +66,6 @@ extension PdfScreen {
             }
         }
         .animation(.easeOut(duration: 0.2), value: metronomeOpen)
-        .modifier(DockedStrip(edge: .bottom))
-        .keyboardLift(barOnly: true)
     }
 
     /// Notes in PDF | Notes: the notes read from this PDF, in this piece or the one they were read into; for the PDF linked

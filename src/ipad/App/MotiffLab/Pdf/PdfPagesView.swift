@@ -21,9 +21,10 @@ enum PageRest {
 /// #495 UX-12). PDFKit scrolls a page it goes to up to the top of its view, flush with the top strip: this view brings a
 /// page to rest a gap below it itself, at the place the notes bring theirs to, and keeps the place the player left.
 final class BarPdfView: PDFView {
-    /// The page to bring under the bar once the pages are laid out, and how far down it the bar is to rest (0 at its top).
+    /// The page to bring under the top strip once the pages are laid out, and how far down it the strip is to rest (0 at its
+    /// top).
     private var waiting: (page: PDFPage, fraction: CGFloat)?
-    /// The page last brought under the bar, how far down it, and the view's size then.
+    /// The page last brought under the top strip, how far down it, and the view's size then.
     private var placed: (page: PDFPage, fraction: CGFloat, size: CGSize)?
     /// The zoom and the place across the pages to come back to with the page (PDF | Notes, #511 section 10); nil for none.
     private var returning: (zoom: Double?, left: Double)?
@@ -42,7 +43,7 @@ final class BarPdfView: PDFView {
     }
 
     /// Shows the PDF loaded again (a page photographed again, `PhotoReadingPanel`) in place of the pages shown, `page` (from
-    /// 1) brought under the bar; the document shown already stays as it is. Before, the old pages stayed in view, and the
+    /// 1) brought under the top strip; the document shown already stays as it is. Before, the old pages stayed in view, and the
     /// ink and the bookmarks' tabs went onto the document loaded again, which was not shown.
     func show(_ document: PDFDocument, at page: Int) {
         guard self.document !== document else { return }
@@ -52,7 +53,7 @@ final class BarPdfView: PDFView {
     }
 
     /// Comes back to where the player left the pages (PDF | Notes, #511 section 10): the zoom they chose, then the page and the
-    /// place on it under the bar, once the pages are laid out.
+    /// place on it under the top strip, once the pages are laid out.
     func comeBack(to state: PdfViewState) {
         guard let page = document?.page(at: state.page - 1) else { return }
         holdUntilPlaced()
@@ -61,7 +62,7 @@ final class BarPdfView: PDFView {
         setNeedsLayout()
     }
 
-    /// Where the pages are now: the page under the bar and how far down it, how far across, and the zoom as a share of the
+    /// Where the pages are now: the page under the top strip and how far down it, how far across, and the zoom as a share of the
     /// zoom that fits them (nil while they fit); nil before they are laid out.
     func viewState() -> PdfViewState? {
         guard let scroll, let document, scroll.contentSize.height > 0 else { return nil }
@@ -80,7 +81,7 @@ final class BarPdfView: PDFView {
         super.layoutSubviews()
         guard let scroll, bounds.height > 0, scroll.contentSize.height > 0 else { return }
         // A new size (PDFKit fitting the pages as the screen settles, a turn of the iPad) keeps the page brought under the
-        // bar there while it is still the page in view.
+        // top strip there while it is still the page in view.
         if waiting == nil, let placed, placed.size != bounds.size, currentPage == placed.page {
             waiting = (placed.page, placed.fraction)
         }
@@ -194,7 +195,8 @@ struct PdfPages: UIViewRepresentable {
         DispatchQueue.main.async { [weak controller, weak view] in
             if let controller, let view { controller.attach(to: view) }
         }
-        // The place the player left the pages at, or the page PDF | Notes landed on: under the bar once the pages are laid out.
+        // The place the player left the pages at, or the page PDF | Notes landed on: under the top strip once the pages are
+        // laid out.
         if let state = controller.startState { view.comeBack(to: state) } else if let start = document.page(at: controller.startPage - 1) { view.rest(on: start) }
         return view
     }

@@ -64,29 +64,24 @@ struct PdfScreen: View {
     }
 
     var body: some View {
-        GeometryReader { screen in
-            VStack(spacing: 0) {
-                // The strips of «Пюпитр» as on the notes (`ScoreScreenContent.body`), over whatever the room holds.
-                bar(width: screen.size.width - 2 * DockedStrip.margin).dockedAtTop().zIndex(1)
-                // The pages between the strips (`room`), and what the player opens over them.
-                GeometryReader { room in
-                    desk(twoUp: screen.size.width > screen.size.height)
-                        .overlay(alignment: .topTrailing) { underStrip }
-                        .overlay {
-                            if let call = pdf.pencilPalette {
-                                // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8).
-                                PencilPalette(holder: pdf, call: call, text: text)
-                            }
-                        }
-                        .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
-                        .overlay(alignment: .bottom) { sourcesPanel(height: room.size.height / 2) }
-                        .animation(.easeOut(duration: 0.2), value: sourcesOpen)
+        // The strips of «Пюпитр» as on the notes (`Strips`), the pages between them and what the player opens over them.
+        Strips { barWidth in
+            bar(width: barWidth)
+        } room: { room, landscape in
+            desk(twoUp: landscape)
+                .overlay(alignment: .topTrailing) { underStrip }
+                .overlay {
+                    if let call = pdf.pencilPalette {
+                        // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8).
+                        PencilPalette(holder: pdf, call: call, text: text)
+                    }
                 }
-                shelf.zIndex(1)
-            }
+                .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
+                .overlay(alignment: .bottom) { sourcesPanel(height: room.height / 2) }
+                .animation(.easeOut(duration: 0.2), value: sourcesOpen)
+        } shelf: {
+            shelf
         }
-        // The keyboard never changes the screen's size, as on the notes (#582 item 16): the pages stay where they are.
-        .ignoresSafeArea(.keyboard)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $readingOpen, onDismiss: {
             if settingsNext {

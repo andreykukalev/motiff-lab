@@ -7,7 +7,7 @@ import SwiftUI
 /// view's note goes (whole, v1.4), then the pages in view (whole, never cut to an ellipsis), then the actions take their
 /// compact form, then they scroll sideways. Before 0.6.1 the score's longer row of actions squeezed the title to nothing
 /// and cut the pages to a lone «…». Since v1.7 («Пюпитр», e-1, e-2) it is the top strip's row on every view, on the strip's
-/// surface (`dockedAtTop`, laid by the screen), no capsule of its own.
+/// surface (`Strips`), no capsule of its own.
 struct TopBar<Leading: View, Actions: View, Compact: View>: View {
     /// The bar's width: the screen's, less the strip's margins (`DockedStrip.margin`).
     let width: CGFloat
@@ -51,39 +51,6 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
     }
 }
 
-extension View {
-    /// The top strip of «Пюпитр» round a view's bar (v1.7 e-1, e-2): docked at the top (`DockedStrip`), with the read-only
-    /// line hung under it, below a draft's pill too; the same on the notes, the PDF and the recording (VIEW-04).
-    func dockedAtTop() -> some View {
-        modifier(DockedStrip(edge: .top))
-            .overlay(alignment: .bottomLeading) { ReadOnlyLine().padding(.leading, DockedStrip.margin) }
-    }
-
-    /// Where what the player opened under the top strip hangs over the page (E-score-3): the strip's margin at the sides,
-    /// a gap below it; the same on every view.
-    func hungUnderTopStrip() -> some View {
-        padding(.horizontal, DockedStrip.margin).padding(.top, CGFloat.ds("s-2"))
-    }
-}
-
-/// The piece's one line that it opened read-only (project file 18, `PieceScreen`), hung under the top strip of every view
-/// of the piece without changing its height or taking a touch; nothing for a piece that saves.
-private struct ReadOnlyLine: View {
-    @Environment(\.readOnlyLine) private var readOnlyLine
-
-    var body: some View {
-        if let readOnlyLine {
-            Text(readOnlyLine).dsType(.caption).foregroundStyle(Color.ds("warning"))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .padding(.vertical, CGFloat.ds("s-1"))
-                .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
-                .alignmentGuide(.bottom) { $0[.top] - CGFloat.ds("s-2") }
-                .allowsHitTesting(false)
-        }
-    }
-}
-
 /// The room the bar gives its start (#582 item 2), from the bar's width alone, so the score and the PDF lay it out alike.
 enum BarFit {
     /// The share of the bar the piece's title may take at most; a longer title ends in an ellipsis there.
@@ -99,18 +66,7 @@ private struct BarTitleCapKey: EnvironmentKey {
     static let defaultValue: CGFloat = .infinity
 }
 
-private struct ReadOnlyLineKey: EnvironmentKey {
-    static let defaultValue: String? = nil
-}
-
 extension EnvironmentValues {
-    /// The line that the piece shown opened read-only, for a project a newer version saved (`PieceSummary.readOnly`); nil
-    /// for a piece that saves. Written once, by `PieceScreen`, for every view of the piece.
-    var readOnlyLine: String? {
-        get { self[ReadOnlyLineKey.self] }
-        set { self[ReadOnlyLineKey.self] = newValue }
-    }
-
     /// The widest the piece's title shows in the bar (BarFit).
     var barTitleCap: CGFloat {
         get { self[BarTitleCapKey.self] }

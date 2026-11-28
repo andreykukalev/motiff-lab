@@ -31,36 +31,32 @@ struct RecordingScreen: View {
     }
 
     var body: some View {
-        GeometryReader { screen in
-            VStack(spacing: 0) {
-                // The strips as on the notes and the PDF (`ScoreScreenContent.body`), the waveform in the room between them.
-                bar(width: screen.size.width - 2 * DockedStrip.margin).dockedAtTop().zIndex(1)
-                GeometryReader { room in
-                    waveArea
-                        .padding(CGFloat.ds("s-6"))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.ds("desk"))
-                        .overlay(alignment: .bottom) {
-                            if let toast = sources.toast {
-                                // What was just done in Sources, over the foot of the room as on the notes.
-                                SourcesToastView(sources: sources, toast: toast, text: text)
-                                    .padding(.bottom, CGFloat.ds("s-3"))
-                                    .transition(.opacity)
-                            }
-                        }
-                        .overlay(alignment: .bottom) {
-                            if sourcesOpen {
-                                SourcesSheet(sources: sources, versions: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
-                                .modifier(BottomPanel(height: room.size.height / 2))
-                            }
-                        }
-                        .animation(.ds("t-base"), value: sourcesOpen)
+        // The strips as on the notes and the PDF (`Strips`), the waveform in the room between them.
+        Strips { barWidth in
+            bar(width: barWidth)
+        } room: { room, _ in
+            waveArea
+                .padding(CGFloat.ds("s-6"))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.ds("desk"))
+                .overlay(alignment: .bottom) {
+                    if let toast = sources.toast {
+                        // What was just done in Sources, over the foot of the room as on the notes.
+                        SourcesToastView(sources: sources, toast: toast, text: text)
+                            .padding(.bottom, CGFloat.ds("s-3"))
+                            .transition(.opacity)
+                    }
                 }
-                shelf.zIndex(1)
-            }
+                .overlay(alignment: .bottom) {
+                    if sourcesOpen {
+                        SourcesSheet(sources: sources, versions: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
+                        .modifier(BottomPanel(height: room.height / 2))
+                    }
+                }
+                .animation(.ds("t-base"), value: sourcesOpen)
+        } shelf: {
+            shelf
         }
-        // The keyboard never changes the screen's size, as on the notes (#582 item 16).
-        .ignoresSafeArea(.keyboard)
         .toolbar(.hidden, for: .navigationBar)
         .task {
             // Only while the screen is there: switched away meanwhile, the way back would hold it (#681).
@@ -108,16 +104,14 @@ struct RecordingScreen: View {
         }
     }
 
-    /// The bottom shelf: the recording's player in the middle, without a capsule of its own (the shelf is its surface); the
-    /// shelf stays without the sound on this iPad, so the strips are those of every view.
+    /// The bottom shelf's content: the recording's player in the middle, without a capsule of its own (the shelf is its
+    /// surface); the shelf stays without the sound on this iPad, so the strips are those of every view.
     private var shelf: some View {
         ZStack {
             if let sound {
                 RecordingViewCapsule(url: sound, title: title, text: text)
             }
         }
-        .modifier(DockedStrip(edge: .bottom))
-        .keyboardLift(barOnly: true)
     }
 
     /// The score's bar: Back, the Contents and the title, then Sources, where the recording is recognised.

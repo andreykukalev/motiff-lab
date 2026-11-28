@@ -59,5 +59,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   (the page's web view, `prewarm` at launch).
 - `TopBar.swift`: the bar's layout over the score and over a PDF alike: the same start in both, then the pages, then
   each view's actions; where it is short the view's note goes first, then the pages, then the actions turn compact;
-  the top strip's row on every view (v1.7). `dockedAtTop`: the top strip (`Platform`'s `DockedStrip`) with the
-  read-only line (`readOnlyLine`, v1.6 c-14a) under it; `hungUnderTopStrip`: what hangs under it.
+  the top strip's row on every view (v1.7).
+- `Strips.swift` (v1.7 e-2): `Strips`, the one column of every view (the top strip round the bar, its width the
+  screen's less `DockedStrip.margin`; the room; the shelf; the keyboard ignored), the read-only line under the top strip
+  (`readOnlyLine`, v1.6 c-14a), `hungUnderTopStrip`. Users: `ScoreScreenContent`, `PdfScreen`, `RecordingScreen`.
