@@ -70,7 +70,7 @@ internal sealed record LibraryPlaylists
     /// The playlists the library had while a playlist was only a name in each piece's "metadata"."playlists" (before 1.7),
     /// so nothing is lost: <paramref name="pieces"/> in the order the library lists them (a playlist's pieces show in it),
     /// each with its playlists' names. A playlist comes in the order its name is first met, spelled as first met, its pieces
-    /// in the order given. Its id is of its name (<see cref="IdSource.Hashed"/> of "playlist|" and the name in lower case), so
+    /// in the order given. Its id is of its name (<see cref="IdSource.Hashed"/> of "playlist|" and the name in capitals, as names compare), so
     /// two devices that move the same pieces make the same playlists, which then merge as one (<see cref="PlaylistsMerge"/>).
     /// </summary>
     public static LibraryPlaylists Migrated(IEnumerable<(string Piece, IReadOnlyList<string> Playlists)> pieces)
@@ -81,7 +81,7 @@ internal sealed record LibraryPlaylists
         {
             foreach (string name in names.Select(PieceMetadata.Clean).OfType<string>())
             {
-                Playlist playlist = made.Named(name) ?? new Playlist(IdSource.Hashed(IdPrefix, "playlist|" + name.ToLowerInvariant(), made.All.Select(static each => each.Id)), name, []);
+                Playlist playlist = made.Named(name) ?? new Playlist(IdSource.Hashed(IdPrefix, "playlist|" + name.ToUpperInvariant(), made.All.Select(static each => each.Id)), name, []);
                 made = made.Put(playlist with { Pieces = Distinct([.. playlist.Pieces, piece]) });
             }
         }

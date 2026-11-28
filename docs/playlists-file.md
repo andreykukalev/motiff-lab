@@ -47,7 +47,7 @@ The edits are pure (`LibraryPlaylists`), each answering the playlists it makes:
 
 ## Moving the pieces' playlists here
 
-Once, when there is no playlists file yet (`playlists.migrate`), the playlists are made from the pieces' `metadata.playlists`, losing nothing: the app sends every piece, in the order the library lists them, with the names it holds. A playlist comes in the order its name is first met, spelled as first met; its pieces stand in the order sent, which is the order the library showed a playlist's pieces in until 1.7 (from A by title, as the list is ordered by default), so nothing moves. Names are cleaned and taken whatever the letter case, as the library took them. The id of a playlist moved is of its name: `list_` and 32 hex digits of the SHA-256 of `playlist|` and the name in lower case (`IdSource.Hashed`), so two devices that move the same pieces make the same playlists, and the merge takes them as one.
+Once, when there is no playlists file yet (`playlists.migrate`), the playlists are made from the pieces' `metadata.playlists`, losing nothing: the app sends every piece, in the order the library lists them, with the names it holds. A playlist comes in the order its name is first met, spelled as first met; its pieces stand in the order sent, which is the order the library showed a playlist's pieces in until 1.7 (from A by title, as the list is ordered by default), so nothing moves. Names are cleaned and taken whatever the letter case, as the library took them. The id of a playlist moved is of its name: `list_` and 32 hex digits of the SHA-256 of `playlist|` and the name in capitals (`ToUpperInvariant`, as names compare whatever the letter case; `IdSource.Hashed`), so two devices that move the same pieces make the same playlists, and the merge takes them as one.
 
 Until p-4 switches the library to this file, the pieces still write `metadata.playlists` ([project-file.md](project-file.md), version 19); p-4 stops writing it in the same pull request as the switch (the lead's decision 11).
 
@@ -55,8 +55,9 @@ Until p-4 switches the library to this file, the pieces still write `metadata.pl
 
 Two copies (this device's and the online one) merge three-way against the copy both last agreed on (`PlaylistsMerge`, `playlists.resolve`), by the principles of a project's merge ([project-file.md](project-file.md), "Sync"; 0026 S4, S5, C2):
 
+- **Re-keyed pieces first.** The app sends the library's re-keyed pieces (`pieces`: [{`id`, `formerIds`}]); the base and both copies are re-keyed by them before they merge (`LibraryPlaylists.Rekeyed`), so a piece kept online under an id it had before is neither a piece added nor one moved to the end, and a playlist deleted on one side is not kept for it.
 - **By playlist id.** A playlist changed on one side only takes that side; added on either side, it comes in; deleted on one side and unchanged on the other, it goes, and so it does when the other side only took pieces off it (the player removed them, or a deleted piece was forgotten); deleted on one side and renamed, given pieces or reordered on the other, it stays with the change, so nothing the player added is lost (the lead's decision, 2026-11-28).
-- **The name** is a value as a whole: renamed on both differently, the copy saved last keeps its name and the merge records a conflict (`{"in": "playlists.name", "id": "list_…"}`).
+- **The name** is a value as a whole: renamed on both differently, the copy saved last keeps its name and the merge records a conflict (`{"in": "playlists.name", "id": "list_…"}`). A playlist both copies made apart under one id (moved from the pieces on two devices, so its base has none) whose names differ only in letter case takes the name of the copy saved last, with no conflict.
 - **The pieces** are a set: a piece added on either side comes in, one taken off on either side goes.
 - **The order** is the copy saved last's, unless only the other copy reordered the pieces both still have since the base: then the other's. The pieces only the other copy added go at the end, in its order, as a piece added does. Both reordered differently: the copy saved last's order, and a conflict (`"in": "playlists.pieces"`).
 - **Without a base** the merge is a union with no deletions (S4), the order the copy saved last's.
@@ -82,7 +83,7 @@ On piece 0 (contract 17, calls added; [facade-contract.md](facade-contract.md)).
 | `playlists.forget` | `file`, `pieces` | |
 | `playlists.rekey` | `file`, `pieces`: [{`id`, `formerIds`}] | |
 | `playlists.migrate` | `pieces`: [{`id`, `playlists`}] in the library's order | |
-| `playlists.resolve` | `here`, `savedHere`, `online`, `savedOnline` (ISO 8601), `base`? | only `file`, `upload`, `merged`, `readOnly`, `conflicts` [{`in`, `id`}] |
+| `playlists.resolve` | `here`, `savedHere`, `online`, `savedOnline` (ISO 8601), `base`?, `pieces`?: [{`id`, `formerIds`}] | only `file`, `upload`, `merged`, `readOnly`, `conflicts` [{`in`, `id`}] |
 
 A playlist `id` names that is not there answers `notFound`; an empty name, a move before a piece not staying, a damaged file or a time that is not ISO 8601 `badRequest`; an edit of a later build's file `readOnly`.
 

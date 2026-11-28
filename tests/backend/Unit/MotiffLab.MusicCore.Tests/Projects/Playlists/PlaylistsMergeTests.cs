@@ -122,6 +122,54 @@ public class PlaylistsMergeTests
     }
 
     [Fact]
+    public void A_playlist_deleted_on_both_copies_goes_with_no_conflict()
+    {
+        LibraryPlaylists deleted = Base().Deleted("list_0001");
+
+        MergedPlaylists merged = PlaylistsMerge.Merged(deleted, deleted.Added("list_0002", ["p_x"]), Base());
+
+        Assert.Null(merged.Playlists.Find("list_0001"));
+        Assert.Empty(merged.Conflicts);
+    }
+
+    [Fact]
+    public void A_piece_added_on_both_copies_is_on_the_playlist_once_with_no_conflict()
+    {
+        MergedPlaylists merged = PlaylistsMerge.Merged(Base().Added("list_0001", ["p_x", "p_y"]), Base().Added("list_0001", ["p_y"]), Base());
+
+        Assert.Equal(["p_a", "p_b", "p_x", "p_y"], Bach(merged).Pieces);
+        Assert.Empty(merged.Conflicts);
+    }
+
+    [Fact]
+    public void A_piece_moved_on_one_copy_and_removed_on_the_other_is_gone_and_the_order_of_the_rest_kept()
+    {
+        LibraryPlaylists three = Base().Added("list_0001", ["p_c"]);
+        LibraryPlaylists moved = three.Moved("list_0001", ["p_c"], "p_a");
+        LibraryPlaylists removed = three.Removed("list_0001", ["p_c"]);
+        LibraryPlaylists movedOther = three.Moved("list_0001", ["p_b"], "p_a");
+
+        Assert.Equal(["p_a", "p_b"], Bach(PlaylistsMerge.Merged(moved, removed, three)).Pieces);
+        Assert.Equal(["p_a", "p_b"], Bach(PlaylistsMerge.Merged(removed, moved, three)).Pieces);
+        Assert.Equal(["p_b", "p_a"], Bach(PlaylistsMerge.Merged(removed, movedOther, three)).Pieces);
+    }
+
+    [Fact]
+    public void A_piece_re_keyed_since_the_base_keeps_its_place_and_a_deleted_playlist_is_not_kept_for_it()
+    {
+        LibraryPlaylists numbered = Base().Added("list_0001", ["p_0003"]).Moved("list_0001", ["p_0003"], "p_a");
+        Dictionary<string, string> current = new() { ["p_0003"] = "p_c4" };
+        LibraryPlaylists rekeyed = numbered.Rekeyed(current);
+
+        PlaylistsResolution moved = PlaylistsMerge.Resolve(numbered.Added("list_0001", ["p_e"]), s_later, rekeyed, s_earlier, numbered, current);
+        PlaylistsResolution deleted = PlaylistsMerge.Resolve(numbered.Deleted("list_0001"), s_later, rekeyed, s_earlier, numbered, current);
+
+        Assert.Equal(["p_c4", "p_a", "p_b", "p_e"], moved.Kept.Find("list_0001")!.Pieces);
+        Assert.Empty(moved.Conflicts);
+        Assert.Null(deleted.Kept.Find("list_0001"));
+    }
+
+    [Fact]
     public void Without_a_base_the_merge_is_a_union_with_no_deletions()
     {
         LibraryPlaylists mine = Base().Deleted("list_0002").Removed("list_0001", ["p_a"]);
@@ -182,6 +230,9 @@ public class PlaylistsMergeTests
         PlaylistsResolution resolved = PlaylistsMerge.Resolve(changed, s_later, newer, s_earlier, Base());
         PlaylistsResolution unchanged = PlaylistsMerge.Resolve(Base(), s_later, newer, s_earlier, Base());
 
+        PlaylistsResolution readOnlyHere = PlaylistsMerge.Resolve(newer, s_later, changed, s_earlier, newer);
+        Assert.Equal((changed, false, false), (readOnlyHere.Kept, readOnlyHere.Upload, readOnlyHere.Merged));
+        Assert.Empty(readOnlyHere.Conflicts);
         Assert.Equal((newer, false, false), (resolved.Kept, resolved.Upload, resolved.Merged));
         Assert.Equal([new MergeConflict("playlists", null)], resolved.Conflicts);
         Assert.Empty(unchanged.Conflicts);

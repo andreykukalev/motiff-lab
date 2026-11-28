@@ -38,7 +38,9 @@ public class PlaylistsMigrationTests
         Assert.Equal(here.Named("Бах")!.Id, there.Named("бах")!.Id);
         Assert.Equal(here.All.Select(static playlist => playlist.Id).Order(), there.All.Select(static playlist => playlist.Id).Order());
         Assert.All(here.All, static playlist => Assert.Matches("^list_[0-9a-f]{32}$", playlist.Id));
-        Assert.Single(PlaylistsMerge.Merged(here, there, null).Playlists.All, static playlist => playlist.Name == "Бах");
+        MergedPlaylists merged = PlaylistsMerge.Merged(here, there, null);
+        Assert.Single(merged.Playlists.All, static playlist => playlist.Name == "Бах");
+        Assert.Empty(merged.Conflicts);
     }
 
     [Fact]

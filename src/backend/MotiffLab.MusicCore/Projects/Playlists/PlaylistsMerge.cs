@@ -34,7 +34,9 @@ internal static class PlaylistsMerge
     /// and when this device's differs from it (from <paramref name="base"/>, when there is one), a conflict ("playlists")
     /// says this device's changes are not in it.
     /// </summary>
-    public static PlaylistsResolution Resolve(LibraryPlaylists here, DateTimeOffset savedHere, LibraryPlaylists online, DateTimeOffset savedOnline, LibraryPlaylists? @base)
+    /// <param name="current">The pieces' ids now by the ids they had before (<see cref="LibraryPlaylists.Rekeyed"/>): the three
+    /// copies are re-keyed by it before they merge, so a piece re-keyed on one device is neither added nor moved to the end.</param>
+    public static PlaylistsResolution Resolve(LibraryPlaylists here, DateTimeOffset savedHere, LibraryPlaylists online, DateTimeOffset savedOnline, LibraryPlaylists? @base, IReadOnlyDictionary<string, string>? current = null)
     {
         ArgumentNullException.ThrowIfNull(here);
         ArgumentNullException.ThrowIfNull(online);
@@ -44,8 +46,10 @@ internal static class PlaylistsMerge
             return new PlaylistsResolution(online, Upload: false, Merged: false, lost ? [new MergeConflict("playlists", null)] : []);
         }
 
+        current ??= new Dictionary<string, string>();
+        (LibraryPlaylists mine, LibraryPlaylists theirs, LibraryPlaylists? shared) = (here.Rekeyed(current), online.Rekeyed(current), @base?.Rekeyed(current));
         bool hereWins = savedHere >= savedOnline;
-        MergedPlaylists merged = hereWins ? Merged(here, online, @base) : Merged(online, here, @base);
+        MergedPlaylists merged = hereWins ? Merged(mine, theirs, shared) : Merged(theirs, mine, shared);
         bool upload = !PlaylistsFile.Write(merged.Playlists).AsSpan().SequenceEqual(PlaylistsFile.Write(online));
         return new PlaylistsResolution(merged.Playlists, upload, Merged: true, merged.Conflicts);
     }
@@ -87,7 +91,8 @@ internal static class PlaylistsMerge
     /// <summary>A playlist both copies have, merged against the base's (null: added on both under one id, a union).</summary>
     private static Playlist Both(Playlist won, Playlist lost, Playlist? was, List<MergeConflict> conflicts)
     {
-        string name = Whole(won.Name, lost.Name, was?.Name, was is not null, "playlists.name", won.Id, conflicts)!;
+        // Made apart under one id (moved from the pieces on two devices), the names differ at most in letter case: the winner's.
+        string name = was is null && LibraryPlaylists.SameName(won.Name, lost.Name) ? won.Name : Whole(won.Name, lost.Name, was?.Name, was is not null, "playlists.name", won.Id, conflicts)!;
         HashSet<string> members = [.. Members(won.Pieces, lost.Pieces, was?.Pieces)];
         bool wonMoved = was is not null && Reordered(won.Pieces, was.Pieces);
         bool lostMoved = was is not null && Reordered(lost.Pieces, was.Pieces);

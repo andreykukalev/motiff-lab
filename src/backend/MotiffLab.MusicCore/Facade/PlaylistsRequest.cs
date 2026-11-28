@@ -61,7 +61,7 @@ internal static class PlaylistsRequest
     }
 
     /// <summary>
-    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "base"?: the copy both last agreed on} → {"file": what to
+    /// {"here", "savedHere", "online", "savedOnline" (ISO 8601), "base"?: the copy both last agreed on, "pieces"?: [{"id", "formerIds"}], the library's re-keyed pieces} → {"file": what to
     /// keep here, "upload": true when it goes online, "merged": false when a later build's copy was kept as it came, "readOnly",
     /// "conflicts": [{"in", "id"}]} (<see cref="PlaylistsMerge.Resolve"/>).
     /// </summary>
@@ -69,7 +69,7 @@ internal static class PlaylistsRequest
     {
         PlaylistsResolution resolved = PlaylistsMerge.Resolve(
             File(fields.Required("here")), SyncRequest.Time(fields, "savedHere"), File(fields.Required("online")), SyncRequest.Time(fields, "savedOnline"),
-            fields.Text("base") is { } shared ? File(shared) : null);
+            fields.Text("base") is { } shared ? File(shared) : null, Current(fields));
         return Answer.Write(json =>
         {
             json.WriteString("file", Encoding.UTF8.GetString(PlaylistsFile.Write(resolved.Kept)));

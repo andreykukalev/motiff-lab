@@ -103,6 +103,8 @@ public class PlaylistsFacadeTests
         Assert.True(resolved["upload"]!.GetValue<bool>());
         Assert.True(resolved["merged"]!.GetValue<bool>());
         Assert.Equal("""[{"in":"playlists.name","id":"list_0001"}]""", resolved["conflicts"]!.ToJsonString());
+        JsonNode rekeyed = Call("playlists.resolve", new() { ["here"] = here, ["savedHere"] = "2026-11-28T10:05:00Z", ["online"] = online, ["savedOnline"] = "2026-11-28T10:00:00Z", ["base"] = common, ["pieces"] = new JsonArray(new JsonObject { ["id"] = "p_new", ["formerIds"] = new JsonArray("p_a") }) });
+        Assert.Equal(["p_new"], Pieces(Call("playlists", new() { ["file"] = File(rekeyed) }), 0));
         Call("playlists.resolve", new() { ["here"] = here, ["savedHere"] = "soon", ["online"] = online, ["savedOnline"] = "2026-11-28T10:00:00Z" }, "badRequest");
     }
 }

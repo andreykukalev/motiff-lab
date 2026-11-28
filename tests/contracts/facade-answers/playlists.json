@@ -22,11 +22,11 @@
     ]
    },
    "answer": {
-    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_0e40ace33754d0ecf09ae7944e6248a8\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    },\n    {\n      \"id\": \"list_4015f586a1cbb41ba1c37889bbd3ad62\",\n      \"name\": \"F\\u00FCr Elise\",\n      \"pieces\": [\n        \"p_answers\"\n      ]\n    }\n  ]\n}",
+    "file": "{\n  \"format\": \"motiff-lab-playlists\",\n  \"version\": 1,\n  \"minReader\": 1,\n  \"playlists\": [\n    {\n      \"id\": \"list_801d1f829895d67dc297d50a77221e36\",\n      \"name\": \"\\u0411\\u0430\\u0445\",\n      \"pieces\": [\n        \"p_answers\",\n        \"p_other\"\n      ]\n    },\n    {\n      \"id\": \"list_a7291a9f72b73c59608a67810f355f0c\",\n      \"name\": \"F\\u00FCr Elise\",\n      \"pieces\": [\n        \"p_answers\"\n      ]\n    }\n  ]\n}",
     "readOnly": false,
     "playlists": [
      {
-      "id": "list_0e40ace33754d0ecf09ae7944e6248a8",
+      "id": "list_801d1f829895d67dc297d50a77221e36",
       "name": "Бах",
       "pieces": [
        "p_answers",
@@ -34,7 +34,7 @@
       ]
      },
      {
-      "id": "list_4015f586a1cbb41ba1c37889bbd3ad62",
+      "id": "list_a7291a9f72b73c59608a67810f355f0c",
       "name": "Für Elise",
       "pieces": [
        "p_answers"
