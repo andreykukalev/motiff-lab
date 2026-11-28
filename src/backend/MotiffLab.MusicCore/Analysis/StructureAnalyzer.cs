@@ -15,11 +15,14 @@ public sealed record Recurrence(TickSpan Span, int FirstBar, int LastBar, int Tr
 }
 
 /// <summary>A phrase: from one boundary, or the first note, to the next boundary, or the end of the last note.</summary>
-/// <param name="Start">How the phrase's start is known; null for the first phrase, which starts with the first note.</param>
-public sealed record PhraseSpan(TickSpan Span, int FirstBar, int LastBar, Attribution? Start)
+/// <param name="Start">The boundary the phrase starts at, with what it rests on; null for the first phrase, which starts with the first note.</param>
+public sealed record PhraseSpan(TickSpan Span, int FirstBar, int LastBar, PhraseBoundary? Start)
 {
     /// <summary>Bars the phrase touches, counting a bar it starts or ends inside.</summary>
     public int BarCount => LastBar - FirstBar + 1;
+
+    /// <summary>Who or what placed the boundary the phrase starts at; null for the first phrase.</summary>
+    public Attribution? StartAttribution => Start?.Attribution;
 }
 
 /// <summary>Where the motif recurs, how the piece is phrased, and which bars bring new material.</summary>
@@ -181,15 +184,15 @@ internal static partial class StructureAnalyzer
 
         var spans = new List<PhraseSpan>();
         Tick start = first;
-        Attribution? attribution = null;
+        PhraseBoundary? startBoundary = null;
         foreach (PhraseBoundary? boundary in boundaries.Append<PhraseBoundary?>(null))
         {
             Tick stop = boundary?.At ?? end;
-            spans.Add(new PhraseSpan(TickSpan.FromBounds(start, stop), meter.BarAt(start).Number, meter.BarAt(new Tick(stop.Value - 1)).Number, attribution));
+            spans.Add(new PhraseSpan(TickSpan.FromBounds(start, stop), meter.BarAt(start).Number, meter.BarAt(new Tick(stop.Value - 1)).Number, startBoundary));
             if (boundary is not null)
             {
                 start = boundary.At;
-                attribution = boundary.Attribution;
+                startBoundary = boundary;
             }
         }
 

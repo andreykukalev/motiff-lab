@@ -23,8 +23,8 @@ change to the engraving options (`score-page.ts`) fails the run's fixture check 
 
 - `selection-layer.ts`: `SelectionLayer` draws the band (`handRuns`), the dot handles and places the menu (`menuPlace`,
   `MenuDragger`); `showPlaced` shows the place rule's gesture. Builds `SelectionHandles` (`selection-handles.ts`, a
-  handle's drag and arrow keys) and `SelectionPress` (`selection-press.ts`, W3.14: v0.6.1's press while `places()` is
-  false, its drag and what it tells the owner; test `selection-press.test.mjs`).
+  handle's drag and arrow keys). The press of v0.6.1 (`selection-press.ts`), which acted only before Swift's first
+  `input`, went in v1.6 r-3 (the lead's decision 33): every press on the notes is the place layer's.
 - `selection-place-layer.ts` (v0.6.2 S2): `PlaceLayer` takes the presses while `placesOn()` (`page-selection.ts`:
   `input.places` and Select), shows the gesture through `SelectionLayer.showPlaced`, posts `chosen`, `picked`,
   `cleared`, `zoomSelection`; autoscroll in `view()`; prevents the stylus' touches while on; `handleAt` (only an edge's
@@ -54,8 +54,7 @@ change to the engraving options (`score-page.ts`) fails the run's fixture check 
   `pageOf`; `MenuPin.moving`; `dispose` of `SelectionLayer`, `PlaceLayer`, `ScorePress`, `ScorePlayheadMarks`; `num`;
   `PlayheadPress.owns`; `next` and its steps in `playback-model.ts`; `PracticeView`, `attach`; `applyTheme`,
   `applyStoredTheme`, `themeChoice`; `applyLanguage`, `clampSplit`.
-- Branches: `SelectionPress` runs only when `places()` is false and `dragStart` is not "none": in Select `places()` is
-  true, in the other tools and in focus `dragStart` is "none", so only before Swift's first `input`. The dot handles
-  draw in Select with `places()` false, which is in focus: confirm on the device before cutting.
+- Branches: the dot handles draw in Select with `places()` false, which is in focus: confirm on the device before
+  cutting.
 
 The Swift side of the selection: [`ipad/selection.md`](ipad/selection.md).

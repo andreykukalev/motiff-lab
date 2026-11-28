@@ -208,10 +208,11 @@ internal static class ProjectSync
 
     /// <summary>
     /// The online copy as it is kept here: a PDF stays on the device (0026 C3), so when the online copy has none, the
-    /// device's own PDF and its pages stay with the piece. The marks on the PDF's pages (version 0.4) are the writer's
-    /// (<see cref="Project.WritesDocumentMarks"/>): the device that writes them keeps its own, and every other device takes
-    /// the online copy's, unless the online copy has none and this device has some, as a copy a build before 0.4 sent
-    /// (it leaves them out), so they are never wiped by it. So are the fields version 0.4 adds (<see cref="KeptAdditions"/>).
+    /// device's own PDF and its pages stay with the piece. The marks on the PDF's pages (version 0.4) are the online copy's,
+    /// as every other field is: a pull is of a copy changed online only, and two iPads that hold the PDF both write them, so
+    /// keeping this one's would drop what the other wrote since (v1.6 r-3). Unless the online copy has none and this device
+    /// has some, as a copy a build before 0.4 sent (it leaves them out), so they are never wiped by it. So are the fields
+    /// version 0.4 adds (<see cref="KeptAdditions"/>).
     /// </summary>
     /// <remarks>
     /// The originals' descriptions (version 0.3) are a union of both copies by fingerprint, else by id, so an original
@@ -234,8 +235,7 @@ internal static class ProjectSync
             kept = kept with { KeptOriginals = originals };
         }
 
-        bool ownMarks = (keepsPdf && kept.WritesDocumentMarks(device)) || (!HasPageMarks(online) && HasPageMarks(here));
-        kept = KeptAdditions(ownMarks ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
+        kept = KeptAdditions(!HasPageMarks(online) && HasPageMarks(here) ? kept with { DocumentMarks = here.DocumentMarks } : kept, here);
         // Version 16: the bytes of the other originals stay on the device as the PDF does, and a removal travels as its tombstone.
         kept = here.Sources.Data.Count == 0 ? kept : kept with { Sources = kept.Sources with { Data = here.Sources.Data } };
         // The marks on another PDF's pages go with the file; a copy with none for an original never clears this device's.
@@ -294,8 +294,8 @@ internal static class ProjectSync
     /// saved last keeps its own and the merge records the conflict. Nothing is ever lost: unless the merge met no conflict
     /// and holds every change the other copy made since the base (its self-check, <see cref="MergeCheck"/>), the other copy
     /// is kept beside as a piece of its own named by <paramref name="copyTitle"/> ("{0}" stands for its title). In the merge
-    /// the online copy brings its own marks on the PDF's pages, which a pull leaves this device's (<see cref="Pulled"/>), so
-    /// another iPad's come in mark by mark. A merge that fails its self-check (0026 C5) is not sent: the copy saved last is
+    /// the online copy brings its own marks on the PDF's pages and this device's copy its own when it writes them
+    /// (<see cref="Project.WritesDocumentMarks"/>), so another iPad's come in mark by mark. A merge that fails its self-check (0026 C5) is not sent: the copy saved last is
     /// kept here with the other's Notes and corrections, as before version 1.6, and the other beside unless it adds nothing
     /// (<see cref="SamePiece.AddsNothingTo"/>). Two copies that are the same keep this device's. A copy re-keyed from the
     /// other's id (<see cref="Project.FormerIds"/>) with the same creation time is the same project, and keeps the online id.
@@ -314,8 +314,7 @@ internal static class ProjectSync
     /// <param name="device">This device, whose marks of holding an original are its own (version 0.3); null keeps the online marks.</param>
     /// <param name="base">
     /// The copy both last agreed on, when the device keeps one (0026 S5): with it, what one side removed or undid since goes
-    /// through the merge; without it, the merge is a union with no deletions (S4), and the marks on a PDF's pages are the
-    /// copy saved last's, the other's a conflict.
+    /// through the merge; without it, the merge is a union with no deletions (S4), the marks on a PDF's pages too.
     /// </param>
     /// <param name="sendsKept">
     /// Whether the app sends <see cref="SyncResolution.Kept"/> when <see cref="SyncResolution.Upload"/> is true. One that
@@ -330,18 +329,17 @@ internal static class ProjectSync
         ArgumentNullException.ThrowIfNull(online);
         ArgumentNullException.ThrowIfNull(copyTitle);
         ArgumentException.ThrowIfNullOrWhiteSpace(newId);
-        Project pulled = Pulled(online, here, device);
-        // The online copy with its own page marks (a pull keeps the ones this device writes), so the merge sees another iPad's.
-        Project fetched = HasPageMarks(online) ? pulled with { DocumentMarks = online.DocumentMarks } : pulled;
-        if (Apart(here, online, pulled, fetched, copyTitle, newId) is { } apart)
+        // The online copy as a pull keeps it, with its own page marks, so the merge sees another iPad's.
+        Project fetched = Pulled(online, here, device);
+        if (Apart(here, online, fetched, copyTitle, newId) is { } apart)
         {
             return apart;
         }
 
         // This device's copy wins with the page marks it does not write as the pull brings them, so it never sends old ones,
         // and with the originals of both (PieceOriginals.Merge, as the pull unites them), so an original only online stays.
-        Project mine = pulled.WritesDocumentMarks(device) || here.DocumentMarks.Equals(pulled.DocumentMarks) ? here : here with { DocumentMarks = pulled.DocumentMarks };
-        mine = mine.Originals.SequenceEqual(pulled.Originals) ? mine : mine with { KeptOriginals = pulled.Originals };
+        Project mine = fetched.WritesDocumentMarks(device) || here.DocumentMarks.Equals(fetched.DocumentMarks) ? here : here with { DocumentMarks = fetched.DocumentMarks };
+        mine = mine.Originals.SequenceEqual(fetched.Originals) ? mine : mine with { KeptOriginals = fetched.Originals };
         bool hereWins = savedHere >= savedOnline;
         (Project winner, Project loser, Project lost) = hereWins ? (mine, fetched, online) : (fetched, here, here);
         if (ProjectMerge.Merged(winner, loser, @base) is not { } merged)
@@ -370,7 +368,7 @@ internal static class ProjectSync
     /// next pass sends it as a new one: always when it is a later build's (what that build added is not compared), else
     /// unless it adds nothing.
     /// </summary>
-    private static SyncResolution? Apart(Project here, Project online, Project pulled, Project fetched, string copyTitle, string newId)
+    private static SyncResolution? Apart(Project here, Project online, Project fetched, string copyTitle, string newId)
     {
         bool later = online.IsReadOnly || here.IsReadOnly;
         if (!SameProject(here, online))
@@ -390,8 +388,8 @@ internal static class ProjectSync
             return null;
         }
 
-        Project? beside = here.IsReadOnly ? PreviousCopy(here, copyTitle, newId) : Lost(here, pulled, copyTitle, newId);
-        return new SyncResolution(pulled, Upload: false, beside) { Merged = false };
+        Project? beside = here.IsReadOnly ? PreviousCopy(here, copyTitle, newId) : Lost(here, fetched, copyTitle, newId);
+        return new SyncResolution(fetched, Upload: false, beside) { Merged = false };
     }
 
     /// <summary>

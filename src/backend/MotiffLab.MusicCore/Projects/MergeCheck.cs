@@ -74,7 +74,7 @@ internal static class MergeCheck
                 return Edits(side as JsonArray, kept as JsonArray, before as JsonArray);
             }
 
-            if (MergeRules.ByField(path, hasBase) && side is JsonObject fields)
+            if (MergeRules.ByField(path) && side is JsonObject fields)
             {
                 return fields.All(field => Node($"{path}.{field.Key}", field.Value, kept?[field.Key], before?[field.Key], entity));
             }

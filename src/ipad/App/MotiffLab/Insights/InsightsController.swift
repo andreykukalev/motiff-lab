@@ -87,7 +87,15 @@ final class InsightsController: ObservableObject {
     func load(piece: Int32, selection: ScoreSelection?, again: Bool = false) async {
         self.piece = piece
         guard again || selection != understood || (selection != nil && understanding == nil && !loading) else { return }
-        if selection != understood { generation += 1 }
+        let reads = !(selection?.noteIds.isEmpty ?? true)
+        // Reading from the first step, before any wait (a trial left), so a second load meanwhile passes by the guard.
+        loading = reads
+        if selection != understood {
+            generation += 1
+            // E-insights-8: the facts shown are another passage's; they go, so the stream shows it reads the new one rather
+            // than offering Try or places on facts of a passage no longer selected (the sheet reopened on another selection).
+            understanding = nil
+        }
         understood = selection
         chosen = nil
         evidence = []
@@ -98,14 +106,11 @@ final class InsightsController: ObservableObject {
         problem = nil
         // A variation belongs to the passage it was tried on.
         if trial != nil { await leave() }
-        guard let selection, !selection.noteIds.isEmpty else {
+        guard reads, let selection else {
             understanding = nil
-            loading = false
             await loadIdeas(of: piece)
             return
         }
-        // Loading before the ideas are read, so a second load meanwhile does not read the facts again.
-        loading = true
         await loadIdeas(of: piece)
         let answer = await MusicCore.run { PieceCore(piece: piece).send(.understand) }
         // The selection moved on while music-core read it: the newer call shows its own.

@@ -31,8 +31,10 @@ final class AssistantController: ObservableObject {
     @Published private(set) var busy = false
     /// Where the question asked now is on its way; `.idle` while none is.
     @Published private(set) var phase = AssistantPhase.idle
-    /// The question on its way in the panel, shown at once under the conversation until its answer joins it.
+    /// The question on its way in the panel, shown at once under its conversation (`pendingShown`) until its answer joins it.
     @Published private(set) var pending: String?
+    /// The conversation the question on its way was asked in, by its id (a new one's too, before it is kept).
+    private var pendingIn: String?
     /// Why no question may go now, from the API's status when the assistant opened or the last question's problem, as a UI
     /// text key; nil when one may (or nothing is known yet).
     @Published private(set) var standing: String?
@@ -78,6 +80,10 @@ final class AssistantController: ObservableObject {
     /// The conversation open in the panel: the one chosen, or the one its first question starts (nil until then). Closing
     /// the panel keeps it.
     var current: AssistantChat? { chats.first { $0.id == currentId } }
+
+    /// The question on its way, while the conversation it was asked in is the one open (E-assistant-1): another one chosen
+    /// meanwhile, or a new one, does not show it.
+    var pendingShown: String? { currentId == pendingIn ? pending : nil }
 
     /// The piece's conversations from the iPad; the newest is the one open until an Ask opens the panel empty (`open`).
     /// `score` is the screen's, where a draft is accepted; another screen's score on the same visit drops what belonged to
@@ -200,16 +206,25 @@ final class AssistantController: ObservableObject {
         defer {
             busy = false
             pending = nil
+            pendingIn = nil
             phase = .idle
         }
         let chat = current ?? AssistantChat(id: UUID().uuidString, started: Date(), updated: Date(), role: ask.role)
+        // E-assistant-1: the question belongs to its conversation, a new one named from now on, before it is kept.
+        currentId = chat.id
+        pendingIn = chat.id
         let asked = screens
         let (exchange, answered, _) = await self.exchange(question, in: chat, about: ask)
-        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped.
-        guard screens == asked else { return }
+        // Asked on a screen that has gone (a draft's view opened again): its piece's number is closed, so it is dropped, and
+        // a new conversation it named is none.
+        guard screens == asked else {
+            if currentId == chat.id, !chats.contains(where: { $0.id == chat.id }) { currentId = nil }
+            return
+        }
         var kept = chat
         kept.join(exchange, answered: answered)
-        keep(kept)
+        // E-assistant-1: the player who opened another conversation meanwhile stays there; the answer waits in its own.
+        keep(kept, opens: currentId == chat.id)
     }
 
     /// Try again (the lead's decision 3): the question that got no answer leaves the open conversation (the panel's, or
@@ -450,10 +465,11 @@ final class AssistantController: ObservableObject {
         keep(chat)
     }
 
-    private func keep(_ chat: AssistantChat) {
+    /// The conversation kept with the piece's, newest first, and opened unless `opens` is false.
+    private func keep(_ chat: AssistantChat, opens: Bool = true) {
         chats.removeAll { $0.id == chat.id }
         chats.insert(chat, at: 0)
-        currentId = chat.id
+        if opens { currentId = chat.id }
         if let piece { store.keep(chats, of: piece) }
     }
 

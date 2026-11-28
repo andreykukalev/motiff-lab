@@ -128,6 +128,26 @@ final class AssistantStatesTests: XCTestCase {
         XCTAssertEqual(assistant.current?.history, [], "a question with no answer is not in what the next turn sends")
     }
 
+    /// E-assistant-1: a new conversation, or another one, opened while a question is on its way does not show that question,
+    /// and its answer, which joins the conversation it was asked in, does not pull the panel back there.
+    func testAQuestionOnItsWayStaysWithItsConversation() async throws {
+        AssistantStub.answers = [:]
+        let (assistant, folder) = controller()
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let asking = Task { await assistant.ask("Why?", about: ask(stubbed())) }
+        _ = await assistant.$pending.values.first { $0 != nil }
+        XCTAssertEqual(assistant.pendingShown, "Why?", "under the conversation it was asked in")
+        let asked = try XCTUnwrap(assistant.currentId, "the new conversation is named from its first question")
+        assistant.startNew()
+        XCTAssertNil(assistant.pendingShown, "a new conversation does not show it")
+        await asking.value
+        XCTAssertNil(assistant.currentId, "the player stays in the new conversation")
+        XCTAssertEqual(assistant.chats.first { $0.id == asked }?.exchanges.last?.question, "Why?", "the question joined its own")
+        assistant.choose(asked)
+        XCTAssertNil(assistant.pendingShown)
+    }
+
     /// v1.2, answer 6 of its plan: the consent lists the piece's counted facts, so a player who agreed to the list before is
     /// asked again, once; their new answer is kept, and «Не сейчас» asks next time as for a first question.
     func testAConsentToTheEarlierListIsAskedAgainOnce() {

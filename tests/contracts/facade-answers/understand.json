@@ -5651,7 +5651,7 @@
        "certainty": "inferred",
        "text": "21 phrases: bars 0–4, bars 4–8, bars 9–15, bars 15–19, bars 19–23, bars 24–31 and 15 more (5, 5, 7, 5, 5, 8, 4, 4, 5, 4, 7, 5, 4, 8, 9, 6, 4, 4, 7, 5 and 5 bars). The motif starts in phrase 1.",
        "brief": "21 phrases; the motif starts in phrase 1.",
-       "basis": "Phrases run between the boundaries that slurs, rests of a beat or more, repeat signs or the player mark; a bar a phrase starts or ends inside counts for that phrase. Some boundaries rest on a rest alone, which is a reading of the notes, not a mark in the score.",
+       "basis": "Phrases run between the boundaries that slurs, rests of a beat or more, repeat signs or the player mark; a bar a phrase starts or ends inside counts for that phrase. Some boundaries are a reading of the notes, not a mark in the score: each of them rests only on a rest of a beat or more, a passage that comes back note for note or a passage that starts again at once.",
        "places": [
         {
          "label": "phrase 1, bars 0–4",

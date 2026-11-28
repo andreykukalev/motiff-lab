@@ -277,7 +277,7 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
         }
     }
 
-    /// Acts on one thing the page reported; the roll's long press comes here too (its hold hint).
+    /// Acts on one thing the page reported.
     func handle(_ event: PageEvent) {
         if let height = event.markHeight.map({ CGFloat($0) }), height != markHeight { markHeight = height }
         if !handleSelection(event) {
@@ -294,10 +294,6 @@ final class ScoreController: NSObject, ObservableObject, PenScore, CheckScore, S
             choose(chosen, start, end)
         case .cleared(let gesture):
             clearSelection(gesture: gesture)
-        case .gestureCancelled(let gesture):
-            revertGesture(gesture)
-        case .holdHint:
-            selectionModel.showHoldHint()
         case let .picked(id, picked):
             selectNotes([id], gesture: picked["gesture"] as? String, replaces: Self.replaces(picked))
         case .zoomSelection(let box):

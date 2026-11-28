@@ -112,11 +112,15 @@ extension ScoreScreenContent {
 
     /// Piece DNA from More: the map music-core gives for the piece as it is now, the selection as its first idea.
     func openDna(fromMore: Bool) {
+        // E-dna-1: asked again while the map of a long piece is still worked out (More closes at once), nothing more starts.
+        guard !dnaOpening else { return }
+        dnaOpening = true
         let id = piece.id
         // «Идеи по смыслу» (#582 item 15): the ideas by what they are in the music.
         let request = #"{"ideas":"musical"}"#
         Task {
             let answer = await MusicCore.run { PieceCore(piece: id).send(.dna, request) }
+            dnaOpening = false
             guard let map = DnaMap(answer: answer) else { return }
             dnaFromMore = fromMore
             dna = map

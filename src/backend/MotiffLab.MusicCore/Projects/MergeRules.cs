@@ -31,7 +31,9 @@ internal static class MergeRules
         ["notes.scan.marks"] = static entry => $"{Field(entry, "kind")}|{Field(entry, "bar")}|{Field(entry, "staff")}",
         // An original by its fingerprint, else its id, as PieceOriginals.Merge unites them.
         ["originals"] = static entry => Field(entry, "sha256") ?? Key(entry, "id"),
-        // The marks on a PDF's pages (version 0.4): a stroke by its id, a bookmark by its page, as a page has one.
+        // The marks on a PDF's pages (version 0.4) by kind, as two iPads that hold the PDF both write them: a stroke by its
+        // id, a bookmark by its page, as a page has one. Three-way against a base, as every entity (one erased on one side
+        // and unchanged on the other goes); without one, S4's union, so an erased one comes back rather than another's lost.
         ["originals.marks.ink"] = ById,
         ["originals.marks.bookmarks"] = static entry => Key(entry, "page"),
     };
@@ -49,13 +51,6 @@ internal static class MergeRules
         "workspace", "workspace.phrases", "workspace.phrases.short", "workspace.phrases.sentences", "workspace.marks", "workspace.bookmarks",
         "workspace.settings", "notes.scan", "originals.marks",
     };
-
-    /// <summary>
-    /// The objects merged field by field only against a base: without one they are one value, the copy saved last's, and
-    /// the other's a conflict. The marks on a PDF's pages have one writer (version 0.4), whose own stand unless a base
-    /// shows what another device changed, so a stroke one took away never comes back (S4's union would bring it back).
-    /// </summary>
-    private static readonly HashSet<string> s_wholeWithoutBase = new(StringComparer.Ordinal) { "originals.marks" };
 
     /// <summary>
     /// The player's fields <see cref="SourcesMerge"/> and <see cref="ProjectMerge"/>'s scan marks merge on the project rather
@@ -97,8 +92,8 @@ internal static class MergeRules
 
     public static bool IsSet(string path) => s_sets.Contains(path);
 
-    /// <summary>Whether the object at <paramref name="path"/> is merged field by field: always, or for the page marks only against a base.</summary>
-    public static bool ByField(string path, bool hasBase) => s_objects.Contains(path) && (hasBase || !s_wholeWithoutBase.Contains(path));
+    /// <summary>Whether the object at <paramref name="path"/> is merged field by field.</summary>
+    public static bool ByField(string path) => s_objects.Contains(path);
 
     public static bool OnProject(string path) => s_onProject.Contains(path);
 

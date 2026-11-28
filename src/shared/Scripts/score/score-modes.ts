@@ -27,11 +27,6 @@ export function modeOf(value: string | null | undefined): InteractionMode | null
     return MODES.find((mode) => mode === value) ?? null;
 }
 
-/** Whether a point lies inside one of the boxes, all in the score's content pixels. */
-export function inside(boxes: readonly { left: number; top: number; right: number; bottom: number }[], x: number, y: number): boolean {
-    return boxes.some((box) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom);
-}
-
 /** The bar a click lands on: across its barlines, and on its staves or just above or below them; none on the paper around. */
 export function barUnder(geometry: ScoreGeometry, x: number, y: number): ScoreBar | undefined {
     const bar = geometry.barNear(x, y);

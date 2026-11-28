@@ -126,11 +126,18 @@ internal static partial class StructureAnalyzer
             : $"{Words.EnglishCount(spans.Count, "phrase", "phrases")}: {w.Listed(spans.Select(span => w.Bars(span.FirstBar, span.LastBar)).ToList(), MaxListed, ", ", " ")} "
                 + $"({barCounts} bars). "
                 + $"The motif starts in phrase {containing + 1}.";
-        bool inferred = spans.Any(span => span.Start?.Provenance is Provenance.Inferred or Provenance.Detected);
-        MotifFact fact = inferred
+        // What the inferred boundaries rest on, each kind once: a rest, or a passage that returns (S1-I5).
+        string[] readFrom = [.. spans
+            .Select(span => span.Start)
+            .Where(start => start?.Attribution.Provenance is Provenance.Inferred or Provenance.Detected)
+            .SelectMany(start => start!.Evidence)
+            .Distinct()
+            .Order()
+            .Select(mark => MotifAnalyzer.EvidenceName(mark, w))];
+        MotifFact fact = readFrom.Length > 0
             ? new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Inferred, text, basis + w.T(
-                " Some boundaries rest on a rest alone, which is a reading of the notes, not a mark in the score.",
-                " Некоторые границы стоят только по паузе: это прочтение нот, а не знак в нотах."))
+                $" Some boundaries are a reading of the notes, not a mark in the score: each of them rests only on {w.Joined(readFrom, or: true)}.",
+                $" Некоторые границы — прочтение нот, а не знак в нотах: каждая из них стоит только по {w.Joined(readFrom, or: true)}."))
             : new MotifFact("structure.phrases", FactLens.Structure, FactCertainty.Detected, text, basis);
 
         // Every phrase is a place, a stretch of time from its boundary to the next.

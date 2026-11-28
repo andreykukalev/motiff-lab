@@ -17,7 +17,7 @@ Index: [`../ipad.md`](../ipad.md). Folder: `src/ipad/App/MotiffLab/Assistant`.
   the selected bars by `ScoreController.reveal`), `phase`, `standing` (`check`: `/assistant/status`), the piece's
   conversations, `open` (an Ask: the panel opens on no conversation, its field keeping an unsent question, v1.5; a conversation is made only by its first question, v0.9),
   `show` and `close` (the pill's «Ассистент»: the panel on the conversation it had, or closed),
-  `ask` (status → `assistant.context` → turns), `forget` (Try again), `start` (a conversation begun by «Продолжить в чате»).
+  `ask` (status → `assistant.context` → turns; the question on its way shows only under its own conversation, `pendingShown`, and its answer opens nothing, E-assistant-1), `forget` (Try again), `start` (a conversation begun by «Продолжить в чате»).
 - `AssistantTurns.swift`: one question's turns, tool calls run by `assistant.call`. `AssistantChat.swift`: `JSONValue`,
   the turn format v1, cited facts, a fallback's `reason` and its words (`AssistantExchange.reasonKey`, v1.2). `AssistantRelay.swift`: `/assistant/status`, `/assistant/turn`.
 - `AssistantStore.swift`: conversations by piece in Application Support (never the project file).
@@ -52,7 +52,7 @@ chat's one way into the panel («Добавить в контекст» removed 
 
 `AssistantController`: panel state, `scope`, `phase`, `standing`, the consent (`consented` names the list agreed to:
 v1.2's; an earlier one is asked again once, `consentAskedAgain`; a draft's own, `draftConsentGiven`), `inDraft`, the question typed and not sent (`unsentInPanel`, `unsentInDraft`, r-1: a rotation
-lays the fields out anew; the panel's also outlives closing it, v1.5, and goes once sent or with the piece), the piece's conversations; `AssistantStore`: the
+lays the fields out anew; the panel's also outlives closing it, v1.5, and goes once sent or with the piece), the piece's conversations, the question on its way (`pending`, in `pendingIn`); `AssistantStore`: the
 conversations kept by piece.
 
 ## Baseline entries that protect it

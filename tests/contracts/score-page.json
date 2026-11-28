@@ -50,8 +50,6 @@
     "menu",
     "chosen",
     "cleared",
-    "gestureCancelled",
-    "holdHint",
     "picked",
     "zoomSelection",
     "tuplets",

@@ -238,7 +238,8 @@ public sealed partial record Project(
     /// <summary>
     /// Whether <paramref name="device"/> writes the marks on the PDF's pages (version 0.4; Andrei, 2026-11-12: only a
     /// device that has the PDF writes them): it has the PDF, and it is the iPad, or the iPad does not hold the PDF. So the
-    /// marks have one writer; another device that has the same PDF shows them as the online copy brings them, read only.
+    /// marks are written by the iPads that hold it; another device that has the same PDF shows them as the online copy brings
+    /// them, read only.
     /// With no device named, a device that has the PDF writes them, as before.
     /// </summary>
     public bool WritesDocumentMarks(HoldingDevice? device) =>

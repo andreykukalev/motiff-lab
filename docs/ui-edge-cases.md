@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14, c-14b3, i-18, c-17b):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-27, v1.6 i-14, c-14b3, i-18, c-17b, r-3):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -259,6 +259,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-insights-7` · «Привязать заново» where no phrase is left at the anchors' places (the piece became shorter) ·
   nothing is attached, the toast says «Привязать не к чему: на этих местах фраз больше нет» and the line stays · a
   step says what it did, also when it did nothing (the phrases' toast) · v1.6 i-18
+- `E-insights-8` · The stream read for another selection (the sheet reopened on it, or the selection moved with the
+  sheet open) · the facts of the passage before go at once and the stream shows it reads from that first step (a trial
+  being left too), until the new passage's facts come; a second load for it meanwhile does nothing · a stale answer is never shown (as `E-insights-2`, `E-drafts-3`): the old facts' Try and places would act on the
+  new selection · v1.6 r-3
+- `E-dna-1` · Piece DNA asked again (More closes at once) while music-core still works out the map of a long piece · the
+  second ask does nothing; the map opens once · as `E-library-4`; HIG: prevent a repeated submit · v1.6 r-3
 
 ## Drafts and the assistant
 
@@ -274,3 +280,6 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   Pattern: «Найти на записи» on a place's card (DRAFT-13), a stale answer never shown. v1.5 d-11.
 - **E-drafts-4** · A second tap of «Создать», «Добавить» or «С ассистентом · Pro» while the first is on its way does
   nothing: one draft or fragment, not told as refused. Pattern: one step of a draft at a time (`stepping`, v1.4). v1.5 d-11.
+- **E-assistant-1** · Another conversation, or a new one, opened while a question is on its way: the question shows only
+  under the conversation it was asked in (a new one's too, kept with its answer), and its answer joins that one without
+  opening it again. Pattern: nothing pulls the player back (ChatFollow); a stale answer never shown elsewhere. v1.6 r-3.
