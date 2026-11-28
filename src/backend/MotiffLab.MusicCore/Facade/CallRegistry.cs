@@ -11,7 +11,7 @@ namespace MotiffLab.MusicCore.Facade;
 internal static class CallRegistry
 {
     /// <summary>The calls on piece 0, with or without a piece open.</summary>
-    public static readonly FrozenDictionary<string, FacadeCall<MusicCoreFacade>> WithoutPiece = Index([.. MusicCoreFacade.CallsWithoutPiece, .. ReferenceRequest.Calls]);
+    public static readonly FrozenDictionary<string, FacadeCall<MusicCoreFacade>> WithoutPiece = Index([.. MusicCoreFacade.CallsWithoutPiece, .. ReferenceRequest.Calls, .. PlaylistsRequest.Calls]);
 
     /// <summary>The calls on an open piece with notes, drafts.* apart (<see cref="OnDrafts"/>).</summary>
     public static readonly FrozenDictionary<string, FacadeCall<PieceCall>> OnPiece = Index(

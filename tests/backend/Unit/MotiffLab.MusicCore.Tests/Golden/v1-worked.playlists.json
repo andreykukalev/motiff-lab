@@ -1,0 +1,28 @@
+{
+  "format": "motiff-lab-playlists",
+  "version": 1,
+  "minReader": 1,
+  "playlists": [
+    {
+      "id": "list_0001",
+      "name": "\u0411\u0430\u0445",
+      "pieces": [
+        "p_a",
+        "p_b"
+      ]
+    },
+    {
+      "id": "list_0002",
+      "name": "\u0428\u043E\u043F\u0435\u043D",
+      "pieces": [
+        "p_c",
+        "p_a"
+      ]
+    },
+    {
+      "id": "list_0003",
+      "name": "\u0414\u043B\u044F \u0440\u043E\u044F\u043B\u044F",
+      "pieces": []
+    }
+  ]
+}

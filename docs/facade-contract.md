@@ -1,6 +1,6 @@
 # The facade contract
 
-**Status (2026-11-28, v1.7 p-1):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
+**Status (2026-11-28, v1.7 p-2):** contract 17 (`MusicCoreFacade.Contract`, the `version` call). The calls and their
 flags below are written from the call registry (`CallRegistry`) by `FacadeCallsContractTests` and checked by it, as is
 `tests/contracts/facade-calls.json`; the history is kept by hand. A call is only added (decision 3): a change of what a
 call answers, or of the calls, adds its line to the history under the current number.
@@ -169,6 +169,17 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 | `pieces.find` | piece |  |
 | `pieces.save` | piece |  |
 | `playback` | piece | Showing, OpenFirst |
+| `playlists` | piece0 |  |
+| `playlists.add` | piece0 |  |
+| `playlists.create` | piece0 |  |
+| `playlists.delete` | piece0 |  |
+| `playlists.forget` | piece0 |  |
+| `playlists.migrate` | piece0 |  |
+| `playlists.move` | piece0 |  |
+| `playlists.rekey` | piece0 |  |
+| `playlists.remove` | piece0 |  |
+| `playlists.rename` | piece0 |  |
+| `playlists.resolve` | piece0 |  |
 | `project` | pdf, recording |  |
 | `project.drafts` | piece0 |  |
 | `project.join` | piece0 |  |
@@ -226,6 +237,8 @@ Every answer is one JSON object. A refusal is `{"error": code, "message": text}`
 ## History
 
 ### 17
+
+Also within 17 (version 1.7, p-2, the score-reading spec 6, Andrei's decision 3 of the 1.7 plan): the library's playlists as a file of their own ([playlists-file.md](playlists-file.md), `motiff-lab-playlists` version 1), on piece 0, the file as its text in "file" (none: no playlists yet). playlists reads it by the rules; playlists.create ("name", "pieces"?), playlists.rename ("id", "name"), playlists.delete, playlists.add, playlists.remove ("id", "pieces"), playlists.move ("id", "pieces", "before"?), playlists.forget ("pieces") and playlists.rekey ("pieces": [{"id", "formerIds"}]) edit it; playlists.migrate ("pieces": [{"id", "playlists"}] in the library's order) makes it from the pieces' playlists. Each answers {"file", "readOnly", "playlists": [{"id", "name", "pieces"}]}, create and rename also "id" and "taken" (a name another playlist has whatever the letter case changes nothing and answers that playlist). playlists.resolve ("here", "savedHere", "online", "savedOnline", "base"?) merges two copies three-way and answers {"file", "upload", "merged", "readOnly", "conflicts": [{"in", "id"}]}, "in" one of "playlists.name", "playlists.pieces", "playlists" (a later build's copy kept without this device's changes) or an unknown field's path. A playlist not there answers `notFound`, an edit of a later build's file `readOnly`. Calls added; the project file stays version 19 and the pieces still write `metadata.playlists`.
 
 Also within 17 (version 1.7, p-1, the score-reading spec 4.3, Andrei's decision 3 of the 1.7 plan): the project file is version 19, with the piece's «Ноты крупнее» step (`workspace.largerNotes`). largerNotes answers it, {"step" (0, the A4 layout, to "maxStep"), "percent" (the notes' size, 100 + 10 × step) and "maxStep" (10)}, and largerNotes.set takes "step", a whole number from 0 to 10 (any other, or none, answers `badRequest` and changes nothing), keeps it in the project, which project.save writes, and answers as largerNotes; both on a piece with notes only, as the PDF view is never laid out again. Calls added; a file of version 18 or earlier opens at step 0, and a call that answers the file writes version 19.
 

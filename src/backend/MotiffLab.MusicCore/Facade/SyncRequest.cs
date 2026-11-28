@@ -111,17 +111,23 @@ internal static class SyncRequest
 
             json.WriteBoolean("readOnly", resolved.Kept.IsReadOnly);
             json.WriteBoolean("merged", resolved.Merged);
-            json.WriteStartArray("conflicts");
-            foreach (MergeConflict conflict in resolved.Conflicts)
-            {
-                json.WriteStartObject();
-                json.WriteString("in", conflict.In);
-                json.WriteString("id", conflict.Id);
-                json.WriteEndObject();
-            }
-
-            json.WriteEndArray();
+            Conflicts(json, resolved.Conflicts);
         });
+    }
+
+    /// <summary>"conflicts": [{"in", "id"}], what of the copy that lost a merge the copy kept does not hold (project.resolve, playlists.resolve).</summary>
+    internal static void Conflicts(Utf8JsonWriter json, IEnumerable<MergeConflict> conflicts)
+    {
+        json.WriteStartArray("conflicts");
+        foreach (MergeConflict conflict in conflicts)
+        {
+            json.WriteStartObject();
+            json.WriteString("in", conflict.In);
+            json.WriteString("id", conflict.Id);
+            json.WriteEndObject();
+        }
+
+        json.WriteEndArray();
     }
 
     /// <summary>
@@ -190,7 +196,7 @@ internal static class SyncRequest
 
     private static bool Flag(Request fields, string name) => fields.Bool(name) ?? false;
 
-    private static DateTimeOffset Time(Request fields, string name) =>
+    internal static DateTimeOffset Time(Request fields, string name) =>
         DateTimeOffset.TryParse(fields.Required(name), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset time)
             ? time
             : throw FacadeException.BadRequest($"\"{name}\" is a time in ISO 8601.");

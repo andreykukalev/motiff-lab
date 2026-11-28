@@ -46,6 +46,9 @@ public sealed partial class MusicCoreFacade
         _ids = ids;
     }
 
+    /// <summary>Where the ids of what the facade makes come from: a piece's, and a playlist's (<see cref="PlaylistsRequest"/>).</summary>
+    internal IdSource Ids => _ids;
+
     /// <summary>How many pieces are open, PDF pieces with them.</summary>
     public int Count => _pieces.Count + _documents.Count;
 
