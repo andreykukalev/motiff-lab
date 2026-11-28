@@ -55,7 +55,7 @@ Until p-4 switches the library to this file, the pieces still write `metadata.pl
 
 Two copies (this device's and the online one) merge three-way against the copy both last agreed on (`PlaylistsMerge`, `playlists.resolve`), by the principles of a project's merge ([project-file.md](project-file.md), "Sync"; 0026 S4, S5, C2):
 
-- **By playlist id.** A playlist changed on one side only takes that side; added on either side, it comes in; deleted on one side and unchanged on the other, it goes; deleted on one side and changed on the other, it stays with the change, so nothing is lost.
+- **By playlist id.** A playlist changed on one side only takes that side; added on either side, it comes in; deleted on one side and unchanged on the other, it goes, and so it does when the other side only took pieces off it (the player removed them, or a deleted piece was forgotten); deleted on one side and renamed, given pieces or reordered on the other, it stays with the change, so nothing the player added is lost (the lead's decision, 2026-11-28).
 - **The name** is a value as a whole: renamed on both differently, the copy saved last keeps its name and the merge records a conflict (`{"in": "playlists.name", "id": "list_…"}`).
 - **The pieces** are a set: a piece added on either side comes in, one taken off on either side goes.
 - **The order** is the copy saved last's, unless only the other copy reordered the pieces both still have since the base: then the other's. The pieces only the other copy added go at the end, in its order, as a piece added does. Both reordered differently: the copy saved last's order, and a conflict (`"in": "playlists.pieces"`).

@@ -15,8 +15,9 @@ internal sealed record PlaylistsResolution(LibraryPlaylists Kept, bool Upload, b
 /// <summary>
 /// The three-way merge of two copies of the library's playlists against the copy both last agreed on, by the principles of
 /// the project's (<see cref="ProjectMerge"/>, 0026 S4, S5, C2): by playlist id, a playlist changed on one side only takes
-/// that side; added on either side, it comes in; deleted on one side and unchanged on the other, it goes; deleted on one
-/// side and changed on the other, the change stays, so nothing is lost. Its name is a value as a whole: changed on both
+/// that side; added on either side, it comes in; deleted on one side and unchanged on the other, or only rid of pieces there
+/// (taken off, or forgotten as deleted), it goes; deleted on one side and renamed, given pieces or reordered on the other, it
+/// stays with the change, so nothing the player added is lost (the lead's decision, 2026-11-28). Its name is a value as a whole: changed on both
 /// differently, the copy saved last keeps its own and the merge records a conflict ("playlists.name"). Its pieces are a set:
 /// each added or taken off on either side is so in the merge. Its order is the copy saved last's, unless only the other
 /// copy reordered the pieces both still have since the base, then the other's; the pieces only the other copy added go at
@@ -64,9 +65,9 @@ internal static class PlaylistsMerge
             {
                 kept.Add(Both(won, lost, was, conflicts));
             }
-            else if ((won ?? lost) is { } one && (was is null || !one.Equals(was)))
+            else if ((won ?? lost) is { } one && (was is null || !OnlyLess(one, was)))
             {
-                // Added on one side, or deleted on the other and changed on this one: it stays.
+                // Added on one side, or deleted on the other and renamed, given pieces or reordered on this one: it stays.
                 kept.Add(one);
             }
         }
@@ -78,6 +79,10 @@ internal static class PlaylistsMerge
         };
         return new MergedPlaylists(playlists.Joined(), conflicts);
     }
+
+    /// <summary>Whether <paramref name="one"/> is <paramref name="was"/> with at most some of its pieces gone: the same name, fields and order.</summary>
+    private static bool OnlyLess(Playlist one, Playlist was) =>
+        one.Name == was.Name && one.Unknown.SequenceEqual(was.Unknown) && one.Pieces.SequenceEqual(was.Pieces.Where(one.Pieces.Contains), StringComparer.Ordinal);
 
     /// <summary>A playlist both copies have, merged against the base's (null: added on both under one id, a union).</summary>
     private static Playlist Both(Playlist won, Playlist lost, Playlist? was, List<MergeConflict> conflicts)

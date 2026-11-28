@@ -89,13 +89,36 @@ public class PlaylistsMergeTests
     }
 
     [Fact]
-    public void A_playlist_deleted_on_one_copy_and_changed_on_the_other_stays_with_the_change()
+    public void A_playlist_deleted_on_one_copy_and_given_pieces_on_the_other_stays_with_them()
     {
         LibraryPlaylists deleted = Base().Deleted("list_0001");
         LibraryPlaylists changed = Base().Added("list_0001", ["p_new"]);
 
         Assert.Equal(["p_a", "p_b", "p_new"], Bach(PlaylistsMerge.Merged(deleted, changed, Base())).Pieces);
         Assert.Equal(["p_a", "p_b", "p_new"], Bach(PlaylistsMerge.Merged(changed, deleted, Base())).Pieces);
+    }
+
+    [Fact]
+    public void A_playlist_deleted_on_one_copy_goes_when_the_other_only_took_pieces_off_it()
+    {
+        LibraryPlaylists deleted = Base().Deleted("list_0001");
+        LibraryPlaylists forgotten = Base().Forgotten(["p_a"]);
+        LibraryPlaylists removed = Base().Removed("list_0001", ["p_a", "p_b"]);
+
+        Assert.Null(PlaylistsMerge.Merged(deleted, forgotten, Base()).Playlists.Find("list_0001"));
+        Assert.Null(PlaylistsMerge.Merged(forgotten, deleted, Base()).Playlists.Find("list_0001"));
+        Assert.Null(PlaylistsMerge.Merged(removed, deleted, Base()).Playlists.Find("list_0001"));
+    }
+
+    [Theory]
+    [InlineData("renamed")]
+    [InlineData("reordered")]
+    public void A_playlist_deleted_on_one_copy_stays_when_the_other_renamed_or_reordered_it(string change)
+    {
+        LibraryPlaylists deleted = Base().Deleted("list_0001");
+        LibraryPlaylists changed = change == "renamed" ? Base().Removed("list_0001", ["p_a"]).Renamed("list_0001", "Бах II").Playlists : Base().Moved("list_0001", ["p_b"], "p_a");
+
+        Assert.NotNull(PlaylistsMerge.Merged(deleted, changed, Base()).Playlists.Find("list_0001"));
     }
 
     [Fact]
