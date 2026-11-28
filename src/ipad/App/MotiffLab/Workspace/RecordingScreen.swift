@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// A piece that is only its recording, while it has no notes (v1.1, finding 29, Andrei's answer 3 of 2026-11-19): the
-/// recording's waveform across the whole screen with the play cursor, a tap putting the sound there, and under it the
-/// same small player as over the notes and the PDF (`RecordingViewCapsule`). Nothing is trimmed or edited. The bar is the
-/// score's (Back, the Contents, the title, Sources); in Sources «Распознать · Pro» on the recording's row hears its notes,
-/// which become the piece's working notes under the recording, and the piece then opens again as notes, its switch with
-/// «Ноты», as a PDF piece does. Nothing is docked: the bar and the player float over the waveform.
+/// recording's waveform across the room between the strips of «Пюпитр» (spec score-reading §2, v1.7 e-2) with the play
+/// cursor, a tap putting the sound there, and on the bottom shelf the same small player as over the notes and the PDF
+/// (`RecordingViewCapsule`), where the notes' shelf has Play. Nothing is trimmed or edited. The top strip holds the score's
+/// bar (Back, the Contents, the title, Sources); in Sources «Распознать · Pro» on the recording's row hears its notes, which
+/// become the piece's working notes under the recording, and the piece then opens again as notes, its switch with
+/// «Ноты», as a PDF piece does.
 struct RecordingScreen: View {
     let piece: OpenPiece
     /// Opens the piece's project file again in this screen's place: on its notes once they are heard.
@@ -31,35 +32,35 @@ struct RecordingScreen: View {
 
     var body: some View {
         GeometryReader { screen in
-            ZStack(alignment: .top) {
-                Color.ds("desk").ignoresSafeArea()
-                waveArea
-                    .padding(.horizontal, CGFloat.ds("s-6"))
-                    .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-6"))
-                    .padding(.bottom, CGFloat.ds("h-touch") + 2 * CGFloat.ds("s-6"))
-                bar(width: screen.size.width - 2 * CGFloat.ds("s-4"))
-                    .padding(.horizontal, CGFloat.ds("s-4"))
-                    .padding(.top, CGFloat.ds("s-3"))
-            }
-            .overlay(alignment: .bottom) {
-                VStack(spacing: CGFloat.ds("s-2")) {
-                    if let toast = sources.toast {
-                        SourcesToastView(sources: sources, toast: toast, text: text).transition(.opacity)
-                    }
-                    if let sound {
-                        RecordingViewCapsule(url: sound, title: title, text: text)
-                    }
+            VStack(spacing: 0) {
+                // The strips as on the notes and the PDF (`ScoreScreenContent.body`), the waveform in the room between them.
+                bar(width: screen.size.width - 2 * DockedStrip.margin).dockedAtTop().zIndex(1)
+                GeometryReader { room in
+                    waveArea
+                        .padding(CGFloat.ds("s-6"))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.ds("desk"))
+                        .overlay(alignment: .bottom) {
+                            if let toast = sources.toast {
+                                // What was just done in Sources, over the foot of the room as on the notes.
+                                SourcesToastView(sources: sources, toast: toast, text: text)
+                                    .padding(.bottom, CGFloat.ds("s-3"))
+                                    .transition(.opacity)
+                            }
+                        }
+                        .overlay(alignment: .bottom) {
+                            if sourcesOpen {
+                                SourcesSheet(sources: sources, versions: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
+                                .modifier(BottomPanel(height: room.size.height / 2))
+                            }
+                        }
+                        .animation(.ds("t-base"), value: sourcesOpen)
                 }
-                .padding(.bottom, CGFloat.ds("s-6"))
+                shelf.zIndex(1)
             }
-            .overlay(alignment: .bottom) {
-                if sourcesOpen {
-                    SourcesSheet(sources: sources, versions: nil, originals: originals, text: text, current: piece.recording, close: { sourcesOpen = false })
-                    .modifier(BottomPanel(height: screen.size.height / 2))
-                }
-            }
-            .animation(.ds("t-base"), value: sourcesOpen)
         }
+        // The keyboard never changes the screen's size, as on the notes (#582 item 16).
+        .ignoresSafeArea(.keyboard)
         .toolbar(.hidden, for: .navigationBar)
         .task {
             // Only while the screen is there: switched away meanwhile, the way back would hold it (#681).
@@ -105,6 +106,18 @@ struct RecordingScreen: View {
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// The bottom shelf: the recording's player in the middle, without a capsule of its own (the shelf is its surface); the
+    /// shelf stays without the sound on this iPad, so the strips are those of every view.
+    private var shelf: some View {
+        ZStack {
+            if let sound {
+                RecordingViewCapsule(url: sound, title: title, text: text)
+            }
+        }
+        .modifier(DockedStrip(edge: .bottom))
+        .keyboardLift(barOnly: true)
     }
 
     /// The score's bar: Back, the Contents and the title, then Sources, where the recording is recognised.

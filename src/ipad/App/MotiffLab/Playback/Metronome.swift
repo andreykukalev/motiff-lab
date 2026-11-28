@@ -323,13 +323,26 @@ extension Metronome {
 }
 
 /// The metronome's pill (the web app's `.metronome-pill`): start and stop, slower, the tempo tapped in time on its number,
-/// faster, the beats to the bar and a dot for each beat, the one sounding now filled and the first a little larger.
+/// faster, the beats to the bar and a dot for each beat, the one sounding now filled and the first a little larger. Since
+/// v1.7 e-2 it lies on the PDF view's bottom shelf, the shelf's surface its own, every control a fingertip (`itemReach`).
 struct MetronomePill: View {
     @ObservedObject var metronome: Metronome
     let text: UIText
     let close: () -> Void
 
     var body: some View {
+        // Where the shelf is narrower than the pill (a narrow Split View), it scrolls sideways rather than run off the
+        // screen's edges, as the bar's actions do (TopBar, E-pdf-3).
+        ViewThatFits(in: .horizontal) {
+            controls
+            ScrollView(.horizontal, showsIndicators: false) { controls }
+        }
+        .frame(height: CGFloat.ds("h-touch"))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(text["metronome.label"])
+    }
+
+    private var controls: some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             Button {
                 metronome.toggle()
@@ -338,6 +351,9 @@ struct MetronomePill: View {
                     .foregroundStyle(Color.ds("on-accent"))
                     .frame(width: 40, height: 40)
                     .background(Color.ds("accent"), in: Circle())
+                    // A fingertip to touch, the disc as it is (spec score-reading §3.2), as the notes' Play.
+                    .frame(minWidth: CGFloat.ds("h-touch"), minHeight: CGFloat.ds("h-touch"))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(metronome.running ? text["metronome.stop"] : text["metronome.start"])
@@ -391,12 +407,6 @@ struct MetronomePill: View {
             .buttonStyle(BarActionStyle())
             .accessibilityLabel(text["metronome.close"])
         }
-        .padding(.leading, 6)
-        .padding(.trailing, CGFloat.ds("s-2"))
-        .frame(height: 52)
-        .modifier(FloatingSurface(shadow: "shadow-pill", opacity: 0.92))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(text["metronome.label"])
     }
 }
 

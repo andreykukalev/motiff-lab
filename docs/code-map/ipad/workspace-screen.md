@@ -15,9 +15,9 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   `readOnlyLine` for a project a newer version saved (v1.6 c-14a).
 - `PdfScreen.swift` with `PdfScreenBar`, `PdfScreenReading`, `PdfScreenSources` (v1.6 i-11): the PDF piece's screen,
   mapped in [`pdf.md`](pdf.md).
-- `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: the score's bar (Back, Contents with a
-  line that there are none yet, the title, Sources), the waveform across the screen (or why not: the sound is missing
-  or unreadable), `RecordingViewCapsule` below. «Распознать · Pro» in Sources makes its notes,
+- `RecordingScreen.swift` (v1.1, finding 29): a piece that is only its recording: in the top strip the score's bar (Back,
+  Contents with a line that there are none yet, the title, Sources), the waveform in the room (or why not: the sound is
+  missing or unreadable), `RecordingViewCapsule` on the bottom shelf (v1.7 e-2). «Распознать · Pro» in Sources makes its notes,
   and it opens again as notes.
 - `RecordingWave.swift`: the levels of every 100 ms (`RecordingSound.levels(of:)`) as columns, the play cursor, a tap
   seeking there (`moment`, `share`); one adjustable VoiceOver element, ±5 s. Tests: `RecordingWaveTests`.
@@ -42,7 +42,7 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   `underStrip`, the drawer, the sheet, the Contents, the chip back to the playing; `footBottom`, `toastBottom`).
 - Its parts by concern, extensions of `ScoreScreenContent` (v1.6 i-9, ADR 0031 section 4):
   `ScoreScreenBars.swift` (`topStrip`: the bar or the focus bar, a draft's pill under it; `underStrip`: the recording
-  heard, `ModeOptions`; `bottomShelf`: the pill; `backToPlaying`; `askAboutPiece`, `setPieceTempo`; surface `DockedStrip`); `ScoreScreenPanels.swift` (`SheetPlace`, `sheetPlace`, `mapOwner`, `sideSheet` and
+  heard, `ModeOptions`; `bottomShelf`: the pill; `backToPlaying`; `askAboutPiece`, `setPieceTempo`); `ScoreScreenPanels.swift` (`SheetPlace`, `sheetPlace`, `mapOwner`, `sideSheet` and
   what it holds, `contentsDrawer`, `PanelState.binding`); `ScoreScreenRoll.swift` (`rollDrawer`, its height by the
   handle, `rollSpan`, `expandFromDrawer`); `ScoreScreenSources.swift` (the switch of views and Sources: `ShownView`,
   `sourcesSheet`, the «В черновик» sheet, `toastsOverSelection`, `sourcing`, `pickView`, `shownViewScreen`);
@@ -59,5 +59,5 @@ Part of [`workspace.md`](workspace.md) (its contract and the order of the reacti
   (the page's web view, `prewarm` at launch).
 - `TopBar.swift`: the bar's layout over the score and over a PDF alike: the same start in both, then the pages, then
   each view's actions; where it is short the view's note goes first, then the pages, then the actions turn compact;
-  `docked` on the notes (v1.7 e-1), floating on the PDF and the recording until e-2.
-  The read-only line (`readOnlyLine`, v1.6 c-14a) hangs under it on every view.
+  the top strip's row on every view (v1.7). `dockedAtTop`: the top strip (`Platform`'s `DockedStrip`) with the
+  read-only line (`readOnlyLine`, v1.6 c-14a) under it; `hungUnderTopStrip`: what hangs under it.

@@ -64,7 +64,8 @@ extension PdfScreen {
         if let toast = SourcesHandover.toast(for: piece.file) { sources.toast = toast }
     }
 
-    /// The Sources panel over the lower half of the pages (#582 item 4), as on the score, and the toast of what it did.
+    /// The Sources panel over the lower half of the room between the strips (#582 item 4), as on the score, and the toast
+    /// of what it did over the foot of the pages, a gap above the shelf as on the notes.
     @ViewBuilder func sourcesPanel(height: CGFloat) -> some View {
         VStack(spacing: CGFloat.ds("s-2")) {
             if let toast = sources.toast, sourcesOn {
@@ -78,7 +79,7 @@ extension PdfScreen {
                 .modifier(BottomPanel(height: height))
             }
         }
-        .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-6"))
+        .padding(.bottom, sourcesOpen ? 0 : CGFloat.ds("s-3"))
     }
 
     /// The piece opened again in this screen's place as «Сделать рабочими», Undo or the first notes heard left its project

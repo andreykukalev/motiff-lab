@@ -5,7 +5,8 @@ import SwiftUI
 /// the piano roll and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8). Its controls show
 /// their icons alone, their words for VoiceOver and the pointer's tip (v0.10, finding 22); what shows a value keeps it: the
 /// place, Цикл's span, the tempo and the hands, which say the mode. Where it has no room, the tempo, the metronome and the
-/// roll go into «⋯» (Andrei's answer A), then the phrase's steps. Every control takes a fingertip (`h-touch`). It shows
+/// roll go into «⋯» (Andrei's answer A), then the phrase's steps. Every control takes a fingertip (`h-touch`, the shelf's
+/// `itemReach`). It shows
 /// what it is handed and calls the actions it is handed; the shelf it lies on is the screen's
 /// (`ScoreScreenContent.bottomShelf`).
 struct Pill: View {
@@ -46,7 +47,6 @@ struct Pill: View {
             items(.tight)
         }
         .frame(height: CGFloat.ds("h-touch"))
-        .environment(\.itemReach, CGFloat.ds("h-touch"))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["transport.label"])
     }

@@ -14,6 +14,7 @@ struct PerformanceCapsule: View {
             RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
                 sources.putAway()
             }
+            .modifier(FloatingSurface())
             .id(id)
             .transition(.opacity)
         }
@@ -51,7 +52,8 @@ extension View {
 /// The «Исполнение» capsule: the recording's sound kept on this iPad, heard as it is, from a capsule under the bar while the
 /// view under it stays as it is. Its slider moves through the recording, the time beside it (Andrei, v0.8 finding 20). ✕
 /// puts it away; a capsule with no `close` has none (v1.1: the player of a piece that is only its recording,
-/// `RecordingScreen`). Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the
+/// `RecordingScreen`, on its bottom shelf since v1.7 e-2). Its surface is where it stands: a capsule under the top strip
+/// (`PerformanceCapsule`), the shelf's on the recording. Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the
 /// same.
 struct RecordingViewCapsule: View {
     let url: URL
@@ -78,8 +80,9 @@ struct RecordingViewCapsule: View {
                 if editing { listening.hold() } else { listening.release() }
             }
             .tint(Color.ds("accent"))
-            // Five fingertips wide: room to aim at a minute of a long recording.
-            .frame(width: CGFloat.ds("h-touch") * 5)
+            // Five fingertips wide: room to aim at a minute of a long recording; two where the shelf or the room is narrow
+            // (a narrow Split View), so the capsule never runs off the screen (E-rec-1).
+            .frame(minWidth: CGFloat.ds("h-touch") * 2, maxWidth: CGFloat.ds("h-touch") * 5)
             .disabled(listening.length == 0)
             .accessibilityLabel(text["sources.sheet.seek"])
             .accessibilityValue(text.format("sources.sheet.seekValue", SourceLayers.duration(listening.elapsed), SourceLayers.duration(listening.length)))
@@ -103,7 +106,6 @@ struct RecordingViewCapsule: View {
         .controlShape(.capsule)
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
         .onAppear { listening.shown(url) }
         .onDisappear { listening.hidden() }
     }

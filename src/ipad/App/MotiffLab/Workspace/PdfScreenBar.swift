@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The PDF screen's floating bar: the way back, the Contents, the switch of views or the PDF tag, Recognise notes, the
-/// bookmark, the metronome, the modes, the Reference and More.
+/// The PDF screen's strips (v1.7 e-2, as the notes' `ScoreScreenBars`): the bar, the top strip's row, with the way back,
+/// the Contents, the switch of views or the PDF tag, Recognise notes, the bookmark, the metronome, the modes, the Reference
+/// and More; what hangs under the top strip; the bottom shelf.
 extension PdfScreen {
     func bar(width: CGFloat) -> some View {
         TopBar(width: width, pages: pageText) {
@@ -25,12 +26,43 @@ extension PdfScreen {
             readNotesButton(compact: true)
             barActions
         }
-        // Where it ends, for the pages to rest below it (#495 UX-12).
-        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(PdfScreen.screenSpace)).maxY } action: { measuredBarBottom = $0 }
     }
 
-    /// Where the floating bar ends, from the top of the pages: as laid out, and until then its top margin and its height.
-    var barBottom: CGFloat { measuredBarBottom ?? CGFloat.ds("s-3") + CGFloat.ds("h-touch") }
+    /// Under the top strip, over the pages, what hung under the floating bar, as on the notes (E-score-3): the library's
+    /// recognition of this PDF, the Pen's palette and the recording heard over the pages (v0.10, finding 24).
+    var underStrip: some View {
+        VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
+            if let file = background.file, let line = background.line {
+                line(handingOver) { Task { await openBackgroundNotes(file) } }
+            }
+            if pdf.penOn {
+                PdfPenPalette(pdf: pdf, text: text)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            if let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourceLayers != nil) {
+                PerformanceCapsule(sources: heard, text: text)
+            }
+        }
+        .hungUnderTopStrip()
+        .animation(.easeOut(duration: 0.16), value: pdf.penOn)
+    }
+
+    /// The bottom shelf, as the notes' (`ScoreScreenContent.bottomShelf`): the metronome's pill while it is open, in the
+    /// middle, where the notes' shelf has the metronome. It stays when the pill goes, so the pages never move (E-pdf-3).
+    var shelf: some View {
+        ZStack {
+            if metronomeOpen {
+                MetronomePill(metronome: metronome, text: text) {
+                    metronome.stop()
+                    metronomeOpen = false
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: metronomeOpen)
+        .modifier(DockedStrip(edge: .bottom))
+        .keyboardLift(barOnly: true)
+    }
 
     /// Notes in PDF | Notes: the notes read from this PDF, in this piece or the one they were read into; for the PDF linked
     /// in Files, which is only ever shown over its notes, those notes again (#495 BUG-02: it showed a tag in the switch's

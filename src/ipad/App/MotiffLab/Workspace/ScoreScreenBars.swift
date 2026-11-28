@@ -7,31 +7,25 @@ import SwiftUI
 /// (`ScoreBar`, `FocusBar`, `Pill`, `DraftAssemblyPill`), handed what they show and the actions they call; this is where
 /// they stand and what they are handed.
 extension ScoreScreenContent {
-    /// The top strip across the screen (`width`): the bar or the focus bar, and a draft's pill under it. Its row keeps the
-    /// floating bar's margin at the sides, so Back, the Contents, the title and the switch stand where the PDF's bar has
+    /// The top strip across the screen (`width`): the bar or the focus bar, and a draft's pill under it. The strip is the
+    /// PDF's and the recording's (`dockedAtTop`), so Back, the Contents, the title and the switch stand where theirs have
     /// them (VIEW-04).
     func topStrip(width: CGFloat) -> some View {
-        let margin = CGFloat.ds("s-4")
-        return VStack(alignment: .trailing, spacing: CGFloat.ds("s-1")) {
+        VStack(alignment: .trailing, spacing: CGFloat.ds("s-1")) {
             if focusModel.focused {
                 FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
             } else {
                 ScoreBar(title: piece.title, pages: score.pages, text: text, mode: $score.mode, penModel: penModel, marksModel: marksModel, checkModel: checkModel,
                          layers: LayersList(score: score, marksModel: marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions), panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { marksModel.toggleExtra() }, openReference: { change(.open(.reference)) },
                          problem: player.problem ?? score.problem, askAboutPiece: askAboutPiece, sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
-                         viewNote: sourcesModel.engraved.note(text), width: width - 2 * margin) { dismiss() }
+                         viewNote: sourcesModel.engraved.note(text), width: width - 2 * DockedStrip.margin) { dismiss() }
             }
             if !focusModel.focused, let draft = piece.draft {
                 DraftAssemblyPill(score: score, model: score.draftModel, player: player, draft: draft, text: text)
             }
         }
-        .padding(.horizontal, margin)
-        .padding(.vertical, CGFloat.ds("s-1"))
-        .modifier(DockedStrip(edge: .top))
-        .overlay(alignment: .bottomLeading) { ReadOnlyLine().padding(.leading, margin) }
-        .accessibilityElement(children: .contain)
-        // The walk measures the page between the strips by this.
-        .accessibilityIdentifier("ml-top-strip")
+        // The walk measures the page between the strips by the strip's identifier (`DockedStrip`).
+        .dockedAtTop()
         .animation(.easeOut(duration: 0.16), value: focusModel.focused)
     }
 
@@ -46,8 +40,7 @@ extension ScoreScreenContent {
                 ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions, penOn: penModel.penOn,
                             marksHidden: !marksModel.hiddenLayers.isDisjoint(with: MarksModel.layers))
             }
-            .padding(.horizontal, CGFloat.ds("s-4"))
-            .padding(.top, CGFloat.ds("s-2"))
+            .hungUnderTopStrip()
             .animation(.easeOut(duration: 0.16), value: penModel.penOn)
         }
     }
@@ -65,11 +58,7 @@ extension ScoreScreenContent {
              rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
             workspace.assistantPressed()
         }
-        .padding(.horizontal, CGFloat.ds("s-4"))
-        .padding(.vertical, CGFloat.ds("s-2"))
         .modifier(DockedStrip(edge: .bottom))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("ml-bottom-shelf")
         .keyboardLift(barOnly: true)
     }
 

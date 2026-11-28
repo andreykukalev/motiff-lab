@@ -6,17 +6,15 @@ import SwiftUI
 /// views, so switching views moves nothing there. What gives way where the bar is short is the rest, in this order: the
 /// view's note goes (whole, v1.4), then the pages in view (whole, never cut to an ellipsis), then the actions take their
 /// compact form, then they scroll sideways. Before 0.6.1 the score's longer row of actions squeezed the title to nothing
-/// and cut the pages to a lone «…». Docked (the notes' «Пюпитр», v1.7 e-1) it is the top strip's row, on the strip's
-/// surface (`DockedStrip`, laid by the screen); else it floats in its own capsule (the PDF and the recording until e-2).
+/// and cut the pages to a lone «…». Since v1.7 («Пюпитр», e-1, e-2) it is the top strip's row on every view, on the strip's
+/// surface (`dockedAtTop`, laid by the screen), no capsule of its own.
 struct TopBar<Leading: View, Actions: View, Compact: View>: View {
-    /// The bar's width: the screen's, less the margins the bar floats in or the strip's.
+    /// The bar's width: the screen's, less the strip's margins (`DockedStrip.margin`).
     let width: CGFloat
     /// "p. 2 of 4", or nil before the pages are laid out.
     let pages: String?
     /// The view's note after the start («По записи источника, 4 такта записаны приложением»); nil for none.
     var note: String? = nil
-    /// The row of the top strip (no capsule of its own), not a bar floating over the page.
-    var docked = false
     @ViewBuilder let leading: () -> Leading
     @ViewBuilder let actions: () -> Actions
     @ViewBuilder let compact: () -> Compact
@@ -41,9 +39,6 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(BarSurface(floating: !docked))
-        // Docked, the line hangs under the whole strip instead (`ScoreScreenContent.topStrip`), below a draft's pill too.
-        .overlay(alignment: .bottomLeading) { if !docked { ReadOnlyLine() } }
     }
 
     private func rest(note: String? = nil, pages: String?, @ViewBuilder _ actions: () -> some View) -> some View {
@@ -56,10 +51,24 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
     }
 }
 
-/// The piece's one line that it opened read-only (project file 18, `PieceScreen`), hung under the bar (or the top strip)
-/// of every view of the piece without changing its height or taking a touch; nothing for a piece that saves. Laid as an
-/// overlay at the bottom leading corner of what it hangs under.
-struct ReadOnlyLine: View {
+extension View {
+    /// The top strip of «Пюпитр» round a view's bar (v1.7 e-1, e-2): docked at the top (`DockedStrip`), with the read-only
+    /// line hung under it, below a draft's pill too; the same on the notes, the PDF and the recording (VIEW-04).
+    func dockedAtTop() -> some View {
+        modifier(DockedStrip(edge: .top))
+            .overlay(alignment: .bottomLeading) { ReadOnlyLine().padding(.leading, DockedStrip.margin) }
+    }
+
+    /// Where what the player opened under the top strip hangs over the page (E-score-3): the strip's margin at the sides,
+    /// a gap below it; the same on every view.
+    func hungUnderTopStrip() -> some View {
+        padding(.horizontal, DockedStrip.margin).padding(.top, CGFloat.ds("s-2"))
+    }
+}
+
+/// The piece's one line that it opened read-only (project file 18, `PieceScreen`), hung under the top strip of every view
+/// of the piece without changing its height or taking a touch; nothing for a piece that saves.
+private struct ReadOnlyLine: View {
     @Environment(\.readOnlyLine) private var readOnlyLine
 
     var body: some View {
@@ -71,19 +80,6 @@ struct ReadOnlyLine: View {
                 .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-s")))
                 .alignmentGuide(.bottom) { $0[.top] - CGFloat.ds("s-2") }
                 .allowsHitTesting(false)
-        }
-    }
-}
-
-/// The bar's own capsule while it floats (FloatingSurface); docked, the strip's surface is its.
-private struct BarSurface: ViewModifier {
-    let floating: Bool
-
-    func body(content: Content) -> some View {
-        if floating {
-            content.modifier(FloatingSurface())
-        } else {
-            content
         }
     }
 }

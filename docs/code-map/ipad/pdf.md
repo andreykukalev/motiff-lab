@@ -12,8 +12,8 @@ composes the features, as the score's does). The pen on the PDF's pages is `Ink/
   pages (`markPages`), the PDF as added for Download and Read the notes, `keepView` (where the pages are, `ViewStates`).
   `PageBookmarkEntry`.
 - `PdfPagesView.swift`: `PdfPages` (the `UIViewRepresentable` that makes the pages' view and follows the pages in view),
-  `BarPdfView` (PDFKit's view under the floating bar: room above the first page, a page brought to rest below the bar,
-  the place kept), `PageRest` (its rules as numbers), `BookmarkTab` (a bookmarked page's tab).
+  `BarPdfView` (PDFKit's view between the strips, v1.7 e-2: a page brought to rest `s-4` below the top strip, the place
+  kept; no room above the first page any more), `PageRest` (its rules as numbers), `BookmarkTab` (a bookmarked page's tab).
 - `PdfContents.swift`: the Contents' bookmarked pages (`PdfContents`, `PdfBookmarkRow`). `PdfMore.swift`: More,
   Download the PDF. `PdfNotes.swift`: `PageMap`, `OtherView`, `Landing`, `PdfNotesSwitch` (PDF | Notes).
 - `PieceParts.swift`: «Пьесы в этом файле» as values and requests (`PartRows`, `PiecesLayer`, `PartsSplit`,
@@ -21,10 +21,13 @@ composes the features, as the score's does). The pen on the PDF's pages is `Ink/
   «Предложить», «Подтвердить пьесы» and «Разделить на пьесы», which answers the pieces made; `PdfPartCopy`.
   `PiecePartsSheet.swift`: the sheet's views and `PageStepper` (also a draft's place's length).
 
-`Workspace/PdfScreen.swift` (v1.6 i-11, W2.12): `PdfScreen`, its state, `body` (the pages, the bar, the palettes, the
-metronome's pill, the Sources panel, the sheets) and its life (`.task` loads, `onDisappear` and the background save).
-Its parts, extensions beside it: `PdfScreenBar.swift` (the bar: Back and the Contents, the switch of views or the PDF
-tag, Recognise notes, the bookmark, the metronome, the modes, the Reference, More), `PdfScreenReading.swift` (Recognise
+`Workspace/PdfScreen.swift` (v1.6 i-11, W2.12): `PdfScreen`, its state, `body` («Пюпитр», v1.7 e-2: the top strip, the
+room between the strips with the pages on the desk (`desk`), what hangs under the strip, the Pencil's palette and the
+Sources panel, then the bottom shelf; the sheets) and its life (`.task` loads, `onDisappear` and the background save).
+Its parts, extensions beside it: `PdfScreenBar.swift` (the strips, as the notes' `ScoreScreenBars`: the bar, Back and
+the Contents, the switch of views or the PDF tag, Recognise notes, the bookmark, the metronome, the modes, the
+Reference, More; `underStrip`: the library's recognition line, the Pen's palette, the recording heard; `shelf`: the
+metronome's pill while open, the shelf kept while it is not), `PdfScreenReading.swift` (Recognise
 notes: the panel, the scan server, the library's recognition in the background, `fill` puts the notes into this same
 piece), `PdfScreenSources.swift` (PDF | Notes and the switch of all views, Sources, `reopenHere`, `reopening`, a new
 interface language). With notes, the switch of all views and Sources are in the bar; a PDF of the piece's own with no

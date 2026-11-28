@@ -53,7 +53,7 @@ struct ScoreBar: View {
     /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
     /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        TopBar(width: width, pages: pageText, note: viewNote, docked: true) {
+        TopBar(width: width, pages: pageText, note: viewNote) {
             BarLeading(title: title, contentsOpen: panels.binding(.contents, change: change), text: text, back: back)
             if let sourceLayers, let pickView {
                 SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { change(.open(.versions)) }
