@@ -17,7 +17,6 @@ import {
     type RollPayload,
 } from "./roll-model.js";
 import { THEME_CHANGED } from "../layout/theme.js";
-import { PRACTICE_EVENT, practiced, shownAt } from "../layout/practice-view.js";
 import { measures, palette, prepare, readPalette } from "./roll-palette.js";
 import { CHECK_FLAG, RollPainter, checkPlaces, drawPlayheadLine, type CheckFlag, type NotesFrame, type NotesScene, type VariationNote } from "./roll-painter.js";
 import { drawKeyboard, keyAt, litKeys, type KeyLayout } from "./roll-keys-draw.js";
@@ -25,7 +24,7 @@ import { BAR_ROW, DEFAULT_ZOOM, GUTTER, RollViewport, type ViewportHost } from "
 import { PlayheadControl, onPlayhead, type PlayheadContext, type Span } from "./roll-playhead.js";
 import { type InteractionMode, modeOf } from "../score/score-modes.js";
 import { drawBox, drawPlayheads, modeSelects, playheadKnobs, rollPlaces } from "./roll-modes.js";
-import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, laneShown, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
+import { LOOP_LANE, OVERVIEW_HEIGHT, drawLoopLane, drawOverview, drawPosition, overviewGrab, overviewTick, viewGrabOffset, type StripInks } from "./roll-strips.js";
 import { viewOf, type Handle, type ModelState } from "../playback/playback-model.js";
 import { PlayheadDrag, type DragMessage } from "../playback/playhead-drag.js";
 import { knobHeadAt, laneDragTick, laneHeadAt, lineTakesHead, reachedFrom } from "./roll-head-drag.js";
@@ -349,7 +348,6 @@ export class PianoRoll {
         document.addEventListener("pointerup", this.onDocumentPointerUp);
         document.addEventListener("keydown", this.onDocumentKeyDown);
         document.addEventListener(THEME_CHANGED, this.onThemeChanged);
-        document.addEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.resizeObserver = new ResizeObserver(() => this.onResize());
         this.resizeObserver.observe(host);
         this.frame = requestAnimationFrame(this.tick);
@@ -724,7 +722,6 @@ export class PianoRoll {
             touchReading: () => this.touchReading,
             axisZoom: () => this.axisZoom,
             lanes: () => this.lanes,
-            laneShown: () => this.laneShown(),
             hasPlayer: () => this.player !== null,
             playing: () => this.playing(),
             playheadUnder: (type, x, y) => this.playheadUnder(type, x, y),
@@ -1060,7 +1057,6 @@ export class PianoRoll {
         document.removeEventListener("pointerup", this.onDocumentPointerUp);
         document.removeEventListener("keydown", this.onDocumentKeyDown);
         document.removeEventListener(THEME_CHANGED, this.onThemeChanged);
-        document.removeEventListener(PRACTICE_EVENT, this.onPracticeChanged);
         this.host.replaceChildren();
     }
 
@@ -1367,9 +1363,8 @@ export class PianoRoll {
     private drawLanes(context: CanvasRenderingContext2D, width: number, height: number): void {
         const frame = { top: BAR_ROW, left: GUTTER, right: width, height, xOf: (tick: number) => this.view.xOf(tick) };
         const playing = this.player !== null && this.player.state() !== "stopped";
-        // Practice view (#533 11): the black playhead alone, without the loop strip and the blue one.
-        const view = rollPlaces(practiced(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
-        if (this.laneShown()) {
+        const view = rollPlaces(viewOf({ selection: this.motif, loop: this.looping, tick: this.tickNow, transport: playing ? "playing" : "stopped" }));
+        if (this.lanes) {
             drawLoopLane(context, frame, this.motif, this.looping, this.stripInks(), modeSelects(this.mode));
         }
         drawPosition(context, frame, view, this.stripInks());
@@ -1502,8 +1497,8 @@ export class PianoRoll {
         if (state === null) {
             return { black: this.view.xOf(this.tickNow), blue: null };
         }
-        // In practice view (#533 11) the blue playhead is neither drawn nor taken; outside the selection it is not either (#543 6).
-        const view = rollPlaces(practiced(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }), shownAt(this.host)));
+        // Outside the selection the blue playhead is neither drawn nor taken (#543 6).
+        const view = rollPlaces(viewOf({ selection: state.selection, loop: state.loop, tick: this.tickNow, transport: playing ? "playing" : "stopped" }));
         return { black: this.view.xOf(view.black), blue: view.blue === null ? null : this.view.xOf(view.blue) };
     }
 
@@ -1549,7 +1544,7 @@ export class PianoRoll {
      * the selection, and never selects a bar; only a press on neither goes on to what lies under it.
      */
     private modelHeadUnder(type: string, state: ModelState, x: number, y: number): Handle | null {
-        const knobs = playheadKnobs({ xOf: (tick) => this.view.xOf(tick), header: this.header }, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))));
+        const knobs = playheadKnobs({ xOf: (tick) => this.view.xOf(tick), header: this.header }, rollPlaces(viewOf({ ...state, tick: this.tickNow })));
         // Playing, the knob is found where it was drawn a moment ago too (headsNear); its height stays.
         const near = this.headsNear(x);
         const found = {
@@ -1579,7 +1574,7 @@ export class PianoRoll {
             return false;
         }
         const frame = { xOf: (tick: number) => this.view.xOf(tick), header: this.header, left: GUTTER, right: width, height };
-        drawPlayheads(context, frame, rollPlaces(practiced(viewOf({ ...state, tick: this.tickNow }), shownAt(this.host))), this.ruleInks());
+        drawPlayheads(context, frame, rollPlaces(viewOf({ ...state, tick: this.tickNow })), this.ruleInks());
         return true;
     }
 
@@ -1612,9 +1607,6 @@ export class PianoRoll {
     private rowName(pitch: number): string {
         return this.rowNames[keyIndexAt(this.keyTicks, this.view.scroll)]?.[pitch] ?? pitchClassName(pitch);
     }
-
-    /** Practice view began, ended or showed its controls (#533 11): the playheads and the strips are drawn again. */
-    private readonly onPracticeChanged = (): void => this.invalidate();
 
     /** A new theme: the roll and its legend are drawn again in its colours. */
     private readonly onThemeChanged = (): void => {
@@ -1656,11 +1648,6 @@ export class PianoRoll {
             const ids = [...this.selected].sort((a, b) => a - b).map((i) => model.notes[i].id);
             void this.dotnet.invokeMethodAsync("OnRollSelection", ids);
         }
-    }
-
-    /** Whether the loop strip is shown and takes presses (roll-strips.ts laneShown): with the lanes, not in practice view. */
-    private laneShown(): boolean {
-        return laneShown(this.lanes, shownAt(this.host));
     }
 
     /** Strikes a key by hand and lights it; returns the pitch, to release later. */

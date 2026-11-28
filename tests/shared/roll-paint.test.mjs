@@ -17,7 +17,6 @@ const piece = JSON.parse(readFileSync(new URL("../contracts/facade-answers/roll.
 
 fakePage();
 const { createPianoRoll, keptRollFrame, restoreRollFrame } = await import("../../src/shared/wwwroot/js/roll/piano-roll.js");
-const { PRACTICE_EVENT } = await import("../../src/shared/wwwroot/js/layout/practice-view.js");
 const { nextGestureId } = await import("../../src/shared/wwwroot/js/selection/selection-gesture.js");
 /** The page's own prefix of the gesture names (a random one per page load), kept as "gesture" so the steps compare across runs. */
 const REALM = new RegExp(`"${nextGestureId().split("-")[0]}-`, "g");
@@ -147,10 +146,10 @@ const scenarios = {
         return steps;
     },
 
-    /** The iPad under the modes: Select by place with the stylus, the lanes (loop strip and the whole piece), then practice view. */
+    /** The iPad under the modes: Select by place with the stylus, the lanes (loop strip and the whole piece). */
     lanes() {
         const state = open();
-        const { roll, player, page } = state;
+        const { roll, player } = state;
         load(roll, piece);
         roll.setPointerRules({ touch: false, pen: true, scrollFingers: 1, penSelects: true });
         roll.setRules("select");
@@ -161,12 +160,7 @@ const scenarios = {
         roll.setPlayRange(960, 2400);
         player.tick = 1200;
         player.playing = "playing";
-        const steps = [step(state, "lanes, Select by place, looping inside the selection", { overview: true })];
-        page.practice("on");
-        document.dispatchEvent({ type: PRACTICE_EVENT });
-        roll.setPlace("2.1", true);
-        steps.push(step(state, "practice view: the black playhead alone", { overview: true }));
-        return steps;
+        return [step(state, "lanes, Select by place, looping inside the selection", { overview: true })];
     },
 
     /** The note editor: a note picked, a note dragged a quarter later and a row up, then let go. */

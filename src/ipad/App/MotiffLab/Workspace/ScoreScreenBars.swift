@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The two strips of «Пюпитр» (spec score-reading §3, v1.7 e-1) and what stands at their edges over the page: the top strip
 /// holds the bar (Expand's focus bar in focus) and, on a draft's view, the draft's pill under it; the bottom shelf holds
-/// the pill. Under the top strip, over the page, hangs what the player opened there (the recording heard, the chosen
-/// mode's options); over the foot of the page, the chip back to the playing. The bar and the pills are their own views
+/// the pill, with the chip back to the playing beside Play. Under the top strip, over the page, hangs what the player opened
+/// there (the recording heard, the chosen mode's options). The bar and the pills are their own views
 /// (`ScoreBar`, `FocusBar`, `Pill`, `DraftAssemblyPill`), handed what they show and the actions they call; this is where
 /// they stand and what they are handed.
 extension ScoreScreenContent {
@@ -55,38 +55,18 @@ extension ScoreScreenContent {
     /// (v0.6.4), which the screen ignores.
     var bottomShelf: some View {
         Pill(player: player, selectionModel: selectionModel, focusModel: focusModel, draftModel: score.draftModel, text: text, passage: score.expandPassage, step: { focusModel.step($0) }, setPieceTempo: setPieceTempo,
-             rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
+             backTo: backToBar, back: { score.returnToPlayhead() }, rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
             workspace.assistantPressed()
         }
         .modifier(DockedStrip(edge: .bottom))
         .keyboardLift(barOnly: true)
     }
 
-    /// Scrolled away from the playing, a chip over the foot of the page leads back to it (testing item 4), `bottom` above
-    /// the shelf or what covers the foot, and clear of a sheet or a drawer at the sides (`leading`, `trailing`). Measured,
-    /// so the selection's toast stands above it (v0.6.4, spec 7).
-    func backToPlaying(bottom: CGFloat, leading: CGFloat, trailing: CGFloat) -> some View {
-        VStack {
-            if let away = score.playheadAway, player.state != .stopped, !focusModel.focused, let bar = player.barNumber(at: away) {
-                Button {
-                    score.returnToPlayhead()
-                } label: {
-                    HStack(spacing: 6) {
-                        Icon(name: "play", size: CGFloat.ds("icon-s"))
-                        Text(text.format("transport.backToPlay", String(bar))).dsType(.label)
-                    }
-                    .foregroundStyle(Color.ds("accent"))
-                    .padding(.horizontal, CGFloat.ds("s-3"))
-                    .frame(height: 32)
-                    .modifier(FloatingSurface())
-                }
-                .buttonStyle(.plain)
-                .transition(.opacity)
-            }
-        }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }
-        .padding(.bottom, bottom)
-        .padding(.trailing, trailing).padding(.leading, leading)
+    /// The bar the music plays in while the page is scrolled away from it (testing item 4), out of Expand: the shelf's chip
+    /// back to the playing says it; nil while there is none.
+    private var backToBar: Int? {
+        guard let away = score.playheadAway, player.state != .stopped, !focusModel.focused else { return nil }
+        return player.barNumber(at: away)
     }
 
     /// The piece tempo the player typed in the pill, kept with the piece (ScoreController.setPieceTempo).

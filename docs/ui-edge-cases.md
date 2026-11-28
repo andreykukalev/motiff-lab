@@ -39,6 +39,12 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
 - `E-score-6` · Large Dynamic Type sizes and narrow Split View widths · the strips keep their height (the page never
   shrinks or jumps); the bar and the shelf take their compact forms (the shelf's «⋯», then its tight form) · fixed-height
   toolbars that collapse items into More (Apple HIG, toolbars) · v1.7 e-1
+- `E-score-7` · The chip back to the playing («К месту игры · такт N»), which comes by itself while the page is
+  scrolled away from the music playing · it is the bottom shelf's, beside Play in every room, tight too (the one target
+  that matters while playing; with little room the other items go into «⋯» first), never over the page (spec §3.2,
+  «ничего не лежит на листе»); the selection's toasts stay between the strips above the shelf, as a toast the player
+  caused · a toolbar item that shows while it applies (Apple HIG, toolbars); the lead's decisions in review 1 · v1.7 e-1;
+  no walk test (a known gap)
 - `E-pdf-2` · What hung under the PDF's floating bar (the library's recognition line, the Pen's palette, the recording
   heard), the Pencil's palette and the Sources panel, now the PDF has the strips · the first three hang under the top
   strip over the pages; the Pencil's palette stays within the pages between the strips; the Sources panel takes the lower

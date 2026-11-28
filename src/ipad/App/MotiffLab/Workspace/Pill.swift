@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// The pill, since v1.7 e-1 the bottom shelf of «Пюпитр» (spec score-reading §3.2): at the left Play with the place, with a
-/// selection Цикл with its span and the phrase's ‹ ›; in the middle the tempo, the hands and the metronome; at the right
+/// The pill, since v1.7 e-1 the bottom shelf of «Пюпитр» (spec score-reading §3.2): at the left Play with the place, the
+/// chip back to the playing while the page is scrolled away from it, with a selection Цикл with its span and the phrase's
+/// ‹ ›; in the middle the tempo, the hands and the metronome; at the right
 /// the piano roll and the assistant, where the hand looks for them (Andrei's 0.8 test, findings 7 and 8). Its controls show
 /// their icons alone, their words for VoiceOver and the pointer's tip (v0.10, finding 22); what shows a value keeps it: the
 /// place, Цикл's span, the tempo and the hands, which say the mode. Where it has no room, the tempo, the metronome and the
-/// roll go into «⋯» (Andrei's answer A), then the phrase's steps. Every control takes a fingertip (`h-touch`, the shelf's
-/// `itemReach`). It shows
+/// roll go into «⋯» (Andrei's answer A), then the phrase's steps; the chip back to the playing stays beside Play. Every
+/// control takes a fingertip (`h-touch`, the shelf's `itemReach`). It shows
 /// what it is handed and calls the actions it is handed; the shelf it lies on is the screen's
 /// (`ScoreScreenContent.bottomShelf`).
 struct Pill: View {
@@ -23,6 +24,10 @@ struct Pill: View {
     let step: (Int) -> Void
     /// The piece tempo the player typed, kept with the piece (`ScoreController.setPieceTempo`).
     let setPieceTempo: (Int?) -> Void
+    /// The bar the music plays in while the page is scrolled away from it (testing item 4); nil while there is none.
+    let backTo: Int?
+    /// The chip's action: the page back to the playing (`ScoreController.returnToPlayhead`).
+    let back: () -> Void
     /// The roll's drawer, which its button opens and puts away.
     @Binding var rollOpen: Bool
     /// Whether the assistant's panel is open: its button is lit.
@@ -34,13 +39,14 @@ struct Pill: View {
     @State private var tempoFromMore = false
 
     /// How much of the pill has room on it (finding 22): all of it; all but the tempo, the metronome and the roll, which go
-    /// into «⋯»; and with less still, the phrase's steps go there too.
+    /// into «⋯»; and with less still, the phrase's steps go there too. The chip back to the playing stays in each (E-score-7).
     private enum Room { case full, compact, tight }
 
     var body: some View {
         // As built while it fits; with no room (a narrow Split View, say), the tempo, the metronome and the roll go into
         // «⋯» and play, the place, Цикл and the hands stay (finding 22, Andrei's answer A of 2026-11-19 09:55 UTC), then the
-        // phrase's steps too. SwiftUI measures: the first that fits the width the shelf gives, else the last.
+        // phrase's steps too; the chip back to the playing never goes (E-score-7). SwiftUI measures: the first that fits the width the shelf
+        // gives, else the last.
         ViewThatFits(in: .horizontal) {
             items(.full)
             items(.compact)
@@ -61,16 +67,34 @@ struct Pill: View {
         }
     }
 
-    /// Play with the place and Цикл, which wait for the player, and the phrase's steps while there is room for them.
+    /// Play with the place and Цикл, which wait for the player, the chip back to the playing in every room (the one target
+    /// that matters while playing, E-score-7), and the phrase's steps while there is room for them.
     private func start(_ room: Room) -> some View {
         HStack(spacing: CGFloat.ds("s-1")) {
             // The playback model (v0.5.2, #495 UX-10): one Play, cobalt or ink by the place, and Цикл with the span; in
             // Expand the same Play over its passage, which always loops (v0.6.4, spec 8).
             PositionTransport(player: player, passage: passage, text: text)
                 .disabled(!player.ready)
+            backChip
             if room != .tight {
                 stepButtons.disabled(!player.ready)
             }
+        }
+    }
+
+    /// Scrolled away from the playing, the way back to it beside Play (testing item 4; in the shelf since v1.7 e-1,
+    /// E-score-7): it comes and goes with the scroll, never over the page.
+    @ViewBuilder private var backChip: some View {
+        if let backTo {
+            Button(action: back) {
+                HStack(spacing: CGFloat.ds("s-1")) {
+                    Icon(name: "play", size: CGFloat.ds("icon-s"))
+                    Text(text.format("transport.backToPlay", String(backTo))).dsType(.label).lineLimit(1)
+                }
+                .foregroundStyle(Color.ds("accent"))
+            }
+            .buttonStyle(DSItemStyle())
+            .transition(.opacity)
         }
     }
 

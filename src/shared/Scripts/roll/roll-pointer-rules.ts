@@ -2,7 +2,6 @@
 // pointers edit, how many fingers move the roll, whether the stylus selects), the place rule's switch, and what they and
 // the bar's tool let a pointer do (roll-modes.ts selectsOnRoll, navigatesOnRoll). Written by PianoRoll's setters alone.
 
-import { BAR_ROW } from "./roll-viewport.js";
 import { navigatesOnRoll, selectsOnRoll } from "./roll-modes.js";
 import type { InputHost } from "./roll-input.js";
 
@@ -15,7 +14,7 @@ export interface PointerRules {
 }
 
 /** What the rules read of the roll. */
-export type PointersHost = Pick<InputHost, "view" | "editor" | "mode" | "lanes" | "laneShown" | "header">;
+export type PointersHost = Pick<InputHost, "view" | "editor" | "mode">;
 
 /** The pointers' rules on the roll. */
 export class RollPointers {
@@ -89,15 +88,5 @@ export class RollPointers {
     /** Whether a press of this pointer selects by its place: Select, the switch on, not the editor, nor a finger beside a stylus. */
     placeSelects(type: string): boolean {
         return this.placeOn && this.host.mode() === "select" && !this.host.editor.editing && this.selectsWith(type) && (type !== "touch" || !this.placeStylus);
-    }
-
-    /** Whether Select reads a press of this pointer at y by its place (roll-place-gesture.ts), over the notes and the bar numbers alike. */
-    placesAt(type: string, y: number): boolean {
-        return this.placeSelects(type) && !this.inHiddenLane(y);
-    }
-
-    /** Whether a point lies in the loop strip's lane while the strip is hidden (laneShown): there no press reaches the strip. */
-    inHiddenLane(y: number): boolean {
-        return this.host.lanes() && !this.host.laneShown() && y >= BAR_ROW && y < this.host.header();
     }
 }

@@ -130,3 +130,14 @@ final class DeviceSettings: ObservableObject {
         }
     }
 }
+
+/// The score's two visibilities of before v1.7 e-1 («Управление на листе»: the selection's controls and the playback
+/// controls, #582 item 10), kept on this device under `keys`: no longer read, as «Пюпитр» lays nothing on the page to
+/// hide, and taken off the device once on launch, as `SelectBy.forget` does.
+enum PageControlsShown {
+    static let keys = ["score.selectionControlsShown", "score.playbackControlsShown"]
+
+    static func forget(_ defaults: UserDefaults = .standard) {
+        for key in keys { defaults.removeObject(forKey: key) }
+    }
+}

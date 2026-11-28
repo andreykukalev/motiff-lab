@@ -6,7 +6,6 @@ import { test } from "node:test";
 
 import { actsOnRoll, drawPlayheads, drawPositionLine, gestureFor, notesInBox, rollPlaces, selectsOnRoll } from "../../src/shared/wwwroot/js/roll/roll-modes.js";
 import { viewOf } from "../../src/shared/wwwroot/js/playback/playback-model.js";
-import { practiced } from "../../src/shared/wwwroot/js/layout/practice-view.js";
 
 test("each mode begins its own gesture, and a press inside the selection only places a playhead in Select", () => {
     assert.equal(gestureFor("navigate", false), "pan");
@@ -47,8 +46,6 @@ test("the roll shows one playhead at the position: blue inside the selection, bl
     const crossing = [1900, 1919, 1920, 1940].map((tick) => at(tick, false, "playing"));
     assert.deepEqual(crossing.map((places) => places.blue ?? places.black), [1900, 1919, 1920, 1940]);
     assert.deepEqual(crossing.map((places) => places.blue !== null), [true, true, false, false]);
-    // Practice view hides the selection's playhead: black inside too (#533 11).
-    assert.deepEqual(rollPlaces(practiced(viewOf({ selection, loop: false, tick: 1200, transport: "playing" }), "on")), { black: 1200, blue: null, playing: true });
 });
 
 

@@ -62,8 +62,6 @@ export interface InputHost {
     touchReading(): boolean;
     axisZoom(): boolean;
     lanes(): boolean;
-    /** Whether the loop strip is shown and takes presses. */
-    laneShown(): boolean;
     hasPlayer(): boolean;
     playing(): boolean;
     /** The playhead a press of this pointer at (x, y) takes; null for none. */
@@ -230,7 +228,7 @@ export class RollInputRouter {
     /** A press on the loop strip inside the selection moves the position there (the lanes); elsewhere bars are selected as before. */
     pressLoopLane(y: number, tick: number): boolean {
         const motif = this.host.motif();
-        if (!this.host.laneShown() || (this.host.editor.editing && !this.pointers.ruled) || motif === null || y < BAR_ROW || y >= this.host.header() || tick < motif.start || tick >= motif.end) {
+        if (!this.host.lanes() || (this.host.editor.editing && !this.pointers.ruled) || motif === null || y < BAR_ROW || y >= this.host.header() || tick < motif.start || tick >= motif.end) {
             return false;
         }
         this.host.playhead.go(Math.round(tick), false);
@@ -271,7 +269,7 @@ export class RollInputRouter {
             header: y < header,
             placeHandle: () => this.onSelectionHandle(type, x, y),
             playhead: () => (under.head = this.host.playheadUnder(type, x, y)) !== null,
-            places: () => this.pointers.placesAt(type, y),
+            places: () => this.pointers.placeSelects(type),
             // In touch reading a finger on the notes moves through the music, neither selecting nor sounding; so does a pointer
             // that does not edit while the editor is on (#479 item 23).
             pans: () => this.host.touchReading() && !edits && y >= header && type !== "mouse",
@@ -389,7 +387,7 @@ export class RollInputRouter {
     private onSelectionHandle(type: string, x: number, y: number): boolean {
         const span = this.host.placeSpan();
         const frame = { xOf: (tick: number) => this.host.view.xOf(tick), header: this.host.header(), height: this.host.canvas.clientHeight };
-        return this.pointers.placesAt(type, y) && span !== null && onPlaceHandle(frame, span, x, y);
+        return this.pointers.placeSelects(type) && span !== null && onPlaceHandle(frame, span, x, y);
     }
 
     /** A point on the roll for the place gesture: its pitch a real number, so a row's centre is its pitch. */
@@ -445,9 +443,8 @@ export class RollInputRouter {
     private edgeAt(x: number): "start" | "end" | null {
         const motif = this.host.motif();
         const lanes = this.host.lanes();
-        // The lanes' handles are the loop strip's: hidden with it in practice view, they take nothing (#543, 0.5.6 tail).
         // Only Select changes the selection, so outside it the handles take nothing (#543 2, 4.2).
-        if (motif === null || !modeSelects(this.host.mode()) || (lanes && !this.host.laneShown())) {
+        if (motif === null || !modeSelects(this.host.mode())) {
             return null;
         }
         // The lanes' handles take a finger (WCAG 2.2, 2.5.8).
@@ -469,9 +466,6 @@ export class RollInputRouter {
         // In Navigate the strips select nothing (#543 2): a drag moves the roll, a tap moves the playhead, a hold puts it there.
         if (this.pointers.navigates(event.pointerType)) {
             this.beginNavigatePress(event, x, y, tick, pitch);
-            return;
-        }
-        if (this.pointers.inHiddenLane(y)) {
             return;
         }
         // Select follows the one selection gesture on the strips (#511 2.1, 6.3); Edit notes and the Pen keep their rules.
