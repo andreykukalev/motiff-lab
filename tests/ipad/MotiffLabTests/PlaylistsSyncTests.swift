@@ -28,8 +28,8 @@ actor FakePlaylists: PlaylistsFileStore {
 
 /// The playlists' step of a sync pass (v1.7 p-3), against the API as StubAPI answers it and a library's playlists file kept
 /// by `FakePlaylists`: a copy new on one side goes to the other, both changed merge three-way (`playlists.resolve`) with the
-/// pieces' former ids and go over the copy fetched, a stale save is merged again next pass, a later build's copy is never
-/// sent, and the player's edit during a pass is never written over.
+/// pieces' former ids and go over the copy fetched, a stale save is merged again next pass, a later build's copy online
+/// leaves this iPad's as it is, and the player's edit during a pass is never written over.
 extension CloudSyncTests {
     /// A pass that syncs these playlists too.
     func sync(playlists: FakePlaylists, writable: Bool = true) -> CloudSync {
@@ -109,6 +109,44 @@ extension CloudSyncTests {
         XCTAssertEqual(PlaylistsSyncRecord.load(for: records), PlaylistsSyncRecord(etag: "\"l2\"", base: online))
     }
 
+    /// The common path: synced before and changed only here since, the file goes over the copy last agreed on (If-Match
+    /// the record's ETag), and once it is online it is the new agreed copy.
+    func testPlaylistsChangedOnlyHereGoOverTheCopyLastAgreedOn() async throws {
+        let (base, bach) = try playlists("playlists.create", nil, ["name": "Бах", "pieces": ["p_a"]])
+        knownPlaylists(base)
+        let mine = try playlists("playlists.add", base, ["id": try XCTUnwrap(bach), "pieces": ["p_b"]]).file
+        StubAPI.reset(try onlinePlaylists(base, etag: "\"l1\"", put: .init(status: 204, body: Data(), headers: ["ETag": "\"l2\""])))
+        let here = FakePlaylists(mine)
+
+        let outcome = await sync(playlists: here).run()
+
+        XCTAssertFalse(outcome.playlistsNewerOnline)
+        let put = try XCTUnwrap(try playlistsPuts().first)
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "If-Match"), "\"l1\"")
+        XCTAssertEqual(put.body, mine)
+        let kept = await here.copy?.file
+        XCTAssertEqual(kept, mine, "nothing to write here")
+        XCTAssertEqual(PlaylistsSyncRecord.load(for: records), PlaylistsSyncRecord(etag: "\"l2\"", base: mine))
+    }
+
+    /// The first sync with playlists on both sides (each iPad moved its pieces' playlists, or made its own): no base, so the
+    /// merge is a union that loses nothing, and it goes over the copy fetched.
+    func testTheFirstSyncWithPlaylistsOnBothSidesKeepsAllOfThem() async throws {
+        let mine = try playlists("playlists.create", nil, ["name": "Бах", "pieces": ["p_a"]]).file
+        let online = try playlists("playlists.create", nil, ["name": "Шопен", "pieces": ["p_b"]]).file
+        StubAPI.reset(try onlinePlaylists(online, put: .init(status: 204, body: Data(), headers: ["ETag": "\"l3\""])))
+        let here = FakePlaylists(mine)
+
+        _ = await sync(playlists: here).run()
+
+        let merged = await here.copy?.file
+        XCTAssertEqual(try shown(merged), ["Бах": ["p_a"], "Шопен": ["p_b"]])
+        let put = try XCTUnwrap(try playlistsPuts().first)
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "If-Match"), "\"l2\"")
+        XCTAssertEqual(put.body, merged)
+        XCTAssertEqual(PlaylistsSyncRecord.load(for: records), PlaylistsSyncRecord(etag: "\"l3\"", base: merged))
+    }
+
     /// Changed on both sides: the merge keeps the piece added here and the playlist made on the other iPad, and goes over
     /// the copy fetched; a pass with nothing changed since asks nothing more than the two reads.
     func testPlaylistsChangedOnBothMergeAndGoOverTheCopyFetched() async throws {
@@ -182,8 +220,9 @@ extension CloudSyncTests {
         XCTAssertEqual(try shown(kept), ["Бах": [now]])
     }
 
-    /// A later build's copy online is never merged nor sent: it stays as it came, here too, read-only.
-    func testALaterBuildsOnlineCopyIsKeptAsItCameAndNothingIsSent() async throws {
+    /// A later build's copy online (the lead's decision, p-3 review 1) is never merged, taken here nor written over: the
+    /// file here stays as the player left it, nothing is sent, nothing is recorded as agreed, and the pass says so.
+    func testALaterBuildsOnlineCopyLeavesThePlaylistsHereAsTheyAreAndIsNeverWrittenOver() async throws {
         let (base, bach) = try playlists("playlists.create", nil, ["name": "Бах", "pieces": ["p_a"]])
         knownPlaylists(base)
         let mine = try playlists("playlists.add", base, ["id": try XCTUnwrap(bach), "pieces": ["p_b"]]).file
@@ -191,15 +230,23 @@ extension CloudSyncTests {
             object["version"] = 2
             object["future"] = 1
         }
-        StubAPI.reset(try onlinePlaylists(later))
+        StubAPI.reset(try onlinePlaylists(later, put: .init(status: 204, body: Data(), headers: ["ETag": "\"l3\""])))
         let here = FakePlaylists(mine)
 
-        _ = await sync(playlists: here).run()
+        let outcome = await sync(playlists: here).run()
 
+        XCTAssertTrue(outcome.playlistsNewerOnline)
         let kept = await here.copy?.file
-        XCTAssertEqual(try shown(kept), ["Бах": ["p_a"]])
-        XCTAssertTrue(try XCTUnwrap(kept).contains("\"future\""), "kept as it came")
+        XCTAssertEqual(kept, mine)
         XCTAssertTrue(try playlistsPuts().isEmpty)
+        XCTAssertEqual(PlaylistsSyncRecord.load(for: records), PlaylistsSyncRecord(etag: "\"l1\"", base: base))
+
+        // An iPad with none takes none either.
+        let none = FakePlaylists(nil)
+        let again = await sync(playlists: none).run()
+        XCTAssertTrue(again.playlistsNewerOnline)
+        let taken = await none.copy
+        XCTAssertNil(taken)
     }
 
     /// Where the app may not write, a pass only fetches: changed on both, nothing moves; changed online only, it comes here.

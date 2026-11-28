@@ -345,8 +345,8 @@ final class Account: ObservableObject {
     }
 
     /// «Удалить аккаунт и данные онлайн» (the 1.6 plan's decision 14, App Store 5.1.1(v)), once the player confirmed it:
-    /// everything they keep online in the environment the app works in goes (the API's DELETE /me: every project and the
-    /// profile), then they are signed out here. The project files on this iPad stay, and so do its sync records: a piece
+    /// everything they keep online in the environment the app works in goes (the API's DELETE /me: every project, the
+    /// playlists and the profile), then they are signed out here. The project files on this iPad stay, and so do its sync records: a piece
     /// here then counts as deleted online, as when another device deleted it, and goes online again only once it changes
     /// (E-settings-5). Nothing is asked while signed out or while the account is busy with another request.
     func deleteOnlineData() async -> OnlineDeletion {

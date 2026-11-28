@@ -33,7 +33,7 @@ servers) stays at the top of `src/ipad/App/MotiffLab`, where `src/ipad/build-ver
   `CloudSync.playlists`. `PlaylistsFileStore` is the library's side (p-4's record implements it: `current`, and
   `replace(_:with:)` only over the file it read); `PlaylistsSyncRecord` (`sync-playlists.json`, `sync-test-playlists.json`:
   ETag, base, `deletedOnline`); the step by `project.sync`'s facts, `playlists.resolve` with the base and the pieces'
-  `formerIds` (`rekeyed`, `PieceSummary.formerIds`); a later build's copy never sent; read-only where the app may not write.
+  `formerIds` (`rekeyed`, only when it merges); a later build's copy online left apart (`Outcome.playlistsNewerOnline`).
 
 ### Settings (W2.12, v1.6 i-14)
 

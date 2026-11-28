@@ -113,6 +113,8 @@ struct CloudSync {
         var reset: Int64?
         /// The pieces resolved with a conflict in this pass (v1.6 c-17b), for the library to say so.
         var conflicts: [SyncConflict] = []
+        /// The playlists online are a later build's (v1.7 p-3): left as they are with this iPad's, for the library to say so.
+        var playlistsNewerOnline = false
     }
 
     /// A project file here as the pass sees it: its bytes are read again only for the piece being sent or merged, so a
@@ -162,7 +164,7 @@ struct CloudSync {
         SyncRecords.save(records, to: recordsURL)
         SyncBases.prune(keeping: Array(records.keys), records: recordsURL)
         if let playlists {
-            await PlaylistsSync(online: online, store: playlists, recordsURL: recordsURL).run(pieces: await PlaylistsSync.rekeyed(in: folder))
+            outcome.playlistsNewerOnline = await PlaylistsSync(online: online, store: playlists, recordsURL: recordsURL, folder: folder).run()
         }
         outcome.overQuota = records.filter { here[$0.key] != nil && $0.value.overQuota }.count
         return outcome
