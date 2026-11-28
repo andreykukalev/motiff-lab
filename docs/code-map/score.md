@@ -31,7 +31,8 @@ change to the engraving options (`score-page.ts`) fails the run's fixture check 
   handle beats a playhead's, 0.9: `onEdgeHandle`); a span let go is read as the selection until `settle()`. Its edges and
   overlays (`.sel-edge`, ghost, addition, targets, `.sel-trace`) are drawn by `selection-place-draw.ts` (W3.14).
 - `selection-boxes.ts` (`bandBoxes`, `setBox`, `ordered`, `handStaves`/`handRuns`, `onMusic`), `selection-beats.ts`
-  (`ScoreBeats`), `selection-menu.ts`, `menu-drag.ts`.
+  (`ScoreBeats`), `selection-menu.ts`, `menu-drag.ts` (the menu keeps below the top the page gives, `--menu-top`: on the
+  iPad its strips, v1.7 e-1; else the web's bar, `MENU_TOP`).
 - `colour-bars.ts` (v0.10 d-5): the pen's colour bars. `page-colouring.ts` builds a second `PlaceLayer` for them (no
   selection, `edges: false`), so they colour exactly as Select selects; it posts `coloured` {start, end} and never
   changes the selection. The eraser takes the colour from the grid's cells under it (`rubbedColour`, `mergedSpans`).
@@ -52,7 +53,7 @@ change to the engraving options (`score-page.ts`) fails the run's fixture check 
 - Members: `PhraseCard`, `createPhraseCard` (the page uses `cardLayout`); `ScoreRules`, `ScorePan` (it uses `modeOf`,
   `beatUnder`); `readMarks`, `writeMarks`, `anchorBar`, `MIN_POINT_DISTANCE`, `TAP_DISTANCE`; `ScoreGeometry.barToPage`,
   `pageOf`; `MenuPin.moving`; `dispose` of `SelectionLayer`, `PlaceLayer`, `ScorePress`, `ScorePlayheadMarks`; `num`;
-  `PlayheadPress.owns`; `next` and its steps in `playback-model.ts`; `PracticeView`, `attach`; `applyTheme`,
+  `PlayheadPress.owns`; `next` and its steps in `playback-model.ts`; `applyTheme`,
   `applyStoredTheme`, `themeChoice`; `applyLanguage`, `clampSplit`.
 - Branches: the dot handles draw in Select with `places()` false, which is in focus: confirm on the device before
   cutting.

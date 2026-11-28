@@ -108,8 +108,6 @@ final class ScoreWorkspace: ObservableObject {
     /// selects nothing puts it away; the selection stays as it is (0018 section 6).
     func blankTapped() {
         change(.close(.insights))
-        // In practice view the tap shows Play/Pause and Leave for a few seconds too (#533 11).
-        score.practise(.tap)
     }
 
     /// The modes (version 0.5): a tap on a beat moves the black playhead there (the playback model, v0.5.2, T12), playing
@@ -122,7 +120,6 @@ final class ScoreWorkspace: ObservableObject {
         } else {
             player.apply(.place(beat.lowerBound))
         }
-        score.practise(.tap)
     }
 
     /// The pill's assistant button (Andrei's 0.8 test, finding 8, and his card of 2026-11-18 21:49 UTC): the panel opens

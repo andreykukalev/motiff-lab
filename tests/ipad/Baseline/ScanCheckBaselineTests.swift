@@ -96,7 +96,6 @@ final class ScanCheckBaselineTests: XCTestCase {
         // As the screen appears: the controllers handed the workspace's callbacks, so a flag's tap reaches the panels.
         await session.step("the screen opens, its sound not loaded") {
             session.workspace.wire()
-            session.appear()
             session.workspace.applyModel()
         }
         if let fingerprint = session.workspace.score.checkModel.check.fingerprint {

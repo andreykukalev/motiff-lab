@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// «Исполнение» over the view shown (v0.10, Andrei's finding 24): the recording picked in the switch, heard from a capsule
-/// under the bar of the notes, the PDF or a view shown over the piece. It is no view of its own: the view under it stays
-/// as it is, and it goes on as the screen switches between the PDF and the notes of the same file
-/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen`, under their bar, for their own
-/// piece or the one under them (`heardOver`).
+/// under the top strip of the notes, the PDF or a view shown over the piece (v1.7, E-score-3). It is no view of its own:
+/// the view under it stays as it is, and it goes on as the screen switches between the PDF and the notes of the same file
+/// (`SourcesController.handOver`). ✕ puts it away. Placed by `ScoreScreen` and `PdfScreen` under their top strip
+/// (`hungUnderTopStrip`), for their own piece or the one under them (`heardOver`).
 struct PerformanceCapsule: View {
     @ObservedObject var sources: SourcesController
     let text: UIText
@@ -14,6 +14,7 @@ struct PerformanceCapsule: View {
             RecordingViewCapsule(url: url, title: sources.layers.original(id)?.shown ?? text["sources.rolePlaying"], text: text) {
                 sources.putAway()
             }
+            .modifier(FloatingSurface())
             .id(id)
             .transition(.opacity)
         }
@@ -21,8 +22,8 @@ struct PerformanceCapsule: View {
 }
 
 extension PerformanceCapsule {
-    /// Whose recording a screen's bar shows: the piece's under a screen shown over it (a view picked in the switch, the PDF
-    /// linked in Files: `heardOver`), else the screen's own while its switch shows; nil for none.
+    /// Whose recording a screen shows under its top strip: the piece's under a screen shown over it (a view picked in the
+    /// switch, the PDF linked in Files: `heardOver`), else the screen's own while its switch shows; nil for none.
     static func sources(over: SourcesController?, own: SourcesController, switchOn: Bool) -> SourcesController? {
         over ?? (switchOn ? own : nil)
     }
@@ -33,7 +34,7 @@ private struct HeardOverKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The Sources of the piece under a screen shown over it, whose recording that screen's bar shows.
+    /// The Sources of the piece under a screen shown over it, whose recording that screen shows under its top strip.
     var heardOver: SourcesController? {
         get { self[HeardOverKey.self] }
         set { self[HeardOverKey.self] = newValue }
@@ -42,7 +43,7 @@ extension EnvironmentValues {
 
 extension View {
     /// A screen shown over the piece (a view picked in the switch, the PDF linked in Files) hears the piece's recording in
-    /// a capsule under its own bar, above its mode's options (v0.10 s-2 review).
+    /// a capsule under its own top strip, above its mode's options (v0.10 s-2 review).
     func heardOver(_ sources: SourcesController) -> some View {
         environment(\.heardOver, sources)
     }
@@ -51,7 +52,8 @@ extension View {
 /// The «Исполнение» capsule: the recording's sound kept on this iPad, heard as it is, from a capsule under the bar while the
 /// view under it stays as it is. Its slider moves through the recording, the time beside it (Andrei, v0.8 finding 20). ✕
 /// puts it away; a capsule with no `close` has none (v1.1: the player of a piece that is only its recording,
-/// `RecordingScreen`). Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the
+/// `RecordingScreen`, on its bottom shelf since v1.7 e-2). Its surface is where it stands: a capsule under the top strip
+/// (`PerformanceCapsule`), the shelf's on the recording. Its sound is the app's one `RecordingListening.shared`, so the capsule of the next screen hears the
 /// same.
 struct RecordingViewCapsule: View {
     let url: URL
@@ -78,8 +80,9 @@ struct RecordingViewCapsule: View {
                 if editing { listening.hold() } else { listening.release() }
             }
             .tint(Color.ds("accent"))
-            // Five fingertips wide: room to aim at a minute of a long recording.
-            .frame(width: CGFloat.ds("h-touch") * 5)
+            // Five fingertips wide: room to aim at a minute of a long recording; two where the shelf or the room is narrow
+            // (a narrow Split View), so the capsule never runs off the screen (E-rec-1).
+            .frame(minWidth: CGFloat.ds("h-touch") * 2, maxWidth: CGFloat.ds("h-touch") * 5)
             .disabled(listening.length == 0)
             .accessibilityLabel(text["sources.sheet.seek"])
             .accessibilityValue(text.format("sources.sheet.seekValue", SourceLayers.duration(listening.elapsed), SourceLayers.duration(listening.length)))
@@ -103,7 +106,6 @@ struct RecordingViewCapsule: View {
         .controlShape(.capsule)
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
         .onAppear { listening.shown(url) }
         .onDisappear { listening.hidden() }
     }

@@ -19,11 +19,13 @@ extension Walk {
 
     /// VIEW-01, VIEW-04: from the notes to the PDF and back. The bar reads Back, the Contents, the title, PDF | Notes,
     /// Sources, then the view's own actions with More last, in both views, Back, the Contents and the title in the same
-    /// places; while the notes open no old control (the bar's Play or Pause, the old Loop) appears, and the pill's Play is
-    /// there once they have. The bar is looked at a few times a second: a flash shorter than a look is not seen (VIEW-01's
+    /// places, across and up and down, and the two strips of «Пюпитр» (v1.7 e-2) where they are on the notes; while the
+    /// notes open no old control (the bar's Play or Pause, the old Loop) appears, and the pill's Play is there once they
+    /// have. The bar is looked at a few times a second: a flash shorter than a look is not seen (VIEW-01's
     /// «not even for a moment» is the device's to see).
     func pdfAndNotes() throws {
         let onNotes = try barPlaces("on the notes")
+        let stripsOnNotes = try strips("on the notes")
         try press(pdfSwitch, "PDF in the switch")
         try until("the PDF shown", timeout: 30) { $0.screen == "pdf" && $0.ready }
         shot("44-switch-pdf", settle: 1)
@@ -31,13 +33,26 @@ extension Walk {
         let moved: [(String, CGRect, CGRect)] = [("Back", onNotes.back, onPdf.back), ("Contents", onNotes.contents, onPdf.contents),
                                                  ("the title", onNotes.titleFrame, onPdf.titleFrame)]
             + (onNotes.title == onPdf.title ? [("PDF", onNotes.pdf, onPdf.pdf), ("Notes", onNotes.notes, onPdf.notes)] : [])
-        for (name, notes, pdf) in moved where abs(notes.minX - pdf.minX) > 2 {
-            throw miss("\(name) moved in the bar with the view: \(Int(notes.minX)) on the notes, \(Int(pdf.minX)) on the PDF (VIEW-04)")
+        for (name, notes, pdf) in moved where abs(notes.minX - pdf.minX) > 2 || abs(notes.minY - pdf.minY) > 2 {
+            throw miss("\(name) moved in the bar with the view: at \(Int(notes.minX)), \(Int(notes.minY)) on the notes, \(Int(pdf.minX)), \(Int(pdf.minY)) on the PDF (VIEW-04)")
+        }
+        let stripsOnPdf = try strips("on the PDF")
+        guard abs(stripsOnNotes.top - stripsOnPdf.top) <= 1, abs(stripsOnNotes.shelf - stripsOnPdf.shelf) <= 1 else {
+            throw miss("the strips moved with the view: the top strip to \(Int(stripsOnNotes.top)), the shelf from \(Int(stripsOnNotes.shelf)) on the notes, "
+                + "\(Int(stripsOnPdf.top)) and \(Int(stripsOnPdf.shelf)) on the PDF (VIEW-04)")
         }
         try press(notesSwitch, "Notes in the switch")
         try watchNotesOpen()
         try need(button(beginning: "Играть с"), "the pill's Play on the notes")
         shot("45-switch-notes", settle: 1)
+    }
+
+    /// Where the top strip ends and the bottom shelf starts («Пюпитр», spec score-reading §3.1): the page's room between them.
+    private func strips(_ view: String) throws -> (top: CGFloat, shelf: CGFloat) {
+        let top = try need(app.otherElements["ml-top-strip"], "the top strip \(view)").frame
+        let shelf = try need(app.otherElements["ml-bottom-shelf"], "the bottom shelf \(view)").frame
+        print("SCREEN-STRIPS \(tag) \(view): top strip to \(Int(top.maxY)), shelf from \(Int(shelf.minY))")
+        return (top.maxY, shelf.minY)
     }
 
     /// The bar's start, the switch, Sources and More in that order on one line (VIEW-04), each measured once it stands still.
@@ -93,7 +108,7 @@ extension Walk {
 
     /// A PDF piece (0023): its pages, the pen, More and the metronome.
     func pdfPiece() throws {
-        try need(button("Метроном"), "the metronome in the PDF's bar")
+        try need(button("Метроном"), "the metronome on the PDF's shelf")
         shot("40-pdf-piece", settle: 2)
         try press(button("Перо"), "the Pen on the PDF")
         try settled(button("Убрать карандаш"), "the PDF's pen palette")
@@ -106,7 +121,7 @@ extension Walk {
         try dismissPopover()
         // A known issue, not a pass: strict (the day the pill shows, the walk fails saying the expected failure did not
         // come) and narrow (only the pill's own assertion is expected to fail).
-        try press(button("Метроном"), "the metronome in the PDF's bar")
+        try press(button("Метроном"), "the metronome on the PDF's shelf")
         let pill = button("Убрать метроном")
         let options = XCTExpectedFailure.Options()
         options.isStrict = true
@@ -119,7 +134,7 @@ extension Walk {
             shot("42-pdf-metronome", settle: 1)
             try press(pill, "Close the metronome")
         } else {
-            print("SCREEN-QUESTION metronome \(tag): no pill after the PDF's Метроном in the simulator; to be checked on an iPad")
+            print("SCREEN-QUESTION metronome \(tag): no pill after the PDF shelf's Метроном in the simulator; to be checked on an iPad")
         }
     }
 }

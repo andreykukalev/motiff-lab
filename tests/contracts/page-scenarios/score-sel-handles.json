@@ -92,36 +92,36 @@
           "band": [
             {
               "left": 815,
-              "top": 227,
+              "top": 171,
               "right": 924,
-              "bottom": 358
+              "bottom": 302
             },
             {
               "left": 101,
-              "top": 461,
+              "top": 405,
               "right": 312,
-              "bottom": 607
+              "bottom": 551
             }
           ],
           "edges": [
             {
               "edge": "start",
               "x": 815,
-              "top": 227,
-              "bottom": 358,
+              "top": 171,
+              "bottom": 302,
               "handle": {
                 "x": 815,
-                "y": 292
+                "y": 236
               }
             },
             {
               "edge": "end",
               "x": 312,
-              "top": 461,
-              "bottom": 607,
+              "top": 405,
+              "bottom": 551,
               "handle": {
                 "x": 312,
-                "y": 534
+                "y": 478
               }
             }
           ]
@@ -189,36 +189,36 @@
           "band": [
             {
               "left": 815,
-              "top": 227,
+              "top": 171,
               "right": 924,
-              "bottom": 358
+              "bottom": 302
             },
             {
               "left": 101,
-              "top": 461,
+              "top": 405,
               "right": 380,
-              "bottom": 607
+              "bottom": 551
             }
           ],
           "edges": [
             {
               "edge": "start",
               "x": 815,
-              "top": 227,
-              "bottom": 358,
+              "top": 171,
+              "bottom": 302,
               "handle": {
                 "x": 815,
-                "y": 292
+                "y": 236
               }
             },
             {
               "edge": "end",
               "x": 380,
-              "top": 461,
-              "bottom": 607,
+              "top": 405,
+              "bottom": 551,
               "handle": {
                 "x": 380,
-                "y": 534
+                "y": 478
               }
             }
           ]

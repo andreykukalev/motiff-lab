@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14, c-14b3, i-18, c-17b, r-3):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-28, v1.7 e-1, e-2):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -24,6 +24,48 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   variation in progress, made from the old notes, goes; when the notes stay the same (bars restored that were never
   taken, a double tap) nothing changes · the same as after a correction (`SelectionSession.FollowNotes`, «Править ноты»)
   · v1.5 w17-4
+- `E-score-2` · «Пюпитр»'s strips (spec score-reading §3) on a draft's view, whose pill always shows · the draft's pill
+  is the top strip's second row, the strip a row taller, so nothing lies on the page · a toolbar's second row under the
+  navigation bar (Apple HIG, toolbars) · v1.7 e-1
+- `E-score-3` · What hung under the floating bar: the Pen's palette and Select's row (`ModeOptions`), the recording heard
+  and the read-only line · they hang under the top strip over the page as before: the player opened the first two (spec
+  §3.2, «остаётся поверх листа»), the line takes no touch · the bar's own behaviour since #511 4.2 · v1.7 e-1
+- `E-score-4` · A drawer's or a sheet's height on the Notes screen · a share of the room between the strips, never of the
+  screen, so neither reaches a strip; the roll drawer's kept share keeps its number · the spec's «между полосами»
+  (§3.2) · v1.7 e-1
+- `E-score-5` · A hidden keyboard's bar (a hardware keyboard's language and Undo) over the bottom shelf while a field is
+  focused · the shelf rises above it for that while, over the foot of the page, never above a whole keyboard · the
+  pill's rule since v0.6.4 (`KeyboardLift(barOnly:)`) · v1.7 e-1
+- `E-score-6` · Large Dynamic Type sizes and narrow Split View widths · the strips keep their height (the page never
+  shrinks or jumps); the bar and the shelf take their compact forms (the shelf's «⋯», then its tight form) · fixed-height
+  toolbars that collapse items into More (Apple HIG, toolbars) · v1.7 e-1
+- `E-score-7` · The chip back to the playing («К месту игры · такт N»), which comes by itself while the page is
+  scrolled away from the music playing · it is the bottom shelf's, beside Play in every room, tight too (the one target
+  that matters while playing; with little room the other items go into «⋯» first), never over the page (spec §3.2,
+  «ничего не лежит на листе»); the selection's toasts stay between the strips above the shelf, as a toast the player
+  caused · a toolbar item that shows while it applies (Apple HIG, toolbars); the lead's decisions in review 1 · v1.7 e-1;
+  no walk test (a known gap)
+- `E-pdf-2` · What hung under the PDF's floating bar (the library's recognition line, the Pen's palette, the recording
+  heard), the Pencil's palette and the Sources panel, now the PDF has the strips · the first three hang under the top
+  strip over the pages; the Pencil's palette stays within the pages between the strips; the Sources panel takes the lower
+  half of the room and its toast stands a gap (s-3) above the shelf; the keyboard never changes the screen's size there
+  either · as on the notes (E-score-3, E-score-4, E-score-5) · v1.7 e-2
+- `E-pdf-3` · The PDF's bottom shelf, which has no Play or tempo, and in a narrow Split View · the shelf is always there,
+  so the pages never move and the room is the notes' (VIEW-04); the metronome moves from the PDF's bar to its middle,
+  where the notes' shelf has it, the same item (a tap starts it, held a slide sets the tempo); its pill stands in the
+  item's place while open, every control a 44 pt target, and scrolls sideways where the shelf is narrower than it;
+  ✕ puts it away and the item comes back · the lead's decision of 2026-11-28 (the notes' shelf); the bar's last form
+  (`TopBar`) · v1.7 e-2
+- `E-pdf-4` · A PDF's page brought to rest (opening, PDF | Notes, a turn of the iPad, the Contents) and the first page at
+  the top of the document, with no bar over the pages any more · a page rests s-4 below the top strip, as the notes'
+  page does; the first page at the top rests below PDFKit's own page break (s-4 at the pages' scale), no room kept above
+  it; while the PDF loads, the turning wheel, and why it could not be read, stand in the room; a bookmarked page's tab
+  is drawn with its page and scrolls under the strips with it · the notes' `--pad-top` (#495 UX-12) · v1.7 e-2
+- `E-rec-1` · The recording view's strips (spec §2) · the recording's player lies on the bottom shelf, where the notes'
+  shelf has Play, on the shelf's surface with no capsule of its own; without its sound on this iPad the shelf stays,
+  empty; its slider narrows from five fingertips to two where the shelf is narrow (a narrow Split View); Sources' toast
+  stands a gap above the shelf and its panel over the lower half of the room · the notes' shelf (spec §3.2, rule 6: the
+  tools of play at the edge, near the hands) · v1.7 e-2
 
 ## Roll
 

@@ -307,11 +307,22 @@ private struct ControlShapeKey: EnvironmentKey {
     static let defaultValue = ControlShape.rounded
 }
 
+private struct ItemReachKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 extension EnvironmentValues {
     /// The outline the controls inside a container take for their tint (ControlShape).
     var controlShape: ControlShape {
         get { self[ControlShapeKey.self] }
         set { self[ControlShapeKey.self] = newValue }
+    }
+
+    /// How tall an item's touch reaches at least (`DSItemStyle`, `BarActionStyle`), its tint as tall as ever: the bottom
+    /// shelf's fingertip (`h-touch`, set by `DockedStrip`, v1.7 e-1, e-2); 0 elsewhere, the item's own height.
+    var itemReach: CGFloat {
+        get { self[ItemReachKey.self] }
+        set { self[ItemReachKey.self] = newValue }
     }
 }
 
@@ -328,13 +339,16 @@ struct BarActionStyle: ButtonStyle {
     var on = false
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.controlShape) private var outline
+    @Environment(\.itemReach) private var reach
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(on ? Color.ds("accent") : Color.ds("ink"))
             .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
+            // On a shelf (`itemReach`), the touch takes a whole fingertip round the tint, as `DSItemStyle`'s does.
+            .frame(minWidth: reach, minHeight: reach)
             .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(outline.shape)
+            .contentShape(reach > 0 ? AnyShape(Rectangle()) : outline.shape)
     }
 }
 
@@ -394,6 +408,7 @@ struct DSItemStyle: ButtonStyle {
     /// The tint's outline: a capsule in the pill and palettes, a row's rounded rectangle in a list (ControlShape).
     var outline = ControlShape.capsule
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.itemReach) private var reach
 
     func makeBody(configuration: Configuration) -> some View {
         SteadyLabel(label: configuration.label, on: on)
@@ -401,8 +416,10 @@ struct DSItemStyle: ButtonStyle {
             .padding(.horizontal, CGFloat.ds("s-3"))
             .frame(minHeight: 36)
             .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
+            // Where the shelf asks for a fingertip (`itemReach`), the touch takes its whole height round the tint.
+            .frame(minHeight: reach)
             .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(outline.shape)
+            .contentShape(reach > 0 ? AnyShape(Rectangle()) : outline.shape)
     }
 }
 
@@ -454,6 +471,35 @@ struct FloatingSurface: ViewModifier {
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(Color.ds("hairline")))
             .dsShadow(shadow)
+    }
+}
+
+/// A strip docked to the top or the bottom edge of the screen («Пюпитр», spec score-reading §3.1, v1.7 e-1, e-2): across
+/// the whole width, the opaque surface out to the screen's edge (under the status bar or the home indicator), the hairline
+/// on the side of the page, no shadow, radius or blur. Its content keeps inside the safe area, `margin` from the sides, and
+/// at least a fingertip tall: the top strip `h-touch` and `s-1` above and below (52 pt), the bottom shelf `h-touch` and
+/// `s-2` (60 pt), the same on the notes, the PDF and the recording, so switching views moves nothing (VIEW-04). The walk
+/// finds them by `ml-top-strip` and `ml-bottom-shelf`.
+struct DockedStrip: ViewModifier {
+    let edge: VerticalEdge
+
+    /// The strips' margin at the sides, where the bar floated before (s-4).
+    static var margin: CGFloat { CGFloat.ds("s-4") }
+
+    func body(content: Content) -> some View {
+        content
+            .frame(minHeight: CGFloat.ds("h-touch"))
+            .padding(.horizontal, Self.margin)
+            .padding(.vertical, CGFloat.ds(edge == .top ? "s-1" : "s-2"))
+            .frame(maxWidth: .infinity)
+            .background(Color.ds("surface").ignoresSafeArea(edges: edge == .top ? [.top, .horizontal] : [.bottom, .horizontal]))
+            .overlay(alignment: edge == .top ? .bottom : .top) {
+                Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            }
+            // Every control on the shelf takes a fingertip (spec §3.2: targets of at least 44 pt).
+            .environment(\.itemReach, edge == .bottom ? CGFloat.ds("h-touch") : 0)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(edge == .top ? "ml-top-strip" : "ml-bottom-shelf")
     }
 }
 

@@ -6,7 +6,6 @@
 // in one line, always shown: the position written as bar.beat, a frame round the bars on screen, the selection in cobalt
 // and the black dot. On that strip the dot and the frame are two things to drag (#521 1): the dot moves the position, the
 // frame moves the view. Pure drawing and arithmetic on what the roll gives; nothing here touches the DOM.
-import { practiceChrome, type PracticeShown } from "../layout/practice-view.js";
 import { drawPositionLine } from "./roll-modes.js";
 
 /** The loop strip's height under the bar numbers, and the whole-piece strip's height over the roll, in pixels. */
@@ -46,15 +45,6 @@ export interface LaneFrame {
     right: number;
     height: number;
     xOf(tick: number): number;
-}
-
-/**
- * Whether the loop strip is there, drawn and taking presses (#543, the tail of 0.5.6): with the lanes, and not in practice
- * view (#533 11), where it is hidden. Hidden, it takes no press at all: neither its handles, nor a tap that moves the
- * position into the selection, nor a drag that selects; the roll's playhead keeps its marker there and is taken as before.
- */
-export function laneShown(lanes: boolean, shown: PracticeShown): boolean {
-    return lanes && practiceChrome(shown).loopStrip;
 }
 
 /**

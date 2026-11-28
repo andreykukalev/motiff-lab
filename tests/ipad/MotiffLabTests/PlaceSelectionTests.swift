@@ -128,10 +128,4 @@ final class PlaceSelectionTests: XCTestCase {
         let blocks = ScoreController.tuplets([["start": 0, "end": 480], ["start": 960], ["start": 960, "end": 960]])
         XCTAssertEqual(blocks, [["start": 0, "end": 480]], "only groups with both ends")
     }
-
-    func testTheToastStandsAboveTheTransportAsTallAsItIs() {
-        XCTAssertEqual(ToastPlace.bottom(pillBottom: 16, transport: 52, gap: 12), 80, "above the pill with Loop and the metronome")
-        XCTAssertEqual(ToastPlace.bottom(pillBottom: 316, transport: 104, gap: 12), 432, "over a drawer, above a taller transport")
-        XCTAssertEqual(ToastPlace.bottom(pillBottom: 16, transport: 0, gap: 12), 16, "nothing floats: at the transport's place")
-    }
 }

@@ -2,7 +2,7 @@ import PDFKit
 import XCTest
 @testable import MotiffLab
 
-/// PDF | Notes whole whenever both views are on the iPad (#495 BUG-02), and a PDF's pages resting below the floating bar
+/// PDF | Notes whole whenever both views are on the iPad (#495 BUG-02), and a PDF's pages resting below the top strip
 /// where the notes' pages do (#495 UX-12).
 final class PdfNotesTests: XCTestCase {
     /// A piece's summary as music-core's answers carry it (`project`, contract 4).
@@ -68,18 +68,15 @@ final class PdfNotesTests: XCTestCase {
         XCTAssertFalse(OriginalsController().canOpenLinkedPdf, "nothing said yet, nothing offered")
     }
 
-    func testThePdfsPagesRestBelowTheBarWhereTheNotesPagesDo() {
-        // The bar's 12 pt margin and 44 pt height (s-3, h-touch), then the notes' gap of 16 pt (s-4): score.css `--pad-top`.
-        let top = PageRest.pageTop(barBottom: 56, gap: 16)
-        XCTAssertEqual(top, 72)
-        XCTAssertEqual(PageRest.room(pageTop: top, firstPage: 16), 56, "PDFKit's page break above page 1 counts in the room")
-        XCTAssertEqual(PageRest.room(pageTop: top, firstPage: 120), 0, "never less than none")
-        let lowest = -PageRest.room(pageTop: top, firstPage: 16)
-        XCTAssertEqual(PageRest.offset(page: 16, pageTop: top, lowest: lowest, highest: 5_000), lowest, "page 1 brought to the top rests where the top of the document does")
-        XCTAssertEqual(PageRest.offset(page: 1_200, pageTop: top, lowest: lowest, highest: 5_000), 1_128, "a later page's top 72 pt below the view's top")
-        XCTAssertEqual(PageRest.offset(page: 6_000, pageTop: top, lowest: lowest, highest: 5_000), 5_000, "the last pages stop at the end")
-        XCTAssertEqual(PageRest.offset(page: 600, pageTop: top, lowest: lowest, highest: -200), lowest, "a short document stays at its top")
-        XCTAssertEqual(PageRest.pageTop(barBottom: 56), 56 + CGFloat.ds("s-4"), "the gap is the kit's s-4")
+    func testThePdfsPagesRestBelowTheTopStripWhereTheNotesPagesDo() {
+        // Since v1.7 e-2 the pages' view starts at the top strip's edge: a page rests the notes' gap below it (s-4,
+        // score.css `--pad-top`), with no room kept for a bar floating over the pages.
+        let top = PageRest.gap
+        XCTAssertEqual(top, CGFloat.ds("s-4"), "the gap is the kit's s-4")
+        XCTAssertEqual(PageRest.offset(page: 16, pageTop: top, lowest: 0, highest: 5_000), 0, "page 1 brought to the top rests where the top of the document does")
+        XCTAssertEqual(PageRest.offset(page: 1_200, pageTop: top, lowest: 0, highest: 5_000), 1_200 - top, "a later page's top the gap below the strip")
+        XCTAssertEqual(PageRest.offset(page: 6_000, pageTop: top, lowest: 0, highest: 5_000), 5_000, "the last pages stop at the end")
+        XCTAssertEqual(PageRest.offset(page: 600, pageTop: top, lowest: 0, highest: -200), 0, "a short document stays at its top")
     }
 
     /// A page photographed again loads the PDF again (`PhotoReadingPanel`): the pages' view shows the PDF loaded, at that

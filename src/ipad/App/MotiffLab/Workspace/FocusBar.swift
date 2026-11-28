@@ -4,7 +4,8 @@ import SwiftUI
 /// Piano roll and Ask; no Play (#511 section 8.1: the pill's is the one). Escape on a keyboard goes back too. While a
 /// variation is tried, Original / Variation / Alternate choose what sounds; with another version over the phrase and no
 /// variation, Notes / Version / Alternate, and Take into the score or Restore these notes for the phrase's bars (0022,
-/// section 5). Reading / As played comes with transcriptions on the iPad.
+/// section 5). Reading / As played comes with transcriptions on the iPad. In Expand it is the top strip's row, on the
+/// strip's surface as the bar is (`ScoreScreenContent.topStrip`, v1.7 e-1).
 struct FocusBar: View {
     @ObservedObject var score: ScoreController
     /// The card's position names the selection, from both models.
@@ -56,7 +57,6 @@ struct FocusBar: View {
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
     }
 }
 
@@ -94,8 +94,8 @@ struct FocusShowAs: View {
     }
 }
 
-/// The phrase as a roll in focus (testing item 12): a card over the page's card, as wide and as tall as the stage between the bar
-/// and the pill, with the roll inside and the zoom on each axis floating over the notes. Expand inspects the passage (#521
+/// The phrase as a roll in focus (testing item 12): a card over the page's card, as wide and as tall as the stage between the
+/// strips (v1.7 e-1), with the roll inside and the zoom on each axis floating over the notes. Expand inspects the passage (#521
 /// 19.3): no mode switch and no note editor here, no arrows to another phrase; a draft of note edits waits in the drawer.
 struct FocusRollCard: View {
     @ObservedObject var roll: RollController
@@ -108,9 +108,9 @@ struct FocusRollCard: View {
             .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
             .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-m")).strokeBorder(Color.ds("accent"), lineWidth: 2))
             .dsShadow("shadow-sheet")
-            // The stage's insets, as Web/score.css `#focus .stage` has them.
+            // The stage's insets, as Web/score.css `#focus .stage` has them in the room between the strips.
             .padding(.horizontal, CGFloat.ds("s-4"))
-            .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-5"))
-            .padding(.bottom, 52 + CGFloat.ds("s-4") * 2)
+            .padding(.top, CGFloat.ds("s-5"))
+            .padding(.bottom, CGFloat.ds("s-4"))
     }
 }

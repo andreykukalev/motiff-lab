@@ -5,7 +5,6 @@
 // against this file and the page, and ScorePageContractTests against Swift; Swift reads the payloads by hand.
 import type { Handle } from "../playback/playback-model.js";
 import type { DragMessage } from "../playback/playhead-drag.js";
-import type { PracticeShown } from "../layout/practice-view.js";
 import type { CardOssia } from "./phrase-card.js";
 import type { BarBeatPlace } from "./phrase-drag.js";
 import type { BarFrame, InkPoint, MarkColour, MarkTool, PencilMark } from "./pencil-marks.js";
@@ -212,8 +211,6 @@ export interface PageCommands {
     returnToPlayhead(): boolean;
     mode(chosen: { name: string | null | undefined }): void;
     playheads(model: PagePlayheads | null | undefined): void;
-    practice(shown: PracticeShown): void;
-    selectionControls(shown: boolean): void;
     writing(stroke: { on: boolean }): void;
     /** No card shows at the mark the page follows any more (r-1): it stops telling where the mark is (`markMoved`). */
     markForgotten(): void;

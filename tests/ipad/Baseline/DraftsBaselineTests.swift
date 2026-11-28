@@ -214,7 +214,6 @@ final class DraftsBaselineTests: XCTestCase {
         XCTAssertEqual(score.placeMarkers.filter { $0["place"] as? Bool == true }.compactMap { $0["bar"] as? Int }, [1, 5], "a label over each place's start")
         await session.step("the draft's view opens, its sound not loaded") {
             session.workspace.wire()
-            session.appear()
             session.workspace.applyModel()
         }
         let second = Double(places[1].onset)..<Double(places[1].end)

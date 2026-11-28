@@ -1,39 +1,45 @@
 import SwiftUI
 
-/// What floats over the top and the bottom of the score: the bar (Expand's in focus) with what hangs under it, and the
-/// transport with the pill. The bar and the pill are their own views (`ScoreBar`, `Pill`, `FocusBar`), handed what they
-/// show and the actions they call; this is where they float and what they are handed.
+/// The two strips of «Пюпитр» (spec score-reading §3, v1.7 e-1) and what stands at their edges over the page: the top strip
+/// holds the bar (Expand's focus bar in focus) and, on a draft's view, the draft's pill under it; the bottom shelf holds
+/// the pill, with the chip back to the playing beside Play. Under the top strip, over the page, hangs what the player opened
+/// there (the recording heard, the chosen mode's options). The bar and the pills are their own views
+/// (`ScoreBar`, `FocusBar`, `Pill`, `DraftAssemblyPill`), handed what they show and the actions they call; this is where
+/// they stand and what they are handed.
 extension ScoreScreenContent {
-    /// Under the top of the screen: the bar or the focus bar, the recording heard, a draft's pill and the mode's options;
-    /// `width` is the bar's, the screen's less its margins (TopBar).
-    func bars(width: CGFloat) -> some View {
-        VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
+    /// The top strip's content (`Strips`, the PDF's and the recording's too, so Back, the Contents, the title and the
+    /// switch stand where theirs have them, VIEW-04): the bar or the focus bar, `barWidth` wide, and a draft's pill under it.
+    func topStrip(barWidth: CGFloat) -> some View {
+        VStack(alignment: .trailing, spacing: CGFloat.ds("s-1")) {
             if focusModel.focused {
                 FocusBar(score: score, selectionModel: selectionModel, focusModel: focusModel, player: player, variationRange: variationRange, text: text)
             } else {
                 ScoreBar(title: piece.title, pages: score.pages, text: text, mode: $score.mode, penModel: penModel, marksModel: marksModel, checkModel: checkModel,
-                         practice: PracticeButton(score: score, focusModel: focusModel, text: text),
                          layers: LayersList(score: score, marksModel: marksModel, checkModel: checkModel, text: text, hasVersions: hasVersions), panels: panels, change: change, pdf: workspace.toPdf(switchView), openDna: { openDna(fromMore: true) }, toggleExtra: { marksModel.toggleExtra() }, openReference: { change(.open(.reference)) },
                          problem: player.problem ?? score.problem, askAboutPiece: askAboutPiece, sourceLayers: switchLayers, currentView: currentView, pickView: switchPick, viewing: viewing,
-                         viewNote: sourcesModel.engraved.note(text), width: width) { dismiss() }
-            }
-            if !focusModel.focused, let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
-                PerformanceCapsule(sources: heard, text: text)
+                         viewNote: sourcesModel.engraved.note(text), width: barWidth) { dismiss() }
             }
             if !focusModel.focused, let draft = piece.draft {
                 DraftAssemblyPill(score: score, model: score.draftModel, player: player, draft: draft, text: text)
-                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.layersSpace)).maxY } action: { draftPillBottom = $0 }
             }
-            if !focusModel.focused {
+        }
+        .animation(.easeOut(duration: 0.16), value: focusModel.focused)
+    }
+
+    /// Under the top strip, over the page, what the player opened there: the recording heard and the chosen mode's options.
+    @ViewBuilder var underStrip: some View {
+        if !focusModel.focused {
+            VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
+                if let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourcesOn) {
+                    PerformanceCapsule(sources: heard, text: text)
+                }
                 // The chosen mode's options under the bar (#511 4.2, option B): the Pen's palette, Select's row.
                 ModeOptions(score: score, selectionModel: selectionModel, text: text, hasVersions: hasVersions, penOn: penModel.penOn,
                             marksHidden: !marksModel.hiddenLayers.isDisjoint(with: MarksModel.layers))
             }
+            .hungUnderTopStrip()
+            .animation(.easeOut(duration: 0.16), value: penModel.penOn)
         }
-        .padding(.horizontal, CGFloat.ds("s-4"))
-        .padding(.top, CGFloat.ds("s-3"))
-        .animation(.easeOut(duration: 0.16), value: penModel.penOn)
-        .animation(.easeOut(duration: 0.16), value: focusModel.focused)
     }
 
     /// The question about the whole piece from the bar's More: the assistant's panel opens on it (#582 item 17.1).
@@ -41,51 +47,20 @@ extension ScoreScreenContent {
         assistant.open(wholePiece: true, selection: selectionModel.selection)
     }
 
-    /// Over the bottom of the page: the chip back to the playing, the pill, and in practice view its own controls (#533 11).
-    @ViewBuilder private var transport: some View {
-        // Scrolled away from the playing, a chip leads back to it (testing item 4).
-        if let away = score.playheadAway, player.state != .stopped, !focusModel.focused, score.practiceChrome.transport, let bar = player.barNumber(at: away) {
-            Button {
-                score.returnToPlayhead()
-            } label: {
-                HStack(spacing: 6) {
-                    Icon(name: "play", size: CGFloat.ds("icon-s"))
-                    Text(text.format("transport.backToPlay", String(bar))).dsType(.label)
-                }
-                .foregroundStyle(Color.ds("accent"))
-                .padding(.horizontal, CGFloat.ds("s-3"))
-                .frame(height: 32)
-                .modifier(FloatingSurface())
-            }
-            .buttonStyle(.plain)
-            .transition(.opacity)
-        }
-        // Practice view (#533 11): the pill gives way to Play/Pause and Leave, shown a few seconds after a tap.
-        // The pill always shows (the playback model, v0.5.2, #479 item 22): it is where the music plays.
-        if score.practiceChrome.transport {
-            Pill(player: player, selectionModel: selectionModel, focusModel: focusModel, draftModel: score.draftModel, text: text, passage: score.expandPassage, step: { focusModel.step($0) }, setPieceTempo: setPieceTempo,
-                 rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
-                workspace.assistantPressed()
-            }
-            .transition(.opacity)
-        }
-        if score.practiceChrome.controls {
-            PracticeControls(player: player, score: score, text: text)
-                .transition(.opacity)
+    /// The bottom shelf's content (`Strips`): the pill, which always shows (the playback model, v0.5.2, #479 item 22): it
+    /// is where the music plays.
+    var bottomShelf: some View {
+        Pill(player: player, selectionModel: selectionModel, focusModel: focusModel, draftModel: score.draftModel, text: text, passage: score.expandPassage, step: { focusModel.step($0) }, setPieceTempo: setPieceTempo,
+             backTo: backToBar, back: { score.returnToPlayhead() }, rollOpen: panel(.roll), assistantOpen: assistant.panelOpen) {
+            workspace.assistantPressed()
         }
     }
 
-    /// The transport over the bottom of the score, `bottom` above the screen's edge and clear of a sheet or a drawer at the
-    /// sides (`leading`, `trailing`).
-    func transportLayer(bottom pillBottom: CGFloat, leading pillLeading: CGFloat, trailing pillTrailing: CGFloat) -> some View {
-        // The pill rides above whatever comes up from the bottom, and beside a sheet or a drawer at the side. It
-        // shows with a selection or while the music plays, or only while it plays (the setting
-        // "guidance.transportPill", 0018 section 10).
-        // Measured, so the selection's toast stands above it (v0.6.4, spec 7); above a hidden keyboard's bar (iPadOS's
-        // «RU» and Undo), never above the keyboard itself (v0.6.4).
-        VStack(spacing: CGFloat.ds("s-2")) { transport }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { transportHeight = $0 }.keyboardLift(barOnly: true)
-        .padding(.bottom, pillBottom)
-        .padding(.trailing, pillTrailing).padding(.leading, pillLeading)
+    /// The bar the music plays in while the page is scrolled away from it (testing item 4), out of Expand: the shelf's chip
+    /// back to the playing says it; nil while there is none.
+    private var backToBar: Int? {
+        guard let away = score.playheadAway, player.state != .stopped, !focusModel.focused else { return nil }
+        return player.barNumber(at: away)
     }
 
     /// The piece tempo the player typed in the pill, kept with the piece (ScoreController.setPieceTempo).

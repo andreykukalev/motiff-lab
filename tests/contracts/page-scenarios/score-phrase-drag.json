@@ -205,9 +205,9 @@
               "selected": false,
               "current": false,
               "left": 151,
-              "top": 170,
+              "top": 114,
               "right": 159,
-              "bottom": 182
+              "bottom": 126
             },
             {
               "kind": "letter",
@@ -217,9 +217,9 @@
               "selected": false,
               "current": false,
               "left": 161,
-              "top": 164,
+              "top": 108,
               "right": 181,
-              "bottom": 184
+              "bottom": 128
             },
             {
               "kind": "number",
@@ -229,9 +229,9 @@
               "selected": false,
               "current": false,
               "left": 185,
-              "top": 164,
+              "top": 108,
               "right": 191,
-              "bottom": 182
+              "bottom": 126
             },
             {
               "kind": "comma",
@@ -241,9 +241,9 @@
               "selected": false,
               "current": false,
               "left": 585,
-              "top": 219,
+              "top": 163,
               "right": 593,
-              "bottom": 231
+              "bottom": 175
             },
             {
               "kind": "number",
@@ -253,9 +253,9 @@
               "selected": false,
               "current": false,
               "left": 595,
-              "top": 213,
+              "top": 157,
               "right": 603,
-              "bottom": 231
+              "bottom": 175
             },
             {
               "kind": "comma",
@@ -266,9 +266,9 @@
               "selected": false,
               "current": false,
               "left": 635,
-              "top": 196,
+              "top": 140,
               "right": 643,
-              "bottom": 208
+              "bottom": 152
             },
             {
               "kind": "comma",
@@ -278,9 +278,9 @@
               "selected": false,
               "current": false,
               "left": 310,
-              "top": 444,
+              "top": 388,
               "right": 318,
-              "bottom": 456
+              "bottom": 400
             },
             {
               "kind": "letter",
@@ -290,9 +290,9 @@
               "selected": false,
               "current": false,
               "left": 320,
-              "top": 438,
+              "top": 382,
               "right": 339,
-              "bottom": 458
+              "bottom": 402
             },
             {
               "kind": "number",
@@ -302,9 +302,9 @@
               "selected": false,
               "current": false,
               "left": 343,
-              "top": 438,
+              "top": 382,
               "right": 350,
-              "bottom": 456
+              "bottom": 400
             },
             {
               "kind": "comma",
@@ -314,9 +314,9 @@
               "selected": false,
               "current": false,
               "left": 204,
-              "top": 705,
+              "top": 649,
               "right": 212,
-              "bottom": 717
+              "bottom": 661
             },
             {
               "kind": "number",
@@ -326,9 +326,9 @@
               "selected": false,
               "current": false,
               "left": 214,
-              "top": 699,
+              "top": 643,
               "right": 219,
-              "bottom": 717
+              "bottom": 661
             },
             {
               "kind": "comma",
@@ -338,9 +338,9 @@
               "selected": false,
               "current": false,
               "left": 651,
-              "top": 685,
+              "top": 629,
               "right": 659,
-              "bottom": 697
+              "bottom": 641
             },
             {
               "kind": "number",
@@ -350,9 +350,9 @@
               "selected": false,
               "current": false,
               "left": 661,
-              "top": 679,
+              "top": 623,
               "right": 668,
-              "bottom": 697
+              "bottom": 641
             },
             {
               "kind": "comma",
@@ -362,9 +362,9 @@
               "selected": false,
               "current": false,
               "left": 366,
-              "top": 938,
+              "top": 882,
               "right": 374,
-              "bottom": 950
+              "bottom": 894
             },
             {
               "kind": "number",
@@ -374,9 +374,9 @@
               "selected": false,
               "current": false,
               "left": 376,
-              "top": 932,
+              "top": 876,
               "right": 382,
-              "bottom": 950
+              "bottom": 894
             },
             {
               "kind": "comma",
@@ -386,9 +386,9 @@
               "selected": false,
               "current": false,
               "left": 707,
-              "top": 1164,
+              "top": 1108,
               "right": 715,
-              "bottom": 1176
+              "bottom": 1120
             },
             {
               "kind": "number",
@@ -398,9 +398,9 @@
               "selected": false,
               "current": false,
               "left": 717,
-              "top": 1158,
+              "top": 1102,
               "right": 723,
-              "bottom": 1176
+              "bottom": 1120
             }
           ]
         }
@@ -436,7 +436,7 @@
             {
               "phraseHeld": 3,
               "left": 342.953125,
-              "bottom": 456.125
+              "bottom": 400.125
             }
           ]
         }
@@ -554,7 +554,7 @@
             {
               "phraseHeld": 1,
               "left": 185,
-              "bottom": 182.1875
+              "bottom": 126.1875
             }
           ]
         }

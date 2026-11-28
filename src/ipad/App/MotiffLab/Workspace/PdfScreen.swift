@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// A PDF piece's screen (0023, the web app's `/pdf`): the score's paper with the printed pages on it, the bar over the top
-/// with the way back, the title, which opens the bookmarked pages, the page under the bar, the PDF tag, the bookmark for
-/// the page, the metronome, the pen and the overflow with Download the PDF. The pen's palette comes under the bar as on
-/// the score, and the metronome's pill floats at the bottom where the score's transport does. No notes play here.
+/// A PDF piece's screen (0023, the web app's `/pdf`): the score's paper with the printed pages on it, between the two strips
+/// of «Пюпитр» as on the notes (spec score-reading §2, §3, v1.7 e-2): the top strip with the way back, the title, which
+/// opens the bookmarked pages, the page in view, the PDF tag, the bookmark for the page, the pen and the overflow with
+/// Download the PDF; the bottom shelf with the metronome in its middle, as on the notes, and its pill there while it is
+/// open. The pen's palette hangs under the top strip as on the notes. No notes play here.
 struct PdfScreen: View {
     let piece: OpenPiece
     /// Opens the piece's other view in its place, for PDF | Notes (0023); nil where the library has none.
@@ -46,8 +47,6 @@ struct PdfScreen: View {
     @State var more = false
     @State var metronomeOpen = false
     @State var referenceOpen = false
-    /// The floating bar's bottom edge as laid out, in the screen's space; nil before it is.
-    @State var measuredBarBottom: CGFloat?
     /// The piece is being handed to its notes: a second press on the switch meanwhile does nothing (#582 item 2).
     @State var handingOver = false
 
@@ -65,62 +64,23 @@ struct PdfScreen: View {
     }
 
     var body: some View {
-        GeometryReader { screen in
-            ZStack(alignment: .top) {
-                Color.ds("desk").ignoresSafeArea()
-                if let document = pdf.document {
-                    PdfPages(document: document, twoUp: screen.size.width > screen.size.height, barBottom: barBottom, controller: pdf)
-                        .ignoresSafeArea(edges: .bottom)
-                } else if pdf.problem == nil {
-                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                if let problem = pdf.problem {
-                    Text(problem)
-                        .dsType(.label)
-                        .foregroundStyle(Color.ds("danger"))
-                        .padding(CGFloat.ds("s-4"))
-                        .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
-                        .padding(.top, CGFloat.ds("h-touch") + CGFloat.ds("s-6"))
-                        .accessibilityAddTraits(.isStaticText)
-                }
-                VStack(alignment: .trailing, spacing: CGFloat.ds("s-2")) {
-                    bar(width: screen.size.width - 2 * CGFloat.ds("s-4"))
-                    if let file = background.file, let line = background.line {
-                        line(handingOver) { Task { await openBackgroundNotes(file) } }
-                    }
-                    if pdf.penOn {
-                        PdfPenPalette(pdf: pdf, text: text)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                    // The recording heard over the pages, as over the notes (v0.10, finding 24).
-                    if let heard = PerformanceCapsule.sources(over: pieceUnder, own: sources, switchOn: sourceLayers != nil) {
-                        PerformanceCapsule(sources: heard, text: text)
+        // The strips of «Пюпитр» as on the notes (`Strips`), the pages between them and what the player opens over them.
+        Strips { barWidth in
+            bar(width: barWidth)
+        } room: { room, landscape in
+            desk(twoUp: landscape)
+                .overlay(alignment: .topTrailing) { underStrip }
+                .overlay {
+                    if let call = pdf.pencilPalette {
+                        // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8).
+                        PencilPalette(holder: pdf, call: call, text: text)
                     }
                 }
-                // Where the score's bar floats (ds.css `.bar`), so PDF | Notes leaves it in place (#479 item 13).
-                .padding(.horizontal, CGFloat.ds("s-4"))
-                .padding(.top, CGFloat.ds("s-3"))
-                .animation(.easeOut(duration: 0.16), value: pdf.penOn)
-                if let call = pdf.pencilPalette {
-                    // The pencil palette, opened by the Pencil's double tap or squeeze (#479 item 8).
-                    PencilPalette(holder: pdf, call: call, text: text)
-                }
-            }
-            .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
-            .coordinateSpace(.named(PdfScreen.screenSpace))
-            .overlay(alignment: .bottom) {
-                if metronomeOpen {
-                    MetronomePill(metronome: metronome, text: text) {
-                        metronome.stop()
-                        metronomeOpen = false
-                    }
-                    .padding(.bottom, CGFloat.ds("s-6"))
-                    .transition(.opacity)
-                }
-            }
-            .animation(.easeOut(duration: 0.2), value: metronomeOpen)
-            .overlay(alignment: .bottom) { sourcesPanel(height: screen.size.height / 2) }
-            .animation(.easeOut(duration: 0.2), value: sourcesOpen)
+                .animation(.easeOut(duration: 0.16), value: pdf.pencilPalette)
+                .overlay(alignment: .bottom) { sourcesPanel(height: room.height / 2) }
+                .animation(.easeOut(duration: 0.2), value: sourcesOpen)
+        } shelf: {
+            shelf
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $readingOpen, onDismiss: {
@@ -184,8 +144,26 @@ struct PdfScreen: View {
         }
     }
 
-    /// The PDF screen's space, from the top of the pages' view, in which the floating bar is measured (#495 UX-12).
-    static let screenSpace = "pdf.screen"
+    /// The pages on the desk between the strips; while they are read a turning wheel, and why not when they cannot be.
+    private func desk(twoUp: Bool) -> some View {
+        ZStack(alignment: .top) {
+            Color.ds("desk")
+            if let document = pdf.document {
+                PdfPages(document: document, twoUp: twoUp, controller: pdf)
+            } else if pdf.problem == nil {
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            if let problem = pdf.problem {
+                Text(problem)
+                    .dsType(.label)
+                    .foregroundStyle(Color.ds("danger"))
+                    .padding(CGFloat.ds("s-4"))
+                    .background(Color.ds("surface"), in: RoundedRectangle(cornerRadius: CGFloat.ds("r-m")))
+                    .padding(.top, CGFloat.ds("s-6"))
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
+    }
 
     private func save() {
         guard let file = piece.file else { return }

@@ -243,7 +243,7 @@ class FakeCanvas extends FakeElement {
  * Puts a fake page on the global object and returns it: the host the roll is made in (`width` by `height`, filling its
  * panel as roll.html's does, data-fill), the device's pixel ratio, a clock (`now`), and `frame(ms)`, which moves the clock
  * on, runs the timers due by then (a hold, a span kept until its answer) in the order they fall due, then the frames asked
- * for. `practice` sets practice view on the body ("off", "on" or "reveal").
+ * for.
  */
 export function fakePage({ width = 480, height = 320, ratio = 2 } = {}) {
     const listeners = new Map();
@@ -278,9 +278,6 @@ export function fakePage({ width = 480, height = 320, ratio = 2 } = {}) {
             for (const run of page.resizers) {
                 run();
             }
-        },
-        practice(value) {
-            body.setAttribute("data-practice", value);
         },
     };
     globalThis.document = {

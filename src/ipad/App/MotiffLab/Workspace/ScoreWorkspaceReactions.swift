@@ -59,19 +59,6 @@ extension ScoreWorkspace {
         }
     }
 
-    /// Practice view (#533 11): the page and the roll hide the blue playhead, the roll its loop strip too. The reaction on
-    /// `score.practicing`, which also runs as the screen first appears.
-    func practicingChanged(_ on: Bool) {
-        score.sendPractice()
-        roll.practice(on)
-    }
-
-    /// The selection controls (#582 item 10): the page's handles go with the menu. The reaction on
-    /// `score.selectionControlsShown`.
-    func selectionControlsChanged(_ shown: Bool) {
-        score.sendSelectionControls(shown)
-    }
-
     /// The roll in focus is the drawer's roll laid over the card, at the player's zoom (#511 section 5), bound to the passage
     /// Expand was opened on (#521 19): only it, laid across the card; the drawer gives it up and gets it back (PanelState).
     /// Back, or Notes chosen, lets the passage go: its zoom and view are as before Expand (#521 17). The reaction on

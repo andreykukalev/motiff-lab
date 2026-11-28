@@ -10,7 +10,6 @@ import type { Playhead, ScoreGeometry } from "../score-geometry.js";
 import { pressPlaces } from "../../playback/playhead-press.js";
 import { viewOf } from "../../playback/playback-model.js";
 import { PlayheadDrag } from "../../playback/playhead-drag.js";
-import { PRACTICE_ATTRIBUTE, type PracticeShown } from "../../layout/practice-view.js";
 import type { PageCommands, PagePlayheads } from "../page-contract.js";
 import { READING_LINE_PX, documentPoint, pointerRules, post, state } from "./page-state.js";
 import { places, selection } from "./page-selection.js";
@@ -38,9 +37,6 @@ const heads = new ScorePlayheadMarks(document.body, {
         }
     },
 });
-
-/** Practice view on (#533 11): the blue playhead hidden. */
-let practiced = false;
 
 /**
  * The playheads dragged by their handles (#495 UX-08 and UX-10, Scripts/score/playhead-grab.ts): the black one inside the
@@ -150,24 +146,12 @@ function reportGrips(): void {
         return;
     }
     gripsAt = performance.now();
-    // In practice view the blue playhead is hidden, so the Pencil is not kept from writing where it is (#533 11).
-    const grips = state.heads === null || state.focus ? [] : heads.grips().filter(({ handle }) => !practiced || handle !== "blue").map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
+    const grips = state.heads === null || state.focus ? [] : heads.grips().map(({ handle, x, y }) => ({ handle, x: x + window.scrollX, y: y + window.scrollY }));
     const key = grips.map(({ handle, x, y }) => `${handle} ${Math.round(x / 2)} ${Math.round(y / 2)}`).join(",");
     if (key !== gripsReported) {
         gripsReported = key;
         post({ heads: grips });
     }
-}
-
-/**
- * Practice view (#533 11, PracticeView.swift): "on" hides the blue playhead of the selection (score.css), "off" shows it again;
- * the black playhead of the piece stays, dragged and placed by a tap as ever.
- */
-export function practice(shown: PracticeShown): void {
-    practiced = shown === "on";
-    document.body.setAttribute(PRACTICE_ATTRIBUTE, practiced ? "on" : "off");
-    gripsAt = -Infinity;
-    reportGrips();
 }
 
 /**

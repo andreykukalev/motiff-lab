@@ -133,9 +133,9 @@
         "marks": {
           "card": {
             "left": 30,
-            "top": 444,
+            "top": 450,
             "right": 994,
-            "bottom": 914,
+            "bottom": 920,
             "inkTop": 82,
             "inkBottom": 72,
             "scroll": 0
@@ -144,7 +144,7 @@
             {
               "handle": "black",
               "x": 107,
-              "y": 661
+              "y": 667
             }
           ]
         },
@@ -237,9 +237,9 @@
         "marks": {
           "card": {
             "left": 30,
-            "top": 444,
+            "top": 450,
             "right": 994,
-            "bottom": 914,
+            "bottom": 920,
             "inkTop": 82,
             "inkBottom": 72,
             "scroll": 0
@@ -248,7 +248,7 @@
             {
               "handle": "black",
               "x": 964,
-              "y": 879
+              "y": 885
             }
           ]
         },

@@ -30,8 +30,6 @@ extension ScoreScreenContent {
             .onChange(of: contentsSide) { _, side in workspace.contentsSideChanged(side) }
             .onChange(of: panels[.contents]) { _, open in workspace.contentsChanged(open) }
             .onChange(of: focusModel.focused) { _, focused in workspace.focusChanged(focused) }
-            .onChange(of: score.practicing, initial: true) { _, on in workspace.practicingChanged(on) }
-            .onChange(of: score.selectionControlsShown) { _, shown in workspace.selectionControlsChanged(shown) }
             .onChange(of: focusModel.focused && focusModel.asRoll) { _, shown in workspace.focusRollChanged(shown, dark: colorScheme == .dark) }
             .onChange(of: panels[.roll]) { _, open in workspace.rollDrawerChanged(open, dark: colorScheme == .dark) }
             .onChange(of: checkModel.check) { _, _ in workspace.checkChanged() }

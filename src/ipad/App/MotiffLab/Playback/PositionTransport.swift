@@ -52,6 +52,9 @@ struct PositionTransport: View {
                     .padding(.trailing, CGFloat.ds("s-2"))
             }
             .animation(.ds("t-fast"), value: cobalt)
+            // A fingertip's height to touch, the disc as it is (spec score-reading §3.2: targets of at least 44 pt).
+            .frame(minHeight: CGFloat.ds("h-touch"))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.space, modifiers: [])

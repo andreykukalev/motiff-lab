@@ -10,7 +10,7 @@ import WebKit
 
 /// The functions of `window.roll`; the only place that names them.
 enum RollCommand: String, CaseIterable {
-    case load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, practice, input, shape
+    case load, nextColour, colour, theme, position, selection, noteNames, highlight, edit, lanes, input, shape
     case zoom, frame, passage, tuplets
 }
 
@@ -114,10 +114,6 @@ final class RollPage {
 
     func lanes(_ on: Bool) async {
         await send(.lanes, on)
-    }
-
-    func practice(_ on: Bool) async {
-        await send(.practice, on)
     }
 
     /// Who edits and who moves the roll: RollInput.page with RollPlaceInput's fields, as they build it.

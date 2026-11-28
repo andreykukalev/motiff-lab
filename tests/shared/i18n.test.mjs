@@ -67,7 +67,6 @@ const NOT_TEXT = [
     [/\.(?:json|musicxml)$/, "a file name"],
     [/^com\./, "a bundle or file provider id"],
     [/^harmony\.(?:chords|motion)$/, "a music-core fact id"],
-    [/^pdf\.screen$/, "a SwiftUI coordinate space"],
     [/^v\d+\.\d+$/, "a version marker: the assistant's consent list agreed to (AssistantController.consented)"],
 ];
 /** An id listed as no text, unless the app also looks it up as a text (`lookedUp`), whatever else it coincides with. */
