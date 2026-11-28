@@ -1,6 +1,6 @@
 # UI edge cases decided by pattern
 
-**Status (2026-11-27, v1.6 i-14, c-14b3, i-18, c-17b, r-3):** current. New in v1.5 i-7; replaces nothing.
+**Status (2026-11-28, v1.7 e-1):** current. New in v1.5 i-7; replaces nothing.
 
 The register of the iPad app's edge cases that no spec, approved mockup or `docs/ux-baseline.md` entry defines and a
 developer decided by a common pattern (`governance/roles/developer.md`, step 6; Andrei, 2026-11-26): a tap that misses
@@ -24,6 +24,21 @@ extreme selection. Agents keep it; specs and mockups are never edited to record 
   variation in progress, made from the old notes, goes; when the notes stay the same (bars restored that were never
   taken, a double tap) nothing changes · the same as after a correction (`SelectionSession.FollowNotes`, «Править ноты»)
   · v1.5 w17-4
+- `E-score-2` · «Пюпитр»'s strips (spec score-reading §3) on a draft's view, whose pill always shows · the draft's pill
+  is the top strip's second row, the strip a row taller, so nothing lies on the page · a toolbar's second row under the
+  navigation bar (Apple HIG, toolbars) · v1.7 e-1
+- `E-score-3` · What hung under the floating bar: the Pen's palette and Select's row (`ModeOptions`), the recording heard
+  and the read-only line · they hang under the top strip over the page as before: the player opened the first two (spec
+  §3.2, «остаётся поверх листа»), the line takes no touch · the bar's own behaviour since #511 4.2 · v1.7 e-1
+- `E-score-4` · A drawer's or a sheet's height on the Notes screen · a share of the room between the strips, never of the
+  screen, so neither reaches a strip; the roll drawer's kept share keeps its number · the spec's «между полосами»
+  (§3.2) · v1.7 e-1
+- `E-score-5` · A hidden keyboard's bar (a hardware keyboard's language and Undo) over the bottom shelf while a field is
+  focused · the shelf rises above it for that while, over the foot of the page, never above a whole keyboard · the
+  pill's rule since v0.6.4 (`KeyboardLift(barOnly:)`) · v1.7 e-1
+- `E-score-6` · Large Dynamic Type sizes and narrow Split View widths · the strips keep their height (the page never
+  shrinks or jumps); the bar and the shelf take their compact forms (the shelf's «⋯», then its tight form) · fixed-height
+  toolbars that collapse items into More (Apple HIG, toolbars) · v1.7 e-1
 
 ## Roll
 

@@ -168,7 +168,8 @@ struct DraftCardAtMark<Content: View>: View {
     }
 }
 
-/// The pill under the bar of a draft's view (spec «Экран (iPad)», «при сборке»): with приёмы, ‹ › from one occurrence to
+/// The pill under the bar of a draft's view (spec «Экран (iPad)», «при сборке»), since v1.7 e-1 the top strip's second row,
+/// on the strip's surface (`ScoreScreenContent.topStrip`): with приёмы, ‹ › from one occurrence to
 /// the next, the current one's name, «▶ Ноты» and «▶ Запись» for it; always «▶ Всё» (the whole draft) and «↻ Место» (its
 /// place round and round) by the one playback model, «Карта» (the draft's map) and «Полка · N» (its shelf, on the map);
 /// with приёмы «Скрыть номера», which leaves the score to practise on (the numbers, the card and the stepping put away)
@@ -217,7 +218,6 @@ struct DraftAssemblyPill: View {
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(text["drafts.pill"])
     }

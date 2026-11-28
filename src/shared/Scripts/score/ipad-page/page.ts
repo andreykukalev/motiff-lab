@@ -13,9 +13,9 @@ import { checks, layers, notes } from "./page-marks.js";
 import { showVersion } from "./page-versions.js";
 import { phraseMarks } from "./page-phrases.js";
 import { listenPhraseDrag } from "./page-phrase-drag.js";
-import { beats, clearLeft, installMenu, installSelection, menuClosed, menuMoved, menuSize, select, selectionControls } from "./page-selection.js";
+import { beats, clearLeft, installMenu, installSelection, menuClosed, menuMoved, menuSize, select } from "./page-selection.js";
 import { installColouring } from "./page-colouring.js";
-import { installPlayheads, playheads, practice, returnToPlayhead } from "./page-playheads.js";
+import { installPlayheads, playheads, returnToPlayhead } from "./page-playheads.js";
 import { listenHandScroll, playing, writing } from "./page-sounding.js";
 import { focus, installCard, showCard } from "./page-card.js";
 import { input, listenPointerKind, listenTaps, mode, pen } from "./page-taps.js";
@@ -37,5 +37,5 @@ listenResize();
 installCard();
 listenHandScroll();
 
-window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, phraseMarks, layers, playing, returnToPlayhead, mode, playheads, practice, selectionControls, writing, markForgotten: forgetMark } satisfies PageCommands;
+window.motiff = { show, layout, anchor, erase, eraseAlong: eraseAlongPath, rub, rubEnd, input, draw, frames, inView, select, menuSize, menuMoved, menuClosed, pen, beats, focus, card: showCard, inset, highlight, bookmarks, clearLeft, outline, showPage, showTick, firstTickOn, placeAt, lineAt, reveal, notes, checks, performance: showVersion, phraseMarks, layers, playing, returnToPlayhead, mode, playheads, writing, markForgotten: forgetMark } satisfies PageCommands;
 window.webkit?.messageHandlers?.score?.postMessage("ready");

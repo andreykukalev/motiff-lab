@@ -348,9 +348,9 @@ private struct ToastSurface: ViewModifier {
 }
 
 /// Where the selection's toast («Выделение заменено · Вернуть», «Выделение снято · Вернуть», a notice) stands over the bottom
-/// of the score (v0.6.4, Andrei's spec 7): above everything that floats there with the transport (the pill with Loop, the
-/// tempo and the metronome, the practice controls), as tall as that is now, and never under it; over the score's bottom
-/// edge or a drawer when nothing floats.
+/// of the score (v0.6.4, Andrei's spec 7): above everything that floats there (since v1.7 e-1, the pill docked as the
+/// bottom shelf, the chip back to the playing), as tall as that is now, and never under it; over the page's foot or a
+/// drawer when nothing floats.
 enum ToastPlace {
     /// The toast's bottom padding: the transport's own (`pillBottom`), then the transport's measured height and a gap.
     static func bottom(pillBottom: CGFloat, transport: CGFloat, gap: CGFloat) -> CGFloat {

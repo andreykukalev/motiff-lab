@@ -239,9 +239,9 @@
               "current": false,
               "motif": true,
               "left": 212,
-              "top": 506,
+              "top": 512,
               "right": 216,
-              "bottom": 514,
+              "bottom": 520,
               "paint": "ink-3",
               "inside": true
             },
@@ -253,9 +253,9 @@
               "selected": false,
               "current": false,
               "left": 483,
-              "top": 502,
+              "top": 508,
               "right": 491,
-              "bottom": 514,
+              "bottom": 520,
               "paint": "ink-2",
               "inside": true
             },
@@ -267,9 +267,9 @@
               "selected": false,
               "current": false,
               "left": 493,
-              "top": 496,
+              "top": 502,
               "right": 512,
-              "bottom": 516,
+              "bottom": 522,
               "paint": "ink-2",
               "inside": true
             },
@@ -281,9 +281,9 @@
               "selected": false,
               "current": false,
               "left": 516,
-              "top": 496,
+              "top": 502,
               "right": 523,
-              "bottom": 514,
+              "bottom": 520,
               "paint": "ink-2",
               "inside": true
             },
@@ -296,9 +296,9 @@
               "current": false,
               "motif": true,
               "left": 782,
-              "top": 497,
+              "top": 503,
               "right": 786,
-              "bottom": 505,
+              "bottom": 511,
               "paint": "ink-3",
               "inside": true
             },
@@ -310,9 +310,9 @@
               "selected": false,
               "current": false,
               "left": 286,
-              "top": 712,
+              "top": 718,
               "right": 294,
-              "bottom": 724,
+              "bottom": 730,
               "paint": "warning",
               "inside": true
             },
@@ -324,9 +324,9 @@
               "selected": false,
               "current": false,
               "left": 296,
-              "top": 706,
+              "top": 712,
               "right": 303,
-              "bottom": 724,
+              "bottom": 730,
               "paint": "warning",
               "inside": true
             },
@@ -339,9 +339,9 @@
               "current": false,
               "motif": true,
               "left": 469,
-              "top": 710,
+              "top": 716,
               "right": 473,
-              "bottom": 718,
+              "bottom": 724,
               "paint": "ink-3",
               "inside": true
             },
@@ -353,9 +353,9 @@
               "selected": false,
               "current": false,
               "left": 786,
-              "top": 693,
+              "top": 699,
               "right": 794,
-              "bottom": 705,
+              "bottom": 711,
               "paint": "ink-2",
               "inside": true
             },
@@ -367,9 +367,9 @@
               "selected": false,
               "current": false,
               "left": 796,
-              "top": 687,
+              "top": 693,
               "right": 803,
-              "bottom": 705,
+              "bottom": 711,
               "paint": "ink-2",
               "inside": true
             }
@@ -380,54 +380,54 @@
               "of": 2,
               "label": "Мотив 2 фразы 2, такты 6–8",
               "left": 192,
-              "top": 474,
+              "top": 480,
               "right": 236,
-              "bottom": 518
+              "bottom": 524
             },
             {
               "motif": 1,
               "of": 3,
               "label": "Мотив 1 фразы 3, такты 9–11",
               "left": 465,
-              "top": 474,
+              "top": 480,
               "right": 509,
-              "bottom": 518
+              "bottom": 524
             },
             {
               "motif": 2,
               "of": 3,
               "label": "Мотив 2 фразы 3, такты 12–15",
               "left": 762,
-              "top": 465,
+              "top": 471,
               "right": 806,
-              "bottom": 509
+              "bottom": 515
             },
             {
               "motif": 1,
               "of": 4,
               "label": "Мотив 1 фразы 4, такты 15–16",
               "left": 268,
-              "top": 684,
+              "top": 690,
               "right": 312,
-              "bottom": 728
+              "bottom": 734
             },
             {
               "motif": 2,
               "of": 4,
               "label": "Мотив 2 фразы 4, такты 17–19",
               "left": 449,
-              "top": 678,
+              "top": 684,
               "right": 493,
-              "bottom": 722
+              "bottom": 728
             },
             {
               "motif": 1,
               "of": 5,
               "label": "Мотив 1 фразы 5, такты 19–20",
               "left": 768,
-              "top": 665,
+              "top": 671,
               "right": 812,
-              "bottom": 709
+              "bottom": 715
             }
           ],
           "phraseTargets": [
@@ -436,81 +436,81 @@
               "section": "section_1",
               "label": "Часть A, такты 0–8",
               "left": 149,
-              "top": 142,
+              "top": 86,
               "right": 179,
-              "bottom": 186
+              "bottom": 130
             },
             {
               "phrase": 1,
               "section": null,
               "label": "Фраза 1, с такта 0, доля 3, найдена с начала пьесы",
               "left": 179,
-              "top": 142,
+              "top": 86,
               "right": 210,
-              "bottom": 186
+              "bottom": 130
             },
             {
               "phrase": 2,
               "section": null,
               "label": "Фраза 2, с такта 4, доля 3, найдена после половинной каденции",
               "left": 627,
-              "top": 168,
+              "top": 112,
               "right": 671,
-              "bottom": 212
+              "bottom": 156
             },
             {
               "phrase": null,
               "section": "section_2",
               "label": "Часть B, такты 9–23",
               "left": 307,
-              "top": 416,
+              "top": 360,
               "right": 338,
-              "bottom": 460
+              "bottom": 404
             },
             {
               "phrase": 3,
               "section": null,
               "label": "Фраза 3, с такта 9, доля 1, найдена после полной каденции",
               "left": 338,
-              "top": 416,
+              "top": 360,
               "right": 368,
-              "bottom": 460
+              "bottom": 404
             },
             {
               "phrase": 4,
               "section": null,
               "label": "Фраза 4, с такта 15, доля 3, ваша граница",
               "left": 194,
-              "top": 677,
+              "top": 621,
               "right": 238,
-              "bottom": 721
+              "bottom": 665
             },
             {
               "phrase": 5,
               "section": null,
               "label": "Фраза 5, с такта 19, доля 3, найдена после половинной каденции",
               "left": 643,
-              "top": 657,
+              "top": 601,
               "right": 687,
-              "bottom": 701
+              "bottom": 645
             },
             {
               "phrase": 6,
               "section": null,
               "label": "Фраза 6, с такта 24, доля 1, найдена по знаку репризы",
               "left": 357,
-              "top": 910,
+              "top": 854,
               "right": 401,
-              "bottom": 954
+              "bottom": 898
             },
             {
               "phrase": 7,
               "section": null,
               "label": "Фраза 7, с такта 32, доля 1, найдена после половинной каденции",
               "left": 698,
-              "top": 1136,
+              "top": 1080,
               "right": 742,
-              "bottom": 1180
+              "bottom": 1124
             }
           ]
         }
@@ -669,9 +669,9 @@
               "selected": false,
               "current": false,
               "left": 151,
-              "top": 170,
+              "top": 114,
               "right": 159,
-              "bottom": 182
+              "bottom": 126
             },
             {
               "kind": "letter",
@@ -681,9 +681,9 @@
               "selected": false,
               "current": false,
               "left": 161,
-              "top": 164,
+              "top": 108,
               "right": 181,
-              "bottom": 184
+              "bottom": 128
             },
             {
               "kind": "number",
@@ -693,9 +693,9 @@
               "selected": false,
               "current": false,
               "left": 185,
-              "top": 164,
+              "top": 108,
               "right": 191,
-              "bottom": 182
+              "bottom": 126
             },
             {
               "kind": "comma",
@@ -705,9 +705,9 @@
               "selected": false,
               "current": false,
               "left": 635,
-              "top": 196,
+              "top": 140,
               "right": 643,
-              "bottom": 208
+              "bottom": 152
             },
             {
               "kind": "number",
@@ -717,9 +717,9 @@
               "selected": false,
               "current": false,
               "left": 645,
-              "top": 190,
+              "top": 134,
               "right": 652,
-              "bottom": 208
+              "bottom": 152
             },
             {
               "kind": "comma",
@@ -729,9 +729,9 @@
               "selected": false,
               "current": false,
               "left": 310,
-              "top": 444,
+              "top": 388,
               "right": 318,
-              "bottom": 456
+              "bottom": 400
             },
             {
               "kind": "letter",
@@ -741,9 +741,9 @@
               "selected": false,
               "current": false,
               "left": 320,
-              "top": 438,
+              "top": 382,
               "right": 339,
-              "bottom": 458
+              "bottom": 402
             },
             {
               "kind": "number",
@@ -753,9 +753,9 @@
               "selected": false,
               "current": false,
               "left": 343,
-              "top": 438,
+              "top": 382,
               "right": 350,
-              "bottom": 456
+              "bottom": 400
             },
             {
               "kind": "comma",
@@ -765,9 +765,9 @@
               "selected": false,
               "current": false,
               "left": 204,
-              "top": 705,
+              "top": 649,
               "right": 212,
-              "bottom": 717
+              "bottom": 661
             },
             {
               "kind": "number",
@@ -777,9 +777,9 @@
               "selected": false,
               "current": false,
               "left": 214,
-              "top": 699,
+              "top": 643,
               "right": 219,
-              "bottom": 717
+              "bottom": 661
             },
             {
               "kind": "comma",
@@ -789,9 +789,9 @@
               "selected": false,
               "current": false,
               "left": 651,
-              "top": 685,
+              "top": 629,
               "right": 659,
-              "bottom": 697
+              "bottom": 641
             },
             {
               "kind": "number",
@@ -801,9 +801,9 @@
               "selected": false,
               "current": false,
               "left": 661,
-              "top": 679,
+              "top": 623,
               "right": 668,
-              "bottom": 697
+              "bottom": 641
             },
             {
               "kind": "comma",
@@ -813,9 +813,9 @@
               "selected": false,
               "current": false,
               "left": 366,
-              "top": 938,
+              "top": 882,
               "right": 374,
-              "bottom": 950
+              "bottom": 894
             },
             {
               "kind": "number",
@@ -825,9 +825,9 @@
               "selected": false,
               "current": false,
               "left": 376,
-              "top": 932,
+              "top": 876,
               "right": 382,
-              "bottom": 950
+              "bottom": 894
             },
             {
               "kind": "comma",
@@ -837,9 +837,9 @@
               "selected": false,
               "current": false,
               "left": 707,
-              "top": 1164,
+              "top": 1108,
               "right": 715,
-              "bottom": 1176
+              "bottom": 1120
             },
             {
               "kind": "number",
@@ -849,9 +849,9 @@
               "selected": false,
               "current": false,
               "left": 717,
-              "top": 1158,
+              "top": 1102,
               "right": 723,
-              "bottom": 1176
+              "bottom": 1120
             }
           ]
         }

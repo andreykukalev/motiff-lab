@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The bar over the score (ds.css `.bar`): back to the library, the title, which opens the Contents the way a reader opens
-/// a book at its contents, and the pages in view, then Phrases, Pen, the piano roll, Insights, Play and More, in the web
-/// app's order. It shows what it is handed and calls the actions it is handed, and holds no controller (v1.6 i-10):
-/// Practice and the layers list come made, the modes get the mode and the Pen; where it floats is the screen's
-/// (`ScoreScreenContent.bars`).
+/// The bar over the score (ds.css `.bar`), the row of the top strip of «Пюпитр» (spec score-reading §3.2, v1.7 e-1): back to
+/// the library, the Contents, the title, which opens the Contents the way a reader opens a book at its contents, the
+/// switch of views and Sources, the pages in view; at the right the modes, ⓘ with its list, the Circle, Insights and More.
+/// It shows what it is handed and calls the actions it is handed, and holds no controller (v1.6 i-10): the layers list
+/// comes made, the modes get the mode and the Pen; where it stands is the screen's (`ScoreScreenContent.topStrip`).
 struct ScoreBar: View {
     let title: String
     let pages: ScoreController.PagesInView
@@ -17,8 +17,6 @@ struct ScoreBar: View {
     @ObservedObject var marksModel: MarksModel
     /// Handed on to More, for its way to Check and «Мои правки».
     let checkModel: CheckModel
-    /// The button of practice view's two visibilities.
-    let practice: PracticeButton
     /// The list of extra information and the player's layers, under the ⓘ button's chevron and in More.
     let layers: LayersList
     /// Which panels are open (PanelState), and the screen's way to change them.
@@ -46,7 +44,7 @@ struct ScoreBar: View {
     /// The view's note: how many bars the app wrote where the source's record did not fit (`SourcesModel.Engraved.note`),
     /// the first thing in the bar to give way (TopBar).
     var viewNote: String? = nil
-    /// The bar's width, the screen's less its margins (TopBar).
+    /// The bar's width, the screen's less the strip's margins (TopBar).
     var width: CGFloat = 0
     let back: () -> Void
     /// The list of extra information under the ⓘ button's chevron.
@@ -55,7 +53,7 @@ struct ScoreBar: View {
     /// The bar is laid out as the PDF's (TopBar, #479 item 13, #582 item 2): Back, the Contents, the title and the switch
     /// in the same places in both views, then the pages in view, and each view's own actions at the right.
     var body: some View {
-        TopBar(width: width, pages: pageText, note: viewNote) {
+        TopBar(width: width, pages: pageText, note: viewNote, docked: true) {
             BarLeading(title: title, contentsOpen: panels.binding(.contents, change: change), text: text, back: back)
             if let sourceLayers, let pickView {
                 SourcesViewSwitch(layers: sourceLayers, current: currentView, text: text, pick: pickView) { change(.open(.versions)) }
@@ -71,15 +69,14 @@ struct ScoreBar: View {
         }
     }
 
-    /// In groups without captions, as the approved mockup v0.5.2 (#479 item 21): what the score shows (Phrases, the extra
-    /// information), then how the score is used (the modes), then the Circle and
-    /// Insights, then Play and More. Compact where the bar is short (#582 item 2): the chosen mode by its icon alone.
+    /// In groups without captions, in the order of «Пюпитр» (spec score-reading §3.2): how the score is used (the modes),
+    /// then what it shows (the extra information and its list), the Circle and Insights, then More. Compact where the bar
+    /// is short (#582 item 2): the chosen mode by its icon alone.
     @ViewBuilder private func actions(compact: Bool) -> some View {
-        viewButtons
-        PaletteDivider()
         // The modes (version 0.5): one group for the score and the roll, the Pen in it.
         ModeGroup(mode: $mode, penModel: penModel, text: text, compact: compact)
         PaletteDivider()
+        viewButtons
         if let openReference {
             // The Reference: the Circle, the circle with a sharp, opens the circle of fifths.
             Button(action: openReference) {
@@ -97,7 +94,7 @@ struct ScoreBar: View {
         .buttonStyle(BarActionStyle(on: panels[.insights]))
         .accessibilityLabel(text["bar.insights"])
         .accessibilityAddTraits(panels[.insights] ? .isSelected : [])
-        practice
+        // «Вид страницы» comes here, before More (spec score-reading §4, v1.7 e-3).
         PaletteDivider()
         playAndMore
     }

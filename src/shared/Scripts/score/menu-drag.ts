@@ -5,6 +5,7 @@
 // never kept anywhere else. The rules are pure (keptInside, movedSpot, MenuPin); MenuDragger follows the web menu's pointer,
 // and the iPad's Swift menu, which follows its own drag, hands the page where it was let go (SelectionLayer.moveMenuBy).
 
+import { token } from "../layout/tokens.js";
 import { DRAG_DISTANCE } from "../selection/selection-gesture.js";
 import { MENU_MARGIN, MENU_TOP, menuClear } from "./selection-menu.js";
 
@@ -14,22 +15,25 @@ export interface MenuSpot {
     top: number;
 }
 
-/** The window and the part of it the drawers and sheets leave the menu (menuClear). */
+/** The window and the part of it the drawers and sheets leave the menu (menuClear), and how far below its top the menu keeps. */
 export interface MenuRoom {
     width: number;
     height: number;
     left?: number;
     right?: number;
     bottom?: number;
+    top?: number;
 }
 
 /**
  * The window as the menu has it: the drawers and sheets lie over the menu, so it keeps clear of them (data-menu-clear): to
- * the right of the Contents, to the left of a sheet on the right, above a drawer or sheet over the foot.
+ * the right of the Contents, to the left of a sheet on the right, above a drawer or sheet over the foot. Below the top as
+ * far as the page's stylesheet says (`--menu-top`: the iPad's page, between its strips), else below the web's bar.
  */
 export function menuRoom(): MenuRoom {
     const clear = menuClear([...document.querySelectorAll<HTMLElement>("[data-menu-clear]")], window.innerWidth, window.innerHeight);
-    return { width: window.innerWidth, height: window.innerHeight, ...clear };
+    const top = Number.parseFloat(token("menu-top"));
+    return { width: window.innerWidth, height: window.innerHeight, ...clear, ...(Number.isFinite(top) ? { top } : {}) };
 }
 
 /** A spot for a menu of `size` kept inside the room: inside its sides, below the bar at the top and above its foot. */
@@ -39,7 +43,7 @@ export function keptInside(spot: MenuSpot, size: { width: number; height: number
     const floor = (room.bottom ?? room.height) - MENU_MARGIN;
     return {
         left: Math.max(start, Math.min(end - size.width, spot.left)),
-        top: Math.max(MENU_TOP, Math.min(floor - size.height, spot.top)),
+        top: Math.max(room.top ?? MENU_TOP, Math.min(floor - size.height, spot.top)),
     };
 }
 

@@ -49,6 +49,16 @@ test("the menu keeps left of a sheet on the right and above a drawer over the fo
     assert.equal(low.top, 72);
 });
 
+test("between the iPad's strips the menu keeps below the top the page gives, not below the web's bar (v1.7 e-1)", () => {
+    const menu = { width: 300, height: 44 };
+    // The band 110 px down: above it there is room under the page's top (16 px), none under the web's bar (72 px).
+    const above = menuPlace({ left: 100, right: 300, top: 110 }, { bottom: 200 }, menu, { width: 1180, height: 700, top: 16 });
+    assert.equal(above.below, false, "above the band, between the strips");
+    assert.equal(menuPlace({ left: 100, right: 300, top: 110 }, { bottom: 200 }, menu, { width: 1180, height: 700 }).below, true, "the web's bar");
+    const low = menuPlace({ left: 100, right: 300, top: 20 }, { bottom: 600 }, { width: 300, height: 200 }, { width: 1180, height: 700, top: 16, bottom: 200 });
+    assert.equal(low.top, 16, "never above the page's top");
+});
+
 // Selection by beats (#349): the drag and the handles snap to the beat lines music-core gives.
 const bar = { tick: 1920, end: 3840 };
 const lines = [0, 480, 960, 1440, 1920, 2400, 2880, 3360, 3840, 4320];

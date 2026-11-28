@@ -28,11 +28,6 @@ extension ScoreScreenContent {
         piece.draft != nil && draftMap?.wrappedValue != nil ? pieceUnder : nil
     }
 
-    /// Where a sheet at the side starts: under the bar; a draft's map under the draft's pill too, which stays in reach.
-    private var sideSheetTop: CGFloat {
-        mapOwner == nil ? Self.barBottom : barsBottom
-    }
-
     /// What the sheet over the right holds: Sources, Check, a draft's map (v1.1, DraftMap.swift), or Insights.
     @ViewBuilder private func sheetContent() -> some View {
         if panels[.versions] && sourcesOn {
@@ -53,7 +48,8 @@ extension ScoreScreenContent {
         }
     }
 
-    /// The sheet over the right where it goes: beside the score under the bars, or over the lower half.
+    /// The sheet over the right where it goes: beside the score between the strips, or over the lower half of the room
+    /// between them, on the bottom shelf.
     @ViewBuilder func sideSheet(_ sheet: SheetPlace) -> some View {
         switch sheet {
         case .none:
@@ -64,8 +60,7 @@ extension ScoreScreenContent {
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                 .dsShadow("shadow-sheet")
                 .frame(width: ScoreScreen.sheetWidth)
-                .padding(.top, sideSheetTop)
-                .padding([.trailing, .bottom], CGFloat.ds("s-3"))
+                .padding([.top, .trailing, .bottom], CGFloat.ds("s-3"))
                 .transition(.move(edge: .trailing).combined(with: .opacity))
         case .bottom(let height):
             sheetContent()
@@ -74,11 +69,10 @@ extension ScoreScreenContent {
                 .frame(height: height)
                 .padding(.horizontal, CGFloat.ds("s-3"))
                 .transition(.move(edge: .bottom))
-                .ignoresSafeArea(edges: .bottom)
         }
     }
 
-    /// The Contents drawer where it goes: over the left of the page in landscape, from the bottom in portrait.
+    /// The Contents drawer where it goes: over the left of the page in landscape, from the bottom shelf in portrait.
     @ViewBuilder func contentsDrawer(_ place: SheetPlace) -> some View {
         switch place {
         case .none:
@@ -89,8 +83,7 @@ extension ScoreScreenContent {
                 .overlay(RoundedRectangle(cornerRadius: CGFloat.ds("r-l")).strokeBorder(Color.ds("hairline")))
                 .dsShadow("shadow-sheet")
                 .frame(width: ScoreScreen.contentsWidth)
-                .padding(.top, CGFloat.ds("s-3") + CGFloat.ds("h-touch") + CGFloat.ds("s-2"))
-                .padding([.leading, .bottom], CGFloat.ds("s-3"))
+                .padding([.top, .leading, .bottom], CGFloat.ds("s-3"))
                 .transition(.move(edge: .leading).combined(with: .opacity))
         case .bottom(let height):
             VStack {
@@ -102,7 +95,6 @@ extension ScoreScreenContent {
                     .padding(.horizontal, CGFloat.ds("s-3"))
             }
             .transition(.move(edge: .bottom))
-            .ignoresSafeArea(edges: .bottom)
         }
     }
 }

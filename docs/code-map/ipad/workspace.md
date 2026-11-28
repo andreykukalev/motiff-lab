@@ -29,7 +29,7 @@ only the view has (appearance, geometry, `switchView`, `reopen`, texts, the cove
 
 `ScoreBar`, `Pill` (v1.6 i-9): handed what they show and the actions they call; what an action does is the screen's
 (`ScoreScreenBars`) or the workspace's, never theirs, so a new layout of the screen can move them. The pill names no
-controller; since v1.6 i-10 neither does the bar: the screen makes Practice and the layers list for it, and the modes get
+controller; since v1.6 i-10 neither does the bar: the screen makes the layers list for it, and the modes get
 the mode as a binding and the Pen.
 
 ### The order the view must keep

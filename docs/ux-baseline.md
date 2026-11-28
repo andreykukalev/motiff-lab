@@ -1,6 +1,6 @@
 # UX baseline: the behaviour Andrei approved
 
-Status: current, 2026-11-27 (v1.6 b-3: the baseline of 1.6). The first edition: it replaces nothing, and brings back in a smaller form item 18 of
+Status: current, 2026-11-28 (v1.7 e-1: «Пюпитр»'s strips on the notes; no entry's behaviour changed, the page scenarios' measured places moved up with the page between the strips, 56 px; v1.6 b-3: the baseline of 1.6). The first edition: it replaces nothing, and brings back in a smaller form item 18 of
 Andrei's v0.6.1 spec (#582), which he cancelled then and approved in this form on 2026-11-16 (decision 2 of the
 architecture blueprint for v0.7, #641). PLAY-04 and SCAN-01 were settled by Andrei on 2026-11-16, 22:54 UTC. His
 answers of 2026-11-17, 08:31 UTC (thread «Версия 0.7», #641: «Всё что ты предлагал аппрув», to eight questions the

@@ -307,11 +307,22 @@ private struct ControlShapeKey: EnvironmentKey {
     static let defaultValue = ControlShape.rounded
 }
 
+private struct ItemReachKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
 extension EnvironmentValues {
     /// The outline the controls inside a container take for their tint (ControlShape).
     var controlShape: ControlShape {
         get { self[ControlShapeKey.self] }
         set { self[ControlShapeKey.self] = newValue }
+    }
+
+    /// How tall an item's touch reaches at least (`DSItemStyle`), its tint as tall as ever: the bottom shelf's
+    /// fingertip (`h-touch`, v1.7 e-1); 0 elsewhere, the item's own height.
+    var itemReach: CGFloat {
+        get { self[ItemReachKey.self] }
+        set { self[ItemReachKey.self] = newValue }
     }
 }
 
@@ -394,6 +405,7 @@ struct DSItemStyle: ButtonStyle {
     /// The tint's outline: a capsule in the pill and palettes, a row's rounded rectangle in a list (ControlShape).
     var outline = ControlShape.capsule
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.itemReach) private var reach
 
     func makeBody(configuration: Configuration) -> some View {
         SteadyLabel(label: configuration.label, on: on)
@@ -401,8 +413,10 @@ struct DSItemStyle: ButtonStyle {
             .padding(.horizontal, CGFloat.ds("s-3"))
             .frame(minHeight: 36)
             .background(on || configuration.isPressed ? Color.ds("accent-tint") : .clear, in: outline.shape)
+            // Where the shelf asks for a fingertip (`itemReach`), the touch takes its whole height round the tint.
+            .frame(minHeight: reach)
             .opacity(isEnabled ? 1 : 0.38)
-            .contentShape(outline.shape)
+            .contentShape(reach > 0 ? AnyShape(Rectangle()) : outline.shape)
     }
 }
 
@@ -454,6 +468,22 @@ struct FloatingSurface: ViewModifier {
             .background(.ultraThinMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(Color.ds("hairline")))
             .dsShadow(shadow)
+    }
+}
+
+/// A strip docked to the top or the bottom edge of the screen («Пюпитр», spec score-reading §3.1, v1.7 e-1): across the
+/// whole width, the opaque surface out to the screen's edge (under the status bar or the home indicator), the hairline
+/// on the side of the page, no shadow, radius or blur. Its content keeps inside the safe area.
+struct DockedStrip: ViewModifier {
+    let edge: VerticalEdge
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity)
+            .background(Color.ds("surface").ignoresSafeArea(edges: edge == .top ? [.top, .horizontal] : [.bottom, .horizontal]))
+            .overlay(alignment: edge == .top ? .bottom : .top) {
+                Rectangle().fill(Color.ds("hairline")).frame(height: 1)
+            }
     }
 }
 

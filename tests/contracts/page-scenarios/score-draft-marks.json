@@ -128,9 +128,9 @@
               "text": "",
               "state": "open",
               "left": 663,
-              "top": 195,
+              "top": 139,
               "right": 687,
-              "bottom": 219
+              "bottom": 163
             },
             {
               "kind": "place",
@@ -138,8 +138,8 @@
               "text": "① Ноты 1–4",
               "state": null,
               "left": 210,
-              "top": 169,
-              "bottom": 193
+              "top": 113,
+              "bottom": 137
             },
             {
               "kind": "technique",
@@ -147,9 +147,9 @@
               "text": "1",
               "state": "open",
               "left": 337,
-              "top": 195,
+              "top": 139,
               "right": 369,
-              "bottom": 219
+              "bottom": 163
             },
             {
               "kind": "technique",
@@ -157,9 +157,9 @@
               "text": "1",
               "state": "taken",
               "left": 444,
-              "top": 195,
+              "top": 139,
               "right": 476,
-              "bottom": 219
+              "bottom": 163
             },
             {
               "kind": "place",
@@ -167,8 +167,8 @@
               "text": "② Ноты 9–12",
               "state": null,
               "left": 693,
-              "top": 195,
-              "bottom": 219
+              "top": 139,
+              "bottom": 163
             }
           ]
         },

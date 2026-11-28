@@ -9,7 +9,10 @@ const MENU_GAP = 14;
 /** The bracket's number stands this tall above the bracket line. */
 export const NUMBER_HEIGHT = 16;
 
-/** The menu stays this far inside the window's sides, and below the bar at the top. */
+/**
+ * The menu stays this far inside the window's sides, and below the bar at the top: the web's bar floats over the score;
+ * the iPad's page lies between two strips and says how far in its stylesheet (`--menu-top`, menuRoom).
+ */
 export const MENU_MARGIN = 16;
 export const MENU_TOP = 72;
 
@@ -40,24 +43,26 @@ export function menuClear(elements: readonly HTMLElement[], width: number, heigh
 /**
  * Where the menu goes for a band (all in window pixels): centred over the band's first run, above its
  * bracket number, or under the band's last run when there is no room above; kept inside the window, right of
- * `window.left`, left of `window.right` and above `window.bottom` where drawers and sheets cover the window.
+ * `window.left`, left of `window.right` and above `window.bottom` where drawers and sheets cover the window, and below
+ * `window.top` (MENU_TOP unless the page says otherwise).
  * `pointer` is where its little arrow sits across the menu.
  */
 export function menuPlace(
     first: { left: number; right: number; top: number },
     last: { bottom: number },
     menu: { width: number; height: number },
-    window: { width: number; height: number; left?: number; right?: number; bottom?: number },
+    window: { width: number; height: number; left?: number; right?: number; bottom?: number; top?: number },
 ): { left: number; top: number; below: boolean; pointer: number } {
     const centre = (first.left + first.right) / 2;
     const start = (window.left ?? 0) + MENU_MARGIN;
     const end = (window.right ?? window.width) - MENU_MARGIN;
     const left = Math.max(start, Math.min(end - menu.width, centre - menu.width / 2));
     const above = first.top - BRACKET_LIFT - NUMBER_HEIGHT - MENU_GAP - menu.height;
-    const below = above < MENU_TOP;
+    const ceiling = window.top ?? MENU_TOP;
+    const below = above < ceiling;
     // Under the band, the menu (or the card it holds) stays above a drawer over the foot of the window.
     const floor = (window.bottom ?? window.height) - MENU_MARGIN;
-    const top = below ? Math.max(MENU_TOP, Math.min(last.bottom + MENU_GAP, floor - menu.height)) : above;
+    const top = below ? Math.max(ceiling, Math.min(last.bottom + MENU_GAP, floor - menu.height)) : above;
     const pointer = Math.max(20, Math.min(menu.width - 20, centre - left));
     return { left, top, below, pointer };
 }

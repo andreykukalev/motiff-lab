@@ -44,7 +44,6 @@
   "selection.phrase": "Phrase {0} · {1}",
   "menu.label": "Selection",
   "menu.more": "More for the selection",
-  "menu.hide": "Hide: practice view, the selection stays",
   "selection.handleStart": "Start of the selection: drag it to a barline, or move it a bar with the arrow keys",
   "selection.handleEnd": "End of the selection: drag it to a barline, or move it a bar with the arrow keys",
   "focus.showAs": "Show the phrase as",

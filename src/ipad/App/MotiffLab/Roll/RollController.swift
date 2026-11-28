@@ -102,8 +102,6 @@ final class RollController: NSObject, ObservableObject {
     private var shownPosition: (tick: Double, playing: Bool, label: String, looping: Bool)?
     /// The lanes of version 0.5.2 (#479 item 25): one position, the loop strip and the whole piece; under the modes, not in focus.
     private var lanesOn = false
-    /// Practice view (#533 11): the roll draws the black playhead alone, without the loop strip and the blue one.
-    private var practiceOn = false
     /// The note editor as last shown: on or off, its tool and the note picked.
     private var editor = RollEditorShown()
     /// The note editor's state as the score has it; nil while it is closed.
@@ -183,14 +181,6 @@ final class RollController: NSObject, ObservableObject {
         lanesOn = on
         guard loaded else { return }
         Task { await page.lanes(on) }
-    }
-
-    /// Practice view on or off (#533 11, PracticeView.swift).
-    func practice(_ on: Bool) {
-        guard on != practiceOn else { return }
-        practiceOn = on
-        guard loaded else { return }
-        Task { await page.practice(on) }
     }
 
     /// The selection, shaded with its notes lit, and the span that loops; nil for none.
@@ -373,9 +363,6 @@ final class RollController: NSObject, ObservableObject {
             shownPiece = id
             if lanesOn {
                 await page.lanes(true)
-            }
-            if practiceOn {
-                await page.practice(true)
             }
             if let shownPosition {
                 await page.position(shownPosition.tick, playing: shownPosition.playing, label: shownPosition.label, looping: shownPosition.looping)

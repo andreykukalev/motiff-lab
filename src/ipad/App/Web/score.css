@@ -1,11 +1,13 @@
-/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). The score is the whole screen
-   (0018 section 2): A4 pages, one column of them in portrait and two to a row in landscape like an open book, under the
-   floating bar and above the pill, which Swift lays over the page. */
+/* Colours and sizes come from the design kit (design/kit/tokens.css, copied into the app). The score (0018 section 2): A4
+   pages, one column of them in portrait and two to a row in landscape like an open book. Since v1.7 e-1 («Пюпитр», spec
+   score-reading §3) the page is exactly the room between Swift's two opaque strips, so it keeps only a margin to them. */
 :root {
   --page-gap: var(--s-4);
-  /* The floating bar: its margin, its height and a gap; the pill and a gap below the last page. */
-  --pad-top: calc(var(--s-3) + var(--h-touch) + var(--s-4));
-  --pad-bottom: calc(52px + var(--s-4) * 2);
+  /* A margin above the first page and below the last, to the strips. */
+  --pad-top: var(--s-4);
+  --pad-bottom: var(--s-4);
+  /* The selection's menu keeps this far below the top of the page (selection-menu.ts MENU_TOP on the web). */
+  --menu-top: var(--s-4);
 }
 body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); background: var(--desk); position: relative; -webkit-user-select: none; user-select: none; }
 #pages {
@@ -13,7 +15,7 @@ body { margin: 0; padding: var(--pad-top) var(--s-4) var(--pad-bottom); backgrou
   grid-template-columns: repeat(2, auto);
   justify-content: center;
   gap: var(--page-gap);
-  /* Two pages fill the width, or the height under the bar, whichever is less. */
+  /* Two pages fill the width, or the height between the strips, whichever is less. */
   --page-w: min(calc((100vw - var(--s-4) * 2 - var(--page-gap)) / 2), calc((100vh - var(--pad-top) - var(--s-4)) * 210 / 297));
 }
 #pages:has(> .page:only-child) { grid-template-columns: auto; }
@@ -144,8 +146,6 @@ body.hide-phrases :is(.phrase-ink, button.phrase-mark) { display: none; }
 button.sel-handle { position: absolute; z-index: 2; width: 14px; height: 14px; min-height: 0; padding: 0; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); touch-action: none; }
 button.sel-handle::before { content: ""; position: absolute; inset: -15px; border-radius: 50%; }
 button.sel-handle.dragging { background: var(--accent); }
-/* The selection controls hidden (#582 item 10): the handles go with the menu; the band stays. */
-body[data-selection-hidden] .sel-handle { visibility: hidden; }
 /* Selection by beats (an experiment): a short cobalt tick down from the band's top at each beat inside it. */
 .sel-beat { position: absolute; z-index: 1; width: 1.5px; height: var(--s-2); background: var(--accent); transform: translateX(-50%); pointer-events: none; }
 /* Selection by the place of the touch (v0.6.2, #601; the kit's .band and .handle): an edge is taken anywhere down the band's
@@ -156,7 +156,6 @@ body[data-selection-hidden] .sel-handle { visibility: hidden; }
 .sel-edge { position: absolute; z-index: 2; width: 0; pointer-events: none; }
 .sel-edge::after { content: ""; position: absolute; left: 0; top: var(--handle-y, 50%); width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); transform: translate(-50%, -50%); }
 .sel-edge.hot::after { background: var(--accent); }
-body[data-selection-hidden] .sel-edge { visibility: hidden; }
 .sel-ghost, .sel-add { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); border-radius: 3px; pointer-events: none; }
 .sel-add { background: var(--accent-tint); }
 /* The rectangle a new selection is drawn with (v0.6.3, the approved mockup's .trace): from the press to the stylus, thin and
@@ -179,7 +178,7 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 #focus[hidden] { display: none; }
 #focus .veil { position: absolute; inset: 0; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: var(--dim); animation: veil-in var(--t-slow) var(--ease); }
 @keyframes veil-in { from { opacity: 0; } }
-#focus .stage { position: absolute; top: calc(var(--s-3) + var(--h-touch) + var(--s-5)); left: var(--s-4); right: var(--s-4); bottom: var(--pad-bottom); display: flex; flex-direction: column; justify-content: center; pointer-events: none; }
+#focus .stage { position: absolute; top: var(--s-5); left: var(--s-4); right: var(--s-4); bottom: var(--pad-bottom); display: flex; flex-direction: column; justify-content: center; pointer-events: none; }
 #focus .card { position: relative; min-height: 0; display: flex; background: var(--paper); color: var(--notation); border: 2px solid var(--accent); border-radius: var(--r-m); box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-sheet); pointer-events: auto; animation: card-lift var(--t-slow) var(--ease); }
 @keyframes card-lift { from { transform: scale(0.96); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #focus .veil, #focus .card { animation: none; } }
@@ -226,8 +225,6 @@ body[data-selection-hidden] .sel-edge { visibility: hidden; }
 /* The playheads' handles (#495 UX-08): the black dot and the cobalt knob take the pen or a finger within a touch target,
    and the page does not scroll from there, so a drag moves the playhead and selects no bar. */
 :is(.gtrack .dot, .ph-sel .knob).grip { pointer-events: auto; touch-action: none; }
-/* Practice view (#533 11): the blue playhead of the selection goes; the black one of the piece stays, still taken. */
-body[data-practice="on"] .ph-sel { visibility: hidden; }
 :is(.gtrack .dot, .ph-sel .knob).grip::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--h-touch); height: var(--h-touch); border-radius: 50%; transform: translate(-50%, -50%); }
 /* Under the modes the notes sounding stay in the notation's ink, drawn heavier: cobalt is the selection's colour only. */
 body[data-mode] .page :is(g.note, g.chord).playing { fill: var(--notation); stroke: var(--notation); color: var(--notation); }

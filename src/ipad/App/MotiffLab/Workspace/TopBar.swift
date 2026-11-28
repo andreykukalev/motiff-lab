@@ -6,18 +6,20 @@ import SwiftUI
 /// views, so switching views moves nothing there. What gives way where the bar is short is the rest, in this order: the
 /// view's note goes (whole, v1.4), then the pages in view (whole, never cut to an ellipsis), then the actions take their
 /// compact form, then they scroll sideways. Before 0.6.1 the score's longer row of actions squeezed the title to nothing
-/// and cut the pages to a lone «…».
+/// and cut the pages to a lone «…». Docked (the notes' «Пюпитр», v1.7 e-1) it is the top strip's row, on the strip's
+/// surface (`DockedStrip`, laid by the screen); else it floats in its own capsule (the PDF and the recording until e-2).
 struct TopBar<Leading: View, Actions: View, Compact: View>: View {
-    /// The bar's width: the screen's, less the margins the bar floats in.
+    /// The bar's width: the screen's, less the margins the bar floats in or the strip's.
     let width: CGFloat
     /// "p. 2 of 4", or nil before the pages are laid out.
     let pages: String?
     /// The view's note after the start («По записи источника, 4 такта записаны приложением»); nil for none.
     var note: String? = nil
+    /// The row of the top strip (no capsule of its own), not a bar floating over the page.
+    var docked = false
     @ViewBuilder let leading: () -> Leading
     @ViewBuilder let actions: () -> Actions
     @ViewBuilder let compact: () -> Compact
-    @Environment(\.readOnlyLine) private var readOnlyLine
 
     var body: some View {
         HStack(spacing: CGFloat.ds("s-2")) {
@@ -39,13 +41,28 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
         }
         .padding(.horizontal, CGFloat.ds("s-2"))
         .frame(height: CGFloat.ds("h-touch"))
-        .modifier(FloatingSurface())
-        .overlay(alignment: .bottomLeading) { readOnly }
+        .modifier(BarSurface(floating: !docked))
+        // Docked, the line hangs under the whole strip instead (`ScoreScreenContent.topStrip`), below a draft's pill too.
+        .overlay(alignment: .bottomLeading) { if !docked { ReadOnlyLine() } }
     }
 
-    /// The piece's one line that it opened read-only (project file 18, `PieceScreen`), hung under the bar of every view of
-    /// the piece without changing the bar's height or taking a touch; nothing for a piece that saves.
-    @ViewBuilder private var readOnly: some View {
+    private func rest(note: String? = nil, pages: String?, @ViewBuilder _ actions: () -> some View) -> some View {
+        HStack(spacing: CGFloat.ds("s-2")) {
+            if let note { Tag(text: note, kind: .assumed).lineLimit(1).fixedSize() }
+            if let pages { BarPages(text: pages) }
+            Spacer(minLength: CGFloat.ds("s-2"))
+            actions()
+        }
+    }
+}
+
+/// The piece's one line that it opened read-only (project file 18, `PieceScreen`), hung under the bar (or the top strip)
+/// of every view of the piece without changing its height or taking a touch; nothing for a piece that saves. Laid as an
+/// overlay at the bottom leading corner of what it hangs under.
+struct ReadOnlyLine: View {
+    @Environment(\.readOnlyLine) private var readOnlyLine
+
+    var body: some View {
         if let readOnlyLine {
             Text(readOnlyLine).dsType(.caption).foregroundStyle(Color.ds("warning"))
                 .fixedSize(horizontal: false, vertical: true)
@@ -56,13 +73,17 @@ struct TopBar<Leading: View, Actions: View, Compact: View>: View {
                 .allowsHitTesting(false)
         }
     }
+}
 
-    private func rest(note: String? = nil, pages: String?, @ViewBuilder _ actions: () -> some View) -> some View {
-        HStack(spacing: CGFloat.ds("s-2")) {
-            if let note { Tag(text: note, kind: .assumed).lineLimit(1).fixedSize() }
-            if let pages { BarPages(text: pages) }
-            Spacer(minLength: CGFloat.ds("s-2"))
-            actions()
+/// The bar's own capsule while it floats (FloatingSurface); docked, the strip's surface is its.
+private struct BarSurface: ViewModifier {
+    let floating: Bool
+
+    func body(content: Content) -> some View {
+        if floating {
+            content.modifier(FloatingSurface())
+        } else {
+            content
         }
     }
 }
