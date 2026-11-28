@@ -333,8 +333,9 @@ struct ScoreScreenContent: View {
                         .padding(.trailing, Self.footTrailing(sheet: sheet, side: 0))
                 }
             }
-        let room = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
-        return following(sourcing(checking(watching(wired(laid), covered: room, contentsSide: contentsPlace == .side))))
+        // The room the page keeps under its last page for what covers its foot (the drawer at the height it was left at).
+        let underLast = max(inset, sheet.bottomHeight, contentsPlace.bottomHeight)
+        return following(sourcing(checking(watching(wired(laid), covered: underLast, contentsSide: contentsPlace == .side))))
     }
 
     /// A question to the full assistant about what it looks at now: the selection, or the whole piece.
