@@ -19,7 +19,7 @@ internal sealed partial class OpenPiece
             throw FacadeException.BadRequest($"\"step\" is 0 to {Projects.LargerNotes.MaxStep}.");
         }
 
-        Project = Project with { LargerNotes = step };
+        Project = Project.WithLargerNotes(step);
         return Answer.Write(LargerNotesAnswer);
     }
 

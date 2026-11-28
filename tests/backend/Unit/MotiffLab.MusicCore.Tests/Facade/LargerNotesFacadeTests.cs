@@ -1,8 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using MotiffLab.MusicCore.Facade;
 using MotiffLab.MusicCore.Projects;
+
+using MotiffLab.MusicCore.Tests.Projects;
 
 using static MotiffLab.MusicCore.Tests.Facade.FacadeCalls;
 
@@ -52,6 +55,28 @@ public class LargerNotesFacadeTests
 
         Assert.Equal("badRequest", Error(facade, "largerNotes.set", request));
         Assert.Equal(2, Call(facade, "largerNotes").GetProperty("step").GetInt32());
+    }
+
+    /// <summary>A PDF's pages are shown as they are, never laid out again: a PDF piece has no step (docs/facade-contract.md, 17).</summary>
+    [Fact]
+    public void A_pdf_piece_answers_noNotes_for_both_calls()
+    {
+        MusicCoreFacade facade = Opened(Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n"), "Nocturne.pdf");
+
+        Assert.Equal(("noNotes", "noNotes"), (Error(facade, "largerNotes"), Error(facade, "largerNotes.set", """{"step": 7}""")));
+    }
+
+    /// <summary>A later build's copy pulled from online is written again as it came (SyncRequest): its step 25 is not brought to 10.</summary>
+    [Fact]
+    public void A_later_builds_copy_pulled_from_online_keeps_its_step_as_it_came()
+    {
+        JsonObject file = JsonNode.Parse(GoldenFiles.Kept("v20-future.motiff.json"))!.AsObject();
+        file["workspace"]!["largerNotes"] = 25;
+
+        JsonElement pulled = Json(new MusicCoreFacade().Call(0, "project.pulled", JsonSerializer.Serialize(new { file = file.ToJsonString() })));
+
+        Assert.True(pulled.GetProperty("readOnly").GetBoolean());
+        Assert.Equal(25, Json(pulled.GetProperty("file").GetString()!).GetProperty("workspace").GetProperty("largerNotes").GetInt32());
     }
 
     [Fact]
